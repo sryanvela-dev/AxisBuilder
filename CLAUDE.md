@@ -67,6 +67,8 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - Project Settings: label in col A, value in col B, read by label via `GetSettingValue`.
   OCR writes fixed cells: B5 project name, B9 orientation, B10 length, B11 height,
   B21/B22 axis direction text, B29–B36 reference labels.
+  "AUT Hatch Transparency" (0-90, default 50) goes in a new row directly below "AUT Hatch Angle"
+  (row 44 once inserted); until the row exists the code uses 50.
 - Shell Features: circ welds 3–12 (A ID, B Y, C Include, D Label); long seams 15–24
   (A ID, B X, C StartY, D StopY, E Include, F Label); nozzles 27–46 (A ID, B Dia, C X, D Y,
   E MinT, F Notes, G Include, H LabelMode; found by header "Nozzles / Circles" in row 25);
@@ -81,8 +83,9 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - Scan Images: A Scan, B Image File, C Processed Image, D Include, E Status, F Notes.
 
 ## Open issues
-3. Master export uses setting "Hatch Scale" (not on the sheet) instead of "AUT Hatch Scale",
-   and forces hatch ON, ignoring "AUT Hatch Enabled".
+3. FIXED 2026-10-15 (see Change log). Still open: `SL_HATCH_ANGLE` and "AUT Hatch Pattern" are
+   written/stored but unused (SL_HatchRect always draws 45-degree lines), and the legend AUT/MUT
+   hatch samples are drawn even when "AUT Hatch Enabled" = NO.
 4. Degree sign stored as "Â°" → degree clock entries are rejected; NAMEPLATE labels print
    "NP + 90Â°". Fix with `ChrW(176)`.
 5. OCR import writes clock values like "3:30" into General-format cells; Excel probably
@@ -104,3 +107,9 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   no longer crashes it). Fix 2, reads "Show Rulers" and "Show Head Clock References" (sheet
   labels), with the old names as fallback. Applied by the user. Head clock reference still
   needs a field test.
+- 2026-10-15 – SLG_Utilities: Fix #3, `ExportAxisBuilderLSP` now reads "AUT Hatch Enabled",
+  "AUT Hatch Scale" (fallback "Hatch Scale") and "AUT Hatch Angle", matching `ExportScanLayoutLSP`.
+  New: layer transparency on all hatch layers (AUT_HATCH, LEGEND_AUT_HATCH, LEGEND_MUT_HATCH,
+  MANUAL_UT_HATCH, REPORT_LEGEND_AUT, REPORT_LEGEND_MUT) from setting "AUT Hatch Transparency"
+  (default 50) via `SL_SetLayerTransparency` (`-LAYER Transparency`, wrapped in vl-catch-all-apply).
+  DraftSight syntax tested by the user by hand; full export not yet field-tested.

@@ -2528,6 +2528,7 @@ Private Sub WriteSectionViewportLisp(ByVal f As Integer)
     Print #f, "              (SL_Layer ""REPORT_LEGEND"" 7)"
               Print #f, "              (SL_Layer ""REPORT_LEGEND_AUT"" 5)"
               Print #f, "              (SL_Layer ""REPORT_LEGEND_MUT"" 3)"
+              Print #f, "              (SL_SetLayerTransparency ""REPORT_LEGEND_AUT,REPORT_LEGEND_MUT"")"
               Print #f, "              (SL_Layer ""REPORT_VIEWPORT"" 7)"
               Print #f, "              (SL_SetLayerPlottable ""REPORT_VIEWPORT"" T)"
     Print #f, "              (setq i 0 firstSheet nil)"
@@ -2582,8 +2583,19 @@ Private Sub WriteSectionViewportLisp(ByVal f As Integer)
     Print #f, ";; ------------------------------------------------------------"
 End Sub
 
+Private Function HatchTransparencySetting() As Long
+    ' Layer transparency for hatch layers: 0 = opaque, 90 = most transparent.
+    Dim v As Variant, t As Double
+    v = GetSettingValue("AUT Hatch Transparency", 50)
+    If IsNumeric(v) Then t = CDbl(v) Else t = 50
+    If t < 0 Then t = 0
+    If t > 90 Then t = 90
+    HatchTransparencySetting = CLng(t)
+End Function
+
 Private Sub WriteLispHeader(ByVal f As Integer)
     Print #f, "(setq SL_CAD_PLATFORM " & LispStr(IIf(IsAutoCADOutput(), "AUTOCAD", "DRAFTSIGHT")) & ")"
+    Print #f, "(setq SL_HATCH_TRANSPARENCY " & CStr(HatchTransparencySetting()) & ")"
     Print #f, ""
     Print #f, "(defun SL_pt (x y)"
     Print #f, "  ;; Normalize signed zero before constructing a CAD point."
@@ -2626,6 +2638,22 @@ Private Sub WriteLispHeader(ByVal f As Integer)
     Print #f, ""
     Print #f, "(defun SL_Layer (name color)"
     Print #f, "  (command ""-LAYER"" ""M"" name ""C"" (itoa color) """" """")"
+    Print #f, ")"
+    Print #f, ""
+    Print #f, ";; Hatch lines are drawn ByLayer, so layer transparency (0-90) controls them."
+    Print #f, ";; Reapplied on every run so existing layers pick up the current setting."
+    Print #f, "(defun SL_SetLayerTransparency (layers / result ok act)"
+    If IsAutoCADOutput() Then
+        Print #f, "  (setq result (vl-catch-all-apply 'command (list ""_.-LAYER"" ""_TRansparency"" (itoa SL_HATCH_TRANSPARENCY) layers """")))"
+    Else
+        Print #f, "  (setq result (vl-catch-all-apply 'command (list ""_.-LAYER"" ""_Transparency"" (itoa SL_HATCH_TRANSPARENCY) layers """")))"
+    End If
+    Print #f, "  (setq ok (not (vl-catch-all-error-p result)))"
+    Print #f, "  ;; If -LAYER is still waiting for input, cancel it so generation can continue."
+    Print #f, "  (setq act (getvar ""CMDACTIVE""))"
+    Print #f, "  (if (and act (> (logand act 3) 0)) (progn (command) (setq ok nil)))"
+    Print #f, "  (if (not ok) (princ ""\nAxisBuilder: hatch layer transparency could not be set (set it in the Layer Manager).""))"
+    Print #f, "  (princ)"
     Print #f, ")"
     Print #f, ""
     Print #f, "(defun SL_SetLayer (layer)"
@@ -2780,6 +2808,7 @@ Private Sub WriteLispHeader(ByVal f As Integer)
     Print #f, "  (SL_Layer ""TITLE_BLOCK_TEXT"" 7)"
     Print #f, "  (SL_Layer ""HEAD_TITLE_TEXT"" 7)"
     Print #f, "  (SL_Layer ""HEAD_CLOCK_TEXT"" 7)"
+    Print #f, "  (SL_SetLayerTransparency ""AUT_HATCH,LEGEND_AUT_HATCH,LEGEND_MUT_HATCH,MANUAL_UT_HATCH"")"
     Print #f, ")"
     Print #f, ""
     Print #f, "(defun SL_Line (x1 y1 x2 y2 layer)"
@@ -4270,8 +4299,9 @@ Public Sub ExportAxisBuilderLSP()
 
     Print #f, "(setq SL_ORIENTATION " & LispStr(orientation) & ")"
     Print #f, "(setq SL_SECTION_PREFIX ""OVL-SEC-"")"
-    Print #f, "(setq SL_HATCH_SPACING " & LispNum(CDbl(GetSettingValue("Hatch Scale", 2.5))) & ")"
-    Print #f, "(setq SL_HATCH_ENABLED ""YES"")"
+    Print #f, "(setq SL_HATCH_ENABLED " & LispStr(UCase(CStr(GetSettingValue("AUT Hatch Enabled", "YES")))) & ")"
+    Print #f, "(setq SL_HATCH_SPACING " & LispNum(CDbl(GetSettingValue("AUT Hatch Scale", GetSettingValue("Hatch Scale", 2.5)))) & ")"
+    Print #f, "(setq SL_HATCH_ANGLE " & LispNum(CDbl(GetSettingValue("AUT Hatch Angle", 45))) & ")"
     Print #f, "(setq SL_COVERAGE_TEXT " & LispStr(coverageText) & ")"
     Print #f, "(setq SL_COVERAGE_LOCATION " & LispStr(coverageLocation) & ")"
     Print #f, "(setq SL_LEGEND_TOTAL_SCANS_TEXT " & LispStr(legendTotalScansText) & ")"
