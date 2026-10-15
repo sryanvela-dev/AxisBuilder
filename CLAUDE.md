@@ -67,8 +67,8 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - Project Settings: label in col A, value in col B, read by label via `GetSettingValue`.
   OCR writes fixed cells: B5 project name, B9 orientation, B10 length, B11 height,
   B21/B22 axis direction text, B29–B36 reference labels.
-  "AUT Hatch Transparency" (0-90, default 50) goes in a new row directly below "AUT Hatch Angle"
-  (row 44 once inserted); until the row exists the code uses 50.
+  Row 44 is "AUT Hatch Transparency" (0-90, default 50), directly below "AUT Hatch Angle"
+  (row 43); the code falls back to 50 if the row is missing (older workbooks).
 - Shell Features: circ welds 3–12 (A ID, B Y, C Include, D Label); long seams 15–24
   (A ID, B X, C StartY, D StopY, E Include, F Label); nozzles 27–46 (A ID, B Dia, C X, D Y,
   E MinT, F Notes, G Include, H LabelMode; found by header "Nozzles / Circles" in row 25);
@@ -112,4 +112,4 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   New: layer transparency on all hatch layers (AUT_HATCH, LEGEND_AUT_HATCH, LEGEND_MUT_HATCH,
   MANUAL_UT_HATCH, REPORT_LEGEND_AUT, REPORT_LEGEND_MUT) from setting "AUT Hatch Transparency"
   (default 50) via `SL_SetLayerTransparency` (`-LAYER Transparency`, wrapped in vl-catch-all-apply).
-  DraftSight syntax tested by the user by hand; full export not yet field-tested.
+  User added row 44 to the workbook, re-imported, re-signed, and tested: works as intended.
