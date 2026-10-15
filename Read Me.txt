@@ -1,0 +1,29 @@
+Follow these steps to install the AxisBuilder security certificate:
+
+1. Save the certificate file I sent you to your computer.
+
+2. Double-click the certificate file.
+
+3. Click **Install Certificate**.
+
+4. Select **Current User**, then click **Next**.
+
+5. Select **Place all certificates in the following store**.
+
+6. Click **Browse**.
+
+7. Select **Trusted Publishers**, then click **OK**.
+
+8. Click **Next**, then click **Finish**.
+
+9. If a security warning appears, verify that the certificate name matches the one I sent you, then click **Yes**.
+
+10. You should receive a message saying the import was successful.
+
+11. Right-click the AxisBuilder Excel file and select **Properties**.
+
+12. If an **Unblock** checkbox appears near the bottom, check it, click **Apply**, and then click **OK**.
+
+13. Open AxisBuilder in Excel and select **Enable Content** if prompted.
+
+If AxisBuilder was already open, close Excel completely and reopen the workbook after installing the certificate.

@@ -1,0 +1,5 @@
+# VBA modules are cp1252 + CRLF; store byte-for-byte, no line-ending conversion
+*.bas -text diff
+*.xlsm binary
+*.xlsx binary
+*.cer binary

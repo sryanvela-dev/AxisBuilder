@@ -1,0 +1,6 @@
+# Excel / Office lock files
+~$*
+
+# Generated image output
+Processed_Images/
+**/Processed_Images/
