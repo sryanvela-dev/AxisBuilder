@@ -1187,9 +1187,9 @@ Private Sub PrintVesselReferenceLabels(ByVal f As Integer, ByVal orientation As 
 
                 Case "NAMEPLATE DC", "NAMEPLATE D.C.", "NAMEPLATE D.C", "NPDC"
                     labels(0) = "NAMEPLATE D.C."
-                    labels(1) = "NP + 90°"
-                    labels(2) = "180° OPPOSITE"
-                    labels(3) = "NP + 270°"
+                    labels(1) = "NP + 90" & ChrW(176)
+                    labels(2) = "180" & ChrW(176) & " OPPOSITE"
+                    labels(3) = "NP + 270" & ChrW(176)
                     labels(4) = "NAMEPLATE D.C."
 
                 Case Else
@@ -1797,8 +1797,8 @@ Private Function ClockPositionDegrees(ByVal clockText As String) As Double
         Exit Function
     End If
 
-    If Right(clockText, 1) = "°" Then
-        clockText = Replace(clockText, "°", "")
+    If Right(clockText, 1) = ChrW(176) Then
+        clockText = Replace(clockText, ChrW(176), "")
         If IsNumeric(clockText) Then
             ClockPositionDegrees = CDbl(clockText)
         Else
@@ -1874,7 +1874,7 @@ Private Sub WriteSectionPageSettings(ByVal f As Integer, ByVal showLegend As Str
                     Case "NDC/SDC", "NDC / SDC"
                         labels(0) = "N.D.C.": labels(1) = "E.D.C.": labels(2) = "S.D.C.": labels(3) = "W.D.C.": labels(4) = "N.D.C."
                     Case "NAMEPLATE DC", "NAMEPLATE D.C.", "NAMEPLATE D.C", "NPDC"
-                        labels(0) = "NAMEPLATE D.C.": labels(1) = "NP + 90°": labels(2) = "180° OPPOSITE": labels(3) = "NP + 270°": labels(4) = "NAMEPLATE D.C."
+                        labels(0) = "NAMEPLATE D.C.": labels(1) = "NP + 90" & ChrW(176): labels(2) = "180" & ChrW(176) & " OPPOSITE": labels(3) = "NP + 270" & ChrW(176): labels(4) = "NAMEPLATE D.C."
                     Case Else
                         labels(0) = "T.D.C.": labels(1) = "R.D.C.": labels(2) = "B.D.C.": labels(3) = "L.D.C.": labels(4) = "T.D.C."
                 End Select
@@ -5992,7 +5992,7 @@ Private Sub ValidateRequiredClock(ByVal target As Range, ByVal sectionName As St
     ElseIf InStr(1, UCase$(valueText), "REVIEW", vbTextCompare) > 0 Then
         AddGenerationDataError target, sectionName, itemID, fieldName, "requires review: " & valueText, errorCount, report, firstBad
     ElseIf Not IsNumeric(valueText) And InStr(1, valueText, ":", vbTextCompare) = 0 And _
-           InStr(1, valueText, "°", vbTextCompare) = 0 Then
+           InStr(1, valueText, ChrW(176), vbTextCompare) = 0 Then
         AddGenerationDataError target, sectionName, itemID, fieldName, "is not a valid clock position: " & valueText, errorCount, report, firstBad
     End If
 End Sub

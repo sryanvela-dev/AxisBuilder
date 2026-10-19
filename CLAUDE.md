@@ -19,8 +19,8 @@ The owner is an Integrity EPC inspection engineer who uses it in the field.
 1. **Encoding: Windows-1252 (cp1252) with CRLF line endings.** The VBA editor imports .bas files
    as cp1252. Saving as UTF-8 garbles every non-ASCII character on import.
    - Don't add non-ASCII characters. For the degree sign use `ChrW(176)` in code.
-   - `SLG_Utilities.bas` already contains the bytes C2 B0 (VBA sees the two characters "Â°").
-     That is known issue #4. Leave those bytes alone unless you're fixing #4 on purpose.
+   - The old C2 B0 ("Â°") bytes in `SLG_Utilities.bas` were replaced with `ChrW(176)` (issue #4).
+     The only non-ASCII byte left is a "×" in a comment (~line 4992); leave it alone.
    - After editing, verify the changed files are still cp1252 + CRLF and that only the
      intended lines changed (diff against the previous version).
 2. Keep the first line `Attribute VB_Name = "<ModuleName>"` intact. It's required for import.
@@ -86,8 +86,8 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 3. FIXED 2026-10-15 (see Change log). Still open: `SL_HATCH_ANGLE` and "AUT Hatch Pattern" are
    written/stored but unused (SL_HatchRect always draws 45-degree lines). (The AUT legend sample
    is now hidden when "AUT Hatch Enabled" = NO; the MUT sample is always drawn.)
-4. Degree sign stored as "Â°" → degree clock entries are rejected; NAMEPLATE labels print
-   "NP + 90Â°". Fix with `ChrW(176)`.
+4. FIXED 2026-10-19, not yet tested (see Change log). To check: DraftSight/AutoCAD shows the B0 degree
+   byte correctly (fallback: `%%d`), and an OCR-pasted "90°" arrives as ChrW(176).
 5. OCR import writes clock values like "3:30" into General-format cells; Excel probably
    converts them to a time serial (0.1458) → wrong angle. Needs a test in Excel.
 6. Master export doesn't default a blank head-nozzle Radius Position to CENTER (the layout
@@ -122,3 +122,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - 2026-10-19 – SLG_Utilities: SECTIONPAGES precondition failures (drawing not generated, not on a Sheet tab,
   Vertical orientation) now go through new `SL_SectionPagesStop`, which shows an `alert` pop-up so the
   AXISBUILDER menu redraw can't bury the message. Section sheets still don't support Vertical (open item). Tested: pop-up works.
+- 2026-10-19 – SLG_Utilities: Fix #4, all 9 "Â°" (C2 B0) literals replaced with `ChrW(176)`. Input side:
+  `ClockPositionDegrees` (2) and `ValidateClockCell` (1) now accept "90°". Output side: NAMEPLATE labels
+  "NP + 90°", "180° OPPOSITE", "NP + 270°" built with `ChrW(176)` in the reference-label routine and the
+  section-page settings (3 + 3). The .lsp is written ANSI (`Print #`), so CAD gets byte B0. Not yet re-imported or tested.
