@@ -42,7 +42,7 @@ The owner is an Integrity EPC inspection engineer who uses it in the field.
 | SLG_Utilities | Core generator (~5,900 lines). `ExportAxisBuilderLSP` (Home "Generate CAD Drawing": image preprocessing + master .lsp), `ExportScanLayoutLSP` (older geometry-only layout), validation, right-panel layout math, all emitted LISP, project status dashboard |
 | SLG_OCR_Importer | Copy OCR Prompt / Import OCR Data (clipboard via Win32 API, `[SECTION] KEY=a\|b\|c` format, REVIEW cells yellow-filled) |
 | SLG_ImportAUT | Import AUT CSV (header-mapped, max 150 scans, skips "cal", blocks duplicates) |
-| SLG_ScanImages | Select Scan Image Folder, image linking and validation |
+| SLG_ScanImages | Select Scan Image Folder (auto-matches photos by scan number and naming pattern), image linking and validation |
 | SLG_Dashboard | Home project summary, CAD platform toggle (DraftSight/AutoCAD) |
 | SLG_MessageCenter | Home Message Center listbox (`MC_WriteMessage`, `MC_AppendMessage`) |
 | SLG_NewProject | New Project reset |
@@ -93,9 +93,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 5. FIXED 2026-10-19 (see Change log). Head clock cells are now Text format, so OCR "3:30" stays text.
 6. Master export doesn't default a blank head-nozzle Radius Position to CENTER (the layout
    export does): factor 0.5 vs 0.
-7. Two image-folder macros behave differently (`SelectOriginalImageFolder` resets names to S#;
-   `SelectScanImageFolder` keeps custom names). Default names differ ("SCAN01" → S1 vs S01).
-   The linker matches normalized names, but the generator needs the exact filename.
+7. FIXED 2026-10-19 (see Change log). Tested by the user.
 8. Home icon graphics call macros that don't exist (ImportAUT, SelectImageFolder, GenerateLayout).
 9. Coverage % = total scan area / vessel area. Overlaps are double-counted, so it can exceed 100%.
 10. Minor: `CleanProjectName` doesn't strip a single "\"; the CSV reader (Line Input) may not
@@ -129,3 +127,15 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   section-page settings (3 + 3). The .lsp is written ANSI (`Print #`), so CAD gets byte B0. Re-imported and tested by the user: works as intended.
 - 2026-10-19 – Workbook: Fix #5, the user set the head clock cells (Head Features) to Text format, so OCR import of
   "3:30" is no longer converted to a time serial. No code change. Closed by the user.
+- 2026-10-19 – SLG_ScanImages + SLG_Utilities: Fix #7 and automatic photo matching (TASK_7_Image_Folder_Matching.md).
+  One scan-number rule, Public `SLG_Utilities.ScanNumberFromName` (first digit group, CLng, -1 if none), used by
+  `DefaultImageName` / `DefaultProcessedName` (SCAN01 -> S1, was S01). `SelectOriginalImageFolder` is now a wrapper
+  for `SelectScanImageFolder`; `ResetScanImageNamesToOverlayDefaults` and `ExtractScanNumber` removed. Folder row found
+  by exact label ("Original Image Folder", then "Image Folder"), no partial match. `ResolveSourceImagePath`,
+  `DefaultImageName` and `DefaultProcessedName` are Public; LINKED in the folder macro, `ValidateCurrentScanImages` and
+  `CountActuallyLinkedScanImages` now means `ResolveSourceImagePath` finds the file (normalized-key index removed).
+  `SelectScanImageFolder` rewritten: lists .png/.jpg/.jpeg, groups by pattern (S1 -> "S#"), one InputBox if several
+  patterns match, per-scan InputBox only for leftovers (0 = skip; no prompt when Image File already points at one of the candidates),
+  one Yes/No/Cancel before replacing differing Image File names, writes full filename (S1.png) in B, fills blank C,
+  writes the sheet only at the end (Cancel changes nothing). `SetProjectSettingValue` (SLG_Utilities) is now unused.
+  Re-imported and tested by the user: works as intended.

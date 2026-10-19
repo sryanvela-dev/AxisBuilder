@@ -5179,7 +5179,7 @@ Private Function FindScanRow(ByVal wsScan As Worksheet, ByVal scanName As String
     End If
 End Function
 
-Private Function ResolveSourceImagePath(ByVal imageFolder As String, ByVal imageName As String) As String
+Public Function ResolveSourceImagePath(ByVal imageFolder As String, ByVal imageName As String) As String
     'Allows Scan Images column B to use either a full filename or a base name.
     'Accepted source extensions: .png, .jpg, .jpeg
     'Processed output remains PNG, so DraftSight/LSP behavior is unchanged.
@@ -5231,26 +5231,42 @@ Private Function ResolveSourceImagePath(ByVal imageFolder As String, ByVal image
     ResolveSourceImagePath = ""
 End Function
 
-Private Function DefaultImageName(ByVal scanName As String) As String
-    'Current baseline behavior:
-    'SCAN1 -> S1, then ResolveSourceImagePath checks S1.png, S1.jpg, and S1.jpeg.
-    DefaultImageName = "S" & ExtractScanNumber(scanName)
+Public Function DefaultImageName(ByVal scanName As String) As String
+    'SCAN01 -> S1, then ResolveSourceImagePath checks S1.png, S1.jpg, and S1.jpeg.
+    DefaultImageName = "S" & ScanNumberText(scanName)
 End Function
 
-Private Function DefaultProcessedName(ByVal scanName As String) As String
+Public Function DefaultProcessedName(ByVal scanName As String) As String
     'Processed output remains PNG regardless of source format.
-    DefaultProcessedName = "S" & ExtractScanNumber(scanName) & "_FIT_B12.png"
+    DefaultProcessedName = "S" & ScanNumberText(scanName) & "_FIT_B12.png"
 End Function
 
-Private Function ExtractScanNumber(ByVal scanName As String) As String
-    Dim i As Long, ch As String, out As String
-    out = ""
-    For i = 1 To Len(scanName)
-        ch = Mid$(scanName, i, 1)
-        If ch >= "0" And ch <= "9" Then out = out & ch
+Public Function ScanNumberFromName(ByVal nameText As String) As Long
+    'Shared scan-number rule: first contiguous digit group, via CLng (SCAN01 -> 1, Scan 12b -> 12).
+    'Returns -1 when the text has no digits (or a digit group too long for a Long).
+    Dim i As Long, ch As String, digits As String
+    ScanNumberFromName = -1
+    For i = 1 To Len(nameText)
+        ch = Mid$(nameText, i, 1)
+        If ch >= "0" And ch <= "9" Then
+            digits = digits & ch
+        ElseIf Len(digits) > 0 Then
+            Exit For
+        End If
     Next i
-    If out = "" Then out = scanName
-    ExtractScanNumber = out
+    If Len(digits) = 0 Or Len(digits) > 9 Then Exit Function
+    ScanNumberFromName = CLng(digits)
+End Function
+
+Private Function ScanNumberText(ByVal scanName As String) As String
+    'Number part of the default names. A scan name with no digits is used as is.
+    Dim n As Long
+    n = ScanNumberFromName(scanName)
+    If n < 0 Then
+        ScanNumberText = scanName
+    Else
+        ScanNumberText = CStr(n)
+    End If
 End Function
 
 Private Function CombinePath(ByVal folder As String, ByVal fileName As String) As String
@@ -5339,65 +5355,9 @@ End Sub
 '============================================================
 
 Public Sub SelectOriginalImageFolder()
-    Dim folderPath As String
-    Dim fd As FileDialog
-
-    Set fd = Application.FileDialog(msoFileDialogFolderPicker)
-    With fd
-        .Title = "Select folder containing original scan images. Default prefix is set in Project Settings."
-        .AllowMultiSelect = False
-        If ThisWorkbook.Path <> "" Then .InitialFileName = ThisWorkbook.Path & "\"
-        If .Show <> -1 Then Exit Sub
-        folderPath = .SelectedItems(1)
-    End With
-
-    SetProjectSettingValue "Original Image Folder", folderPath
-
-    If Trim(CStr(GetSettingValue("Processed Image Folder", ""))) = "" Then
-        SetProjectSettingValue "Processed Image Folder", "Processed_Images"
-    End If
-
-    'Field-test fix: selecting a folder always restores the overlay naming convention.
-    'Report photos named Scan 1, Scan 2, etc. are intentionally ignored.
-    ResetScanImageNamesToOverlayDefaults
-
-    WriteUtilityMessage "SCAN IMAGE FOLDER SELECTED" & vbCrLf & vbCrLf & _
-                        folderPath & vbCrLf & vbCrLf & _
-                        "Overlay filenames reset to S1, S2, S3...", "SUCCESS"
-
-    MsgBox "Original Image Folder set to:" & vbCrLf & folderPath & vbCrLf & vbCrLf & _
-           "Overlay filenames were reset to S1, S2, S3..." & vbCrLf & vbCrLf & _
-           "Processed FIT images will be created in:" & vbCrLf & _
-           folderPath & "\Processed_Images", vbInformation, "Scan Layout Generator"
-End Sub
-
-Private Sub ResetScanImageNamesToOverlayDefaults()
-    Dim wsScan As Worksheet, wsImg As Worksheet
-    Dim lastScanRow As Long, lastImgRow As Long
-    Dim r As Long, outRow As Long
-    Dim scanName As String, includeValue As String
-
-    Set wsScan = ThisWorkbook.Worksheets("Scan Import")
-    Set wsImg = ThisWorkbook.Worksheets("Scan Images")
-
-    lastImgRow = wsImg.Cells(wsImg.Rows.count, "A").End(xlUp).Row
-    If lastImgRow >= 3 Then wsImg.Range("A3:E" & lastImgRow).ClearContents
-
-    lastScanRow = wsScan.Cells(wsScan.Rows.count, "A").End(xlUp).Row
-    outRow = 3
-
-    For r = 3 To lastScanRow
-        scanName = Trim$(CStr(wsScan.Cells(r, "A").value))
-        If Len(scanName) > 0 Then
-            wsImg.Cells(outRow, "A").value = scanName
-            wsImg.Cells(outRow, "B").value = DefaultImageName(scanName)
-            wsImg.Cells(outRow, "C").value = DefaultProcessedName(scanName)
-            includeValue = "YES"
-            wsImg.Cells(outRow, "D").value = includeValue
-            wsImg.Cells(outRow, "E").ClearContents
-            outRow = outRow + 1
-        End If
-    Next r
+    'Project Settings button (OnAction). Same flow as the Home "Select Scan Image Folder" button.
+    'A blank Processed Image Folder already defaults to Processed_Images in the generator.
+    SLG_ScanImages.SelectScanImageFolder
 End Sub
 
 Private Sub WriteUtilityMessage(ByVal messageText As String, ByVal messageType As String)
