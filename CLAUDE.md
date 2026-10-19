@@ -94,7 +94,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 5. FIXED 2026-10-19 (see Change log). Head clock cells are now Text format, so OCR "3:30" stays text.
 6. FIXED 2026-10-19 (see Change log). Tested by the user in DraftSight.
 7. FIXED 2026-10-19 (see Change log). Tested by the user.
-8. Home icon graphics call macros that don't exist (ImportAUT, SelectImageFolder, GenerateLayout).
+8. FIXED 2026-10-19 (see Change log). Tested by the user.
 9. Coverage % = total scan area / vessel area. Overlaps are double-counted, so it can exceed 100%.
 10. Minor: `CleanProjectName` doesn't strip a single "\"; the CSV reader (Line Input) may not
     split LF-only files; version strings are mixed (v4.7.28 / v5.1 Stage 1 / v5.0);
@@ -142,3 +142,6 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - 2026-10-19 – SLG_Utilities: Fix #6, `ExportAxisBuilderLSP` head nozzles now default a blank Radius Position
   (Head Features col E) to CENTER, matching `ExportScanLayoutLSP` (factor 0, was 0.5). Head MUT already did this.
   Re-imported and tested by the user in DraftSight: blank radius lands at the head center.
+- 2026-10-19 – SLG_Dashboard: Fix #8, added Public pass-through aliases for the old Home icon macro names:
+  `ImportAUT` -> `Import_AUT_CSV`, `SelectImageFolder` -> `SelectScanImageFolder`, `GenerateLayout` ->
+  `ExportAxisBuilderLSP`. Shapes unchanged. Don't reuse these three names elsewhere. Re-imported and tested by the user: all three icons work.

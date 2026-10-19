@@ -715,3 +715,20 @@ Private Function DisplayValue(ByVal sourceText As String) As String
         DisplayValue = sourceText
     End If
 End Function
+
+'Home icon aliases: these icons are still bound to the old macro names (open issue #8).
+
+Public Sub ImportAUT()
+    'Exists because a Home icon is still bound to the old name ImportAUT.
+    Import_AUT_CSV
+End Sub
+
+Public Sub SelectImageFolder()
+    'Exists because a Home icon is still bound to the old name SelectImageFolder.
+    SelectScanImageFolder
+End Sub
+
+Public Sub GenerateLayout()
+    'Exists because a Home icon is still bound to the old name GenerateLayout.
+    ExportAxisBuilderLSP
+End Sub
