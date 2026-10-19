@@ -89,6 +89,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 3. FIXED 2026-10-15 (see Change log). Still open: `SL_HATCH_ANGLE` and "AUT Hatch Pattern" are
    written/stored but unused (SL_HatchRect always draws 45-degree lines). (The AUT legend sample
    is now hidden when "AUT Hatch Enabled" = NO; the MUT sample is always drawn.)
+   DEFERRED by the user (2026-10-19): leave the unused angle/pattern settings alone; don't propose wiring them up.
 4. FIXED 2026-10-19 (see Change log). Tested by the user.
 5. FIXED 2026-10-19 (see Change log). Head clock cells are now Text format, so OCR "3:30" stays text.
 6. FIXED 2026-10-19 (see Change log). Tested by the user in DraftSight.
