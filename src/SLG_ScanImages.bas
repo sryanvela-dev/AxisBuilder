@@ -2,7 +2,7 @@ Attribute VB_Name = "SLG_ScanImages"
 Option Explicit
 
 '=============================================================
-' Scan Layout Generator v4.7.2
+' AxisBuilder v5.0
 ' Select Scan Image Folder - automatic scan photo matching
 '
 ' Assign the Home button to:

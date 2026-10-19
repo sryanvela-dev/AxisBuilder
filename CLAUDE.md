@@ -100,7 +100,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
    jobs. Coverage stays gross scanned area / shell area (`ComputeCoveragePercent`). Don't propose a union calculation.
 10. Minor: (`CleanProjectName` backslash FIXED 2026-10-19, see Change log.) The CSV reader (Line Input) may not
     split LF-only files (WON'T FIX, user 2026-10-19: the AUT CSV always comes from the same source on a
-    Windows PC, so CRLF is guaranteed); version strings are mixed (v4.7.28 / v5.1 Stage 1 / v5.0);
+    Windows PC, so CRLF is guaranteed); version strings unified to v5.0 (FIXED 2026-10-19, see Change log);
     the two export routines share a lot of duplicated code.
 
 Deferred feature: SECTIONPAGES (menu option 8) doesn't support Vertical orientation (it shows a pop-up and stops).
@@ -154,3 +154,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-19 – SLG_OCR_Importer: `CleanProjectName` bad-character list had "\\" (VBA has no escapes, so that is two
   backslashes); now "\", so a single backslash in the OCR project name becomes "_". SLG_Utilities: removed the unused
   Private `SetProjectSettingValue` (last caller went away with fix #7). Re-imported by the user; not tested (user's call).
+- 2026-10-19 – SLG_Utilities, SLG_ScanImages, SLG_MessageCenter: one version number, v5.0 (matches the workbook name).
+  Module headers (Utilities, ScanImages, MessageCenter); layout .lsp header and load message (were v4.7.28); master
+  .lsp header (was "v5.1 Stage 1") and its load message now says "AxisBuilder v5.0 master drawing loaded." Inline
+  "'v4.x:" history comments and sub-component versions (OCR v1.4, Import AUT v1.6, Message Center v3.1) left as is.
+  Not yet re-imported or tested.

@@ -16,7 +16,7 @@ Private gCADPlatformOutput As String
 
 
 '============================================================
-' AxisBuilder v4.7.28 - AXISBUILDER command launcher
+' AxisBuilder v5.0 - AXISBUILDER command launcher
 ' Based on v4.6.57 FIXED TOTAL SCANS TO AUT/MUT TEXT GAP
 ' Generates a DraftSight AutoLISP file from this workbook.
 '
@@ -66,7 +66,7 @@ Public Sub ExportScanLayoutLSP()
     f = FreeFile
     Open CStr(filePath) For Output As #f
 
-    Print #f, ";;; AxisBuilder v4.7.28 AXISBUILDER COMMAND LAUNCHER"
+    Print #f, ";;; AxisBuilder v5.0 AXISBUILDER COMMAND LAUNCHER"
     Print #f, ";;; Generated from Excel on " & Format(Now, "yyyy-mm-dd hh:nn:ss")
     Print #f, ";;; Load in " & CADPlatformDisplayName() & " with APPLOAD/LOADAPPLICATION. Type AXISBUILDER for the command launcher, or run SCANLAYOUT directly."
     Print #f, ""
@@ -384,7 +384,7 @@ Public Sub ExportScanLayoutLSP()
     Print #f, "  (princ ""\nSCANLAYOUT complete."")"
     Print #f, "  (princ)"
     Print #f, ")"
-    Print #f, "(princ ""\nAxisBuilder v4.7.28 loaded. Type AXISBUILDER."")"
+    Print #f, "(princ ""\nAxisBuilder v5.0 loaded. Type AXISBUILDER."")"
     Print #f, "(princ)"
 
     Close #f
@@ -4327,7 +4327,7 @@ Public Sub ExportAxisBuilderLSP()
     f = FreeFile
     Open CStr(filePath) For Output As #f
 
-    Print #f, ";;; AxisBuilder v5.1 Stage 1 - One Generated Layered Drawing"
+    Print #f, ";;; AxisBuilder v5.0 - One Generated Layered Drawing"
     Print #f, ";;; Generated from Excel on " & Format(Now, "yyyy-mm-dd hh:nn:ss")
     Print #f, ";;; Load in " & CADPlatformDisplayName() & " with APPLOAD/LOADAPPLICATION, then type AXISBUILDER."
     Print #f, ""
@@ -4845,7 +4845,7 @@ Public Sub ExportAxisBuilderLSP()
     Print #f, ";; Backward-compatible alias for existing workflows."
     Print #f, "(defun c:SCANMENU () (c:AXISBUILDER))"
     Print #f, ""
-    Print #f, "(princ ""\nAxisBuilder master drawing loaded. Type AXISBUILDER, or AXISDRAWING to generate directly."")"
+    Print #f, "(princ ""\nAxisBuilder v5.0 master drawing loaded. Type AXISBUILDER, or AXISDRAWING to generate directly."")"
     Print #f, "(princ)"
 
     Close #f

@@ -1,7 +1,7 @@
 Attribute VB_Name = "SLG_MessageCenter"
 Option Explicit
 
-' Scan Layout Generator v4.7.0
+' AxisBuilder v5.0
 ' Reusable Forms ListBox Message Center Manager v3.1
 ' Clears the prior update before displaying the newest Message Center update.
 ' No ActiveX controls are used.
