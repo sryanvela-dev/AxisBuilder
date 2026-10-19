@@ -89,7 +89,6 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 ## Resolved and deferred issues
 
 Status as of 2026-10-19: no open bugs are known. Items below are fixed, closed (won't fix) or deferred by the user.
-Still worth doing at a field opportunity: test "Show Head Clock References" on a real job with heads (fix #2, see Change log).
 
 3. FIXED 2026-10-15 (see Change log). Still open: `SL_HATCH_ANGLE` and "AUT Hatch Pattern" are
    written/stored but unused (SL_HatchRect always draws 45-degree lines). (The AUT legend sample
@@ -115,8 +114,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-15 – SLG_Utilities: Fix 1, `ExportAxisBuilderLSP` now runs
   `ValidateLayoutGenerationData` before the save dialog and image processing (OCR REVIEW text
   no longer crashes it). Fix 2, reads "Show Rulers" and "Show Head Clock References" (sheet
-  labels), with the old names as fallback. Applied by the user. Head clock reference still
-  needs a field test.
+  labels), with the old names as fallback. Applied by the user.
 - 2026-10-15 – SLG_Utilities: Fix #3, `ExportAxisBuilderLSP` now reads "AUT Hatch Enabled",
   "AUT Hatch Scale" (fallback "Hatch Scale") and "AUT Hatch Angle", matching `ExportScanLayoutLSP`.
   New: layer transparency on all hatch layers (AUT_HATCH, LEGEND_AUT_HATCH, LEGEND_MUT_HATCH,
