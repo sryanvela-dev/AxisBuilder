@@ -210,9 +210,9 @@ Public Sub ExportScanLayoutLSP()
 
     Print #f, ""
     Print #f, "  ;; Supports / structures - purple"
-    ' Supports and objects now read from Shell Features rows 49-68:
+    ' Supports and objects now read from Shell Features rows 69-88:
     ' A=Object ID, B=X Position, C=Y Position, D=Circ. Width, E=Length, F=Include.
-    For r = 49 To 68
+    For r = 69 To 88
         If Trim(CStr(wsShell.Cells(r, "A").value)) <> "" Then
             If UCase(Trim(CStr(wsShell.Cells(r, "F").value))) <> "NO" Then
                 Print #f, "  (SL_LabelRect " & LispNum(CDbl(wsShell.Cells(r, "B").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "C").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "D").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "E").value)) & " " & LispStr(CStr(wsShell.Cells(r, "A").value)) & " ""SUPPORTS"" """")"
@@ -226,8 +226,8 @@ Public Sub ExportScanLayoutLSP()
     PrintShellNozzleLispRows f
 
     Print #f, ""
-    Print #f, "  ;; Shell MUT points - rows 71-90: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes"
-    For r = 71 To 90
+    Print #f, "  ;; Shell MUT points - rows 91-110: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes"
+    For r = 91 To 110
         If Trim(CStr(wsShell.Cells(r, "A").value)) <> "" Then
             If IsNumeric(wsShell.Cells(r, "B").value) And IsNumeric(wsShell.Cells(r, "C").value) Then
                 Print #f, "  (SL_MUTPoint " & LispNum(CDbl(wsShell.Cells(r, "B").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "C").value)) & " " & LispStr(Trim(CStr(wsShell.Cells(r, "A").value))) & ")"
@@ -4495,9 +4495,9 @@ Public Sub ExportAxisBuilderLSP()
     If showSupports = "YES" Then
         Print #f, ""
         Print #f, "  ;; Supports / structures"
-        ' Supports and objects now read from Shell Features rows 49-68:
+        ' Supports and objects now read from Shell Features rows 69-88:
         ' A=Object ID, B=X Position, C=Y Position, D=Circ. Width, E=Length, F=Include.
-        For r = 49 To 68
+        For r = 69 To 88
             If Trim(CStr(wsShell.Cells(r, "A").value)) <> "" Then
                 If UCase(Trim(CStr(wsShell.Cells(r, "F").value))) <> "NO" Then
                     Print #f, "  (SL_LabelRect " & LispNum(CDbl(wsShell.Cells(r, "B").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "C").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "D").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "E").value)) & " " & LispStr(CStr(wsShell.Cells(r, "A").value)) & " ""SUPPORTS"" """")"
@@ -4514,8 +4514,8 @@ Public Sub ExportAxisBuilderLSP()
     End If
 
     Print #f, ""
-    Print #f, "  ;; Shell MUT points - rows 71-90: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes"
-    For r = 71 To 90
+    Print #f, "  ;; Shell MUT points - rows 91-110: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes"
+    For r = 91 To 110
         If Trim(CStr(wsShell.Cells(r, "A").value)) <> "" Then
             If IsNumeric(wsShell.Cells(r, "B").value) And IsNumeric(wsShell.Cells(r, "C").value) Then
                 Print #f, "  (SL_MUTPoint " & LispNum(CDbl(wsShell.Cells(r, "B").value)) & " " & LispNum(CDbl(wsShell.Cells(r, "C").value)) & " " & LispStr(Trim(CStr(wsShell.Cells(r, "A").value))) & ")"
@@ -5795,7 +5795,7 @@ Private Function ValidateLayoutGenerationData(ByVal wsScan As Worksheet, _
     Next r
 
     'Objects / supports.
-    For r = 49 To 68
+    For r = 69 To 88
         itemID = Trim$(CStr(wsShell.Cells(r, "A").value))
         If itemID <> "" And UCase$(Trim$(CStr(wsShell.Cells(r, "F").value))) <> "NO" Then
             ValidateRequiredNumber wsShell.Cells(r, "B"), "OBJECTS", itemID, "X Position", errorCount, report, firstBad
@@ -5823,7 +5823,7 @@ Private Function ValidateLayoutGenerationData(ByVal wsScan As Worksheet, _
     End If
 
     'Shell MUT points.
-    For r = 71 To 90
+    For r = 91 To 110
         itemID = Trim$(CStr(wsShell.Cells(r, "A").value))
         If itemID <> "" Then
             ValidateRequiredNumber wsShell.Cells(r, "B"), "SHELL MUT", itemID, "X Position", errorCount, report, firstBad

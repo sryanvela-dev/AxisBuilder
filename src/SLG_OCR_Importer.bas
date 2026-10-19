@@ -247,18 +247,18 @@ Private Sub ClearOCRTargets()
 
     ClearRangeAndFill wsShell.Range("A3:D12")
     ClearRangeAndFill wsShell.Range("A15:F24")
-    ClearRangeAndFill wsShell.Range("A27:H46")
-    ClearRangeAndFill wsShell.Range("A49:G68")
-    ClearRangeAndFill wsShell.Range("A71:E90")
+    ClearRangeAndFill wsShell.Range("A27:H66")
+    ClearRangeAndFill wsShell.Range("A69:G88")
+    ClearRangeAndFill wsShell.Range("A91:E110")
 
     ClearRangeAndFill wsHead.Range("A4:J23")
     ClearRangeAndFill wsHead.Range("A28:I47")
 
     wsShell.Range("C3:D12").value = "NO"
     wsShell.Range("E15:F24").value = "NO"
-    wsShell.Range("G27:G46").value = "NO"
-    wsShell.Range("H27:H46").value = "AUTO"
-    wsShell.Range("F49:F68").value = "NO"
+    wsShell.Range("G27:G66").value = "NO"
+    wsShell.Range("H27:H66").value = "AUTO"
+    wsShell.Range("F69:F88").value = "NO"
 
     wsHead.Range("I4:I23").value = "AUTO"
     wsHead.Range("J4:J23").value = "NO"
@@ -470,7 +470,7 @@ Private Sub ImportShellMUT(ByVal sections As Object, ByRef imported As Long, ByR
     For i = 1 To 20
         valueText = SectionValue(sections, "SHELLMUT", "MUT" & i)
         If Len(valueText) > 0 Then
-            rowNum = i + 70
+            rowNum = i + 90
             If Not ValidateStructuredRow(valueText, 5, "SHELLMUT", "MUT" & i, ws.Range(ws.Cells(rowNum, "A"), ws.Cells(rowNum, "E")), reviewCount) Then GoTo NextShellMUT
             parts = SplitFixed(valueText, 5)
             ApplyDefaultID parts, "MUT" & i
@@ -490,7 +490,7 @@ Private Sub ImportObjects(ByVal sections As Object, ByRef imported As Long, ByRe
     For i = 1 To 20
         valueText = SectionValue(sections, "OBJECTS", "O" & i)
         If Len(valueText) > 0 Then
-            rowNum = i + 48
+            rowNum = i + 68
             If Not ValidateStructuredRow(valueText, 6, "OBJECTS", "O" & i, ws.Range(ws.Cells(rowNum, "A"), ws.Cells(rowNum, "G")), reviewCount) Then GoTo NextObject
             parts = SplitFixed(valueText, 6)
             ApplyDefaultID parts, "O" & i
@@ -748,10 +748,10 @@ Private Sub MarkMissingStructuredFields(ByVal sectionName As String, ByVal rowId
             rowNum = itemNum + 14
         Case "SHELLMUT"
             Set ws = ThisWorkbook.Worksheets("Shell Features")
-            rowNum = itemNum + 70
+            rowNum = itemNum + 90
         Case "OBJECTS"
             Set ws = ThisWorkbook.Worksheets("Shell Features")
-            rowNum = itemNum + 48
+            rowNum = itemNum + 68
         Case "SHELLNOZZLES"
             Set ws = ThisWorkbook.Worksheets("Shell Features")
             rowNum = itemNum + 26
@@ -915,7 +915,7 @@ Private Sub WriteOCRMessageCenter(ByVal sections As Object, ByVal imported As Lo
              "Long Seams: " & CountSectionRows(sections, "LONGSEAMS") & " of 10" & vbCrLf & _
              "Shell MUT: " & CountSectionRows(sections, "SHELLMUT") & " of 20" & vbCrLf & _
              "Objects: " & CountSectionRows(sections, "OBJECTS") & " of 20" & vbCrLf & _
-             "Shell Nozzles: " & CountSectionRows(sections, "SHELLNOZZLES") & " of 20" & vbCrLf & _
+             "Shell Nozzles: " & CountSectionRows(sections, "SHELLNOZZLES") & " of 40" & vbCrLf & _
              "Head 1: " & CountSectionRows(sections, "HEAD1") & " items" & vbCrLf & _
              "Head 2: " & CountSectionRows(sections, "HEAD2") & " items" & vbCrLf & vbCrLf & _
              "Imported values: " & imported & vbCrLf & _

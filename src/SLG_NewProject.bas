@@ -216,9 +216,9 @@ Private Sub ClearShellFeatures()
     With ThisWorkbook.Worksheets(SHELL_SHEET)
         .Range("A3:D12").ClearContents        ' Circumferential welds
         .Range("A15:F24").ClearContents       ' Long seam welds
-        .Range("A27:H46").ClearContents       ' Shell nozzles
-        .Range("A49:G68").ClearContents       ' Objects / supports
-        .Range("A71:E90").ClearContents       ' Shell MUT
+        .Range("A27:H66").ClearContents       ' Shell nozzles
+        .Range("A69:G88").ClearContents       ' Objects / supports
+        .Range("A91:E110").ClearContents      ' Shell MUT
     End With
 End Sub
 

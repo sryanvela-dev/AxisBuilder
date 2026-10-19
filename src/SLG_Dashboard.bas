@@ -517,9 +517,9 @@ Private Function CountShellFeatures() As Long
     CountShellFeatures = _
         CountNonBlank(ws, "A3:A12") + _
         CountNonBlank(ws, "A15:A24") + _
-        CountNonBlank(ws, "A27:A46") + _
-        CountNonBlank(ws, "A49:A68") + _
-        CountNonBlank(ws, "A71:A90")
+        CountNonBlank(ws, "A27:A66") + _
+        CountNonBlank(ws, "A69:A88") + _
+        CountNonBlank(ws, "A91:A110")
 End Function
 
 Private Function CountHeadFeatures() As Long

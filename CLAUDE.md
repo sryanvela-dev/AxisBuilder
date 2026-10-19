@@ -73,10 +73,11 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   Row 44 is "AUT Hatch Transparency" (0-90, default 50), directly below "AUT Hatch Angle"
   (row 43); the code falls back to 50 if the row is missing (older workbooks).
 - Shell Features: circ welds 3–12 (A ID, B Y, C Include, D Label); long seams 15–24
-  (A ID, B X, C StartY, D StopY, E Include, F Label); nozzles 27–46 (A ID, B Dia, C X, D Y,
-  E MinT, F Notes, G Include, H LabelMode; found by header "Nozzles / Circles" in row 25);
-  objects 49–68 (A ID, B X, C Y, D CircWidth, E Length, F Include, G Notes);
-  shell MUT 71–90 (A ID, B X, C Y, D MinT, E Notes).
+  (A ID, B X, C StartY, D StopY, E Include, F Label); nozzles 27–66, 40 rows (A ID, B Dia, C X, D Y,
+  E MinT, F Notes, G Include, H LabelMode; found by header "Nozzles / Circles" in row 25, read up to the
+  "Objects" header in row 67); OCR still imports at most 20 nozzles (N1..N20 into rows 27–46);
+  objects 69–88 (A ID, B X, C Y, D CircWidth, E Length, F Include, G Notes);
+  shell MUT 91–110 (A ID, B X, C Y, D MinT, E Notes).
 - Head Features: nozzles 4–23 (Head 1 rows 4–13, Head 2 rows 14–23; A Head, B ID, C Dia,
   D Clock, E Radius, F Custom, G MinT, H Notes, I LabelMode, J Include); "Head MUT" header
   in row 25, data 28–47 (Head 1 rows 28–32, Head 2 rows 33–37; A Head, B ID, C Clock,
@@ -159,3 +160,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   .lsp header (was "v5.1 Stage 1") and its load message now says "AxisBuilder v5.0 master drawing loaded." Inline
   "'v4.x:" history comments and sub-component versions (OCR v1.4, Import AUT v1.6, Message Center v3.1) left as is.
   Re-imported and tested by the user.
+- 2026-10-19 – SLG_Utilities, SLG_OCR_Importer, SLG_NewProject, SLG_Dashboard: Shell Features nozzle block doubled to
+  40 rows (TASK_Shell_Nozzles_40.md). User inserts rows 46:65 in the workbook; objects move 49–68 -> 69–88 and shell MUT
+  71–90 -> 91–110. Changed: both exports' object/MUT loops and comments, validation loops, OCR `ImportShellMUT` /
+  `ImportObjects` / `MarkMissingStructuredFields` offsets (+90 / +68), OCR reset ranges and default fills, New Project
+  clear ranges, Home `CountShellFeatures`. Left as is on purpose: OCR nozzle offset +26 and the 20-nozzle template,
+  prompt; nozzle reading (header-based via `SectionLastRow`). Follow-up (user request): OCR summary now says
+  "Shell Nozzles: n of 40" (sheet capacity); `ImportShellNozzles` still reads N1..N20 only.
+  Rows inserted, all four modules re-imported (incl. the "of 40" label) and tested by the user: works as intended.
