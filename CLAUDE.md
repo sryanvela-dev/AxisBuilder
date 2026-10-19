@@ -91,8 +91,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
    is now hidden when "AUT Hatch Enabled" = NO; the MUT sample is always drawn.)
 4. FIXED 2026-10-19 (see Change log). Tested by the user.
 5. FIXED 2026-10-19 (see Change log). Head clock cells are now Text format, so OCR "3:30" stays text.
-6. Master export doesn't default a blank head-nozzle Radius Position to CENTER (the layout
-   export does): factor 0.5 vs 0.
+6. FIXED 2026-10-19, not yet tested (see Change log).
 7. FIXED 2026-10-19 (see Change log). Tested by the user.
 8. Home icon graphics call macros that don't exist (ImportAUT, SelectImageFolder, GenerateLayout).
 9. Coverage % = total scan area / vessel area. Overlaps are double-counted, so it can exceed 100%.
@@ -139,3 +138,6 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   one Yes/No/Cancel before replacing differing Image File names, writes full filename (S1.png) in B, fills blank C,
   writes the sheet only at the end (Cancel changes nothing). `SetProjectSettingValue` (SLG_Utilities) is now unused.
   Re-imported and tested by the user: works as intended.
+- 2026-10-19 – SLG_Utilities: Fix #6, `ExportAxisBuilderLSP` head nozzles now default a blank Radius Position
+  (Head Features col E) to CENTER, matching `ExportScanLayoutLSP` (factor 0, was 0.5). Head MUT already did this.
+  Not yet re-imported or tested.

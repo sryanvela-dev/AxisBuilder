@@ -4591,6 +4591,7 @@ Public Sub ExportAxisBuilderLSP()
                             ovHNoz = Trim(CStr(wsHead.Cells(ovHr, "B").value))
                             ovHClock = Trim(CStr(wsHead.Cells(ovHr, "D").value))
                             ovHRadPos = UCase(Trim(CStr(wsHead.Cells(ovHr, "E").value)))
+                            If ovHRadPos = "" Then ovHRadPos = "CENTER"
                             ovHFactor = RadiusFactor(ovHRadPos, wsHead.Cells(ovHr, "F").value)
                             ovHDia = CDbl(wsHead.Cells(ovHr, "C").value)
                             ovHMode = UCase(Trim(CStr(wsHead.Cells(ovHr, "I").value)))
