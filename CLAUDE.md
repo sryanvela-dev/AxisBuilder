@@ -88,8 +88,7 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
    is now hidden when "AUT Hatch Enabled" = NO; the MUT sample is always drawn.)
 4. FIXED 2026-10-19, not yet tested (see Change log). To check: DraftSight/AutoCAD shows the B0 degree
    byte correctly (fallback: `%%d`), and an OCR-pasted "90°" arrives as ChrW(176).
-5. OCR import writes clock values like "3:30" into General-format cells; Excel probably
-   converts them to a time serial (0.1458) → wrong angle. Needs a test in Excel.
+5. FIXED 2026-10-19 (see Change log). Head clock cells are now Text format, so OCR "3:30" stays text.
 6. Master export doesn't default a blank head-nozzle Radius Position to CENTER (the layout
    export does): factor 0.5 vs 0.
 7. Two image-folder macros behave differently (`SelectOriginalImageFolder` resets names to S#;
@@ -126,3 +125,5 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   `ClockPositionDegrees` (2) and `ValidateClockCell` (1) now accept "90°". Output side: NAMEPLATE labels
   "NP + 90°", "180° OPPOSITE", "NP + 270°" built with `ChrW(176)` in the reference-label routine and the
   section-page settings (3 + 3). The .lsp is written ANSI (`Print #`), so CAD gets byte B0. Not yet re-imported or tested.
+- 2026-10-19 – Workbook: Fix #5, the user set the head clock cells (Head Features) to Text format, so OCR import of
+  "3:30" is no longer converted to a time serial. No code change. Closed by the user.
