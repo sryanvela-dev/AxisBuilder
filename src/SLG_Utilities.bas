@@ -989,6 +989,7 @@ Private Function GetSettingValue(ByVal settingName As String, ByVal defaultValue
 
     Dim f As Range
     Set f = ws.Columns("A").Find(What:=settingName, LookIn:=xlValues, LookAt:=xlWhole)
+    If f Is Nothing Then Set f = FindSettingTrimmed(ws, settingName)
 
     If f Is Nothing Then
         GetSettingValue = defaultValue
@@ -997,6 +998,22 @@ Private Function GetSettingValue(ByVal settingName As String, ByVal defaultValue
     Else
         GetSettingValue = f.Offset(0, 1).value
     End If
+End Function
+
+Private Function FindSettingTrimmed(ByVal ws As Worksheet, ByVal settingName As String) As Range
+    'Fallback label match that ignores leading/trailing spaces (including non-breaking spaces) and case.
+    Dim lastRow As Long, r As Long, target As String, cellText As String
+    target = LCase$(Trim$(Replace(settingName, ChrW(160), " ")))
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    For r = 1 To lastRow
+        If Not IsError(ws.Cells(r, "A").Value) Then
+            cellText = LCase$(Trim$(Replace(CStr(ws.Cells(r, "A").Value), ChrW(160), " ")))
+            If cellText = target Then
+                Set FindSettingTrimmed = ws.Cells(r, "A")
+                Exit Function
+            End If
+        End If
+    Next r
 End Function
 
 Private Function SelectedCADPlatform() As String
@@ -2251,10 +2268,14 @@ Private Sub WriteSectionViewportLisp(ByVal f As Integer)
     Print #f, "      (setq y (- top (* 1.40 u)) boxW (* 0.30 u) boxH (* 0.16 u))"
     Print #f, "      (SL_PaperTextLeft x y (* 0.11 u) ""LEGEND"" ""REPORT_LEGEND"")"
     Print #f, "      (setq y (- y (* 0.38 u)))"
-    Print #f, "      (SL_PaperRect x y boxW boxH ""REPORT_LEGEND_AUT"")"
-    Print #f, "      (SL_PaperHatchRect x y boxW boxH (* 0.055 u) ""REPORT_LEGEND_AUT"")"
-    Print #f, "      (SL_PaperTextLeft (+ x (* 0.38 u)) (+ y (/ boxH 2.0)) (* 0.085 u) ""AUT"" ""REPORT_LEGEND"")"
-    Print #f, "      (SL_PaperRect (+ x (* 0.72 u)) y boxW boxH ""REPORT_LEGEND_MUT"")"
+    Print #f, "      (if (= SL_HATCH_ENABLED ""YES"")"
+    Print #f, "        (progn"
+    Print #f, "          (SL_PaperRect x y boxW boxH ""REPORT_LEGEND_AUT_BOX"")"
+    Print #f, "          (SL_PaperHatchRect x y boxW boxH (* 0.055 u) ""REPORT_LEGEND_AUT"")"
+    Print #f, "          (SL_PaperTextLeft (+ x (* 0.38 u)) (+ y (/ boxH 2.0)) (* 0.085 u) ""AUT"" ""REPORT_LEGEND"")"
+    Print #f, "        )"
+    Print #f, "      )"
+    Print #f, "      (SL_PaperRect (+ x (* 0.72 u)) y boxW boxH ""REPORT_LEGEND_MUT_BOX"")"
     Print #f, "      (SL_PaperHatchRect (+ x (* 0.72 u)) y boxW boxH (* 0.055 u) ""REPORT_LEGEND_MUT"")"
     Print #f, "      (SL_PaperTextLeft (+ x (* 1.10 u)) (+ y (/ boxH 2.0)) (* 0.085 u) ""MUT"" ""REPORT_LEGEND"")"
     Print #f, "      (setq y (- y (* 0.27 u)))"
@@ -2470,10 +2491,17 @@ Private Sub WriteSectionViewportLisp(ByVal f As Integer)
     Print #f, "    )"
     Print #f, "  )"
     Print #f, "  (if (> (sslength kill) 0) (command ""ERASE"" kill """"))"
-    Print #f, "  (foreach layerName (list ""REPORT_X_RULER"" ""REPORT_Y_RULER"" ""REPORT_X_REFERENCE"" ""REPORT_TITLE"" ""REPORT_LEGEND"" ""REPORT_LEGEND_AUT"" ""REPORT_LEGEND_MUT"" ""REPORT_VIEWPORT"")"
+    Print #f, "  (foreach layerName (list ""REPORT_X_RULER"" ""REPORT_Y_RULER"" ""REPORT_X_REFERENCE"" ""REPORT_TITLE"" ""REPORT_LEGEND"" ""REPORT_LEGEND_AUT"" ""REPORT_LEGEND_MUT"" ""REPORT_LEGEND_AUT_BOX"" ""REPORT_LEGEND_MUT_BOX"" ""REPORT_VIEWPORT"")"
     Print #f, "    (setq ss (ssget ""_X"" (list (cons 8 layerName) (cons 410 sheetName))))"
     Print #f, "    (if ss (command ""ERASE"" ss """"))"
     Print #f, "  )"
+    Print #f, ")"
+    Print #f, ""
+    Print #f, "(defun SL_SectionPagesStop (msg /)"
+    Print #f, "  ;; Show the reason in a pop-up so the AXISBUILDER menu redraw cannot bury it."
+    Print #f, "  (princ (strcat ""\nSECTIONPAGES: "" msg))"
+    Print #f, "  (alert (strcat ""SECTIONPAGES cannot run:\n\n"" msg))"
+    Print #f, "  (princ)"
     Print #f, ")"
     Print #f, ""
     Print #f, "(defun c:SECTIONPAGES ( / *error* oldOsmode pick templateVp ed ctr areaW areaH left bottom templateName"
@@ -2489,11 +2517,11 @@ Private Sub WriteSectionViewportLisp(ByVal f As Integer)
     Print #f, "  )"
     Print #f, "  (cond"
     Print #f, "    ((or (null SL_VESSEL_XLEN) (null SL_VESSEL_YLEN))"
-    Print #f, "      (princ ""\nRun SCANLAYOUT before creating section sheets.""))"
+    Print #f, "      (SL_SectionPagesStop ""Generate the drawing first (SCANLAYOUT, or option 1 / AXISDRAWING in the AXISBUILDER menu), then run SECTIONPAGES again.""))"
     Print #f, "    ((/= (getvar ""TILEMODE"") 0)"
-    Print #f, "      (princ ""\nSwitch to the letter-size template Sheet, then run SECTIONPAGES again.""))"
+    Print #f, "      (SL_SectionPagesStop ""Switch to the letter-size template Sheet tab (paper space), then run SECTIONPAGES again.""))"
     Print #f, "    ((= SL_ORIENTATION ""Vertical"")"
-    Print #f, "      (princ ""\nThis first section-sheet prototype is for Horizontal CW/CCW piping.""))"
+    Print #f, "      (SL_SectionPagesStop ""Section sheets are not available for Vertical orientation yet. Set Project Settings orientation to Horizontal CW or Horizontal CCW, regenerate, and try again.""))"
     Print #f, "    (T"
     Print #f, "      (setq pick (entsel ""\nSelect the template viewport that defines the printable report area: ""))"
     Print #f, "      (if pick"
@@ -2528,6 +2556,8 @@ Private Sub WriteSectionViewportLisp(ByVal f As Integer)
     Print #f, "              (SL_Layer ""REPORT_LEGEND"" 7)"
               Print #f, "              (SL_Layer ""REPORT_LEGEND_AUT"" 5)"
               Print #f, "              (SL_Layer ""REPORT_LEGEND_MUT"" 3)"
+              Print #f, "              (SL_Layer ""REPORT_LEGEND_AUT_BOX"" 5)"
+              Print #f, "              (SL_Layer ""REPORT_LEGEND_MUT_BOX"" 3)"
               Print #f, "              (SL_SetLayerTransparency ""REPORT_LEGEND_AUT,REPORT_LEGEND_MUT"")"
               Print #f, "              (SL_Layer ""REPORT_VIEWPORT"" 7)"
               Print #f, "              (SL_SetLayerPlottable ""REPORT_VIEWPORT"" T)"
@@ -3948,9 +3978,13 @@ Private Sub WriteLispHeader(ByVal f As Integer)
     Print #f, "    (progn"
     Print #f, "      ;; Vertical rollout: AUT and MUT use one visual row and the same visual rectangle shape as horizontal rollouts."
     Print #f, "      (SL_Text (+ x 6.0) (+ y 25.0) 2.3 lr ""LEGEND"" ""LEGEND"")"
-    Print #f, "      (SL_Rect x (+ y 8.0) boxH boxW ""LEGEND_SAMPLE"")"
-    Print #f, "      (SL_HatchRect x (+ y 8.0) boxH boxW ""LEGEND_AUT_HATCH"")"
-    Print #f, "      (SL_Text (+ x 3.5) (+ y 5.0) 2.0 lr ""AUT"" ""LEGEND"")"
+    Print #f, "      (if (= SL_HATCH_ENABLED ""YES"")"
+    Print #f, "        (progn"
+    Print #f, "          (SL_Rect x (+ y 8.0) boxH boxW ""LEGEND_SAMPLE"")"
+    Print #f, "          (SL_HatchRect x (+ y 8.0) boxH boxW ""LEGEND_AUT_HATCH"")"
+    Print #f, "          (SL_Text (+ x 3.5) (+ y 5.0) 2.0 lr ""AUT"" ""LEGEND"")"
+    Print #f, "        )"
+    Print #f, "      )"
     Print #f, "      (SL_Rect (+ x 8.0) (+ y 8.0) boxH boxW ""LEGEND_SAMPLE"")"
     Print #f, "      (SL_HatchRect (+ x 8.0) (+ y 8.0) boxH boxW ""LEGEND_MUT_HATCH"")"
     Print #f, "      (SL_Text (+ x 11.5) (+ y 5.0) 2.0 lr ""MUT"" ""LEGEND"")"
@@ -3964,9 +3998,13 @@ Private Sub WriteLispHeader(ByVal f As Integer)
     Print #f, "      (SL_Rect x y boxW boxH ""LEGEND_SAMPLE"")"
     Print #f, "      (SL_HatchRect x y boxW boxH ""LEGEND_MUT_HATCH"")"
     Print #f, "      (SL_Text (+ x 15.0) (+ y 3.5) 2.0 lr ""MUT"" ""LEGEND"")"
-    Print #f, "      (SL_Rect x (+ y 8.0) boxW boxH ""LEGEND_SAMPLE"")"
-    Print #f, "      (SL_HatchRect x (+ y 8.0) boxW boxH ""LEGEND_AUT_HATCH"")"
-    Print #f, "      (SL_Text (+ x 15.0) (+ y 11.5) 2.0 lr ""AUT"" ""LEGEND"")"
+    Print #f, "      (if (= SL_HATCH_ENABLED ""YES"")"
+    Print #f, "        (progn"
+    Print #f, "          (SL_Rect x (+ y 8.0) boxW boxH ""LEGEND_SAMPLE"")"
+    Print #f, "          (SL_HatchRect x (+ y 8.0) boxW boxH ""LEGEND_AUT_HATCH"")"
+    Print #f, "          (SL_Text (+ x 15.0) (+ y 11.5) 2.0 lr ""AUT"" ""LEGEND"")"
+    Print #f, "        )"
+    Print #f, "      )"
     Print #f, "    )"
     Print #f, "  )"
     Print #f, "  ;; Legend summary stack: Total Scans, Coverage, Orientation, Overlay."

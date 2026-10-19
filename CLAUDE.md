@@ -84,8 +84,8 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 
 ## Open issues
 3. FIXED 2026-10-15 (see Change log). Still open: `SL_HATCH_ANGLE` and "AUT Hatch Pattern" are
-   written/stored but unused (SL_HatchRect always draws 45-degree lines), and the legend AUT/MUT
-   hatch samples are drawn even when "AUT Hatch Enabled" = NO.
+   written/stored but unused (SL_HatchRect always draws 45-degree lines). (The AUT legend sample
+   is now hidden when "AUT Hatch Enabled" = NO; the MUT sample is always drawn.)
 4. Degree sign stored as "Â°" → degree clock entries are rejected; NAMEPLATE labels print
    "NP + 90Â°". Fix with `ChrW(176)`.
 5. OCR import writes clock values like "3:30" into General-format cells; Excel probably
@@ -113,3 +113,12 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   MANUAL_UT_HATCH, REPORT_LEGEND_AUT, REPORT_LEGEND_MUT) from setting "AUT Hatch Transparency"
   (default 50) via `SL_SetLayerTransparency` (`-LAYER Transparency`, wrapped in vl-catch-all-apply).
   User added row 44 to the workbook, re-imported, re-signed, and tested: works as intended.
+- 2026-10-19 – SLG_Utilities: `GetSettingValue` falls back to `FindSettingTrimmed` (ignores leading/trailing
+  and non-breaking spaces, case-insensitive) when the exact label isn't found. AUT legend sample (box, hatch,
+  "AUT" label) is skipped when SL_HATCH_ENABLED <> YES, in both `SL_Legend` (both orientations) and the
+  SECTIONPAGES legend. Section-page legend outlines moved to new non-transparent layers
+  REPORT_LEGEND_AUT_BOX (5) / REPORT_LEGEND_MUT_BOX (3); the hatch lines stay on the transparent
+  REPORT_LEGEND_AUT/MUT layers. Re-imported, re-signed and tested by the user: works as intended.
+- 2026-10-19 – SLG_Utilities: SECTIONPAGES precondition failures (drawing not generated, not on a Sheet tab,
+  Vertical orientation) now go through new `SL_SectionPagesStop`, which shows an `alert` pop-up so the
+  AXISBUILDER menu redraw can't bury the message. Section sheets still don't support Vertical (open item). Tested: pop-up works.
