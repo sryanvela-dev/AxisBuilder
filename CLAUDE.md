@@ -46,7 +46,7 @@ The owner is an Integrity EPC inspection engineer who uses it in the field.
 | SLG_Dashboard | Home project summary, CAD platform toggle (DraftSight/AutoCAD) |
 | SLG_MessageCenter | Home Message Center listbox (`MC_WriteMessage`, `MC_AppendMessage`) |
 | SLG_NewProject | New Project reset |
-| SLG_PrintEmbeddedFieldForm | Print preview of the 4 hidden field-form sheets |
+| SLG_PrintEmbeddedFieldForm | Print Field Form: exports the 4 hidden field-form sheets to one PDF in %TEMP% and opens it (one-sided print reminder) |
 | SLG_FieldFormVisibility | Show/hide field-form sheets |
 
 ## Workflow (Home sheet)
@@ -86,7 +86,11 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
   H CX, I CY, J Rot, K TextH (formulas F:K), L Include.
 - Scan Images: A Scan, B Image File, C Processed Image, D Include, E Status, F Notes.
 
-## Open issues
+## Resolved and deferred issues
+
+Status as of 2026-10-19: no open bugs are known. Items below are fixed, closed (won't fix) or deferred by the user.
+Still worth doing at a field opportunity: test "Show Head Clock References" on a real job with heads (fix #2, see Change log).
+
 3. FIXED 2026-10-15 (see Change log). Still open: `SL_HATCH_ANGLE` and "AUT Hatch Pattern" are
    written/stored but unused (SL_HatchRect always draws 45-degree lines). (The AUT legend sample
    is now hidden when "AUT Hatch Enabled" = NO; the MUT sample is always drawn.)
@@ -168,3 +172,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   prompt; nozzle reading (header-based via `SectionLastRow`). Follow-up (user request): OCR summary now says
   "Shell Nozzles: n of 40" (sheet capacity); `ImportShellNozzles` still reads N1..N20 only.
   Rows inserted, all four modules re-imported (incl. the "of 40" label) and tested by the user: works as intended.
+- 2026-10-19 – SLG_PrintEmbeddedFieldForm: `PrintFieldForm` no longer opens Excel's Print Preview. It shows a one-sided
+  print reminder, exports the 4 grouped form pages (packet order, existing print areas/page setup) with `ActiveSheet.ExportAsFixedFormat`
+  (Sheets has no such method) to
+  %TEMP%\AxisBuilder_Field_Form_yyyymmdd_hhnnss.pdf, restores page visibility and Home, then opens the PDF via
+  Shell.Application ShellExecute (MsgBox with the path if that fails). Cleanup now restores only pages whose visibility
+  was saved. Message Center gets the PDF path (SUCCESS) or the error. Re-imported and tested by the user: works, much better than Print Preview.

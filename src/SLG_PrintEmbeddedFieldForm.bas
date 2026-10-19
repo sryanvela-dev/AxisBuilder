@@ -2,14 +2,15 @@ Attribute VB_Name = "SLG_PrintEmbeddedFieldForm"
 Option Explicit
 
 '===============================================================================
-' AxisBuilder - Embedded Field Form Print Preview
+' AxisBuilder - Embedded Field Form PDF Export
 '
 ' Home button macro:
 '   PrintFieldForm
 '
 ' Uses the four field-form worksheets already embedded in AxisBuilder.
-' The sheets are shown only while Print Preview is open, then restored to their
-' original visibility settings.
+' The sheets are shown only while they are exported to one PDF (in the user's
+' temp folder), then restored to their original visibility settings. The PDF
+' opens in the default viewer, where one-sided printing is easy to choose.
 '===============================================================================
 
 Private Const FORM_PAGE_1 As String = "Page 1 - Field Form"
@@ -22,11 +23,20 @@ Public Sub PrintFieldForm()
 
     Dim pageNames As Variant
     Dim previousVisibility(0 To 3) As XlSheetVisibility
+    Dim savedCount As Long
     Dim previousSheet As Object
     Dim i As Long
     Dim oldScreenUpdating As Boolean
     Dim oldDisplayAlerts As Boolean
-    Dim previewOpened As Boolean
+    Dim pdfPath As String
+    Dim pdfExported As Boolean
+
+    MsgBox "The Field Form will open as a PDF. When you print, choose ONE-SIDED printing " & _
+           "(turn off 'print on both sides') so each page photographs cleanly for OCR.", _
+           vbInformation, "AxisBuilder"
+
+    oldScreenUpdating = Application.ScreenUpdating
+    oldDisplayAlerts = Application.DisplayAlerts
 
     On Error GoTo PrintError
 
@@ -46,8 +56,6 @@ Public Sub PrintFieldForm()
     Next i
 
     Set previousSheet = ActiveSheet
-    oldScreenUpdating = Application.ScreenUpdating
-    oldDisplayAlerts = Application.DisplayAlerts
 
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
@@ -56,6 +64,7 @@ Public Sub PrintFieldForm()
     For i = LBound(pageNames) To UBound(pageNames)
         With ThisWorkbook.Worksheets(CStr(pageNames(i)))
             previousVisibility(i) = .Visible
+            savedCount = i + 1
             .Visible = xlSheetVisible
         End With
     Next i
@@ -64,14 +73,21 @@ Public Sub PrintFieldForm()
     ThisWorkbook.Worksheets(pageNames).Select
     ThisWorkbook.Worksheets(FORM_PAGE_1).Activate
 
-    Application.ScreenUpdating = True
-    Application.DisplayAlerts = oldDisplayAlerts
-
-    WriteMessageCenter "Field Form opened in Print Preview.", "SUCCESS"
-    previewOpened = True
+    'Timestamped name, so a copy still open in a viewer never blocks a new export.
+    pdfPath = TempFolderPath() & "AxisBuilder_Field_Form_" & Format$(Now, "yyyymmdd_hhnnss") & ".pdf"
 
     'Uses the existing print area and page setup stored on each form page.
-    ActiveWindow.SelectedSheets.PrintPreview
+    'With the four pages grouped, the active sheet exports the whole selection as one PDF.
+    ActiveSheet.ExportAsFixedFormat _
+        Type:=xlTypePDF, _
+        Filename:=pdfPath, _
+        Quality:=xlQualityStandard, _
+        IncludeDocProperties:=False, _
+        IgnorePrintAreas:=False, _
+        OpenAfterPublish:=False
+
+    pdfExported = True
+    WriteMessageCenter "Field Form exported to PDF: " & pdfPath, "SUCCESS"
 
 PrintCleanup:
     On Error Resume Next
@@ -86,8 +102,8 @@ PrintCleanup:
         ThisWorkbook.Worksheets(HOME_SHEET).Select
     End If
 
-    'Restore the exact visibility state each page had before preview.
-    For i = LBound(pageNames) To UBound(pageNames)
+    'Restore the exact visibility state each page had before the export.
+    For i = 0 To savedCount - 1
         ThisWorkbook.Worksheets(CStr(pageNames(i))).Visible = previousVisibility(i)
     Next i
 
@@ -99,16 +115,25 @@ PrintCleanup:
     Application.ScreenUpdating = oldScreenUpdating
     On Error GoTo 0
 
+    'Open the PDF only after the form pages are hidden again.
+    If pdfExported Then
+        If Not OpenPdfFile(pdfPath) Then
+            MsgBox "The Field Form PDF was saved but could not be opened automatically." & _
+                   vbCrLf & vbCrLf & "Open it from:" & vbCrLf & pdfPath, _
+                   vbExclamation, "AxisBuilder"
+        End If
+    End If
+
     Exit Sub
 
 PrintError:
     WriteMessageCenter _
-        "Unable to open the Field Form print preview." & vbCrLf & _
+        "Unable to export the Field Form to PDF." & vbCrLf & _
         Err.description, _
         "ERROR"
 
     MsgBox _
-        "The Field Form print preview could not be opened." & _
+        "The Field Form PDF could not be created." & _
         vbCrLf & vbCrLf & Err.description, _
         vbExclamation, _
         "AxisBuilder"
@@ -116,6 +141,36 @@ PrintError:
     Resume PrintCleanup
 
 End Sub
+
+Private Function TempFolderPath() As String
+
+    'User temp folder with a trailing separator; workbook folder as a fallback.
+    Dim folderPath As String
+
+    folderPath = Environ$("TEMP")
+    If Len(folderPath) = 0 Then folderPath = Environ$("TMP")
+    If Len(folderPath) = 0 Then folderPath = ThisWorkbook.Path
+
+    If Right$(folderPath, 1) <> "\" Then folderPath = folderPath & "\"
+    TempFolderPath = folderPath
+
+End Function
+
+Private Function OpenPdfFile(ByVal pdfPath As String) As Boolean
+
+    'Default PDF viewer via the Windows shell (no hyperlink security prompt).
+    On Error GoTo OpenFailed
+
+    If Len(Dir$(pdfPath)) = 0 Then GoTo OpenFailed
+
+    CreateObject("Shell.Application").ShellExecute pdfPath, "", "", "open", 1
+    OpenPdfFile = True
+    Exit Function
+
+OpenFailed:
+    OpenPdfFile = False
+
+End Function
 
 Private Function WorksheetExists( _
     ByVal sheetName As String, _
