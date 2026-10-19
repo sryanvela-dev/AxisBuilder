@@ -158,4 +158,4 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Module headers (Utilities, ScanImages, MessageCenter); layout .lsp header and load message (were v4.7.28); master
   .lsp header (was "v5.1 Stage 1") and its load message now says "AxisBuilder v5.0 master drawing loaded." Inline
   "'v4.x:" history comments and sub-component versions (OCR v1.4, Import AUT v1.6, Message Center v3.1) left as is.
-  Not yet re-imported or tested.
+  Re-imported and tested by the user.
