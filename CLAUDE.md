@@ -29,8 +29,11 @@ The owner is an Integrity EPC inspection engineer who uses it in the field.
    compiles in Excel (Debug > Compile).
 4. Make small, targeted changes. Don't reformat or reorganize code you weren't asked to touch.
 5. When done, tell the user **which modules changed** so they can re-import just those
-   (VBA editor: Remove module > File > Import File), then compile, save, and
-   **re-sign** (Tools > Digital Signature). Any code change clears the signature.
+   (VBA editor: Remove module > File > Import File), then compile and save. On the user's PC
+   (where the signing certificate's private key is installed) Office re-signs automatically on save,
+   so no manual step is needed; confirm under Tools > Digital Signature if in doubt. Manual
+   re-signing is only needed after editing on a PC without that key (the save drops the
+   signature there) or when switching certificates.
 6. Add a line to the Change log at the bottom of this file for each fix.
 
 ## Modules
