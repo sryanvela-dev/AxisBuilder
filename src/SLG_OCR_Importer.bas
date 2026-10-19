@@ -855,7 +855,7 @@ End Function
 
 Private Function CleanProjectName(ByVal valueText As String) As String
     Dim bad As Variant, item As Variant
-    bad = Array("\\", "/", ":", "*", "?", Chr$(34), "<", ">", "|")
+    bad = Array("\", "/", ":", "*", "?", Chr$(34), "<", ">", "|")
     For Each item In bad
         valueText = Replace(valueText, CStr(item), "_")
     Next item

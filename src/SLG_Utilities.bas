@@ -5414,20 +5414,6 @@ Private Sub EnsureProjectSettingExists(ByVal settingName As String, ByVal defaul
         f.Offset(0, 1).value = defaultValue
     End If
 End Sub
-
-Private Sub SetProjectSettingValue(ByVal settingName As String, ByVal settingValue As Variant)
-    Dim ws As Worksheet
-    Dim f As Range
-
-    Set ws = ThisWorkbook.Worksheets("Project Settings")
-    Set f = ws.Columns("A").Find(What:=settingName, LookIn:=xlValues, LookAt:=xlWhole, MatchCase:=False)
-
-    If f Is Nothing Then
-        MsgBox "Could not find setting: " & settingName, vbExclamation, "Scan Layout Generator"
-    Else
-        f.Offset(0, 1).value = settingValue
-    End If
-End Sub
 '============================================================
 ' v4.7.0 Project Validation Dashboard
 ' Manual dashboard update macro for Project Settings page.
