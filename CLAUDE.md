@@ -153,4 +153,4 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   `ExportAxisBuilderLSP`. Shapes unchanged. Don't reuse these three names elsewhere. Re-imported and tested by the user: all three icons work.
 - 2026-10-19 – SLG_OCR_Importer: `CleanProjectName` bad-character list had "\\" (VBA has no escapes, so that is two
   backslashes); now "\", so a single backslash in the OCR project name becomes "_". SLG_Utilities: removed the unused
-  Private `SetProjectSettingValue` (last caller went away with fix #7). Not yet re-imported or tested.
+  Private `SetProjectSettingValue` (last caller went away with fix #7). Re-imported by the user; not tested (user's call).
