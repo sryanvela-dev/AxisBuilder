@@ -74,14 +74,14 @@ describe('current layout (40 nozzle rows)', () => {
         minT: 0.3, notes: '', labelMode: 'AUTO', include: true },
       { head: 'HEAD 2', id: 'N11', diameter: 2, clock: '3', radiusPosition: 'CUSTOM', customRadiusPercent: 60,
         minT: 'TOL', notes: '', labelMode: 'AUTO', include: true },
-      { head: 'HEAD 1', id: 'n3', diameter: 2, clock: '12', radiusPosition: 'CENTER', customRadiusPercent: null,
+      { head: 'HEAD 1', id: 'n3 (2)', diameter: 2, clock: '12', radiusPosition: 'CENTER', customRadiusPercent: null,
         minT: null, notes: '', labelMode: 'AUTO', include: true },
       { head: 'HEAD 1', id: 'N12', diameter: 3, clock: null, radiusPosition: 'CENTER', customRadiusPercent: null,
         minT: null, notes: '', labelMode: 'AUTO', include: true },
     ])
     expect(p.headMut.map((m) => [m.head, m.id, m.clock, m.radiusPosition, m.customRadiusPercent, m.include])).toEqual([
       ['HEAD 1', 'HM1', '6', 'OUTER', null, true],
-      ['HEAD 2', 'M1', '10.5', null, null, true], // "SIDE": left for the user to select
+      ['HEAD 2', 'M1 (2)', '10.5', null, null, true], // "SIDE": left for the user to select
       ['HEAD 2', 'HM2', null, 'CUSTOM', null, false],
     ])
   })
@@ -91,7 +91,7 @@ describe('current layout (40 nozzle rows)', () => {
       { id: 'SCAN1', xStart: 0, xStop: 30, yStart: 0, yStop: 24, include: true },
       { id: 'SCAN2', xStart: 60, xStop: 30, yStart: 24, yStop: 48, include: false },
       { id: 'SCAN3', xStart: 10, xStop: null, yStart: 0, yStop: 5, include: true },
-      { id: 'scan1', xStart: 90, xStop: 120, yStart: 0, yStop: 24, include: true },
+      { id: 'scan1 (2)', xStart: 90, xStop: 120, yStart: 0, yStop: 24, include: true },
     ])
     expect(p.scanImages).toEqual([
       { scanId: 'SCAN1', imageFile: 'S1.png', processedImage: '', include: true },
@@ -122,13 +122,13 @@ describe('current layout (40 nozzle rows)', () => {
         'review Head Features!D5', // degrees converted
         'review Head Features!D7',
         'invalid Head Features!A8', // HEAD 3
-        'review Head Features!B6', // n3 also used by shell N3 (kept)
+        'changed Head Features!B6', // n3 renamed (also used by shell N3)
         'invalid Head Features!D29',
-        'review Head Features!B29', // M1 also used by shell M1 (kept)
+        'changed Head Features!B29', // M1 renamed (also used by shell M1)
         'invalid Head Features!C30',
         'invalid Head Features!E30',
         'invalid Scan Import!C5', // zero width
-        'review Scan Import!A6', // scan1 also used by SCAN1 (kept)
+        'changed Scan Import!A6', // scan1 renamed (also used by SCAN1)
         'skipped Scan Images!A5', // no such scan
         'skipped Scan Images!F5', // notes
       ].sort(),
@@ -143,16 +143,17 @@ describe('current layout (40 nozzle rows)', () => {
     })
     expect(find('Head Features', 'D5').message).toBe('Degrees converted to clock position 3; please check it.')
     expect(find('Head Features', 'B6').message).toBe(
-      'Head nozzles: "n3" is also used by Shell nozzles, row 29. v5.0 allowed this; rename one before export.',
+      'Head nozzles: "n3" is also used by Shell nozzles, row 29; renamed to "n3 (2)" (names must be unique).',
     )
     expect(find('Shell Features', 'D32').message).toMatch(/highlighted yellow.*value kept/)
   })
 
-  it('lists repeated names without renaming them', () => {
-    expect(current.summary.duplicateIds).toEqual([
-      'Head nozzles, item 3 (n3): Nozzle "n3" is also used by Shell nozzles, item 3; rename one before export.',
-      'Head MUT, item 2 (M1): MUT ID "M1" is also used by Shell MUT, item 1; rename one before export.',
-      'AUT scans, item 4 (scan1): Scan name "scan1" is also used by item 1; rename one before export.',
+  it('renames repeated names, so none are left to block export', () => {
+    expect(current.summary.duplicateIds).toEqual([])
+    expect(current.report.filter((e) => /renamed to/.test(e.message)).map((e) => e.message)).toEqual([
+      'Head nozzles: "n3" is also used by Shell nozzles, row 29; renamed to "n3 (2)" (names must be unique).',
+      'Head MUT: "M1" is also used by Shell MUT, row 91; renamed to "M1 (2)" (names must be unique).',
+      'AUT scans: "scan1" is also used by row 3; renamed to "scan1 (2)" (names must be unique).',
     ])
   })
 
@@ -163,7 +164,7 @@ describe('current layout (40 nozzle rows)', () => {
       'Long seams, item 2 (LS2): X position is not entered yet.',
       'Shell nozzles, item 4 (N4): Diameter is not entered yet.',
       'Head nozzles, item 4 (N12): Clock position is not entered yet.',
-      'Head MUT, item 2 (M1): Radius position is not selected yet.',
+      'Head MUT, item 2 (M1 (2)): Radius position is not selected yet.',
       'AUT scans, item 3 (SCAN3): X stop is not entered yet.',
     ])
   })

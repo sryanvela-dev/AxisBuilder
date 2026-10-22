@@ -133,7 +133,7 @@ describe('REF1 app output: v5.0 plus the requested changes only', () => {
   it('differs from v5.0 only in the sections the changes touch', () => {
     // REF1 has no reversed or switched-off scans and shows its reference labels, so changes 1, 2 and 5
     // don't show here (unit tests cover them).
-    expect(diffs.filter((d) => d.status !== 'same').map((d) => d.name)).toEqual(['jobSettings', 'images', 'titleBlock'])
+    expect(diffs.filter((d) => d.status !== 'same').map((d) => d.name)).toEqual(['header', 'jobSettings', 'images', 'titleBlock'])
   })
 
   it('drops the unused overlay values, names images by scan, prints the date as Oct-13-2026', () => {

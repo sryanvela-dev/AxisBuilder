@@ -15,7 +15,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ID_GROUPS, LIST_META, idKey, type ListKey, type Project } from '../src/data/schema.ts'
+import type { Project } from '../src/data/schema.ts'
 import { saveProject } from '../src/data/projectFile.ts'
 import { importWorkbook } from '../src/data/xlsmImport.ts'
 import { IMAGE_DIR_PLACEHOLDER } from '../test/golden/lspSections.ts'
@@ -56,29 +56,12 @@ if (lspFiles.length !== 1) throw new Error(`Expected exactly one .lsp in the sou
 const imported = importWorkbook(readFileSync(xlsm))
 const project: Project = structuredClone(imported.project)
 
-// Repeated names: v5.0 allowed them, the app refuses to export them. Rename the later ones here,
-// explicitly and listed in the README, so the golden job exports; the parity test allows exactly
-// these label differences.
-const renames: { list: ListKey; index: number; from: string; to: string }[] = []
-for (const lists of ID_GROUPS) {
-  const used = new Set<string>()
-  for (const list of lists) {
-    const field = LIST_META[list].idField
-    ;(project[list] as Record<string, unknown>[]).forEach((item, index) => {
-      const id = String(item[field])
-      if (!used.has(idKey(id))) {
-        used.add(idKey(id))
-        return
-      }
-      let n = 2
-      while (used.has(idKey(`${id} (${n})`))) n++
-      const to = `${id} (${n})`
-      used.add(idKey(to))
-      item[field] = to
-      renames.push({ list, index, from: id, to })
-    })
-  }
-}
+// Repeated names: the importer renames the later ones ("N1" -> "N1 (2)") and reports each rename.
+// List them in the README; the parity test allows exactly these label differences.
+const renames = imported.report.flatMap((e) => {
+  const m = /^(.*?): "(.*)" is also used by .*; renamed to "(.*)"/.exec(e.message)
+  return m ? [{ listName: m[1], from: m[2], to: m[3] }] : []
+})
 // ANSI bytes as latin1 text: every byte maps to one character and back unchanged.
 let lsp = readFileSync(join(dir, lspFiles[0])).toString('latin1')
 
@@ -165,11 +148,11 @@ const renamedText = renames.length
   ? [
       '## Renamed for export',
       '',
-      'v5.0 allowed a name to be used twice; the app refuses to export until it is renamed. These were',
-      'renamed in `project.json` only, so the `.lsp` (v5.0) and the app output differ by exactly these',
-      'labels, which the parity test allows:',
+      'v5.0 allowed a name to be used twice; the app needs unique names, so the importer renamed these',
+      '(and listed them in its import report). The `.lsp` (v5.0) and the app output differ by exactly',
+      'these labels, which the parity test allows:',
       '',
-      ...renames.map((r) => `- ${LIST_META[r.list].name} item ${r.index + 1}: "${r.from}" -> "${r.to}"`),
+      ...renames.map((r) => `- ${r.listName}: "${r.from}" -> "${r.to}"`),
       '',
     ].join('\n')
   : ''

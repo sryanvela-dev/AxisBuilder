@@ -862,10 +862,10 @@ function importSection(
 }
 
 /**
- * Lists repeated IDs (shared across the given lists) without changing them: v5.0 allowed them, so
- * the job imports as it is, and the app refuses to export until one is renamed.
+ * Renames repeated IDs (shared across the given lists): v5.0 allowed a name twice, the app needs
+ * unique names. The later one gets " (2)", " (3)", ... and every rename is listed in the report.
  */
-function reportDuplicateIds(
+function renameDuplicateIds(
   lists: { spec: SectionSpec; items: Record<string, unknown>[]; rows: number[]; columns: Column[] }[],
   sheets: Record<string, Sheet>,
 ) {
@@ -880,9 +880,14 @@ function reportDuplicateIds(
         first.set(idKey(id), { list: spec.list, row: rows[i] })
         return
       }
+      let n = 2
+      while (first.has(idKey(`${id} (${n})`))) n++
+      const renamed = `${id} (${n})`
+      first.set(idKey(renamed), { list: spec.list, row: rows[i] })
+      item[field] = renamed
       const where = earlier.list === spec.list ? `row ${earlier.row}` : `${LIST_META[earlier.list].name}, row ${earlier.row}`
-      sheets[spec.sheet].report.add(spec.sheet, `${idCol}${rows[i]}`, id, 'review',
-        `${LIST_META[spec.list].name}: "${id}" is also used by ${where}. v5.0 allowed this; rename one before export.`)
+      sheets[spec.sheet].report.add(spec.sheet, `${idCol}${rows[i]}`, id, 'changed',
+        `${LIST_META[spec.list].name}: "${id}" is also used by ${where}; renamed to "${renamed}" (names must be unique).`)
     })
   }
 }
@@ -927,12 +932,12 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
     }
   })
 
-  reportDuplicateIds([byList.circWelds], sheets)
-  reportDuplicateIds([byList.longSeams], sheets)
-  reportDuplicateIds([byList.shellNozzles, byList.headNozzles], sheets)
-  reportDuplicateIds([byList.objects], sheets)
-  reportDuplicateIds([byList.shellMut, byList.headMut], sheets)
-  reportDuplicateIds([byList.scans], sheets)
+  renameDuplicateIds([byList.circWelds], sheets)
+  renameDuplicateIds([byList.longSeams], sheets)
+  renameDuplicateIds([byList.shellNozzles, byList.headNozzles], sheets)
+  renameDuplicateIds([byList.objects], sheets)
+  renameDuplicateIds([byList.shellMut, byList.headMut], sheets)
+  renameDuplicateIds([byList.scans], sheets)
 
   // Scan Images rows must point at a scan; one image row per scan.
   // A repeated scan name links to its first scan, like v5.0's FindScanRow.
