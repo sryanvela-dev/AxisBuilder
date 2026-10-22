@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { openProject, type Project } from '../../src/data/index.ts'
+import { openProject } from '../../src/data/index.ts'
+import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import {
   SECTION_NAMES,
   compareLsp,
@@ -75,23 +76,51 @@ describe('golden job REF1', () => {
   })
 })
 
-// Per-section parity with v5.0. Each section stays a todo until the exporter writes it; then add its
-// name to ENABLED and set `exportLsp` to the exporter, one section at a time.
-const ENABLED = new Set<SectionName>([])
-const exportLsp = null as ((project: Project) => string) | null
+// Per-section parity with v5.0. A section stays a todo until it is listed in ENABLED.
+const ENABLED = new Set<SectionName>(SECTION_NAMES)
+
+/**
+ * Label differences allowed on purpose (REF1/README.md "Renamed for export"): v5.0 printed the
+ * repeated name, the app prints the renamed one. Each must occur exactly once in its section.
+ */
+const ALLOWED: { section: SectionName; app: string; v5: string }[] = [
+  { section: 'headNozzles', app: '"N1 (2)"', v5: '"N1"' },
+]
+
+/** The app output for REF1, with the allowed label differences put back to the v5.0 text. */
+function ref1Output(): string {
+  const r = openProject(readFileSync(golden('REF1', 'project.json'), 'utf8'))
+  if (!r.ok) throw new Error(r.errors.join('\n'))
+  const out = exportLsp(r.project, {
+    processedImageFolder: '<PROCESSED_IMAGES>',
+    // The golden file's own timestamp, so the whole file can be compared byte for byte.
+    generatedAt: new Date(2026, 9, 22, 14, 49, 16),
+  })
+  const sections = splitLsp(out)
+  for (const a of ALLOWED) {
+    const sec = sections.find((x) => x.name === a.section)!
+    const count = sec.text.split(a.app).length - 1
+    if (count !== 1) throw new Error(`Allowed difference ${a.app} found ${count} times in ${a.section}; expected exactly once.`)
+    sec.text = sec.text.replace(a.app, a.v5)
+  }
+  return joinLsp(sections)
+}
 
 describe('REF1 parity with v5.0 (app exporter vs golden .lsp)', () => {
+  const output = ref1Output()
+  const diffs = compareLsp(readLsp('REF1'), output)
   for (const name of SECTION_NAMES) {
     if (!ENABLED.has(name)) {
       it.todo(`section ${name} matches v5.0`)
       continue
     }
     it(`section ${name} matches v5.0`, () => {
-      if (!exportLsp) throw new Error('No exporter yet: set exportLsp before enabling sections.')
-      const r = openProject(readFileSync(golden('REF1', 'project.json'), 'utf8'))
-      if (!r.ok) throw new Error(r.errors.join('\n'))
-      const diff = compareLsp(readLsp('REF1'), exportLsp(r.project)).find((d) => d.name === name)!
+      const diff = diffs.find((d) => d.name === name)!
       expect(diff.status, formatDiffs([diff])).toBe('same')
     })
   }
+
+  it('matches the whole v5.0 file byte for byte (apart from the allowed label)', () => {
+    expect(output === readLsp('REF1'), formatDiffs(diffs)).toBe(true)
+  })
 })

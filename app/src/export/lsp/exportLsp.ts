@@ -1,0 +1,603 @@
+// LISP exporter: writes the AxisBuilder master .lsp for a project exactly as v5.0's
+// SLG_Utilities.ExportAxisBuilderLSP does (same text, same order, same quirks).
+//
+// The fixed function library comes from library.generated.ts (translated from the VBA). This file ports
+// the job-dependent parts: settings, the c:SCANOVERLAY drawing body, reference labels, the right-panel
+// layout and the section-page settings. Each block names the VBA routine it follows. Where v5.0 reads a
+// worksheet cell, the matching project field is used (see app/docs/phase2-notes.md for the mapping
+// decisions). v5.0 quirks are kept on purpose and listed there too.
+
+import type { HeadMut, HeadNozzle, Project, Scan } from '../../data/schema.ts'
+import { findDuplicateIds, findMissingData } from '../../data/schema.ts'
+import { defaultProcessedName } from '../../data/imageMatch.ts'
+import {
+  PrintVisualRulers,
+  WriteCommandsTail,
+  WriteLispHeader,
+  WriteOverlayLispFunctions,
+  type LibraryContext,
+} from './library.generated.ts'
+import { CStr, LispNum, LispStr, vbaFormatFixed } from './vbaFormat.ts'
+
+export interface ExportOptions {
+  /** Time for the ";;; Generated from Excel on" line (v5.0: Now). Default: the current time. */
+  generatedAt?: Date
+  /**
+   * Folder of the processed scan images as written into the .lsp image paths. Default: v5.0's rule
+   * (Processed Image Folder if it is a full path, otherwise inside Original Image Folder).
+   */
+  processedImageFolder?: string
+  /** v5.0 uses the workbook's folder when Original Image Folder is blank (ThisWorkbook.Path). */
+  workbookFolder?: string
+}
+
+/** The project can't be exported yet; `problems` lists what to fix, as sentences. */
+export class ExportBlockedError extends Error {
+  readonly problems: string[]
+  constructor(problems: string[]) {
+    super(`The drawing can't be exported yet:\n${problems.join('\n')}`)
+    this.name = 'ExportBlockedError'
+    this.problems = problems
+  }
+}
+
+/** What must be fixed before export: missing values and repeated names. Empty = ready. */
+export function exportProblems(project: Project): string[] {
+  return [...findMissingData(project), ...findDuplicateIds(project)]
+}
+
+// --- Small v5.0 helpers ----------------------------------------------------------------------------
+
+const YES = (b: boolean) => (b ? 'YES' : 'NO')
+const ucaseTrim = (s: string) => s.trim().toUpperCase()
+
+/** VBA Format(Now, "yyyy-mm-dd hh:nn:ss"). */
+function timestamp(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+/**
+ * GetDrawingInfoValue("Date"): v5.0 prints the cell's displayed text. The v5.0 workbook's Date cell is
+ * formatted m/d/yy, so a date prints as "10/13/26".
+ */
+function displayDate(iso: string): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${m}/${d}/${String(y % 100).padStart(2, '0')}`
+}
+
+/** v5.0 CombinePath: folder + "\" + file unless the folder already ends with a slash. */
+function combinePath(folder: string, file: string): string {
+  return /[\\/]$/.test(folder) ? folder + file : `${folder}\\${file}`
+}
+
+/** v5.0 NormalizeHeadName (the app already stores "HEAD 1" / "HEAD 2"). */
+function shouldShowHead(headMode: string, head: string): boolean {
+  return headMode === 'BOTH' || (headMode === 'HEAD 1' && head === 'HEAD 1') || (headMode === 'HEAD 2' && head === 'HEAD 2')
+}
+
+/** v5.0 RadiusFactor (the app stores CUSTOM as a percent of the radius). */
+function radiusFactor(item: HeadNozzle | HeadMut): number {
+  switch (item.radiusPosition ?? 'CENTER') {
+    case 'CENTER':
+      return 0
+    case 'HALF':
+      return 0.5
+    case 'THREE_QUARTER':
+      return 0.75
+    case 'OUTER':
+      return 1
+    case 'CUSTOM':
+      return item.customRadiusPercent === null ? 0.5 : item.customRadiusPercent / 100
+  }
+}
+
+/** v5.0 ClockPositionDegrees: hours or H:MM (12 = 0 degrees), degrees with a degree sign. */
+export function clockPositionDegrees(clockText: string | null): number {
+  const t = (clockText ?? '').trim()
+  if (t === '' || t.toUpperCase() === 'REVIEW') return 0
+  const num = (s: string) => (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s.trim()) ? Number(s) : NaN)
+  if (t.endsWith('°')) {
+    const d = num(t.slice(0, -1))
+    return Number.isNaN(d) ? 0 : d
+  }
+  let hr: number
+  let mn = 0
+  if (t.includes(':')) {
+    const parts = t.split(':')
+    hr = num(parts[0])
+    mn = num(parts[1])
+    if (Number.isNaN(hr) || Number.isNaN(mn)) return 0
+  } else {
+    hr = num(t)
+    if (Number.isNaN(hr)) return 0
+  }
+  if (hr === 12) hr = 0
+  return hr * 30 + mn * 0.5
+}
+
+/** v5.0 HeadViewDiameter. */
+function headViewDiameter(headSize: string, vesselHeight: number): number {
+  let d: number
+  switch (headSize) {
+    case 'MEDIUM':
+      d = vesselHeight * 0.3
+      break
+    case 'LARGE':
+      d = vesselHeight * 0.38
+      break
+    default:
+      d = vesselHeight * 0.24
+  }
+  return d < 24 ? 24 : d
+}
+
+/** v5.0 AxisDirectionText + AxisLabel. */
+function axisLabel(base: string, directionText: string, cardinal: string): string {
+  const dir = ucaseTrim(directionText) !== '' ? ucaseTrim(directionText) : ucaseTrim(cardinal)
+  return dir === '' ? base : `${base} ${dir}`
+}
+
+// --- Right-side panel (v5.0 ComputeRightPanelLayout and helpers) ------------------------------------
+
+interface Panel {
+  legendX: number
+  legendY: number
+  head1X: number
+  head1Y: number
+  head2X: number
+  head2Y: number
+  titleX: number
+  titleY: number
+}
+
+function computeRightPanelLayout(ori: string, placement: string, vesselHeight: number, vesselLength: number,
+  headDia: number, headMode: string): Panel {
+  // RightPanelExtraForRightRuler
+  const extra = (ori === 'VERTICAL' || ori === 'HORIZONTAL CW') &&
+    (placement === 'RIGHT' || placement === 'TOP + RIGHT' || placement === 'BOTTOM + RIGHT') ? 15 : 0
+  // RightPanelLeft (gap 12; CCW gap 12)
+  const panelLeft = ori === 'HORIZONTAL CW' ? vesselLength + 12 + extra : ori === 'HORIZONTAL CCW' ? 12 : vesselHeight + 12 + extra
+  // VisualVesselBottom
+  const panelBottom = ori === 'HORIZONTAL CW' ? -vesselHeight : 0
+  const r = headDia / 2
+  const headGap = 14
+  const legendClearance = 18
+  const titleBlockHeight = 6 * 3.4
+  const titleClearance = 16
+  const legendVisualBottom = panelBottom
+  const legendVisualTop = legendVisualBottom + 36
+
+  let h2VX = panelLeft + r
+  let h2VY = legendVisualTop + legendClearance + r
+  let h1VX = h2VX
+  let h1VY = h2VY + headDia + headGap
+  let titleVX: number
+  let titleVY: number
+  switch (headMode) {
+    case 'HEAD 1':
+    case 'HEAD 2':
+      h2VX = h1VX
+      h2VY = h1VY
+      titleVX = panelLeft
+      titleVY = h1VY + r + titleClearance + titleBlockHeight
+      break
+    case 'BOTH':
+      titleVX = panelLeft
+      titleVY = h1VY + r + titleClearance + titleBlockHeight
+      break
+    default:
+      h1VX = panelLeft + r
+      h1VY = legendVisualTop + legendClearance
+      h2VX = h1VX
+      h2VY = h1VY
+      titleVX = panelLeft
+      titleVY = legendVisualTop + legendClearance + titleBlockHeight
+  }
+  // VisualToLogicalX / VisualToLogicalY
+  const lx = (vx: number, vy: number) => (ori === 'HORIZONTAL CW' ? -vy : ori === 'HORIZONTAL CCW' ? vy : vx)
+  const ly = (vx: number, vy: number) => (ori === 'HORIZONTAL CW' ? vx : ori === 'HORIZONTAL CCW' ? -vx : vy)
+  let legendX: number
+  let legendY: number
+  if (ori === 'HORIZONTAL CW') {
+    legendX = -legendVisualBottom - 30.8
+    legendY = panelLeft
+  } else if (ori === 'HORIZONTAL CCW') {
+    legendX = legendVisualBottom + 15.8
+    legendY = -(panelLeft + 15)
+  } else {
+    legendX = panelLeft
+    legendY = legendVisualBottom + 10.8
+  }
+  return {
+    legendX,
+    legendY,
+    head1X: lx(h1VX, h1VY),
+    head1Y: ly(h1VX, h1VY),
+    head2X: lx(h2VX, h2VY),
+    head2Y: ly(h2VX, h2VY),
+    titleX: lx(titleVX, titleVY),
+    titleY: ly(titleVX, titleVY),
+  }
+}
+
+// --- Reference labels (v5.0 PrintVesselReferenceLabels / WriteSectionPageSettings) -----------------
+
+const SET_LABELS: Record<string, string[]> = {
+  NDC: ['N.D.C.', 'E.D.C.', 'S.D.C.', 'W.D.C.', 'N.D.C.'],
+  NP: ['NAMEPLATE D.C.', 'NP + 90°', '180° OPPOSITE', 'NP + 270°', 'NAMEPLATE D.C.'],
+  TDC: ['T.D.C.', 'R.D.C.', 'B.D.C.', 'L.D.C.', 'T.D.C.'],
+}
+
+function setLabels(setRef: string): string[] {
+  if (setRef === 'NDC/SDC' || setRef === 'NDC / SDC') return SET_LABELS.NDC
+  if (['NAMEPLATE DC', 'NAMEPLATE D.C.', 'NAMEPLATE D.C', 'NPDC'].includes(setRef)) return SET_LABELS.NP
+  return SET_LABELS.TDC
+}
+
+/** ReadCustomReferenceLabels: the five custom label cells, as they are. */
+function customLabels(p: Project): string[] {
+  const v = p.vessel
+  return [v.refLabel0, v.refLabel90, v.refLabel180, v.refLabel270, v.refLabel360]
+}
+
+/** PrintRefCardinalAlongVesselXAxis. */
+function printRefCardinal(w: (s: string) => void, labels: string[], baseY: string, tickLen: number, textGap: number,
+  textH: number, negativeOut: boolean) {
+  const op = negativeOut ? '-' : '+'
+  const yTick = `(${op} ${baseY} ${LispNum(tickLen)})`
+  const yText = `(${op} ${baseY} ${LispNum(tickLen + textGap)})`
+  const posExpr = ['0.0', '(* vesselXLen 0.25)', '(/ vesselXLen 2.0)', '(* vesselXLen 0.75)', 'vesselXLen']
+  for (let i = 0; i <= 4; i++) {
+    if (labels[i].trim() !== '') {
+      w(`  (SL_Line ${posExpr[i]} ${baseY} ${posExpr[i]} ${yTick} "X_AXIS")`)
+      w(`  (SL_Text ${posExpr[i]} ${yText} ${LispNum(textH)} (SL_RulerTextRotX) ${LispStr(labels[i])} "X_AXIS")`)
+    }
+  }
+}
+
+function printVesselReferenceLabels(w: (s: string) => void, p: Project, ori: string) {
+  if (!p.settings.showVesselReferenceLabels) return
+  const modeRef = ucaseTrim(p.vessel.referenceLabelMode)
+  const setRef = ucaseTrim(p.vessel.referenceLabelSet)
+  let tickLen = p.settings.referenceLabelTickLength
+  if (tickLen <= 0) tickLen = 3
+  const textGap = 1.25
+  const textH = 1.5
+  let labels: string[]
+  if (modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM') labels = customLabels(p)
+  else if (modeRef === 'NONE' || modeRef === 'OFF' || modeRef === 'NO') return
+  else labels = setLabels(setRef)
+  if (labels.every((l) => l.trim() === '')) return
+
+  const placement = ucaseTrim(p.settings.rulerPlacement) || 'BOTTOM + LEFT'
+  w('  ;; Vessel reference labels - v4.6.2 cardinal vessel X-axis references')
+  const opposite = ori === 'HORIZONTAL CW' ? placement.includes('RIGHT') : ori === 'HORIZONTAL CCW' ? placement.includes('LEFT') : placement.includes('TOP')
+  if (opposite) printRefCardinal(w, labels, '0.0', tickLen, textGap, textH, true)
+  else printRefCardinal(w, labels, 'vesselYLen', tickLen, textGap, textH, false)
+}
+
+// --- Exporter --------------------------------------------------------------------------------------
+
+/** Writes the master .lsp text (CRLF line endings, like v5.0's Print #). Throws ExportBlockedError. */
+export function exportLsp(project: Project, options: ExportOptions = {}): string {
+  const problems = exportProblems(project)
+  if (problems.length) throw new ExportBlockedError(problems)
+
+  const p = project
+  const s = p.settings
+  const lines: string[] = []
+  const w = (line: string) => lines.push(line)
+  const acad = s.cadPlatform === 'AutoCAD'
+  const orientation = p.vessel.orientation
+  const ori = orientation.toUpperCase()
+  const vesselLength = p.vessel.length!
+  const vesselHeight = p.vessel.height!
+  const spacing = s.rulerSpacing
+
+  // Coverage and scan count are computed before validation flips reversed scans (v5.0 order).
+  const enabledScans = p.scans.filter((sc) => sc.include && sc.xStop! - sc.xStart! > 0 && sc.yStop! - sc.yStart! > 0)
+  const vesselArea = vesselLength * vesselHeight
+  let coverageText = ''
+  if (vesselArea > 0 && s.showCoveragePercentage) {
+    const area = enabledScans.reduce((a, sc) => a + (sc.xStop! - sc.xStart!) * (sc.yStop! - sc.yStart!), 0)
+    coverageText = `Coverage: ${vbaFormatFixed((area / vesselArea) * 100, 1, 1)}%`
+  }
+  const legendTotalScansText = `Total Scans: ${CStr(enabledScans.length)}`
+  const legendOrientationText = ori === 'VERTICAL' ? 'Orientation: Vertical' : 'Orientation: Horizontal'
+
+  const ppi = s.overlayPixelsPerInch > 0 ? s.overlayPixelsPerInch : 40
+  const pixelsPerUnit = s.draftSightImagePixelsPerUnit > 0 ? s.draftSightImagePixelsPerUnit : 400
+  const overlayScale = pixelsPerUnit / ppi
+
+  // Processed image folder (ExportAxisBuilderLSP).
+  let processedFolder = options.processedImageFolder
+  if (processedFolder === undefined) {
+    const imageFolder = s.originalImageFolder.trim() || (options.workbookFolder ?? '')
+    const name = s.processedImageFolder.trim() || 'Processed_Images'
+    processedFolder = name.includes(':\\') || name.startsWith('\\\\') ? name : combinePath(imageFolder, name)
+  }
+
+  // Validation (Enable Validation) flips reversed scan coordinates before drawing.
+  const scans: Scan[] = p.scans.map((sc) => {
+    if (!s.enableValidation) return sc
+    const out = { ...sc }
+    if (out.xStart! > out.xStop!) [out.xStart, out.xStop] = [out.xStop, out.xStart]
+    if (out.yStart! > out.yStop!) [out.yStart, out.yStop] = [out.yStop, out.yStart]
+    return out
+  })
+
+  const lib: LibraryContext = {
+    w,
+    acad,
+    hatchTransparency: Math.round(Math.min(90, Math.max(0, s.autHatchTransparency))),
+    overlayImageFrame: s.showScanBordersOnOverlay ? 1 : 0,
+    rulerOffset: s.rulerOffset,
+    ori,
+    placement: '',
+    xAxisLabel: '',
+    yAxisLabel: '',
+  }
+
+  // Header
+  w(';;; AxisBuilder v5.0 - One Generated Layered Drawing')
+  w(`;;; Generated from Excel on ${timestamp(options.generatedAt ?? new Date())}`)
+  w(`;;; Load in ${acad ? 'AutoCAD' : 'DraftSight'} with APPLOAD/LOADAPPLICATION, then type AXISBUILDER.`)
+  w('')
+  WriteLispHeader(lib)
+  WriteOverlayLispFunctions(lib)
+
+  // Job settings
+  w(`(setq SL_ORIENTATION ${LispStr(orientation)})`)
+  w('(setq SL_SECTION_PREFIX "OVL-SEC-")')
+  w(`(setq SL_HATCH_ENABLED ${LispStr(YES(s.autHatchEnabled))})`)
+  w(`(setq SL_HATCH_SPACING ${LispNum(s.autHatchScale)})`)
+  w(`(setq SL_HATCH_ANGLE ${LispNum(s.autHatchAngle)})`)
+  w(`(setq SL_COVERAGE_TEXT ${LispStr(coverageText)})`)
+  w('(setq SL_COVERAGE_LOCATION "LEGEND")')
+  w(`(setq SL_LEGEND_TOTAL_SCANS_TEXT ${LispStr(legendTotalScansText)})`)
+  w(`(setq SL_LEGEND_ORIENTATION_TEXT ${LispStr(legendOrientationText)})`)
+  w('(setq SL_LEGEND_OVERLAY_TEXT "Overlay: Enabled")')
+  w(`(setq SL_OVERLAY_PPI ${LispNum(ppi)})`)
+  w(`(setq SL_OVERLAY_SCALE ${LispNum(overlayScale)})`)
+  w(`(setq SL_OVERLAY_ROTATION ${LispNum(0)})`)
+  w(`(setq SL_ARROW_HEAD ${LispNum(s.arrowHeadSize)})`)
+  w(`(setq SL_SMART_NOZZLES ${LispStr(YES(s.smartNozzleLabels))})`)
+  w(`(setq SL_MIN_NOZZLE_DIA ${LispNum(s.minNozzleInsideLabelDiameter)})`)
+  w(`(setq SL_NOZZLE_LEADER_LEN ${LispNum(s.nozzleLeaderLength)})`)
+  w(`(setq SL_SHOW_HEAD_CENTERLINES ${LispStr(YES(s.showHeadCenterlines))})`)
+  w(`(setq SL_SHOW_HEAD_CLOCK_REF ${LispStr(YES(s.showHeadClockReferences))})`)
+  w(`(setq SL_HEAD_NOZZLE_LEADER_LEN ${LispNum(s.headNozzleLeaderLength)})`)
+  w('')
+
+  const xAxisLabel = axisLabel('X AXIS DIRECTION', p.vessel.xAxisDirectionText, p.vessel.xAxisCardinal)
+  const yAxisLabel = axisLabel('Y AXIS DIRECTION', p.vessel.yAxisDirectionText, p.vessel.yAxisCardinal)
+  w(`(setq SL_RULER_SPACING ${LispNum(spacing)})`)
+  w(`(setq SL_RULER_OFFSET ${LispNum(s.rulerOffset)})`)
+  w(`(setq SL_X_AXIS_LABEL ${LispStr(xAxisLabel)})`)
+  w(`(setq SL_Y_AXIS_LABEL ${LispStr(yAxisLabel)})`)
+  writeSectionPageSettings(w, p)
+  w('')
+
+  const headMode = s.headViewMode
+  const headDia = headViewDiameter(s.headViewSize, vesselHeight)
+  const panel = computeRightPanelLayout(ori, s.rulerPlacement.toUpperCase().trim(), vesselHeight, vesselLength, headDia, headMode)
+
+  // Drawing command setup
+  if (acad) w('(defun c:SCANOVERLAY ( / *error* vesselXLen vesselYLen spacing oldOsmode oldCmdecho oldNomutt)')
+  else w('(defun c:SCANOVERLAY ( / vesselXLen vesselYLen spacing oldOsmode)')
+  w('  ;; Prevent running object snaps from pulling generated geometry and images onto nearby corners.')
+  w('  (setq oldOsmode (getvar "OSMODE"))')
+  if (acad) {
+    w('  ;; Reduce AutoCAD command-window and display overhead during generation.')
+    w('  (setq oldCmdecho (getvar "CMDECHO") oldNomutt (getvar "NOMUTT"))')
+    w('  (defun *error* (msg)')
+    w('    (setvar "OSMODE" oldOsmode)')
+    w('    (setvar "NOMUTT" oldNomutt)')
+    w('    (setvar "CMDECHO" oldCmdecho)')
+    w('    (if (and msg (/= msg "Function cancelled") (/= msg "quit / exit abort"))')
+    w('      (princ (strcat "\\nSCANOVERLAY error: " msg))')
+    w('    )')
+    w('    (princ)')
+    w('  )')
+    w('  (setvar "CMDECHO" 0)')
+    w('  (setvar "NOMUTT" 1)')
+  }
+  w('  (setvar "OSMODE" 0)')
+  w('  (SL_SetupLayers)')
+  w('  (SL_SetupViewportLayers)')
+  w('  (setvar "UCSICON" 0)')
+  w(`  (setvar "IMAGEFRAME" ${CStr(lib.overlayImageFrame)})`)
+  w(`  (setq vesselXLen ${LispNum(vesselHeight)})`)
+  w(`  (setq vesselYLen ${LispNum(vesselLength)})`)
+  w(`  (setq spacing ${LispNum(spacing)})`)
+  w('  (setq SL_VESSEL_XLEN vesselXLen)')
+  w('  (setq SL_VESSEL_YLEN vesselYLen)')
+  w('  (setq SL_AVOID_RECTS nil)')
+  w('')
+
+  // Vessel border
+  if (s.showVesselOnOverlay) {
+    w('  ;; Vessel border')
+    w('  (SL_Rect 0.0 0.0 vesselXLen vesselYLen "VESSEL")')
+    if (s.showCenterline) w('  (SL_Centerline vesselXLen vesselYLen)')
+  }
+
+  // Scan geometry (Scan Import rows with Include not NO)
+  w('')
+  w('  ;; Layout scan geometry is generated with the images so the drawing only needs to be built once.')
+  for (const sc of scans) {
+    if (!sc.include) continue
+    w(`  (SL_LabelRect ${LispNum(sc.xStart!)} ${LispNum(sc.yStart!)} ${LispNum(sc.xStop! - sc.xStart!)} ${LispNum(sc.yStop! - sc.yStart!)} ${LispStr(sc.id)} "SCANS" "AUT_HATCH")`)
+  }
+
+  // Scan images: Scan Images is rebuilt from Scan Import first (SyncScanImagesFromScanImport), so every
+  // scan gets a row whose Include follows its old image row (default YES), even if the scan itself is off.
+  w('')
+  w('  ;; Scan image overlays. IMAGEFRAME follows Project Settings: Show Scan Borders On Overlay.')
+  const imageInclude = new Map<string, boolean>()
+  for (const img of p.scanImages) if (!imageInclude.has(img.scanId.toUpperCase())) imageInclude.set(img.scanId.toUpperCase(), img.include)
+  for (const sc of scans) {
+    if (imageInclude.get(sc.id.toUpperCase()) === false) continue
+    const row = scans.find((x) => x.id.toUpperCase() === sc.id.toUpperCase())! // FindScanRow: first match
+    const imgPath = combinePath(processedFolder, defaultProcessedName(sc.id)).replace(/\\/g, '/')
+    const xs = LispNum(row.xStart!)
+    const ys = LispNum(row.yStart!)
+    const wd = LispNum(row.xStop! - row.xStart!)
+    const ht = LispNum(row.yStop! - row.yStart!)
+    w(`  (SL_InsertFitImage ${xs} ${ys} ${wd} ${ht} ${LispStr(imgPath)})`)
+    w(`  (SL_AddAvoidRect ${xs} ${ys} ${wd} ${ht})`)
+  }
+
+  // Supports / objects
+  if (s.showSupportsOnOverlay) {
+    w('')
+    w('  ;; Supports / structures')
+    for (const o of p.objects) {
+      if (!o.include) continue
+      const box = `${LispNum(o.x!)} ${LispNum(o.y!)} ${LispNum(o.circWidth!)} ${LispNum(o.length!)}`
+      w(`  (SL_LabelRect ${box} ${LispStr(o.id)} "SUPPORTS" "")`)
+      w(`  (SL_AddAvoidRect ${box})`)
+    }
+  }
+
+  // Shell nozzles (PrintShellNozzleLispRows)
+  if (s.showNozzlesOnOverlay) {
+    w('')
+    w('  ;; Nozzles')
+    for (const n of p.shellNozzles) {
+      if (!n.include) continue
+      w(`  (SL_CircleSmart ${LispNum(n.x!)} ${LispNum(n.y!)} ${LispNum(n.diameter!)} ${LispStr(n.id)} ${LispStr(n.labelMode)} "NOZZLES")`)
+    }
+  }
+
+  // Shell MUT points (always written, no Include column)
+  w('')
+  w('  ;; Shell MUT points - rows 91-110: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes')
+  for (const m of p.shellMut) w(`  (SL_MUTPoint ${LispNum(m.x!)} ${LispNum(m.y!)} ${LispStr(m.id)})`)
+
+  // Welds
+  if (s.showWeldsOnOverlay) {
+    w('')
+    w('  ;; Welds')
+    for (const cw of p.circWelds) {
+      if (!cw.include) continue
+      const label = s.showWeldLabels && cw.showLabel ? cw.id : ''
+      w(`  (SL_CircWeld ${LispNum(cw.y!)} ${LispNum(-1)} ${LispNum(-1)} vesselXLen ${LispStr(label)})`)
+    }
+    for (const ls of p.longSeams) {
+      if (!ls.include) continue
+      const label = s.showWeldLabels && ls.showLabel ? ls.id : ''
+      w(`  (SL_LongSeam ${LispNum(ls.x!)} ${LispNum(ls.startY ?? -1)} ${LispNum(ls.stopY ?? -1)} vesselYLen ${LispStr(label)})`)
+    }
+  }
+
+  // Rulers (PrintVisualBottomLeftRulers)
+  if (s.showRulers) {
+    w('')
+    w('  ;; Optional rulers on overlay')
+    const placement = ucaseTrim(s.rulerPlacement) || 'BOTTOM + LEFT'
+    if (!['NONE', 'OFF', 'NO'].includes(placement)) {
+      PrintVisualRulers({ ...lib, placement, xAxisLabel, yAxisLabel })
+    }
+  }
+
+  // Reference labels
+  w('')
+  w('  ;; Optional vessel reference indicators on overlay')
+  printVesselReferenceLabels(w, p, ori)
+
+  // Head views
+  if (headMode !== 'NONE') {
+    const head1Label = ucaseTrim(s.head1Label)
+    const head2Label = ucaseTrim(s.head2Label)
+    const center = (h: string) => (h === 'HEAD 1' ? [panel.head1X, panel.head1Y] : [panel.head2X, panel.head2Y])
+    w('')
+    w('  ;; Optional head views')
+    if (shouldShowHead(headMode, 'HEAD 1')) w(`  (SL_HeadView ${LispNum(panel.head1X)} ${LispNum(panel.head1Y)} ${LispNum(headDia)} ${LispStr(head1Label)})`)
+    if (shouldShowHead(headMode, 'HEAD 2')) w(`  (SL_HeadView ${LispNum(panel.head2X)} ${LispNum(panel.head2Y)} ${LispNum(headDia)} ${LispStr(head2Label)})`)
+    if (s.showHeadNozzles) {
+      w('')
+      w('  ;; Head nozzles - overlay right panel')
+      for (const n of p.headNozzles) {
+        if (!n.include || !shouldShowHead(headMode, n.head)) continue
+        const [cx, cy] = center(n.head)
+        w(`  (SL_HeadNozzle ${LispNum(cx)} ${LispNum(cy)} ${LispNum(headDia)} ${LispNum(clockPositionDegrees(n.clock))} ${LispNum(radiusFactor(n))} ${LispNum(n.diameter!)} ${LispStr(n.id)} ${LispStr(n.labelMode)} "HEADS")`)
+      }
+    }
+    // The v5.0 workbook always has the Head MUT section, so this block is always written.
+    w('')
+    w('  ;; Head MUT points - overlay right panel')
+    for (const m of p.headMut) {
+      if (!m.include || !shouldShowHead(headMode, m.head)) continue
+      const [cx, cy] = center(m.head)
+      w(`  (SL_HeadMUT ${LispNum(cx)} ${LispNum(cy)} ${LispNum(headDia)} ${LispNum(clockPositionDegrees(m.clock))} ${LispNum(radiusFactor(m))} ${LispStr(m.id)} "MUT_TEXT")`)
+    }
+  }
+
+  // Legend and title block
+  if (s.showLegendOnOverlay) {
+    w('')
+    w(`  (SL_Legend ${LispNum(panel.legendX)} ${LispNum(panel.legendY)})`)
+  }
+  if (s.showTitleBlockOnOverlay) {
+    w('')
+    w(`  (SL_TitleBlock ${LispNum(panel.titleX)} ${LispNum(panel.titleY)} ${titleLines(p).map(LispStr).join(' ')})`)
+  }
+
+  // Finish
+  w('')
+  w('  (command "ZOOM" "E")')
+  w('  (SL_OverlayView)')
+  if (acad) {
+    w('  ;; AutoCAD creates the usable viewport entity when Layout1 is activated.')
+    w('  ;; Activate it first, then move it to the dedicated non-print layer.')
+    w('  (SL_ActivateSheet "Layout1")')
+  } else {
+    w('  ;; DraftSight creates the usable viewport entity when Sheet1 is activated.')
+    w('  ;; Activate it first, then move it to the dedicated non-print layer.')
+    w('  (SL_ActivateSheet "Sheet1")')
+  }
+  w('  (SL_AssignCurrentSheetViewports)')
+  w('  (command "_.REGEN")')
+  w('  ;; Return to Model space after the Sheet1 viewport has been updated.')
+  w('  (setvar "TILEMODE" 1)')
+  w('  (setvar "OSMODE" oldOsmode)')
+  if (acad) {
+    w('  (setvar "NOMUTT" oldNomutt)')
+    w('  (setvar "CMDECHO" oldCmdecho)')
+  }
+  w('  (princ "\\nAxisBuilder master drawing complete. Normal viewport is non-printing; Model space is active.")')
+  w('  (princ)')
+  w(')')
+  WriteCommandsTail(lib)
+
+  return lines.map((l) => l + '\r\n').join('')
+}
+
+/** The seven title block lines (GetDrawingInfoValue: blank title -> "AUT COVERAGE MAP"). */
+function titleLines(p: Project): string[] {
+  const i = p.project
+  return [
+    i.drawingTitle.trim() === '' ? 'AUT COVERAGE MAP' : i.drawingTitle,
+    `COMPONENT: ${i.component}`,
+    `UNIT: ${i.unit}`,
+    `CLIENT: ${i.client}`,
+    `INSPECTOR: ${i.inspector}`,
+    `DATE: ${displayDate(i.date)}`,
+    `REV: ${i.revision}`,
+  ]
+}
+
+/** v5.0 WriteSectionPageSettings(f, "YES", "YES"). */
+function writeSectionPageSettings(w: (s: string) => void, p: Project) {
+  const modeRef = ucaseTrim(p.vessel.referenceLabelMode)
+  const labels = modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM' ? customLabels(p) : setLabels(ucaseTrim(p.vessel.referenceLabelSet))
+  w('(setq SL_SECTION_SHOW_REFS "YES")')
+  w(`(setq SL_SECTION_REF_LABELS (list ${labels.map(LispStr).join(' ')}))`)
+  w('(setq SL_SECTION_SHOW_TITLE "YES")')
+  w('(setq SL_SECTION_SHOW_LEGEND "YES")')
+  w(`(setq SL_SECTION_TITLE_LINES (list ${titleLines(p).map(LispStr).join(' ')}))`)
+  w('(setq SL_SECTION_LEGEND_LINES (list SL_LEGEND_TOTAL_SCANS_TEXT SL_COVERAGE_TEXT SL_LEGEND_ORIENTATION_TEXT SL_LEGEND_OVERLAY_TEXT))')
+}

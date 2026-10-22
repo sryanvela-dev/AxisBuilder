@@ -104,7 +104,10 @@ function num<D extends Omit<NumberDef, 'type'>>(d: D) {
   if (d.min !== undefined) s = s.gte(d.min)
   if (d.greaterThan !== undefined) s = s.gt(d.greaterThan)
   if (d.max !== undefined) s = s.lte(d.max)
-  const schema = d.nullable ? s.nullable().default(d.default) : s.default(d.default as number)
+  type Value = D extends { nullable: true } ? number | null : number
+  const schema = (d.nullable ? s.nullable().default(d.default) : s.default(d.default as number)) as unknown as z.ZodDefault<
+    z.ZodType<Value>
+  >
   return { ...d, type: 'number' as const, schema }
 }
 
