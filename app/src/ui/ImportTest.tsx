@@ -5,6 +5,7 @@ import { useState, type ChangeEvent } from 'react'
 import { LIST_META, type ListKey } from '../data/schema.ts'
 import { saveProject } from '../data/projectFile.ts'
 import type { ImportResult, ReportKind } from '../data/xlsmImport.ts'
+import { isStaleCodeError, reloadAfterUpdate } from './reloadAfterUpdate.ts'
 
 const KIND_LABEL: Record<ReportKind, string> = {
   invalid: 'Invalid',
@@ -32,6 +33,7 @@ export function ImportTest() {
       const { importWorkbook } = await import('../data/xlsmImport.ts')
       setResult(importWorkbook(await file.arrayBuffer()))
     } catch (err) {
+      if (isStaleCodeError(err) && reloadAfterUpdate()) return
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
