@@ -5,6 +5,34 @@
 Processed_Images/
 **/Processed_Images/
 
+# Credentials and signing keys (never commit; the public .cer is fine)
+*.pfx
+*.p12
+*.key
+*.pem
+.env
+
+# Office temp, autorecover and backup files
+~*.tmp
+*.xlk
+*.xlar
+*.bak
+*.tmp
+*.log
+
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Generated CAD output
+*.lsp
+# ...except the v5.0 reference outputs used by the web app's parity tests
+!app/test/golden/**/*.lsp
+
 # Web app (/app) dependencies and build output
 node_modules/
 dist/
+
+# Claude Code: per-user local settings (launch.json stays shared)
+.claude/settings.local.json
