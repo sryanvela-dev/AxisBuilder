@@ -3,6 +3,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   ProjectFileError,
   createEmptyProject,
+  findDuplicateIds,
   findMissingData,
   formatDate,
   isValidClock,
@@ -265,44 +266,50 @@ describe('readable errors', () => {
 })
 
 describe('duplicate IDs', () => {
-  it('catches duplicates ignoring case, as v5.0 does', () => {
-    const errors = errorsFor(withChange((p) => p.scans.push({ id: 'scan1', xStart: 0, xStop: 1, yStart: 0, yStop: 1 })))
-    expect(errors).toEqual([
-      'AUT scans, item 3 (scan1): Scan name "scan1" is already used by item 1; IDs must be unique.',
+  // Duplicates are allowed in a file (v5.0 allowed them); findDuplicateIds lists them and export refuses.
+  function duplicatesAfter(change: (p: Record<string, any>) => void): string[] {
+    const r = openProject(saveProject(withChange(change)))
+    if (!r.ok) throw new Error(r.errors.join(' / '))
+    return findDuplicateIds(r.project)
+  }
+
+  it('opens a project with repeated IDs and lists them, ignoring case', () => {
+    expect(duplicatesAfter((p) => p.scans.push({ id: 'scan1', xStart: 0, xStop: 1, yStart: 0, yStop: 1 }))).toEqual([
+      'AUT scans, item 3 (scan1): Scan name "scan1" is also used by item 1; rename one before export.',
     ])
   })
 
   it('checks every list', () => {
-    const errors = errorsFor(
-      withChange((p) => {
-        p.circWelds.push({ id: 'CW1', y: 1 })
-        p.shellNozzles.push({ id: 'N1', diameter: 2, x: 1, y: 1 })
-        p.shellMut.push({ id: 'M1', x: 1, y: 1 })
-        p.scanImages.push({ scanId: 'SCAN1' })
-      }),
-    )
-    expect(errors).toHaveLength(4)
-    expect(errors[0]).toBe('Circ welds, item 2 (CW1): Weld ID "CW1" is already used by item 1; IDs must be unique.')
+    const dups = duplicatesAfter((p) => {
+      p.circWelds.push({ id: 'CW1', y: 1 })
+      p.shellNozzles.push({ id: 'N1', diameter: 2, x: 1, y: 1 })
+      p.shellMut.push({ id: 'M1', x: 1, y: 1 })
+      p.scanImages.push({ scanId: 'SCAN1' })
+    })
+    expect(dups).toHaveLength(4)
+    expect(dups[0]).toBe('Circ welds, item 2 (CW1): Weld ID "CW1" is also used by item 1; rename one before export.')
   })
 
   it('treats shell and head nozzles as one vessel: names never repeat', () => {
-    const errors = errorsFor(
-      withChange((p) => {
+    expect(
+      duplicatesAfter((p) => {
         p.headNozzles.push({ head: 'HEAD 2', id: 'n1', diameter: 2, clock: '6' })
         p.headNozzles.push({ head: 'HEAD 1', id: 'N3', diameter: 2, clock: '6' })
       }),
-    )
-    expect(errors).toEqual([
-      'Head nozzles, item 3 (n1): Nozzle "n1" is already used by Shell nozzles, item 1; IDs must be unique.',
-      'Head nozzles, item 4 (N3): Nozzle "N3" is already used by item 2; IDs must be unique.',
+    ).toEqual([
+      'Head nozzles, item 3 (n1): Nozzle "n1" is also used by Shell nozzles, item 1; rename one before export.',
+      'Head nozzles, item 4 (N3): Nozzle "N3" is also used by item 2; rename one before export.',
     ])
   })
 
   it('treats shell and head MUT as one vessel: IDs never repeat', () => {
-    const errors = errorsFor(withChange((p) => p.headMut.push({ head: 'HEAD 2', id: 'M1', clock: '6' })))
-    expect(errors).toEqual([
-      'Head MUT, item 2 (M1): MUT ID "M1" is already used by Shell MUT, item 1; IDs must be unique.',
+    expect(duplicatesAfter((p) => p.headMut.push({ head: 'HEAD 2', id: 'M1', clock: '6' }))).toEqual([
+      'Head MUT, item 2 (M1): MUT ID "M1" is also used by Shell MUT, item 1; rename one before export.',
     ])
+  })
+
+  it('finds none in a project with unique names', () => {
+    expect(duplicatesAfter(() => {})).toEqual([])
   })
 })
 

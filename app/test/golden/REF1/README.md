@@ -20,7 +20,13 @@ Made with `npm run golden:make` from a real job, anonymized. Don't edit these fi
 | Reference labels | Custom Cardinal, TDC/BDC |
 | AUT hatch | on, transparency 50 |
 
-Note: 1 name(s) are used twice in the workbook (v5.0 keeps them; the app renames the second, e.g. "N1 (2)"), so `project.json` and the `.lsp` differ there on purpose.
+## Renamed for export
+
+v5.0 allowed a name to be used twice; the app refuses to export until it is renamed. These were
+renamed in `project.json` only, so the `.lsp` (v5.0) and the app output differ by exactly these
+labels, which the parity test allows:
+
+- Head nozzles item 1: "N1" -> "N1 (2)"
 
 ## What was replaced
 
