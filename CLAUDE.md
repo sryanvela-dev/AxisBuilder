@@ -125,6 +125,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   + `fill-v5-workbook.ps1`) converts old job workbooks into copies of the v5.0 workbook via Excel COM (macros forced
   off, signature kept), copying the original cells found by `importWorkbook`, then re-imports and compares. The jobs
   folder is outside the repo and holds real client data: never commit anything from it.
+- Golden jobs: `app/test/golden/<JOB>/` (project.json + v5.0.lsp + README), made anonymized with `npm run golden:make`
+  (`app/scripts/make-golden.ts`). `app/test/golden/lspSections.ts` splits a .lsp into sections in ExportAxisBuilderLSP order
+  and compares section by section; `golden.test.ts` has a todo parity test per section, switched on one at a time.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -261,3 +264,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   processed images to REFn\v5.0\Processed_Images, scans copied from the old workbook (keeps hand edits) instead of
   re-importing the CSV, missing AUT Hatch Transparency = 50, v4.7 head nozzle "Include Label" NO written as YES, duplicate
   names (e.g. TOL) kept as written. No VBA or workbook changes; AxisBuilder_v5.0_Stable.xlsm only copied.
+- 2026-10-22 – Web app Phase 2a (branch feature/golden-harness): golden-file harness. `scripts/make-golden.ts` imports a
+  converted job and its v5.0 .lsp and writes `app/test/golden/REF1/` (project.json, v5.0.lsp, README); identifying text
+  (project name, component, client, unit, inspector, numbers, service, notes) replaced with neutral values inside LISP
+  strings only, image folders replaced with placeholders, everything else byte for byte (19 of 2622 lines changed).
+  `lspSections.ts`: 32 sections, split/join exact, normalize line endings / timestamp / image folders, section diff.
+  `.gitattributes`: golden .lsp files `-text`. Tests incl. 32 todo parity tests. No VBA, workbook or REF folder changes.
