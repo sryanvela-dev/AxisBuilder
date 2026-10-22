@@ -4,3 +4,26 @@
 # Generated image output
 Processed_Images/
 **/Processed_Images/
+
+# Credentials and signing keys (never commit; the public .cer is fine)
+*.pfx
+*.p12
+*.key
+*.pem
+.env
+
+# Office temp, autorecover and backup files
+~*.tmp
+*.xlk
+*.xlar
+*.bak
+*.tmp
+*.log
+
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Generated CAD output
+*.lsp
