@@ -4,3 +4,7 @@
 # Generated image output
 Processed_Images/
 **/Processed_Images/
+
+# Web app (/app) dependencies and build output
+node_modules/
+dist/

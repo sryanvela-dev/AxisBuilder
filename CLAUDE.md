@@ -14,6 +14,7 @@ The owner is an Integrity EPC inspection engineer who uses it in the field.
   workbook as 4 hidden sheets). Page 1 = project/vessel/welds/MUT, page 2 = shell sketch
   (ignored by OCR), page 3 = objects and nozzles, page 4 = heads.
 - `Head Clock.png` – head clock-position reference graphic.
+- `app/` – the new web app (in development). See "Web app (/app)" below.
 
 ## Rules for editing src
 1. **Encoding: Windows-1252 (cp1252) with CRLF line endings.** The VBA editor imports .bas files
@@ -85,6 +86,24 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - Scan Import: rows 3–152; A Name, B XStart, C XStop, D YStart, E YStop, F W, G H,
   H CX, I CY, J Rot, K TextH (formulas F:K), L Include.
 - Scan Images: A Scan, B Image File, C Processed Image, D Include, E Status, F Notes.
+
+## Web app (/app)
+Website-first rewrite of AxisBuilder: an installable web app (PWA) that works offline after the first
+visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app must match its output.
+- Stack: Vite + React + TypeScript (strict mode), vite-plugin-pwa (Workbox service worker precaches the
+  whole build; `registerType: 'autoUpdate'`, so new versions apply automatically when online), Vitest.
+  Planned hosting: Cloudflare Pages (serves `app/dist`).
+- Encoding: the cp1252/CRLF rules above apply only to `src/*.bas`. Everything under `/app` is UTF-8.
+- Folders:
+  - `app/src/data/` – project file schema, importers (.xlsm, AUT CSV, images)
+  - `app/src/engine/` – vessel geometry, pure functions, no UI
+  - `app/src/export/` – LISP, DXF, PDF output
+  - `app/src/ui/` – screens, 2D/3D views
+  - `app/test/` – Vitest tests; `app/test/golden/` holds reference jobs and their v5.0 .lsp outputs for parity tests
+  - `app/public/` – PWA icons and favicon (placeholders)
+- npm scripts (run in `app/`): `dev` (dev server, no service worker), `build` (`tsc -b` + `vite build` to `dist/`),
+  `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint).
+- CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
 
@@ -176,3 +195,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   %TEMP%\AxisBuilder_Field_Form_yyyymmdd_hhnnss.pdf, restores page visibility and Home, then opens the PDF via
   Shell.Application ShellExecute (MsgBox with the path if that fails). Cleanup now restores only pages whose visibility
   was saved. Message Center gets the PDF path (SUCCESS) or the error. Re-imported and tested by the user: works, much better than Print Preview.
+- 2026-10-21 – Web app Phase 0 (branch feature/app-scaffold): new `/app` (Vite + React + TypeScript strict, vite-plugin-pwa,
+  Vitest), placeholder page, folder READMEs, `.github/workflows/app-ci.yml`, `.gitignore` adds node_modules and dist. No
+  VBA or workbook changes. v5.0 tagged on main beforehand.
