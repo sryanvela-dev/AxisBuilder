@@ -1,0 +1,20 @@
+{
+  "overrides": {},
+  "allowedRenames": [
+    {
+      "section": "headNozzles",
+      "app": "\"TOL (2)\"",
+      "v5": "\"TOL\""
+    },
+    {
+      "section": "headNozzles",
+      "app": "\"TOL (3)\"",
+      "v5": "\"TOL\""
+    },
+    {
+      "section": "headNozzles",
+      "app": "\"TOL (4)\"",
+      "v5": "\"TOL\""
+    }
+  ]
+}

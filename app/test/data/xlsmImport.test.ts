@@ -122,13 +122,13 @@ describe('current layout (40 nozzle rows)', () => {
         'review Head Features!D5', // degrees converted
         'review Head Features!D7',
         'invalid Head Features!A8', // HEAD 3
-        'changed Head Features!B6', // renamed n3
+        'changed Head Features!B6', // n3 renamed (also used by shell N3)
         'invalid Head Features!D29',
-        'changed Head Features!B29', // renamed M1
+        'changed Head Features!B29', // M1 renamed (also used by shell M1)
         'invalid Head Features!C30',
         'invalid Head Features!E30',
         'invalid Scan Import!C5', // zero width
-        'changed Scan Import!A6', // renamed scan1
+        'changed Scan Import!A6', // scan1 renamed (also used by SCAN1)
         'skipped Scan Images!A5', // no such scan
         'skipped Scan Images!F5', // notes
       ].sort(),
@@ -142,8 +142,19 @@ describe('current layout (40 nozzle rows)', () => {
       message: 'OCR could not read this value; left blank.',
     })
     expect(find('Head Features', 'D5').message).toBe('Degrees converted to clock position 3; please check it.')
-    expect(find('Head Features', 'B6').message).toBe('Head nozzles: ID already used; renamed to "n3 (2)" (IDs must be unique).')
+    expect(find('Head Features', 'B6').message).toBe(
+      'Head nozzles: "n3" is also used by Shell nozzles, row 29; renamed to "n3 (2)" (names must be unique).',
+    )
     expect(find('Shell Features', 'D32').message).toMatch(/highlighted yellow.*value kept/)
+  })
+
+  it('renames repeated names, so none are left to block export', () => {
+    expect(current.summary.duplicateIds).toEqual([])
+    expect(current.report.filter((e) => /renamed to/.test(e.message)).map((e) => e.message)).toEqual([
+      'Head nozzles: "n3" is also used by Shell nozzles, row 29; renamed to "n3 (2)" (names must be unique).',
+      'Head MUT: "M1" is also used by Shell MUT, row 91; renamed to "M1 (2)" (names must be unique).',
+      'AUT scans: "scan1" is also used by row 3; renamed to "scan1 (2)" (names must be unique).',
+    ])
   })
 
   it('lists what must be filled in before export', () => {
@@ -171,6 +182,7 @@ describe('older layout (20 nozzle rows, older labels)', () => {
     expect(p.objects[0].id).toBe('SADDLE 1')
     expect(p.shellMut.map((m) => m.id)).toEqual(['M1', 'M2'])
     expect(older.summary.missingData).toEqual([])
+    expect(older.summary.duplicateIds).toEqual([])
   })
 
   it('reads the older setting labels', () => {

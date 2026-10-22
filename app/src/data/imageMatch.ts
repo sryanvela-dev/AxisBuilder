@@ -34,6 +34,26 @@ export function defaultProcessedName(scanId: string): string {
   return `S${n < 0 ? scanId : n}_FIT_B12.png`
 }
 
+/**
+ * The app's processed image file name for each scan: the scan's own name made file-safe, plus
+ * "_FIT.png" ("SCAN 1" -> "SCAN_1_FIT.png"). Unlike v5.0's S<number> rule, "SCAN1" and "SCAN01" no
+ * longer share a file, and scans without a number get a proper name. If two names still end up the
+ * same after cleaning (ignoring case, as Windows does), the later ones get "_2", "_3", ...
+ */
+export function processedImageNames(scanIds: readonly string[]): Map<string, string> {
+  const out = new Map<string, string>()
+  const used = new Set<string>()
+  for (const id of scanIds) {
+    if (out.has(id)) continue
+    const safe = id.trim().replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^_+|_+$/g, '') || 'SCAN'
+    let name = `${safe}_FIT.png`
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = `${safe}_${n}_FIT.png`
+    used.add(name.toLowerCase())
+    out.set(id, name)
+  }
+  return out
+}
+
 function splitName(fileName: string): { base: string; ext: string } {
   const dot = fileName.lastIndexOf('.')
   return dot > 0

@@ -419,9 +419,6 @@ function writeReport(job: Job, out: string, old: ImportResult, notes: Note[], cs
   if (excel.ok && !excel.signedAfter) look.push('The v5.0 workbook is not signed after saving. Open it on your PC and check Tools > Digital Signature in the VBA editor.')
   if (unexpected.length) look.push(`${unexpected.length} unexpected round-trip difference(s); see ROUND-TRIP CHECK.`)
   for (const e of old.report.filter((x) => x.kind === 'review' || x.kind === 'invalid')) look.push(`${e.sheet} ${e.cell}: ${e.message}`)
-  for (const e of old.report.filter((x) => x.kind === 'changed' && /renamed/.test(x.message))) {
-    look.push(`${e.sheet} ${e.cell}: name ${fmt(e.value)} is used twice; v5.0 keeps it as written, the app renames it.`)
-  }
   for (const n of notes.filter((x) => /decision/.test(x.text))) look.push(n.text)
   for (const l of csvLines.filter((x) => x.startsWith('EDITED'))) look.push(`CSV: ${l}`)
   lines.push('LOOK AT')

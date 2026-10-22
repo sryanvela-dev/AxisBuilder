@@ -1,0 +1,12 @@
+{
+  "overrides": {
+    "vessel.orientation": "Horizontal CCW"
+  },
+  "allowedRenames": [
+    {
+      "section": "headNozzles",
+      "app": "\"N1 (2)\"",
+      "v5": "\"N1\""
+    }
+  ]
+}

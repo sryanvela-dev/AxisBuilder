@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { openProject, type Project } from '../../src/data/index.ts'
+import { openProject } from '../../src/data/index.ts'
+import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import {
   SECTION_NAMES,
   compareLsp,
@@ -75,23 +76,88 @@ describe('golden job REF1', () => {
   })
 })
 
-// Per-section parity with v5.0. Each section stays a todo until the exporter writes it; then add its
-// name to ENABLED and set `exportLsp` to the exporter, one section at a time.
-const ENABLED = new Set<SectionName>([])
-const exportLsp = null as ((project: Project) => string) | null
+// Per-section parity with v5.0 for every golden job (one folder each, made by make-golden).
+const JOBS = readdirSync(new URL('./', import.meta.url), { withFileTypes: true })
+  .filter((d) => d.isDirectory() && existsSync(golden(d.name, 'golden.json')))
+  .map((d) => d.name)
+  .sort()
 
-describe('REF1 parity with v5.0 (app exporter vs golden .lsp)', () => {
+/**
+ * golden.json: `allowedRenames` are the label differences allowed on purpose (README "Renamed for
+ * export"): v5.0 printed the repeated name, the app prints the renamed one. Each must occur exactly
+ * once in its section, in order. `overrides` are already in project.json (README lists them).
+ */
+interface GoldenJson {
+  overrides: Record<string, string>
+  allowedRenames: { section: SectionName; app: string; v5: string }[]
+}
+
+/** The time v5.0 wrote on line 2, so the whole file can be compared byte for byte. */
+function generatedAt(lsp: string): Date {
+  const m = /^;;; Generated from Excel on (\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)\r?$/m.exec(lsp)
+  if (!m) throw new Error('No v5.0 timestamp on line 2')
+  const [y, mo, d, h, mi, s] = m.slice(1).map(Number)
+  return new Date(y, mo - 1, d, h, mi, s)
+}
+
+/** The app output for a golden job, with the allowed label differences put back to the v5.0 text. */
+function jobOutput(job: string, compat?: 'v5.0'): string {
+  const r = openProject(readFileSync(golden(job, 'project.json'), 'utf8'))
+  if (!r.ok) throw new Error(r.errors.join('\n'))
+  const spec = JSON.parse(readFileSync(golden(job, 'golden.json'), 'utf8')) as GoldenJson
+  const out = exportLsp(r.project, {
+    compat,
+    processedImageFolder: '<PROCESSED_IMAGES>',
+    generatedAt: generatedAt(readLsp(job)),
+  })
+  const sections = splitLsp(out)
+  for (const a of spec.allowedRenames) {
+    const sec = sections.find((x) => x.name === a.section)!
+    const count = sec.text.split(a.app).length - 1
+    if (count !== 1) throw new Error(`Allowed difference ${a.app} found ${count} times in ${a.section}; expected exactly once.`)
+    sec.text = sec.text.replace(a.app, a.v5)
+  }
+  return joinLsp(sections)
+}
+const ref1Output = (compat?: 'v5.0') => jobOutput('REF1', compat)
+
+describe.each(JOBS)('%s parity with v5.0 (exporter in v5.0 mode vs golden .lsp)', (job) => {
+  const lsp = readLsp(job)
+  const output = jobOutput(job, 'v5.0')
+  const diffs = compareLsp(lsp, output)
+
+  it('v5.0.lsp splits into every section and has no absolute paths', () => {
+    expect(splitLsp(lsp).map((s) => s.name)).toEqual([...SECTION_NAMES])
+    expect(lsp).not.toMatch(/"[A-Za-z]:[\\/]/)
+  })
+
   for (const name of SECTION_NAMES) {
-    if (!ENABLED.has(name)) {
-      it.todo(`section ${name} matches v5.0`)
-      continue
-    }
     it(`section ${name} matches v5.0`, () => {
-      if (!exportLsp) throw new Error('No exporter yet: set exportLsp before enabling sections.')
-      const r = openProject(readFileSync(golden('REF1', 'project.json'), 'utf8'))
-      if (!r.ok) throw new Error(r.errors.join('\n'))
-      const diff = compareLsp(readLsp('REF1'), exportLsp(r.project)).find((d) => d.name === name)!
+      const diff = diffs.find((d) => d.name === name)!
       expect(diff.status, formatDiffs([diff])).toBe('same')
     })
   }
+
+  it('matches the whole v5.0 file byte for byte (apart from the allowed labels)', () => {
+    expect(output === lsp, formatDiffs(diffs)).toBe(true)
+  })
+})
+
+describe('REF1 app output: v5.0 plus the requested changes only', () => {
+  const app = ref1Output()
+  const diffs = compareLsp(readLsp('REF1'), app)
+
+  it('differs from v5.0 only in the sections the changes touch', () => {
+    // REF1 has no reversed or switched-off scans and shows its reference labels, so changes 1, 2 and 5
+    // don't show here (unit tests cover them).
+    expect(diffs.filter((d) => d.status !== 'same').map((d) => d.name)).toEqual(['header', 'jobSettings', 'images', 'titleBlock'])
+  })
+
+  it('drops the unused overlay values, names images by scan, prints the date as Oct-13-2026', () => {
+    expect(app).not.toMatch(/SL_OVERLAY_PPI|SL_OVERLAY_SCALE/)
+    expect(app).toContain('"<PROCESSED_IMAGES>/SCAN_1_FIT.png"')
+    expect(app).not.toContain('_FIT_B12.png')
+    expect(app).toContain('"DATE: Oct-13-2026"')
+    expect(app).not.toContain('"DATE: 10/13/26"')
+  })
 })

@@ -4,6 +4,7 @@ import {
   defaultProcessedName,
   matchScanImages,
   namingPattern,
+  processedImageNames,
   resolveImageFile,
   scanNumberFromName,
   applyImageChoices,
@@ -155,5 +156,14 @@ describe('saving the chosen files', () => {
 
   it('leaves current links alone for scans that were skipped', () => {
     expect(applyImageChoices(base, new Map()).scanImages).toEqual(base.scanImages)
+  })
+})
+
+describe('processed image names (app)', () => {
+  it('names each file after its scan, file-safe and unique', () => {
+    const names = processedImageNames(['SCAN 1', 'SCAN01', 'NORTH', 'a/b', 'A:B', 'scan  1'])
+    expect([...names.values()]).toEqual([
+      'SCAN_1_FIT.png', 'SCAN01_FIT.png', 'NORTH_FIT.png', 'a_b_FIT.png', 'A_B_2_FIT.png', 'scan_1_2_FIT.png',
+    ])
   })
 })

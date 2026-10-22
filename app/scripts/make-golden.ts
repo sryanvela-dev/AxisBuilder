@@ -1,12 +1,16 @@
 // Makes an anonymized golden reference job for the parity tests from a converted v5.0 job folder.
 //
 //   node scripts/make-golden.ts "<REF v5.0 folder>" REF1      (npm run golden:make -- ...)
+//   node scripts/make-golden.ts "<REF1 v5.0 folder>" REF1-CCW --xlsm REF1_v5.0.xlsm
+//        --lsp "<file>_CCW.lsp" --set "vessel.orientation=Horizontal CCW"
 //
-// Reads <folder>\<name>_v5.0.xlsm (imported with importWorkbook) and the one .lsp that v5.0 generated
-// from it, then writes app/test/golden/<name>/:
+// Reads <folder>\<name>_v5.0.xlsm (or --xlsm) imported with importWorkbook, applies any --set
+// overrides (for a variant generated after changing settings in the workbook without saving it), and
+// the one .lsp in the folder (or --lsp) that v5.0 generated from it. Then writes app/test/golden/<name>/:
 //   project.json  the imported job, identifying text replaced with neutral values
 //   v5.0.lsp      the v5.0 output with the SAME replacements, byte for byte otherwise (ANSI, CRLF)
 //   README.md     what the job covers and which fields were replaced (names only, never the values)
+//   golden.json   test data: the settings overrides and the label differences the parity test allows
 //
 // Replacements are made only inside LISP strings, so code and numbers are never touched. Absolute
 // folders become fixed placeholders. The script prints field names and counts, never the values.
@@ -18,12 +22,26 @@ import { fileURLToPath } from 'node:url'
 import type { Project } from '../src/data/schema.ts'
 import { saveProject } from '../src/data/projectFile.ts'
 import { importWorkbook } from '../src/data/xlsmImport.ts'
-import { IMAGE_DIR_PLACEHOLDER } from '../test/golden/lspSections.ts'
+import { IMAGE_DIR_PLACEHOLDER, splitLsp } from '../test/golden/lspSections.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const [srcDir, name] = process.argv.slice(2)
+const argv = process.argv.slice(2)
+const positional: string[] = []
+const sets: [string, string][] = []
+let xlsmName: string | undefined
+let lspName: string | undefined
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--xlsm') xlsmName = argv[++i]
+  else if (argv[i] === '--lsp') lspName = argv[++i]
+  else if (argv[i] === '--set') {
+    const m = /^([a-z]+\.[A-Za-z0-9]+)=(.*)$/.exec(argv[++i] ?? '')
+    if (!m) throw new Error('--set needs section.key=value, e.g. vessel.orientation=Horizontal CCW')
+    sets.push([m[1], m[2]])
+  } else positional.push(argv[i])
+}
+const [srcDir, name] = positional
 if (!srcDir || !name || !/^[A-Za-z0-9_-]+$/.test(name)) {
-  console.error('Usage: node scripts/make-golden.ts "<REF v5.0 folder>" <NAME>   (NAME like REF1)')
+  console.error('Usage: node scripts/make-golden.ts "<REF v5.0 folder>" <NAME> [--xlsm FILE] [--lsp FILE] [--set section.key=value]...')
   process.exit(2)
 }
 
@@ -48,13 +66,29 @@ const LIST_NOTE_FIELDS = ['shellNozzles', 'objects', 'shellMut', 'headNozzles', 
 // --- Inputs --------------------------------------------------------------------------------------
 
 const dir = resolve(srcDir)
-const xlsm = join(dir, `${name}_v5.0.xlsm`)
-if (!existsSync(xlsm)) throw new Error(`Not found: ${name}_v5.0.xlsm in the source folder`)
-const lspFiles = readdirSync(dir).filter((f) => /\.lsp$/i.test(f))
-if (lspFiles.length !== 1) throw new Error(`Expected exactly one .lsp in the source folder, found ${lspFiles.length}`)
+const xlsm = join(dir, xlsmName ?? `${name}_v5.0.xlsm`)
+if (!existsSync(xlsm)) throw new Error('Workbook not found in the source folder')
+const lspFiles = lspName ? [lspName] : readdirSync(dir).filter((f) => /\.lsp$/i.test(f))
+if (lspFiles.length !== 1) throw new Error(`Expected exactly one .lsp in the source folder (or --lsp), found ${lspFiles.length}`)
 
 const imported = importWorkbook(readFileSync(xlsm))
 const project: Project = structuredClone(imported.project)
+
+// Settings overrides for a variant (given as text; numbers and Yes/No converted).
+for (const [path, text] of sets) {
+  const [section, key] = path.split('.') as ['project' | 'vessel' | 'settings', string]
+  const target = project[section] as Record<string, unknown> | undefined
+  if (!target || !(key in target)) throw new Error(`Unknown setting ${path}`)
+  const old = target[key]
+  target[key] = typeof old === 'number' ? Number(text) : typeof old === 'boolean' ? /^(yes|true|1)$/i.test(text) : text
+}
+
+// Repeated names: the importer renames the later ones ("N1" -> "N1 (2)") and reports each rename.
+// List them in the README; the parity test allows exactly these label differences.
+const renames = imported.report.flatMap((e) => {
+  const m = /^(.*?): "(.*)" is also used by .*; renamed to "(.*)"/.exec(e.message)
+  return m ? [{ listName: m[1], from: m[2], to: m[3] }] : []
+})
 // ANSI bytes as latin1 text: every byte maps to one character and back unchanged.
 let lsp = readFileSync(join(dir, lspFiles[0])).toString('latin1')
 
@@ -135,9 +169,50 @@ mkdirSync(out, { recursive: true })
 writeFileSync(join(out, 'v5.0.lsp'), Buffer.from(lsp, 'latin1'))
 writeFileSync(join(out, 'project.json'), saveProject(project))
 
+// The LISP section of each list, for the label differences the parity test allows.
+const SECTION_OF: Record<string, string> = {
+  'Circ welds': 'welds', 'Long seams': 'welds', 'Shell nozzles': 'nozzles', Objects: 'objects', 'Shell MUT': 'shellMut',
+  'Head nozzles': 'headNozzles', 'Head MUT': 'headMut', 'AUT scans': 'scans',
+}
+const lspSections = splitLsp(lsp)
+const golden = {
+  overrides: Object.fromEntries(sets),
+  // Only labels the drawing prints (e.g. head nozzles are not drawn with head views off).
+  allowedRenames: renames.flatMap((r) => {
+    const section = SECTION_OF[r.listName]
+    if (!section) throw new Error(`No LISP section for renamed ${r.listName}`)
+    const text = lspSections.find((s) => s.name === section)!.text
+    return text.includes(`"${r.from}"`) ? [{ section, app: `"${r.to}"`, v5: `"${r.from}"` }] : []
+  }),
+}
+writeFileSync(join(out, 'golden.json'), JSON.stringify(golden, null, 2) + '\n')
+
+const settingsText = sets.length
+  ? [
+      '## Settings changed for this job',
+      '',
+      'v5.0 generated this .lsp after these settings were changed in the workbook (not saved), so',
+      '`project.json` has them too:',
+      '',
+      ...sets.map(([k, v]) => `- \`${k}\` = "${v}"`),
+      '',
+    ].join('\n')
+  : ''
+
 const p = project
 const c = imported.summary.counts
-const renamed = imported.report.filter((e) => e.kind === 'changed' && /renamed/.test(e.message)).length
+const renamedText = renames.length
+  ? [
+      '## Renamed for export',
+      '',
+      'v5.0 allowed a name to be used twice; the app needs unique names, so the importer renamed these',
+      '(and listed them in its import report). The `.lsp` (v5.0) and the app output differ by exactly',
+      'these labels, which the parity test allows:',
+      '',
+      ...renames.map((r) => `- ${r.listName}: "${r.from}" -> "${r.to}"`),
+      '',
+    ].join('\n')
+  : ''
 const readme = `# ${name}
 
 Golden reference job for the parity tests: the v5.0 workbook data (\`project.json\`) and the master
@@ -160,7 +235,7 @@ Made with \`npm run golden:make\` from a real job, anonymized. Don't edit these 
 | Reference labels | ${p.vessel.referenceLabelMode}, ${p.vessel.referenceLabelSet} |
 | AUT hatch | ${p.settings.autHatchEnabled ? 'on' : 'off'}, transparency ${p.settings.autHatchTransparency} |
 
-${renamed ? `Note: ${renamed} name(s) are used twice in the workbook (v5.0 keeps them; the app renames the second, e.g. "N1 (2)"), so \`project.json\` and the \`.lsp\` differ there on purpose.\n` : ''}
+${settingsText}${renamedText}
 ## What was replaced
 
 Identifying text was replaced with neutral values in both files (only inside LISP strings in the

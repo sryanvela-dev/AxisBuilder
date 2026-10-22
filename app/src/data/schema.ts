@@ -249,15 +249,9 @@ const projectFileShape = {
   scanImages: z.array(scanImageSchema).default([]),
 }
 
+// Repeated IDs are allowed in a file (v5.0 allowed them, and jobs are imported as they are);
+// findDuplicateIds lists them and export refuses until they are renamed.
 export const projectFileSchema = z.strictObject(projectFileShape).superRefine((file, ctx) => {
-  checkUniqueIds(file, ['circWelds'], ctx)
-  checkUniqueIds(file, ['longSeams'], ctx)
-  checkUniqueIds(file, ['shellNozzles', 'headNozzles'], ctx)
-  checkUniqueIds(file, ['objects'], ctx)
-  checkUniqueIds(file, ['shellMut', 'headMut'], ctx)
-  checkUniqueIds(file, ['scans'], ctx)
-  checkUniqueIds(file, ['scanImages'], ctx)
-
   const scanIds = new Set(file.scans.map((s) => idKey(s.id)))
   file.scanImages.forEach((img, i) => {
     if (!scanIds.has(idKey(img.scanId))) {
@@ -270,26 +264,43 @@ export const projectFileSchema = z.strictObject(projectFileShape).superRefine((f
   })
 })
 
-/** Reports every repeated ID across the given lists, which share one set of IDs. */
-function checkUniqueIds(file: Record<ListKey, Record<string, unknown>[]>, lists: ListKey[], ctx: z.RefinementCtx) {
-  const first = new Map<string, { list: ListKey; index: number }>()
-  for (const list of lists) {
-    const field = LIST_META[list].idField
-    file[list].forEach((item, i) => {
-      const value = String(item[field])
-      const earlier = first.get(idKey(value))
-      if (earlier === undefined) {
-        first.set(idKey(value), { list, index: i })
-        return
-      }
-      const where = earlier.list === list ? '' : `${LIST_META[earlier.list].name}, `
-      ctx.addIssue({
-        code: 'custom',
-        path: [list, i, field],
-        message: `"${value}" is already used by ${where}item ${earlier.index + 1}; IDs must be unique`,
+/** Lists that share one set of IDs: the heads are part of the vessel, so nozzle and MUT names never repeat. */
+export const ID_GROUPS: ListKey[][] = [
+  ['circWelds'],
+  ['longSeams'],
+  ['shellNozzles', 'headNozzles'],
+  ['objects'],
+  ['shellMut', 'headMut'],
+  ['scans'],
+  ['scanImages'],
+]
+
+/**
+ * Every repeated ID (ignoring case and outer spaces), as sentences. The project may still be saved and
+ * opened; export refuses until these are renamed.
+ */
+export function findDuplicateIds(project: Pick<Project, ListKey>): string[] {
+  const out: string[] = []
+  for (const lists of ID_GROUPS) {
+    const first = new Map<string, { list: ListKey; index: number }>()
+    for (const list of lists) {
+      const meta = LIST_META[list]
+      const fields = meta.fields as Record<string, string>
+      ;(project[list] as Record<string, unknown>[]).forEach((item, i) => {
+        const value = String(item[meta.idField])
+        const earlier = first.get(idKey(value))
+        if (earlier === undefined) {
+          first.set(idKey(value), { list, index: i })
+          return
+        }
+        const where = earlier.list === list ? '' : `${LIST_META[earlier.list].name}, `
+        out.push(
+          `${meta.name}, item ${i + 1} (${value}): ${fields[meta.idField]} "${value}" is also used by ${where}item ${earlier.index + 1}; rename one before export.`,
+        )
       })
-    })
+    }
   }
+  return out
 }
 
 /** Measurements each list needs before it can be drawn (null = not entered yet). */

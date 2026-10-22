@@ -152,7 +152,7 @@ export const IMAGE_DIR_PLACEHOLDER = '<PROCESSED_IMAGES>'
 export function normalizeLsp(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
-    .replace(/^(;;; Generated from Excel on ).*$/m, '$1<TIMESTAMP>')
+    .replace(/^(;;; Generated (?:from Excel|by AxisBuilder) on ).*$/m, '$1<TIMESTAMP>')
     .replace(/"[A-Za-z]:[\\/][^"]*[\\/]([^"\\/]+)"/g, `"${IMAGE_DIR_PLACEHOLDER}/$1"`)
 }
 

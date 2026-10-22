@@ -17,6 +17,7 @@ import * as XLSX from 'xlsx'
 import { FIELD_TABLES, formatDate, isIsoDate, type FieldDef } from './settings.ts'
 import {
   LIST_META,
+  findDuplicateIds,
   findMissingData,
   idKey,
   isValidClock,
@@ -60,6 +61,8 @@ export interface ImportSummary {
   reorderedSections: ListKey[]
   /** Values that must be filled in before export (see findMissingData). */
   missingData: string[]
+  /** Repeated IDs that must be renamed before export (see findDuplicateIds). */
+  duplicateIds: string[]
 }
 
 /** Where each imported value came from in the workbook (used to copy jobs between workbooks). */
@@ -858,28 +861,33 @@ function importSection(
   return { items, rows, first, columns, reordered }
 }
 
-/** Renames repeated IDs (shared across the given lists) so nothing is dropped; each rename is listed. */
-function makeIdsUnique(
-  lists: { spec: SectionSpec; items: Record<string, unknown>[]; rows: number[] }[],
+/**
+ * Renames repeated IDs (shared across the given lists): v5.0 allowed a name twice, the app needs
+ * unique names. The later one gets " (2)", " (3)", ... and every rename is listed in the report.
+ */
+function renameDuplicateIds(
+  lists: { spec: SectionSpec; items: Record<string, unknown>[]; rows: number[]; columns: Column[] }[],
   sheets: Record<string, Sheet>,
 ) {
-  const used = new Map<string, string>()
-  for (const { spec, items, rows } of lists) {
+  const first = new Map<string, { list: ListKey; row: number }>()
+  for (const { spec, items, rows, columns } of lists) {
     const field = LIST_META[spec.list].idField
+    const idCol = columns.find((c) => c.kind === 'id')!.col
     items.forEach((item, i) => {
       const id = String(item[field])
-      if (!used.has(idKey(id))) {
-        used.set(idKey(id), spec.list)
+      const earlier = first.get(idKey(id))
+      if (!earlier) {
+        first.set(idKey(id), { list: spec.list, row: rows[i] })
         return
       }
       let n = 2
-      while (used.has(idKey(`${id} (${n})`))) n++
+      while (first.has(idKey(`${id} (${n})`))) n++
       const renamed = `${id} (${n})`
-      used.set(idKey(renamed), spec.list)
+      first.set(idKey(renamed), { list: spec.list, row: rows[i] })
       item[field] = renamed
-      const idCol = spec.columns.find((c) => c.kind === 'id')!.col
+      const where = earlier.list === spec.list ? `row ${earlier.row}` : `${LIST_META[earlier.list].name}, row ${earlier.row}`
       sheets[spec.sheet].report.add(spec.sheet, `${idCol}${rows[i]}`, id, 'changed',
-        `${LIST_META[spec.list].name}: ID already used; renamed to "${renamed}" (IDs must be unique).`)
+        `${LIST_META[spec.list].name}: "${id}" is also used by ${where}; renamed to "${renamed}" (names must be unique).`)
     })
   }
 }
@@ -924,15 +932,17 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
     }
   })
 
-  makeIdsUnique([byList.circWelds], sheets)
-  makeIdsUnique([byList.longSeams], sheets)
-  makeIdsUnique([byList.shellNozzles, byList.headNozzles], sheets)
-  makeIdsUnique([byList.objects], sheets)
-  makeIdsUnique([byList.shellMut, byList.headMut], sheets)
-  makeIdsUnique([byList.scans], sheets)
+  renameDuplicateIds([byList.circWelds], sheets)
+  renameDuplicateIds([byList.longSeams], sheets)
+  renameDuplicateIds([byList.shellNozzles, byList.headNozzles], sheets)
+  renameDuplicateIds([byList.objects], sheets)
+  renameDuplicateIds([byList.shellMut, byList.headMut], sheets)
+  renameDuplicateIds([byList.scans], sheets)
 
   // Scan Images rows must point at a scan; one image row per scan.
-  const scanIds = new Map(byList.scans.items.map((s) => [idKey(String(s.id)), String(s.id)]))
+  // A repeated scan name links to its first scan, like v5.0's FindScanRow.
+  const scanIds = new Map<string, string>()
+  for (const s of byList.scans.items) if (!scanIds.has(idKey(String(s.id)))) scanIds.set(idKey(String(s.id)), String(s.id))
   const imaged = new Set<string>()
   const keep: number[] = []
   byList.scanImages.items.forEach((img, i) => {
@@ -988,6 +998,7 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
       fieldsTotal: fields.total,
       reorderedSections: lists.filter((l) => l.reordered).map((l) => l.spec.list),
       missingData: findMissingData(project),
+      duplicateIds: findDuplicateIds(project),
     },
     sources: {
       fields: fieldSources,

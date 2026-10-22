@@ -189,12 +189,12 @@ export function ImportTest() {
           </section>
 
           <section>
-            <h2>Needed before export ({s.missingData.length})</h2>
-            {s.missingData.length === 0 ? (
+            <h2>Needed before export ({s.missingData.length + s.duplicateIds.length})</h2>
+            {s.missingData.length + s.duplicateIds.length === 0 ? (
               <p className="muted">Nothing missing.</p>
             ) : (
               <ul>
-                {s.missingData.map((m) => (
+                {[...s.missingData, ...s.duplicateIds].map((m) => (
                   <li key={m}>{m}</li>
                 ))}
               </ul>

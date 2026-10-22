@@ -105,7 +105,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - npm scripts (run in `app/`): `dev` (dev server, no service worker), `build` (`tsc -b` + `vite build` to `dist/`),
   `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint),
   `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date), `fixtures:xlsm`
-  (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`).
+  (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`), `gen:lsp-library` (regenerates
+  `src/export/lsp/library.generated.ts` from `src/SLG_Utilities.bas`; a test fails when it is out of date).
 - TypeScript projects: `tsconfig.app.json` (src, browser only), `tsconfig.test.json` (src + test, adds Node types),
   `tsconfig.node.json` (vite config and scripts).
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
@@ -125,9 +126,17 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   + `fill-v5-workbook.ps1`) converts old job workbooks into copies of the v5.0 workbook via Excel COM (macros forced
   off, signature kept), copying the original cells found by `importWorkbook`, then re-imports and compares. The jobs
   folder is outside the repo and holds real client data: never commit anything from it.
-- Golden jobs: `app/test/golden/<JOB>/` (project.json + v5.0.lsp + README), made anonymized with `npm run golden:make`
-  (`app/scripts/make-golden.ts`). `app/test/golden/lspSections.ts` splits a .lsp into sections in ExportAxisBuilderLSP order
-  and compares section by section; `golden.test.ts` has a todo parity test per section, switched on one at a time.
+- Golden jobs: `app/test/golden/<JOB>/` (project.json + v5.0.lsp + README + golden.json), made anonymized with
+  `npm run golden:make` (`app/scripts/make-golden.ts`; `--xlsm`, `--lsp` and `--set section.key=value` for variants
+  generated after changing unsaved workbook settings). golden.json holds those overrides and the allowed renamed labels.
+  `app/test/golden/lspSections.ts` splits a .lsp into sections in ExportAxisBuilderLSP order and compares section by
+  section; `golden.test.ts` runs every job folder that has a golden.json (32 sections + byte for byte, timestamp from line 2).
+  Jobs: REF1, REF1-CCW, REF1-ACAD, REF1-OFF, REF2, REF3, REF4.
+- LISP export: `exportLsp` in `app/src/export/lsp/exportLsp.ts` writes the master .lsp exactly as v5.0 (all 32 REF1
+  sections and the whole file match in `compat: 'v5.0'` mode; the default app output adds the user-approved changes in
+  `APP_CHANGES`). Fixed library generated from the VBA; all 7 golden jobs match (CW, CCW, Vertical,
+  AutoCAD); quirks, decisions and what is not yet proven (shell MUT, some "off" switches) are in `app/docs/phase2-notes.md`. Export refuses while missing values or repeated
+  names exist; the importer renames repeated names ("N1" -> "N1 (2)") and lists each rename in its report.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -270,3 +279,27 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   strings only, image folders replaced with placeholders, everything else byte for byte (19 of 2622 lines changed).
   `lspSections.ts`: 32 sections, split/join exact, normalize line endings / timestamp / image folders, section diff.
   `.gitattributes`: golden .lsp files `-text`. Tests incl. 32 todo parity tests. No VBA, workbook or REF folder changes.
+- 2026-10-22 – Web app Phase 2 (branch feature/lsp-exporter): LISP exporter. `vbaFormat.ts` (LispNum = Format "0.###",
+  CStr, Format "0.0"); `scripts/lspLibraryGen.ts` translates the Print-only VBA routines into
+  `library.generated.ts` (sync test); `exportLsp.ts` ports ExportAxisBuilderLSP incl. AutoCAD branches and v5.0 quirks.
+  REF1 parity: 32/32 sections and byte for byte, allowing only the head nozzle "N1 (2)" label. Repeated names are no
+  longer renamed on import: listed, allowed in the file, export blocked (`findDuplicateIds`). Notes in
+  `app/docs/phase2-notes.md`. No VBA, workbook or REF folder changes.
+- 2026-10-22 – Web app Phase 2 follow-up (feature/lsp-exporter): v5.0 quirks the user asked to change are the app's
+  default output; `compat: 'v5.0'` keeps v5.0 exact for the golden test. Changes: coverage/Total Scans after the reversed-scan
+  flip; no image for a scan switched off; processed images named after the scan (`processedImageNames`, "SCAN 1" ->
+  "SCAN_1_FIT.png"); section pages show reference labels only when the drawing does; SL_OVERLAY_PPI/SCALE no longer
+  written; title-block date Oct-22-2026. Kept: Head MUT comment, MUT comment text, CCW panel, tick length 3. REF1 app
+  output differs from v5.0 only in jobSettings, images, titleBlock (tested).
+- 2026-10-22 – Web app Phase 2 decisions (feature/lsp-exporter): importer renames repeated names again ("N1" -> "N1 (2)")
+  and reports each rename (user ruling; export still refuses repeats entered by hand). App header reads "Generated by
+  AxisBuilder" (v5.0 mode keeps "Generated from Excel"). Date ruling confirmed (Oct-22-2026). Validation deferred to its
+  own step. Image folder still open: suggestion in app/docs/phase2-notes.md (relative path first, one-click CAD fallback,
+  desktop wrapper in reserve; test .lsp in DraftSight first).
+- 2026-10-22 – Web app Phase 2 golden jobs (feature/lsp-exporter): `make-golden` takes `--xlsm`, `--lsp`, `--set` and writes
+  golden.json (overrides, allowed renamed labels that the drawing prints). New golden jobs REF2, REF3, REF4 and REF1 variants
+  CCW, ACAD (AutoCAD), OFF (Auto Cardinal labels, head views off), all generated by v5.0 and checked in CAD by the user.
+  `golden.test.ts` runs every job: all 7 match v5.0 byte for byte, no exporter changes needed (proves Vertical, CCW,
+  AutoCAD, long seams, head MUT). Anonymization checked: no original name, client, inspector or path in app/test/golden.
+  Image folder: user answers recorded in app/docs/phase2-notes.md (both CADs, job folder, one click OK, installed
+  program acceptable); the CAD test at the Images step decides. No VBA, workbook or REF folder changes.
