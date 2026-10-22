@@ -1,0 +1,7 @@
+File Name,X-Start,X-Stop,Y-Start,Y-Stop,Gain,Notes
+cal,0,0,0,0,40,calibration block
+SCAN1,0,24,0,30,42,
+SCAN2,24,48,0,30,42,
+SCAN3,48,72,0,30,42,"near N1, check"
+SCAN4,0,24,30,60,42,
+SCAN10,24,48,30,60,44,

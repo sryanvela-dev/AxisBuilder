@@ -112,8 +112,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
   in `app/src/data/projectFile.ts`. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in.
-- v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). The placeholder
-  page is a temporary test screen: open a .xlsm, see counts and the import report, save the project file.
+- v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). AUT CSV:
+  `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`). The placeholder
+  page is a temporary test screen: open a .xlsm or AUT CSV, choose an image folder, see the reports, save the
+  project file.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -237,3 +239,13 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-22 – Docs: `app/docs/overlay-image-scaling.md` records how v5.0 actually fits scan photos (stretch to the
   scan's shape at 40 px/in, attach at scan width; SL_OVERLAY_SCALE / the 400 px/unit setting are written but unused)
   and the user's decision for the web app (keep source resolution, fix shape only, same insertion). No code changes.
+- 2026-10-22 – Web app Phase 1c (branch feature/aut-images): AUT CSV importer (`autCsvImport.ts`, v5.0 Import AUT rules:
+  header-mapped columns, "cal" and nameless rows skipped, duplicates / missing columns / bad coordinates stop the import,
+  every problem listed with its CSV row; no 150-scan limit) and scan image folder matching (`imageMatch.ts`, v5.0
+  SelectScanImageFolder / ScanNumberFromName rules; per scan matched / choose / no match; `applyImageChoices` saves
+  the confirmed files into the project). Test screen: Open AUT CSV, and a Scan images step (`ui/ImageFolderPanel.tsx`):
+  pick a folder, choose the naming format from a list with example thumbnails, pick a file (or skip) for scans with
+  several candidates, confirm replace/keep when a scan already had a different file (as v5.0 asked), then save to
+  the project; a folder where nothing fits shows a "wrong folder?" message. No image resizing yet. Made-up sample CSV in `app/test/fixtures/aut/`. App updates: `main.tsx` now
+  registers the service worker via `virtual:pwa-register` (immediate), so after an update the page reloads once onto the
+  new build instead of showing the old one until the next visit (verified in the preview). No VBA or workbook changes.
