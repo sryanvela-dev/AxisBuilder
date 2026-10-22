@@ -17,6 +17,7 @@ function ref1(change?: (p: Project) => void): Project {
 
 const opts = { processedImageFolder: 'C:\\Jobs\\Processed', generatedAt: new Date(2026, 0, 2, 3, 4, 5) }
 const exportText = (p: Project) => exportLsp(p, opts)
+const exportV5 = (p: Project) => exportLsp(p, { ...opts, compat: 'v5.0' })
 const section = (text: string, name: SectionName) => splitLsp(text).find((s) => s.name === name)!.text
 
 describe('output format', () => {
@@ -32,7 +33,7 @@ describe('output format', () => {
   })
 
   it('writes image paths with forward slashes under the processed folder', () => {
-    expect(section(out, 'images')).toContain('"C:/Jobs/Processed/S1_FIT_B12.png"')
+    expect(section(out, 'images')).toContain('"C:/Jobs/Processed/SCAN_1_FIT.png"')
   })
 })
 
@@ -91,16 +92,63 @@ describe('other orientations (not yet proven by a REF job)', () => {
   })
 })
 
-describe('v5.0 quirks kept on purpose', () => {
-  it('coverage and the scan count leave out a scan entered reversed, but it is still drawn', () => {
+describe('changes from v5.0 (app output) and the v5.0 behavior (compat mode)', () => {
+  it('1: a scan entered reversed counts toward coverage and Total Scans in the app (v5.0 left it out)', () => {
     const p = ref1((x) => {
       const s = x.scans[0]
       ;[s.xStart, s.xStop] = [s.xStop, s.xStart]
     })
-    const out = exportText(p)
-    expect(out).toContain('(setq SL_LEGEND_TOTAL_SCANS_TEXT "Total Scans: 16")')
-    expect(section(out, 'scans')).toContain(`(SL_LabelRect 115. 2. 72. 20. "${p.scans[0].id}"`)
+    const app = exportText(p)
+    const v5 = exportV5(p)
+    expect(app).toContain('(setq SL_LEGEND_TOTAL_SCANS_TEXT "Total Scans: 17")')
+    expect(app).toContain('(setq SL_COVERAGE_TEXT "Coverage: 18.1%")')
+    expect(v5).toContain('(setq SL_LEGEND_TOTAL_SCANS_TEXT "Total Scans: 16")')
+    for (const out of [app, v5]) expect(section(out, 'scans')).toContain(`(SL_LabelRect 115. 2. 72. 20. "${p.scans[0].id}"`)
   })
+
+  it('2: a scan switched off gets no image in the app (v5.0 still inserted it)', () => {
+    const off = ref1((x) => (x.scans[0].include = false))
+    expect(section(exportText(off), 'scans')).not.toContain(`"${off.scans[0].id}" "SCANS"`)
+    expect(section(exportText(off), 'images')).not.toContain('/SCAN_1_FIT.png"')
+    expect(section(exportV5(off), 'images')).toContain('/S1_FIT_B12.png"')
+    const imageOff = ref1((x) => (x.scanImages[0].include = false))
+    expect(section(exportText(imageOff), 'images')).not.toContain('/SCAN_1_FIT.png"')
+    expect(section(exportV5(imageOff), 'images')).not.toContain('/S1_FIT_B12.png"')
+  })
+
+  it('3: processed images are named after the scan in the app (v5.0: S<number>_FIT_B12.png)', () => {
+    const p = ref1((x) => {
+      x.scans[1].id = 'SCAN01'
+      x.scanImages[1].scanId = 'SCAN01'
+    })
+    expect(section(exportText(p), 'images')).toContain('/SCAN01_FIT.png"')
+    expect(section(exportText(p), 'images')).toContain('/SCAN_1_FIT.png"')
+    // v5.0 gives SCAN 1 and SCAN01 the same file name.
+    expect(section(exportV5(p), 'images').split('/S1_FIT_B12.png"').length - 1).toBe(2)
+  })
+
+  it('5: section pages hide the reference labels when the drawing does (v5.0 always showed them)', () => {
+    const hidden = ref1((x) => (x.vessel.referenceLabelMode = 'None'))
+    expect(section(exportText(hidden), 'referenceLabels')).not.toContain('SL_Line')
+    expect(exportText(hidden)).toContain('(setq SL_SECTION_SHOW_REFS "NO")')
+    expect(exportV5(hidden)).toContain('(setq SL_SECTION_SHOW_REFS "YES")')
+    const off = ref1((x) => (x.settings.showVesselReferenceLabels = false))
+    expect(exportText(off)).toContain('(setq SL_SECTION_SHOW_REFS "NO")')
+    expect(exportText(ref1())).toContain('(setq SL_SECTION_SHOW_REFS "YES")')
+  })
+
+  it('6: SL_OVERLAY_PPI and SL_OVERLAY_SCALE are only written in v5.0 mode', () => {
+    expect(exportText(ref1())).not.toMatch(/SL_OVERLAY_(PPI|SCALE)/)
+    expect(exportV5(ref1())).toContain('(setq SL_OVERLAY_SCALE 10.)')
+  })
+
+  it('10: the title-block date is Oct-13-2026 in the app (v5.0: 10/13/26)', () => {
+    expect(section(exportText(ref1()), 'titleBlock')).toContain('"DATE: Oct-13-2026"')
+    expect(section(exportV5(ref1()), 'titleBlock')).toContain('"DATE: 10/13/26"')
+  })
+})
+
+describe('v5.0 behavior kept in both modes', () => {
 
   it('without validation, reversed scans are drawn as entered', () => {
     const p = ref1((x) => {
@@ -109,15 +157,6 @@ describe('v5.0 quirks kept on purpose', () => {
       ;[s.xStart, s.xStop] = [s.xStop, s.xStart]
     })
     expect(section(exportText(p), 'scans')).toContain(`(SL_LabelRect 187. 2. -72. 20. "${p.scans[0].id}"`)
-  })
-
-  it('a scan switched off keeps its image unless the image row is off', () => {
-    const off = ref1((x) => (x.scans[0].include = false))
-    const out = exportText(off)
-    expect(section(out, 'scans')).not.toContain(`"${off.scans[0].id}" "SCANS"`)
-    expect(section(out, 'images')).toContain('/S1_FIT_B12.png"')
-    const imageOff = ref1((x) => (x.scanImages[0].include = false))
-    expect(section(exportText(imageOff), 'images')).not.toContain('/S1_FIT_B12.png"')
   })
 
   it('the Head MUT comment is written whenever head views are on, even with no head MUT', () => {

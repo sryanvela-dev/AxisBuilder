@@ -130,7 +130,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (`app/scripts/make-golden.ts`). `app/test/golden/lspSections.ts` splits a .lsp into sections in ExportAxisBuilderLSP order
   and compares section by section; `golden.test.ts` has a todo parity test per section, switched on one at a time.
 - LISP export: `exportLsp` in `app/src/export/lsp/exportLsp.ts` writes the master .lsp exactly as v5.0 (all 32 REF1
-  sections and the whole file match). Fixed library generated from the VBA; quirks, decisions and what is not yet
+  sections and the whole file match in `compat: 'v5.0'` mode; the default app output adds the user-approved changes in
+  `APP_CHANGES`). Fixed library generated from the VBA; quirks, decisions and what is not yet
   proven (AutoCAD, Vertical, CCW) are in `app/docs/phase2-notes.md`. Export refuses while missing values or repeated
   names exist; the importer keeps repeated names and lists them.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
@@ -281,3 +282,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   REF1 parity: 32/32 sections and byte for byte, allowing only the head nozzle "N1 (2)" label. Repeated names are no
   longer renamed on import: listed, allowed in the file, export blocked (`findDuplicateIds`). Notes in
   `app/docs/phase2-notes.md`. No VBA, workbook or REF folder changes.
+- 2026-10-22 – Web app Phase 2 follow-up (feature/lsp-exporter): v5.0 quirks the user asked to change are the app's
+  default output; `compat: 'v5.0'` keeps v5.0 exact for the golden test. Changes: coverage/Total Scans after the reversed-scan
+  flip; no image for a scan switched off; processed images named after the scan (`processedImageNames`, "SCAN 1" ->
+  "SCAN_1_FIT.png"); section pages show reference labels only when the drawing does; SL_OVERLAY_PPI/SCALE no longer
+  written; title-block date Oct-22-2026. Kept: Head MUT comment, MUT comment text, CCW panel, tick length 3. REF1 app
+  output differs from v5.0 only in jobSettings, images, titleBlock (tested).

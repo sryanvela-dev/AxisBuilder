@@ -88,10 +88,11 @@ const ALLOWED: { section: SectionName; app: string; v5: string }[] = [
 ]
 
 /** The app output for REF1, with the allowed label differences put back to the v5.0 text. */
-function ref1Output(): string {
+function ref1Output(compat?: 'v5.0'): string {
   const r = openProject(readFileSync(golden('REF1', 'project.json'), 'utf8'))
   if (!r.ok) throw new Error(r.errors.join('\n'))
   const out = exportLsp(r.project, {
+    compat,
     processedImageFolder: '<PROCESSED_IMAGES>',
     // The golden file's own timestamp, so the whole file can be compared byte for byte.
     generatedAt: new Date(2026, 9, 22, 14, 49, 16),
@@ -106,8 +107,8 @@ function ref1Output(): string {
   return joinLsp(sections)
 }
 
-describe('REF1 parity with v5.0 (app exporter vs golden .lsp)', () => {
-  const output = ref1Output()
+describe('REF1 parity with v5.0 (exporter in v5.0 mode vs golden .lsp)', () => {
+  const output = ref1Output('v5.0')
   const diffs = compareLsp(readLsp('REF1'), output)
   for (const name of SECTION_NAMES) {
     if (!ENABLED.has(name)) {
@@ -122,5 +123,24 @@ describe('REF1 parity with v5.0 (app exporter vs golden .lsp)', () => {
 
   it('matches the whole v5.0 file byte for byte (apart from the allowed label)', () => {
     expect(output === readLsp('REF1'), formatDiffs(diffs)).toBe(true)
+  })
+})
+
+describe('REF1 app output: v5.0 plus the requested changes only', () => {
+  const app = ref1Output()
+  const diffs = compareLsp(readLsp('REF1'), app)
+
+  it('differs from v5.0 only in the sections the changes touch', () => {
+    // REF1 has no reversed or switched-off scans and shows its reference labels, so changes 1, 2 and 5
+    // don't show here (unit tests cover them).
+    expect(diffs.filter((d) => d.status !== 'same').map((d) => d.name)).toEqual(['jobSettings', 'images', 'titleBlock'])
+  })
+
+  it('drops the unused overlay values, names images by scan, prints the date as Oct-13-2026', () => {
+    expect(app).not.toMatch(/SL_OVERLAY_PPI|SL_OVERLAY_SCALE/)
+    expect(app).toContain('"<PROCESSED_IMAGES>/SCAN_1_FIT.png"')
+    expect(app).not.toContain('_FIT_B12.png')
+    expect(app).toContain('"DATE: Oct-13-2026"')
+    expect(app).not.toContain('"DATE: 10/13/26"')
   })
 })

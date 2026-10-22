@@ -1,6 +1,6 @@
 # Phase 2 notes: LISP exporter
 
-Status, v5.0 quirks ported as they are, decisions to review, and what's needed next.
+Status, v5.0 quirks and what changed, decisions to review, and what's needed next.
 Branch `feature/lsp-exporter` (local commits only; not pushed).
 
 ## Result
@@ -43,36 +43,49 @@ compare with:
 - the "off" switches: vessel, welds, supports, nozzles, rulers, legend, title block, reference labels,
   head nozzles, scan borders, coverage %, validation
 
-## v5.0 quirks ported as they are
+## v5.0 quirks: what changed, what stayed
 
-These are copied exactly, even where they look like bugs in v5.0.
+The exporter has two modes. **By default it writes the app's output**: v5.0 plus the changes below,
+which you asked for on 2026-10-22. With `compat: 'v5.0'` it writes exactly what v5.0 wrote, quirks
+included. The REF1 golden test runs in that mode to keep proving the port byte for byte. A second test
+checks that the app output differs from v5.0 only where these changes apply (for REF1: `jobSettings`,
+`images`, `titleBlock`).
 
-1. **Coverage % and "Total Scans" leave out reversed scans.** They are computed before validation
-   flips a scan entered with start > stop, so that scan has a negative width and isn't counted. It is
-   still drawn (after the flip).
-2. **Images are inserted for scans switched off.** Scan Images is rebuilt from Scan Import before
-   generating; a scan with Include = NO still gets an image row with Include = YES unless its old image
-   row said NO, so its photo is inserted while its outline isn't.
-3. **The processed image name is always `S<number>_FIT_B12.png`.** The rebuild overwrites the
-   Processed Image column. Two scans with the same number, such as `SCAN1` and `SCAN01`, would
-   share one file name.
-4. **The Head MUT comment line is always written when head views are on**, even with no head MUT
-   rows (v5.0's workbook always has the Head MUT section).
-5. **Section pages always show reference labels.** With Reference Label Mode = None, the main
-   drawing hides them, but the section-page settings still list the label set.
-6. **Values written but not used**: `SL_OVERLAY_SCALE`, `SL_OVERLAY_PPI`, `SL_HATCH_ANGLE`.
-   Already known; the hatch angle is deferred by you.
-7. **The shell MUT comment says "rows 91-110"** even though the app has no rows.
-8. **Horizontal CCW**: the right-side panel ignores the right-ruler shift that Vertical and CW get
-   (v5.0's own comment says CCW was left unchanged on purpose).
-9. **A blank reference label tick length**, or one of 0 or less, becomes 3 (VBA `Val`).
-10. **The date is printed as the cell displays it** (`m/d/yy`, e.g. `10/13/26`). See Decisions.
+| # | v5.0 quirk | Your answer | App output now |
+|---|---|---|---|
+| 1 | Coverage % and Total Scans were computed before reversed scans were flipped, so a reversed scan wasn't counted | Fix | Computed after the flip: a reversed scan counts |
+| 2 | Images were inserted for scans switched off | Fix | A scan switched off gets no image |
+| 3 | Processed images were all named `S<number>_FIT_B12.png`; `SCAN1` and `SCAN01` shared a file | Better naming | Named after the scan: `SCAN 1` -> `SCAN_1_FIT.png`, `SCAN01` -> `SCAN01_FIT.png`; unsafe characters become `_`; a clash gets `_2`. The image step must use the same names (`processedImageNames`) |
+| 4 | The Head MUT comment line is always written when head views are on | Asked where (see below) | Unchanged |
+| 5 | Section pages always showed reference labels, even when the drawing hid them | Make them match | Section pages show labels only when the main drawing does (`SL_SECTION_SHOW_REFS "NO"` otherwise) |
+| 6 | `SL_OVERLAY_PPI` and `SL_OVERLAY_SCALE` written but used by no LISP code | Remove | Not written (`SL_HATCH_ANGLE` stays; you deferred it) |
+| 7 | The shell MUT comment says "rows 91-110" | Explain (see below) | Unchanged |
+| 8 | Horizontal CCW right panel ignores the right-ruler shift | Leave as is | Unchanged |
+| 9 | A reference tick length of 0 or less becomes 3 | That is the default | Unchanged |
+| 10 | Title-block date printed as the cell showed it (`10/13/26`) | Use the earlier ruling | Printed `Oct-13-2026` (title block and section pages) |
+
+**About 4 and 7: where these lines are.** They are comment lines inside the `.lsp` file, in the
+drawing command `c:SCANOVERLAY`. In AutoLISP everything after `;;` is a comment: CAD ignores it, it
+draws nothing and appears nowhere in the drawing. You'd only see it by opening the `.lsp` in a text
+editor:
+```
+  ;; Shell MUT points - rows 91-110: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes
+  (SL_MUTPoint 10. 10. "M1")
+  ...
+  ;; Head MUT points - overlay right panel
+  (SL_HeadMUT ...)
+```
+- **4:** the `;; Head MUT points` line is written even when there are no head MUT points, so a
+  comment heading sits over an empty list. Harmless.
+- **7:** the `;; Shell MUT points - rows 91-110...` line describes where v5.0 kept these points on the
+  Shell Features sheet (rows 91-110, columns A-E). The app has no sheet rows, so that part is out of
+  date, but it is only a note to whoever reads the file. It could be shortened to
+  `;; Shell MUT points` if you like.
 
 ## Decisions to review
 
-1. **Title-block date format.** v5.0 prints the date the way its workbook cell shows it, which is
-   `m/d/yy`. Phase 1a decided the app shows dates as `Oct-22-2026`. For parity the exporter prints
-   `m/d/yy`. Changing it later means updating the golden files on purpose.
+1. **Title-block date format.** Resolved: the app prints `Oct-22-2026` (your earlier ruling); v5.0
+   mode prints v5.0's `m/d/yy` for the golden test.
 2. **Repeated names.** The importer no longer renames: it lists repeats, the file may hold them, and
    export refuses until they're renamed. REF1's `project.json` renames the head nozzle `N1` to
    `N1 (2)` explicitly (listed in `test/golden/REF1/README.md`), and the parity test allows exactly

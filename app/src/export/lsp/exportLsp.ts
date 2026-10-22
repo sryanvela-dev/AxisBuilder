@@ -1,5 +1,9 @@
-// LISP exporter: writes the AxisBuilder master .lsp for a project exactly as v5.0's
-// SLG_Utilities.ExportAxisBuilderLSP does (same text, same order, same quirks).
+// LISP exporter: writes the AxisBuilder master .lsp for a project the way v5.0's
+// SLG_Utilities.ExportAxisBuilderLSP does (same text, same order).
+//
+// Two modes. By default the app's output: v5.0 plus the fixes the user asked for (see
+// APP_CHANGES below and app/docs/phase2-notes.md). With `compat: 'v5.0'` the output is exactly
+// v5.0's, quirks included; the REF1 golden test uses that mode to prove the port byte for byte.
 //
 // The fixed function library comes from library.generated.ts (translated from the VBA). This file ports
 // the job-dependent parts: settings, the c:SCANOVERLAY drawing body, reference labels, the right-panel
@@ -9,7 +13,8 @@
 
 import type { HeadMut, HeadNozzle, Project, Scan } from '../../data/schema.ts'
 import { findDuplicateIds, findMissingData } from '../../data/schema.ts'
-import { defaultProcessedName } from '../../data/imageMatch.ts'
+import { defaultProcessedName, processedImageNames } from '../../data/imageMatch.ts'
+import { formatDate } from '../../data/settings.ts'
 import {
   PrintVisualRulers,
   WriteCommandsTail,
@@ -19,7 +24,20 @@ import {
 } from './library.generated.ts'
 import { CStr, LispNum, LispStr, vbaFormatFixed } from './vbaFormat.ts'
 
+/**
+ * Where the app's output deliberately differs from v5.0 (asked for by the user, 2026-10-22):
+ * 1. Coverage % and Total Scans are computed after reversed scans are flipped.
+ * 2. A scan switched off gets no image either.
+ * 3. Processed image names come from the scan name ("SCAN 1" -> "SCAN_1_FIT.png").
+ * 5. Section pages show reference labels only when the main drawing does.
+ * 6. SL_OVERLAY_PPI and SL_OVERLAY_SCALE (unused by the LISP) are not written.
+ * 10. The title-block date is printed as Oct-22-2026.
+ */
+export const APP_CHANGES = [1, 2, 3, 5, 6, 10] as const
+
 export interface ExportOptions {
+  /** 'v5.0' writes exactly what v5.0 wrote, quirks included. Default: the app's output. */
+  compat?: 'v5.0'
   /** Time for the ";;; Generated from Excel on" line (v5.0: Now). Default: the current time. */
   generatedAt?: Date
   /**
@@ -257,19 +275,24 @@ function printRefCardinal(w: (s: string) => void, labels: string[], baseY: strin
   }
 }
 
-function printVesselReferenceLabels(w: (s: string) => void, p: Project, ori: string) {
-  if (!p.settings.showVesselReferenceLabels) return
+/** The reference labels the main drawing shows, or null when it shows none (PrintVesselReferenceLabels). */
+function drawnReferenceLabels(p: Project): string[] | null {
+  if (!p.settings.showVesselReferenceLabels) return null
   const modeRef = ucaseTrim(p.vessel.referenceLabelMode)
-  const setRef = ucaseTrim(p.vessel.referenceLabelSet)
+  let labels: string[]
+  if (modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM') labels = customLabels(p)
+  else if (modeRef === 'NONE' || modeRef === 'OFF' || modeRef === 'NO') return null
+  else labels = setLabels(ucaseTrim(p.vessel.referenceLabelSet))
+  return labels.every((l) => l.trim() === '') ? null : labels
+}
+
+function printVesselReferenceLabels(w: (s: string) => void, p: Project, ori: string) {
+  const labels = drawnReferenceLabels(p)
+  if (!labels) return
   let tickLen = p.settings.referenceLabelTickLength
   if (tickLen <= 0) tickLen = 3
   const textGap = 1.25
   const textH = 1.5
-  let labels: string[]
-  if (modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM') labels = customLabels(p)
-  else if (modeRef === 'NONE' || modeRef === 'OFF' || modeRef === 'NO') return
-  else labels = setLabels(setRef)
-  if (labels.every((l) => l.trim() === '')) return
 
   const placement = ucaseTrim(p.settings.rulerPlacement) || 'BOTTOM + LEFT'
   w('  ;; Vessel reference labels - v4.6.2 cardinal vessel X-axis references')
@@ -296,15 +319,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const vesselHeight = p.vessel.height!
   const spacing = s.rulerSpacing
 
-  // Coverage and scan count are computed before validation flips reversed scans (v5.0 order).
-  const enabledScans = p.scans.filter((sc) => sc.include && sc.xStop! - sc.xStart! > 0 && sc.yStop! - sc.yStart! > 0)
-  const vesselArea = vesselLength * vesselHeight
-  let coverageText = ''
-  if (vesselArea > 0 && s.showCoveragePercentage) {
-    const area = enabledScans.reduce((a, sc) => a + (sc.xStop! - sc.xStart!) * (sc.yStop! - sc.yStart!), 0)
-    coverageText = `Coverage: ${vbaFormatFixed((area / vesselArea) * 100, 1, 1)}%`
-  }
-  const legendTotalScansText = `Total Scans: ${CStr(enabledScans.length)}`
+  const v5 = options.compat === 'v5.0'
   const legendOrientationText = ori === 'VERTICAL' ? 'Orientation: Vertical' : 'Orientation: Horizontal'
 
   const ppi = s.overlayPixelsPerInch > 0 ? s.overlayPixelsPerInch : 40
@@ -327,6 +342,17 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
     if (out.yStart! > out.yStop!) [out.yStart, out.yStop] = [out.yStop, out.yStart]
     return out
   })
+
+  // Coverage and scan count. v5.0 computes them before the flip, so a reversed scan is left out
+  // (change 1: the app counts it).
+  const counted = (v5 ? p.scans : scans).filter((sc) => sc.include && sc.xStop! - sc.xStart! > 0 && sc.yStop! - sc.yStart! > 0)
+  const vesselArea = vesselLength * vesselHeight
+  let coverageText = ''
+  if (vesselArea > 0 && s.showCoveragePercentage) {
+    const area = counted.reduce((a, sc) => a + (sc.xStop! - sc.xStart!) * (sc.yStop! - sc.yStart!), 0)
+    coverageText = `Coverage: ${vbaFormatFixed((area / vesselArea) * 100, 1, 1)}%`
+  }
+  const legendTotalScansText = `Total Scans: ${CStr(counted.length)}`
 
   const lib: LibraryContext = {
     w,
@@ -359,8 +385,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w(`(setq SL_LEGEND_TOTAL_SCANS_TEXT ${LispStr(legendTotalScansText)})`)
   w(`(setq SL_LEGEND_ORIENTATION_TEXT ${LispStr(legendOrientationText)})`)
   w('(setq SL_LEGEND_OVERLAY_TEXT "Overlay: Enabled")')
-  w(`(setq SL_OVERLAY_PPI ${LispNum(ppi)})`)
-  w(`(setq SL_OVERLAY_SCALE ${LispNum(overlayScale)})`)
+  if (v5) {
+    // Change 6: not used by any LISP routine, so the app doesn't write them.
+    w(`(setq SL_OVERLAY_PPI ${LispNum(ppi)})`)
+    w(`(setq SL_OVERLAY_SCALE ${LispNum(overlayScale)})`)
+  }
   w(`(setq SL_OVERLAY_ROTATION ${LispNum(0)})`)
   w(`(setq SL_ARROW_HEAD ${LispNum(s.arrowHeadSize)})`)
   w(`(setq SL_SMART_NOZZLES ${LispStr(YES(s.smartNozzleLabels))})`)
@@ -377,7 +406,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w(`(setq SL_RULER_OFFSET ${LispNum(s.rulerOffset)})`)
   w(`(setq SL_X_AXIS_LABEL ${LispStr(xAxisLabel)})`)
   w(`(setq SL_Y_AXIS_LABEL ${LispStr(yAxisLabel)})`)
-  writeSectionPageSettings(w, p)
+  writeSectionPageSettings(w, p, v5)
   w('')
 
   const headMode = s.headViewMode
@@ -438,10 +467,13 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('  ;; Scan image overlays. IMAGEFRAME follows Project Settings: Show Scan Borders On Overlay.')
   const imageInclude = new Map<string, boolean>()
   for (const img of p.scanImages) if (!imageInclude.has(img.scanId.toUpperCase())) imageInclude.set(img.scanId.toUpperCase(), img.include)
+  const appNames = processedImageNames(scans.map((sc) => sc.id))
   for (const sc of scans) {
     if (imageInclude.get(sc.id.toUpperCase()) === false) continue
+    if (!v5 && !sc.include) continue // change 2: a scan switched off gets no image either
     const row = scans.find((x) => x.id.toUpperCase() === sc.id.toUpperCase())! // FindScanRow: first match
-    const imgPath = combinePath(processedFolder, defaultProcessedName(sc.id)).replace(/\\/g, '/')
+    const fileName = v5 ? defaultProcessedName(sc.id) : appNames.get(sc.id)! // change 3
+    const imgPath = combinePath(processedFolder, fileName).replace(/\\/g, '/')
     const xs = LispNum(row.xStart!)
     const ys = LispNum(row.yStart!)
     const wd = LispNum(row.xStop! - row.xStart!)
@@ -543,7 +575,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   }
   if (s.showTitleBlockOnOverlay) {
     w('')
-    w(`  (SL_TitleBlock ${LispNum(panel.titleX)} ${LispNum(panel.titleY)} ${titleLines(p).map(LispStr).join(' ')})`)
+    w(`  (SL_TitleBlock ${LispNum(panel.titleX)} ${LispNum(panel.titleY)} ${titleLines(p, v5).map(LispStr).join(' ')})`)
   }
 
   // Finish
@@ -576,8 +608,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   return lines.map((l) => l + '\r\n').join('')
 }
 
-/** The seven title block lines (GetDrawingInfoValue: blank title -> "AUT COVERAGE MAP"). */
-function titleLines(p: Project): string[] {
+/**
+ * The seven title block lines (GetDrawingInfoValue: blank title -> "AUT COVERAGE MAP"). The date is
+ * v5.0's m/d/yy, or Oct-22-2026 in the app (change 10).
+ */
+function titleLines(p: Project, v5: boolean): string[] {
   const i = p.project
   return [
     i.drawingTitle.trim() === '' ? 'AUT COVERAGE MAP' : i.drawingTitle,
@@ -585,19 +620,23 @@ function titleLines(p: Project): string[] {
     `UNIT: ${i.unit}`,
     `CLIENT: ${i.client}`,
     `INSPECTOR: ${i.inspector}`,
-    `DATE: ${displayDate(i.date)}`,
+    `DATE: ${v5 ? displayDate(i.date) : formatDate(i.date)}`,
     `REV: ${i.revision}`,
   ]
 }
 
-/** v5.0 WriteSectionPageSettings(f, "YES", "YES"). */
-function writeSectionPageSettings(w: (s: string) => void, p: Project) {
+/**
+ * v5.0 WriteSectionPageSettings(f, "YES", "YES"). v5.0 always shows the labels on section pages; the
+ * app shows them only when the main drawing does (change 5).
+ */
+function writeSectionPageSettings(w: (s: string) => void, p: Project, v5: boolean) {
   const modeRef = ucaseTrim(p.vessel.referenceLabelMode)
   const labels = modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM' ? customLabels(p) : setLabels(ucaseTrim(p.vessel.referenceLabelSet))
-  w('(setq SL_SECTION_SHOW_REFS "YES")')
+  const showRefs = v5 || drawnReferenceLabels(p) !== null
+  w(`(setq SL_SECTION_SHOW_REFS ${LispStr(YES(showRefs))})`)
   w(`(setq SL_SECTION_REF_LABELS (list ${labels.map(LispStr).join(' ')}))`)
   w('(setq SL_SECTION_SHOW_TITLE "YES")')
   w('(setq SL_SECTION_SHOW_LEGEND "YES")')
-  w(`(setq SL_SECTION_TITLE_LINES (list ${titleLines(p).map(LispStr).join(' ')}))`)
+  w(`(setq SL_SECTION_TITLE_LINES (list ${titleLines(p, v5).map(LispStr).join(' ')}))`)
   w('(setq SL_SECTION_LEGEND_LINES (list SL_LEGEND_TOTAL_SCANS_TEXT SL_COVERAGE_TEXT SL_LEGEND_ORIENTATION_TEXT SL_LEGEND_OVERLAY_TEXT))')
 }

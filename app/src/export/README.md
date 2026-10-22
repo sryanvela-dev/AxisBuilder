@@ -6,7 +6,8 @@ Turns a project into output files.
   exactly as the v5.0 workbook writes it (checked by the golden tests in `test/golden/`).
   - `exportLsp.ts`: `exportLsp(project, options)` ports `ExportAxisBuilderLSP` (job settings, the
     drawing command, right-panel layout, reference labels). Refuses with `ExportBlockedError` while
-    `exportProblems(project)` lists missing values or repeated names.
+    `exportProblems(project)` lists missing values or repeated names. Default output = v5.0 plus the
+    user-approved changes (`APP_CHANGES`); `compat: 'v5.0'` writes exactly what v5.0 wrote.
   - `library.generated.ts`: the fixed LISP function library, translated from the VBA by
     `npm run gen:lsp-library` (`scripts/lspLibraryGen.ts`). Don't edit it by hand.
   - `vbaFormat.ts`: how v5.0 turns numbers into text (`LispNum`, `CStr`, `Format "0.0"`).
