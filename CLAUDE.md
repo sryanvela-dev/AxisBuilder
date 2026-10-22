@@ -114,6 +114,11 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   value); `findMissingData` lists them and export must refuse until they are filled in.
 - v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). The placeholder
   page is a temporary test screen: open a .xlsm, see counts and the import report, save the project file.
+- Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
+  keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
+  insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
+  (no cropping). Must be verified on a real job in DraftSight and AutoCAD, all three orientations, before it replaces
+  the v5.0 method.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -229,3 +234,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   unknown imported radius value is left for the user to select); CUSTOM without a percent
   moved from a file error to `findMissingData`. Fixture builder (`scripts/build-test-workbooks.ts`, ExcelJS dev-only)
   and two made-up test workbooks; test screen on the placeholder page. No VBA or workbook changes.
+- 2026-10-22 – Docs: `app/docs/overlay-image-scaling.md` records how v5.0 actually fits scan photos (stretch to the
+  scan's shape at 40 px/in, attach at scan width; SL_OVERLAY_SCALE / the 400 px/unit setting are written but unused)
+  and the user's decision for the web app (keep source resolution, fix shape only, same insertion). No code changes.
