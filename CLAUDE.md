@@ -101,8 +101,13 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   - `app/src/ui/` – screens, 2D/3D views
   - `app/test/` – Vitest tests; `app/test/golden/` holds reference jobs and their v5.0 .lsp outputs for parity tests
   - `app/public/` – PWA icons and favicon (placeholders)
+  - `app/docs/` – `settings-review.md`, generated from `app/src/data/settings.ts`; don't edit its tables by hand
 - npm scripts (run in `app/`): `dev` (dev server, no service worker), `build` (`tsc -b` + `vite build` to `dist/`),
-  `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint).
+  `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint),
+  `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date).
+- Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
+  `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
+  in `app/src/data/projectFile.ts`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -198,3 +203,16 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-21 – Web app Phase 0 (branch feature/app-scaffold): new `/app` (Vite + React + TypeScript strict, vite-plugin-pwa,
   Vitest), placeholder page, folder READMEs, `.github/workflows/app-ci.yml`, `.gitignore` adds node_modules and dist. No
   VBA or workbook changes. v5.0 tagged on main beforehand.
+- 2026-10-22 – Web app Phase 1a (branch feature/data-model): project file data model. Zod added; `app/src/data/`
+  `settings.ts` (81 fields from Project Settings + Drawing Information, read from the VBA and a copy of the workbook),
+  `schema.ts` (all lists, unique IDs ignoring case; nozzle names unique across shell + heads, MUT IDs likewise),
+  `projectFile.ts` (save/open JSON, defaults, plain-language errors, migration hook), `settingsDoc.ts` +
+  `app/docs/settings-review.md`; Vitest tests. User decisions: all lengths in inches; defaults ruler spacing 12,
+  hatch transparency 50, head labels HEAD 1/2; dropped Text Scale Factor, Show Rulers On Overlay, Overlay Scale
+  Method, Coverage Location; unused v5.0 settings kept as "App: planned"; Legend Enabled / Show Title Block to be
+  made to work (app control + CAD show/hide command); head clock = hours 1-12, H:MM or decimal, no degrees;
+  head custom radius = percent of radius (0-100); Date is a real date printed Oct-22-2026. Photos are linked, not
+  copied into the project file. Original Image Folder kept for now: a browser folder picker can't give the full path
+  v5.0 writes into the .lsp, so the approach (CAD picks once / desktop wrapper / relative path) is decided at the
+  Images step after a DraftSight test.
+  No VBA or workbook changes.
