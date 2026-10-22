@@ -13,7 +13,8 @@
     "docs:settings": "node scripts/gen-settings-doc.ts",
     "fixtures:xlsm": "node scripts/build-test-workbooks.ts",
     "convert:refjobs": "node scripts/convert-reference-jobs.ts",
-    "golden:make": "node scripts/make-golden.ts"
+    "golden:make": "node scripts/make-golden.ts",
+    "gen:lsp-library": "node scripts/gen-lsp-library.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
