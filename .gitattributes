@@ -2,6 +2,8 @@
 # text=auto leaves binary files (images, test workbooks) untouched.
 app/** text=auto eol=lf
 *.md text eol=lf
+# Golden v5.0 .lsp files: byte for byte (ANSI, CRLF), never converted. Must come after app/**.
+app/test/golden/**/*.lsp -text
 
 # VBA modules are cp1252 + CRLF; store byte-for-byte, no line-ending conversion
 *.bas -text diff

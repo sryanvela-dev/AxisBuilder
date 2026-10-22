@@ -12,7 +12,8 @@
     "lint": "oxlint",
     "docs:settings": "node scripts/gen-settings-doc.ts",
     "fixtures:xlsm": "node scripts/build-test-workbooks.ts",
-    "convert:refjobs": "node scripts/convert-reference-jobs.ts"
+    "convert:refjobs": "node scripts/convert-reference-jobs.ts",
+    "golden:make": "node scripts/make-golden.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
