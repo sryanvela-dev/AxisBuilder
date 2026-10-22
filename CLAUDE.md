@@ -105,7 +105,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - npm scripts (run in `app/`): `dev` (dev server, no service worker), `build` (`tsc -b` + `vite build` to `dist/`),
   `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint),
   `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date), `fixtures:xlsm`
-  (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`).
+  (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`), `gen:lsp-library` (regenerates
+  `src/export/lsp/library.generated.ts` from `src/SLG_Utilities.bas`; a test fails when it is out of date).
 - TypeScript projects: `tsconfig.app.json` (src, browser only), `tsconfig.test.json` (src + test, adds Node types),
   `tsconfig.node.json` (vite config and scripts).
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
@@ -128,6 +129,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - Golden jobs: `app/test/golden/<JOB>/` (project.json + v5.0.lsp + README), made anonymized with `npm run golden:make`
   (`app/scripts/make-golden.ts`). `app/test/golden/lspSections.ts` splits a .lsp into sections in ExportAxisBuilderLSP order
   and compares section by section; `golden.test.ts` has a todo parity test per section, switched on one at a time.
+- LISP export: `exportLsp` in `app/src/export/lsp/exportLsp.ts` writes the master .lsp exactly as v5.0 (all 32 REF1
+  sections and the whole file match). Fixed library generated from the VBA; quirks, decisions and what is not yet
+  proven (AutoCAD, Vertical, CCW) are in `app/docs/phase2-notes.md`. Export refuses while missing values or repeated
+  names exist; the importer keeps repeated names and lists them.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -270,3 +275,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   strings only, image folders replaced with placeholders, everything else byte for byte (19 of 2622 lines changed).
   `lspSections.ts`: 32 sections, split/join exact, normalize line endings / timestamp / image folders, section diff.
   `.gitattributes`: golden .lsp files `-text`. Tests incl. 32 todo parity tests. No VBA, workbook or REF folder changes.
+- 2026-10-22 – Web app Phase 2 (branch feature/lsp-exporter): LISP exporter. `vbaFormat.ts` (LispNum = Format "0.###",
+  CStr, Format "0.0"); `scripts/lspLibraryGen.ts` translates the Print-only VBA routines into
+  `library.generated.ts` (sync test); `exportLsp.ts` ports ExportAxisBuilderLSP incl. AutoCAD branches and v5.0 quirks.
+  REF1 parity: 32/32 sections and byte for byte, allowing only the head nozzle "N1 (2)" label. Repeated names are no
+  longer renamed on import: listed, allowed in the file, export blocked (`findDuplicateIds`). Notes in
+  `app/docs/phase2-notes.md`. No VBA, workbook or REF folder changes.
