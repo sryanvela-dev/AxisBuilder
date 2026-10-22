@@ -14,6 +14,7 @@ The owner is an Integrity EPC inspection engineer who uses it in the field.
   workbook as 4 hidden sheets). Page 1 = project/vessel/welds/MUT, page 2 = shell sketch
   (ignored by OCR), page 3 = objects and nozzles, page 4 = heads.
 - `Head Clock.png` – head clock-position reference graphic.
+- `app/` – the new web app (in development). See "Web app (/app)" below.
 
 ## Rules for editing src
 1. **Encoding: Windows-1252 (cp1252) with CRLF line endings.** The VBA editor imports .bas files
@@ -85,6 +86,40 @@ SECTIONPAGES; layer toggles ABIMAGES, ABSCANS, ABWELDS, ABNOZZLES, ABHEADS, etc.
 - Scan Import: rows 3–152; A Name, B XStart, C XStop, D YStart, E YStop, F W, G H,
   H CX, I CY, J Rot, K TextH (formulas F:K), L Include.
 - Scan Images: A Scan, B Image File, C Processed Image, D Include, E Status, F Notes.
+
+## Web app (/app)
+Website-first rewrite of AxisBuilder: an installable web app (PWA) that works offline after the first
+visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app must match its output.
+- Stack: Vite + React + TypeScript (strict mode), vite-plugin-pwa (Workbox service worker precaches the
+  whole build; `registerType: 'autoUpdate'`, so new versions apply automatically when online), Vitest.
+  Planned hosting: Cloudflare Pages (serves `app/dist`).
+- Encoding: the cp1252/CRLF rules above apply only to `src/*.bas`. Everything under `/app` is UTF-8.
+- Folders:
+  - `app/src/data/` – project file schema, importers (.xlsm, AUT CSV, images)
+  - `app/src/engine/` – vessel geometry, pure functions, no UI
+  - `app/src/export/` – LISP, DXF, PDF output
+  - `app/src/ui/` – screens, 2D/3D views
+  - `app/test/` – Vitest tests; `app/test/golden/` holds reference jobs and their v5.0 .lsp outputs for parity tests
+  - `app/public/` – PWA icons and favicon (placeholders)
+  - `app/docs/` – `settings-review.md`, generated from `app/src/data/settings.ts`; don't edit its tables by hand
+- npm scripts (run in `app/`): `dev` (dev server, no service worker), `build` (`tsc -b` + `vite build` to `dist/`),
+  `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint),
+  `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date), `fixtures:xlsm`
+  (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`).
+- TypeScript projects: `tsconfig.app.json` (src, browser only), `tsconfig.test.json` (src + test, adds Node types),
+  `tsconfig.node.json` (vite config and scripts).
+- Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
+  `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
+  in `app/src/data/projectFile.ts`. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
+  value); `findMissingData` lists them and export must refuse until they are filled in.
+- v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). The placeholder
+  page is a temporary test screen: open a .xlsm, see counts and the import report, save the project file.
+- Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
+  keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
+  insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
+  (no cropping). Must be verified on a real job in DraftSight and AutoCAD, all three orientations, before it replaces
+  the v5.0 method.
+- CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
 
@@ -176,3 +211,29 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   %TEMP%\AxisBuilder_Field_Form_yyyymmdd_hhnnss.pdf, restores page visibility and Home, then opens the PDF via
   Shell.Application ShellExecute (MsgBox with the path if that fails). Cleanup now restores only pages whose visibility
   was saved. Message Center gets the PDF path (SUCCESS) or the error. Re-imported and tested by the user: works, much better than Print Preview.
+- 2026-10-21 – Web app Phase 0 (branch feature/app-scaffold): new `/app` (Vite + React + TypeScript strict, vite-plugin-pwa,
+  Vitest), placeholder page, folder READMEs, `.github/workflows/app-ci.yml`, `.gitignore` adds node_modules and dist. No
+  VBA or workbook changes. v5.0 tagged on main beforehand.
+- 2026-10-22 – Web app Phase 1a (branch feature/data-model): project file data model. Zod added; `app/src/data/`
+  `settings.ts` (81 fields from Project Settings + Drawing Information, read from the VBA and a copy of the workbook),
+  `schema.ts` (all lists, unique IDs ignoring case; nozzle names unique across shell + heads, MUT IDs likewise),
+  `projectFile.ts` (save/open JSON, defaults, plain-language errors, migration hook), `settingsDoc.ts` +
+  `app/docs/settings-review.md`; Vitest tests. User decisions: all lengths in inches; defaults ruler spacing 12,
+  hatch transparency 50, head labels HEAD 1/2; dropped Text Scale Factor, Show Rulers On Overlay, Overlay Scale
+  Method, Coverage Location; unused v5.0 settings kept as "App: planned"; Legend Enabled / Show Title Block to be
+  made to work (app control + CAD show/hide command); head clock = hours 1-12, H:MM or decimal, no degrees;
+  head custom radius = percent of radius (0-100); Date is a real date printed Oct-22-2026. Photos are linked, not
+  copied into the project file. Original Image Folder kept for now: a browser folder picker can't give the full path
+  v5.0 writes into the .lsp, so the approach (CAD picks once / desktop wrapper / relative path) is decided at the
+  Images step after a DraftSight test.
+  No VBA or workbook changes.
+- 2026-10-22 – Web app Phase 1b (branch feature/xlsm-import): v5.0 workbook importer. SheetJS 0.20.3 (from
+  cdn.sheetjs.com) added; `xlsmImport.ts` reads settings by label, sections by header (current and older 20-nozzle
+  layout), head clocks as text, Excel time or degrees, and lists every skipped/changed/invalid/REVIEW/highlighted value
+  in an import report. Schema: item measurements, clocks and head radius position may be null (not entered/selected yet; an
+  unknown imported radius value is left for the user to select); CUSTOM without a percent
+  moved from a file error to `findMissingData`. Fixture builder (`scripts/build-test-workbooks.ts`, ExcelJS dev-only)
+  and two made-up test workbooks; test screen on the placeholder page. No VBA or workbook changes.
+- 2026-10-22 – Docs: `app/docs/overlay-image-scaling.md` records how v5.0 actually fits scan photos (stretch to the
+  scan's shape at 40 px/in, attach at scan width; SL_OVERLAY_SCALE / the 400 px/unit setting are written but unused)
+  and the user's decision for the web app (keep source resolution, fix shape only, same insertion). No code changes.

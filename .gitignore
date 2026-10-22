@@ -27,3 +27,12 @@ desktop.ini
 
 # Generated CAD output
 *.lsp
+# ...except the v5.0 reference outputs used by the web app's parity tests
+!app/test/golden/**/*.lsp
+
+# Web app (/app) dependencies and build output
+node_modules/
+dist/
+
+# Claude Code: per-user local settings (launch.json stays shared)
+.claude/settings.local.json
