@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { openProject } from '../../src/data/index.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
@@ -76,29 +76,42 @@ describe('golden job REF1', () => {
   })
 })
 
-// Per-section parity with v5.0. A section stays a todo until it is listed in ENABLED.
-const ENABLED = new Set<SectionName>(SECTION_NAMES)
+// Per-section parity with v5.0 for every golden job (one folder each, made by make-golden).
+const JOBS = readdirSync(new URL('./', import.meta.url), { withFileTypes: true })
+  .filter((d) => d.isDirectory() && existsSync(golden(d.name, 'golden.json')))
+  .map((d) => d.name)
+  .sort()
 
 /**
- * Label differences allowed on purpose (REF1/README.md "Renamed for export"): v5.0 printed the
- * repeated name, the app prints the renamed one. Each must occur exactly once in its section.
+ * golden.json: `allowedRenames` are the label differences allowed on purpose (README "Renamed for
+ * export"): v5.0 printed the repeated name, the app prints the renamed one. Each must occur exactly
+ * once in its section, in order. `overrides` are already in project.json (README lists them).
  */
-const ALLOWED: { section: SectionName; app: string; v5: string }[] = [
-  { section: 'headNozzles', app: '"N1 (2)"', v5: '"N1"' },
-]
+interface GoldenJson {
+  overrides: Record<string, string>
+  allowedRenames: { section: SectionName; app: string; v5: string }[]
+}
 
-/** The app output for REF1, with the allowed label differences put back to the v5.0 text. */
-function ref1Output(compat?: 'v5.0'): string {
-  const r = openProject(readFileSync(golden('REF1', 'project.json'), 'utf8'))
+/** The time v5.0 wrote on line 2, so the whole file can be compared byte for byte. */
+function generatedAt(lsp: string): Date {
+  const m = /^;;; Generated from Excel on (\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)\r?$/m.exec(lsp)
+  if (!m) throw new Error('No v5.0 timestamp on line 2')
+  const [y, mo, d, h, mi, s] = m.slice(1).map(Number)
+  return new Date(y, mo - 1, d, h, mi, s)
+}
+
+/** The app output for a golden job, with the allowed label differences put back to the v5.0 text. */
+function jobOutput(job: string, compat?: 'v5.0'): string {
+  const r = openProject(readFileSync(golden(job, 'project.json'), 'utf8'))
   if (!r.ok) throw new Error(r.errors.join('\n'))
+  const spec = JSON.parse(readFileSync(golden(job, 'golden.json'), 'utf8')) as GoldenJson
   const out = exportLsp(r.project, {
     compat,
     processedImageFolder: '<PROCESSED_IMAGES>',
-    // The golden file's own timestamp, so the whole file can be compared byte for byte.
-    generatedAt: new Date(2026, 9, 22, 14, 49, 16),
+    generatedAt: generatedAt(readLsp(job)),
   })
   const sections = splitLsp(out)
-  for (const a of ALLOWED) {
+  for (const a of spec.allowedRenames) {
     const sec = sections.find((x) => x.name === a.section)!
     const count = sec.text.split(a.app).length - 1
     if (count !== 1) throw new Error(`Allowed difference ${a.app} found ${count} times in ${a.section}; expected exactly once.`)
@@ -106,23 +119,27 @@ function ref1Output(compat?: 'v5.0'): string {
   }
   return joinLsp(sections)
 }
+const ref1Output = (compat?: 'v5.0') => jobOutput('REF1', compat)
 
-describe('REF1 parity with v5.0 (exporter in v5.0 mode vs golden .lsp)', () => {
-  const output = ref1Output('v5.0')
-  const diffs = compareLsp(readLsp('REF1'), output)
+describe.each(JOBS)('%s parity with v5.0 (exporter in v5.0 mode vs golden .lsp)', (job) => {
+  const lsp = readLsp(job)
+  const output = jobOutput(job, 'v5.0')
+  const diffs = compareLsp(lsp, output)
+
+  it('v5.0.lsp splits into every section and has no absolute paths', () => {
+    expect(splitLsp(lsp).map((s) => s.name)).toEqual([...SECTION_NAMES])
+    expect(lsp).not.toMatch(/"[A-Za-z]:[\\/]/)
+  })
+
   for (const name of SECTION_NAMES) {
-    if (!ENABLED.has(name)) {
-      it.todo(`section ${name} matches v5.0`)
-      continue
-    }
     it(`section ${name} matches v5.0`, () => {
       const diff = diffs.find((d) => d.name === name)!
       expect(diff.status, formatDiffs([diff])).toBe('same')
     })
   }
 
-  it('matches the whole v5.0 file byte for byte (apart from the allowed label)', () => {
-    expect(output === readLsp('REF1'), formatDiffs(diffs)).toBe(true)
+  it('matches the whole v5.0 file byte for byte (apart from the allowed labels)', () => {
+    expect(output === lsp, formatDiffs(diffs)).toBe(true)
   })
 })
 

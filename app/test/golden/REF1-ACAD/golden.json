@@ -1,0 +1,12 @@
+{
+  "overrides": {
+    "settings.cadPlatform": "AutoCAD"
+  },
+  "allowedRenames": [
+    {
+      "section": "headNozzles",
+      "app": "\"N1 (2)\"",
+      "v5": "\"N1\""
+    }
+  ]
+}

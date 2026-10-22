@@ -1,0 +1,621 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "projectName": "VESSEL REF3",
+    "drawingTitle": "AUT COVERAGE MAP",
+    "component": "VESSEL REF3",
+    "unit": "",
+    "client": "CLIENT A",
+    "inspector": "INSPECTOR A",
+    "date": "2026-09-11",
+    "revision": "",
+    "drawingNotes": "",
+    "equipmentType": "",
+    "inspectionMethod": "",
+    "procedure": "",
+    "reportNumber": "",
+    "workOrder": "",
+    "service": "",
+    "material": "",
+    "inspectionScope": "",
+    "inspectionNotes": ""
+  },
+  "vessel": {
+    "orientation": "Vertical",
+    "length": 168,
+    "height": 458,
+    "xAxisCardinal": "South",
+    "yAxisCardinal": "East",
+    "xAxisDirectionText": "CLOCK WISE LOOKING UP",
+    "yAxisDirectionText": "BOTTOM TO TOP",
+    "referenceLabelMode": "Custom Cardinal",
+    "referenceLabelSet": "TDC/BDC",
+    "refLabel0": "MWDC",
+    "refLabel90": "",
+    "refLabel180": "BDC",
+    "refLabel270": "",
+    "refLabel360": "MWDC"
+  },
+  "settings": {
+    "outputCommand": "SCANLAYOUT",
+    "rulerPlacement": "Bottom + Left",
+    "rulerSpacing": 12,
+    "rulerOffset": 2,
+    "showRulers": true,
+    "showDirectionLabels": true,
+    "arrowLengthMode": "Text Based",
+    "arrowLength": 28,
+    "arrowHeadSize": 3,
+    "showVesselReferenceLabels": true,
+    "referenceLabelTickLength": 2,
+    "autHatchEnabled": true,
+    "autHatchPattern": "ANSI31",
+    "autHatchScale": 2.5,
+    "autHatchAngle": 45,
+    "autHatchTransparency": 50,
+    "smartNozzleLabels": true,
+    "minNozzleInsideLabelDiameter": 6,
+    "nozzleLeaderLength": 4,
+    "showWeldLabels": true,
+    "showCenterline": true,
+    "legendEnabled": true,
+    "showTitleBlock": true,
+    "enableValidation": true,
+    "overlapDetection": "WARN",
+    "showValidationSummary": true,
+    "headViewMode": "NONE",
+    "headViewSize": "SMALL",
+    "showHeadNozzles": true,
+    "head1Label": "EAST HEAD",
+    "head2Label": "WEST HEAD",
+    "headNozzleLeaderLength": 8,
+    "showHeadCenterlines": false,
+    "showHeadClockReferences": false,
+    "generateOverlayDrawing": true,
+    "originalImageFolder": "<IMAGE_FOLDER>",
+    "processedImageFolder": "<PROCESSED_IMAGES>",
+    "overlayPixelsPerInch": 40,
+    "draftSightImagePixelsPerUnit": 400,
+    "overlayPreprocessRotation": "NONE",
+    "showVesselOnOverlay": true,
+    "showWeldsOnOverlay": true,
+    "showSupportsOnOverlay": true,
+    "showNozzlesOnOverlay": true,
+    "showLegendOnOverlay": true,
+    "showTitleBlockOnOverlay": true,
+    "showScanBordersOnOverlay": true,
+    "cadPlatform": "DraftSight",
+    "showCoveragePercentage": true
+  },
+  "circWelds": [
+    {
+      "id": "C1",
+      "y": 84,
+      "include": true,
+      "showLabel": true
+    }
+  ],
+  "longSeams": [
+    {
+      "id": "LS1",
+      "x": 317,
+      "startY": 0,
+      "stopY": 84,
+      "include": true,
+      "showLabel": true
+    },
+    {
+      "id": "LS2",
+      "x": 86,
+      "startY": 0,
+      "stopY": 84,
+      "include": true,
+      "showLabel": true
+    },
+    {
+      "id": "LS3",
+      "x": 372,
+      "startY": 84,
+      "stopY": 168,
+      "include": true,
+      "showLabel": true
+    },
+    {
+      "id": "LS4",
+      "x": 143,
+      "startY": 84,
+      "stopY": 168,
+      "include": true,
+      "showLabel": true
+    }
+  ],
+  "shellNozzles": [
+    {
+      "id": "N1",
+      "diameter": 10,
+      "x": 227,
+      "y": 31,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "INSIDE"
+    },
+    {
+      "id": "N2",
+      "diameter": 10,
+      "x": 290,
+      "y": 31,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "INSIDE"
+    },
+    {
+      "id": "N3",
+      "diameter": 10,
+      "x": 258,
+      "y": 162,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "INSIDE"
+    },
+    {
+      "id": "N4",
+      "diameter": 3,
+      "x": 258,
+      "y": 3,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "OUTSIDE"
+    }
+  ],
+  "objects": [
+    {
+      "id": "MANWAY",
+      "x": 437,
+      "y": 0,
+      "circWidth": 38,
+      "length": 50,
+      "include": true,
+      "notes": ""
+    },
+    {
+      "id": "PATCH",
+      "x": 374,
+      "y": 70,
+      "circWidth": 14.5,
+      "length": 28,
+      "include": true,
+      "notes": ""
+    }
+  ],
+  "shellMut": [],
+  "headNozzles": [],
+  "headMut": [],
+  "scans": [
+    {
+      "id": "SCAN 1",
+      "xStart": 329,
+      "xStop": 426,
+      "yStart": 3,
+      "yStop": 23,
+      "include": true
+    },
+    {
+      "id": "SCAN 2",
+      "xStart": 312,
+      "xStop": 432,
+      "yStart": 23,
+      "yStop": 43,
+      "include": true
+    },
+    {
+      "id": "SCAN 3",
+      "xStart": 300,
+      "xStop": 320,
+      "yStart": 43,
+      "yStop": 63,
+      "include": true
+    },
+    {
+      "id": "SCAN 4",
+      "xStart": 355,
+      "xStop": 432,
+      "yStart": 43,
+      "yStop": 63,
+      "include": true
+    },
+    {
+      "id": "SCAN 5",
+      "xStart": 294,
+      "xStop": 320,
+      "yStart": 63,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 6",
+      "xStart": 349,
+      "xStop": 372,
+      "yStart": 63,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 7",
+      "xStart": 372,
+      "xStop": 386,
+      "yStart": 63,
+      "yStop": 69,
+      "include": true
+    },
+    {
+      "id": "SCAN 8",
+      "xStart": 389,
+      "xStop": 458,
+      "yStart": 63,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 9",
+      "xStart": 0,
+      "xStop": 55,
+      "yStart": 46,
+      "yStop": 63,
+      "include": true
+    },
+    {
+      "id": "SCAN 10",
+      "xStart": 28,
+      "xStop": 55,
+      "yStart": 30,
+      "yStop": 46,
+      "include": true
+    },
+    {
+      "id": "SCAN 11",
+      "xStart": 0,
+      "xStop": 55,
+      "yStart": 63,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 12",
+      "xStart": 0,
+      "xStop": 55,
+      "yStart": 86,
+      "yStop": 106,
+      "include": true
+    },
+    {
+      "id": "SCAN 13",
+      "xStart": 0,
+      "xStop": 55,
+      "yStart": 106,
+      "yStop": 112,
+      "include": true
+    },
+    {
+      "id": "SCAN 14",
+      "xStart": 0,
+      "xStop": 55,
+      "yStart": 131,
+      "yStop": 151,
+      "include": true
+    },
+    {
+      "id": "SCAN 15",
+      "xStart": 389,
+      "xStop": 458,
+      "yStart": 86,
+      "yStop": 106,
+      "include": true
+    },
+    {
+      "id": "SCAN 16",
+      "xStart": 348,
+      "xStop": 372,
+      "yStart": 86,
+      "yStop": 106,
+      "include": true
+    },
+    {
+      "id": "SCAN 17",
+      "xStart": 348,
+      "xStop": 458,
+      "yStart": 106,
+      "yStop": 126,
+      "include": true
+    },
+    {
+      "id": "SCAN 18",
+      "xStart": 361,
+      "xStop": 458,
+      "yStart": 126,
+      "yStop": 146,
+      "include": true
+    },
+    {
+      "id": "SCAN 19",
+      "xStart": 348,
+      "xStop": 424,
+      "yStart": 146,
+      "yStop": 160,
+      "include": true
+    },
+    {
+      "id": "SCAN 20",
+      "xStart": 88,
+      "xStop": 112,
+      "yStart": 3,
+      "yStop": 23,
+      "include": true
+    },
+    {
+      "id": "SCAN 21",
+      "xStart": 88,
+      "xStop": 112,
+      "yStart": 23,
+      "yStop": 43,
+      "include": true
+    },
+    {
+      "id": "SCAN 22",
+      "xStart": 88,
+      "xStop": 112,
+      "yStart": 43,
+      "yStop": 63,
+      "include": true
+    },
+    {
+      "id": "SCAN 23",
+      "xStart": 88,
+      "xStop": 112,
+      "yStart": 63,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 24",
+      "xStart": 158,
+      "xStop": 348,
+      "yStart": 86,
+      "yStop": 106,
+      "include": true
+    },
+    {
+      "id": "SCAN 25",
+      "xStart": 158,
+      "xStop": 348,
+      "yStart": 106,
+      "yStop": 126,
+      "include": true
+    },
+    {
+      "id": "SCAN 26",
+      "xStart": 158,
+      "xStop": 298,
+      "yStart": 126,
+      "yStop": 146,
+      "include": true
+    },
+    {
+      "id": "SCAN 27",
+      "xStart": 240,
+      "xStop": 264,
+      "yStart": 62,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 28",
+      "xStart": 240,
+      "xStop": 260,
+      "yStart": 42,
+      "yStop": 62,
+      "include": true
+    },
+    {
+      "id": "SCAN 29",
+      "xStart": 154,
+      "xStop": 228,
+      "yStart": 62,
+      "yStop": 82,
+      "include": true
+    },
+    {
+      "id": "SCAN 30",
+      "xStart": 160,
+      "xStop": 217,
+      "yStart": 42,
+      "yStop": 62,
+      "include": true
+    }
+  ],
+  "scanImages": [
+    {
+      "scanId": "SCAN 1",
+      "imageFile": "S1",
+      "processedImage": "S1_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 2",
+      "imageFile": "S2",
+      "processedImage": "S2_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 3",
+      "imageFile": "S3",
+      "processedImage": "S3_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 4",
+      "imageFile": "S4",
+      "processedImage": "S4_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 5",
+      "imageFile": "S5",
+      "processedImage": "S5_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 6",
+      "imageFile": "S6",
+      "processedImage": "S6_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 7",
+      "imageFile": "S7",
+      "processedImage": "S7_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 8",
+      "imageFile": "S8",
+      "processedImage": "S8_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 9",
+      "imageFile": "S9",
+      "processedImage": "S9_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 10",
+      "imageFile": "S10",
+      "processedImage": "S10_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 11",
+      "imageFile": "S11",
+      "processedImage": "S11_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 12",
+      "imageFile": "S12",
+      "processedImage": "S12_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 13",
+      "imageFile": "S13",
+      "processedImage": "S13_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 14",
+      "imageFile": "S14",
+      "processedImage": "S14_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 15",
+      "imageFile": "S15",
+      "processedImage": "S15_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 16",
+      "imageFile": "S16",
+      "processedImage": "S16_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 17",
+      "imageFile": "S17",
+      "processedImage": "S17_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 18",
+      "imageFile": "S18",
+      "processedImage": "S18_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 19",
+      "imageFile": "S19",
+      "processedImage": "S19_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 20",
+      "imageFile": "S20",
+      "processedImage": "S20_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 21",
+      "imageFile": "S21",
+      "processedImage": "S21_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 22",
+      "imageFile": "S22",
+      "processedImage": "S22_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 23",
+      "imageFile": "S23",
+      "processedImage": "S23_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 24",
+      "imageFile": "S24",
+      "processedImage": "S24_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 25",
+      "imageFile": "S25",
+      "processedImage": "S25_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 26",
+      "imageFile": "S26",
+      "processedImage": "S26_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 27",
+      "imageFile": "S27",
+      "processedImage": "S27_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 28",
+      "imageFile": "S28",
+      "processedImage": "S28_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 29",
+      "imageFile": "S29",
+      "processedImage": "S29_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 30",
+      "imageFile": "S30",
+      "processedImage": "S30_FIT_B12.png",
+      "include": true
+    }
+  ]
+}

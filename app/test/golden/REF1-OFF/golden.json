@@ -1,0 +1,7 @@
+{
+  "overrides": {
+    "vessel.referenceLabelMode": "Auto Cardinal",
+    "settings.headViewMode": "NONE"
+  },
+  "allowedRenames": []
+}

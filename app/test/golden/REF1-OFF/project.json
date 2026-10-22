@@ -1,0 +1,618 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "projectName": "VESSEL REF1-OFF",
+    "drawingTitle": "AUT Corrosion Mapping",
+    "component": "VESSEL REF1-OFF",
+    "unit": "UNIT 1",
+    "client": "CLIENT A",
+    "inspector": "INSPECTOR A",
+    "date": "2026-10-13",
+    "revision": "",
+    "drawingNotes": "",
+    "equipmentType": "",
+    "inspectionMethod": "",
+    "procedure": "",
+    "reportNumber": "",
+    "workOrder": "",
+    "service": "",
+    "material": "",
+    "inspectionScope": "",
+    "inspectionNotes": ""
+  },
+  "vessel": {
+    "orientation": "Horizontal CW",
+    "length": 360,
+    "height": 302,
+    "xAxisCardinal": "South",
+    "yAxisCardinal": "East",
+    "xAxisDirectionText": "TDC Clock Wise Looking EAST",
+    "yAxisDirectionText": "West to East",
+    "referenceLabelMode": "Auto Cardinal",
+    "referenceLabelSet": "TDC/BDC",
+    "refLabel0": "TDC",
+    "refLabel90": "SOUTH",
+    "refLabel180": "BDC",
+    "refLabel270": "NORTH",
+    "refLabel360": "TDC"
+  },
+  "settings": {
+    "outputCommand": "SCANLAYOUT",
+    "rulerPlacement": "Bottom + Left",
+    "rulerSpacing": 20,
+    "rulerOffset": 2,
+    "showRulers": true,
+    "showDirectionLabels": true,
+    "arrowLengthMode": "Text Based",
+    "arrowLength": 28,
+    "arrowHeadSize": 3,
+    "showVesselReferenceLabels": true,
+    "referenceLabelTickLength": 2,
+    "autHatchEnabled": true,
+    "autHatchPattern": "ANSI31",
+    "autHatchScale": 2.5,
+    "autHatchAngle": 45,
+    "autHatchTransparency": 50,
+    "smartNozzleLabels": true,
+    "minNozzleInsideLabelDiameter": 6,
+    "nozzleLeaderLength": 4,
+    "showWeldLabels": true,
+    "showCenterline": true,
+    "legendEnabled": true,
+    "showTitleBlock": true,
+    "enableValidation": true,
+    "overlapDetection": "WARN",
+    "showValidationSummary": true,
+    "headViewMode": "NONE",
+    "headViewSize": "MEDIUM",
+    "showHeadNozzles": true,
+    "head1Label": "WEST HEAD",
+    "head2Label": "EAST HEAD",
+    "headNozzleLeaderLength": 8,
+    "showHeadCenterlines": false,
+    "showHeadClockReferences": false,
+    "generateOverlayDrawing": true,
+    "originalImageFolder": "<IMAGE_FOLDER>",
+    "processedImageFolder": "<PROCESSED_IMAGES>",
+    "overlayPixelsPerInch": 40,
+    "draftSightImagePixelsPerUnit": 400,
+    "overlayPreprocessRotation": "NONE",
+    "showVesselOnOverlay": true,
+    "showWeldsOnOverlay": true,
+    "showSupportsOnOverlay": true,
+    "showNozzlesOnOverlay": true,
+    "showLegendOnOverlay": true,
+    "showTitleBlockOnOverlay": true,
+    "showScanBordersOnOverlay": true,
+    "cadPlatform": "DraftSight",
+    "showCoveragePercentage": true
+  },
+  "circWelds": [
+    {
+      "id": "C1",
+      "y": 120,
+      "include": true,
+      "showLabel": true
+    },
+    {
+      "id": "C2",
+      "y": 240,
+      "include": true,
+      "showLabel": true
+    }
+  ],
+  "longSeams": [],
+  "shellNozzles": [
+    {
+      "id": "N1",
+      "diameter": 4,
+      "x": 151,
+      "y": 66,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N2",
+      "diameter": 4,
+      "x": 194,
+      "y": 180,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N3",
+      "diameter": 2,
+      "x": 114,
+      "y": 190,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N4",
+      "diameter": 2,
+      "x": 57,
+      "y": 190,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "MW",
+      "diameter": 24,
+      "x": 102,
+      "y": 265,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N6",
+      "diameter": 2,
+      "x": 114,
+      "y": 294,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N7",
+      "diameter": 2,
+      "x": 57,
+      "y": 294,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N8",
+      "diameter": 4,
+      "x": 151,
+      "y": 294,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N9",
+      "diameter": 2,
+      "x": 83,
+      "y": 308,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N10",
+      "diameter": 2,
+      "x": 55,
+      "y": 308,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N11",
+      "diameter": 2,
+      "x": 57,
+      "y": 344,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N12",
+      "diameter": 4,
+      "x": 83,
+      "y": 344,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N13",
+      "diameter": 2,
+      "x": 112,
+      "y": 344,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N14",
+      "diameter": 4,
+      "x": 83,
+      "y": 354,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N15",
+      "diameter": 4,
+      "x": 112,
+      "y": 354,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N16",
+      "diameter": 6,
+      "x": 142,
+      "y": 351,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N17",
+      "diameter": 4,
+      "x": 158,
+      "y": 351,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N18",
+      "diameter": 4,
+      "x": 186,
+      "y": 354,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N19",
+      "diameter": 4,
+      "x": 213,
+      "y": 354,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    },
+    {
+      "id": "N20",
+      "diameter": 4,
+      "x": 264,
+      "y": 354,
+      "minT": null,
+      "notes": "",
+      "include": true,
+      "labelMode": "AUTO"
+    }
+  ],
+  "objects": [
+    {
+      "id": "SUPPORT 1",
+      "x": 97,
+      "y": 46,
+      "circWidth": 110,
+      "length": 9,
+      "include": true,
+      "notes": ""
+    },
+    {
+      "id": "SUPPORT 2",
+      "x": 97,
+      "y": 304,
+      "circWidth": 110,
+      "length": 9,
+      "include": true,
+      "notes": ""
+    },
+    {
+      "id": "NT",
+      "x": 45,
+      "y": 71,
+      "circWidth": 9,
+      "length": 12,
+      "include": true,
+      "notes": ""
+    }
+  ],
+  "shellMut": [],
+  "headNozzles": [
+    {
+      "head": "HEAD 1",
+      "id": "N1 (2)",
+      "diameter": 16,
+      "clock": "12",
+      "radiusPosition": "THREE_QUARTER",
+      "customRadiusPercent": null,
+      "minT": null,
+      "notes": "",
+      "labelMode": "AUTO",
+      "include": true
+    },
+    {
+      "head": "HEAD 2",
+      "id": "N28",
+      "diameter": 24,
+      "clock": "7.5",
+      "radiusPosition": "HALF",
+      "customRadiusPercent": null,
+      "minT": null,
+      "notes": "",
+      "labelMode": "AUTO",
+      "include": true
+    },
+    {
+      "head": "HEAD 2",
+      "id": "N29",
+      "diameter": 24,
+      "clock": "4.5",
+      "radiusPosition": "HALF",
+      "customRadiusPercent": null,
+      "minT": null,
+      "notes": "",
+      "labelMode": "AUTO",
+      "include": true
+    }
+  ],
+  "headMut": [],
+  "scans": [
+    {
+      "id": "SCAN 1",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 2,
+      "yStop": 22,
+      "include": true
+    },
+    {
+      "id": "SCAN 2",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 22,
+      "yStop": 42,
+      "include": true
+    },
+    {
+      "id": "SCAN 3",
+      "xStart": 115,
+      "xStop": 146,
+      "yStart": 57,
+      "yStop": 77,
+      "include": true
+    },
+    {
+      "id": "SCAN 4",
+      "xStart": 156,
+      "xStop": 187,
+      "yStart": 57,
+      "yStop": 77,
+      "include": true
+    },
+    {
+      "id": "SCAN 5",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 77,
+      "yStop": 97,
+      "include": true
+    },
+    {
+      "id": "SCAN 6",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 97,
+      "yStop": 117,
+      "include": true
+    },
+    {
+      "id": "SCAN 7",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 122,
+      "yStop": 142,
+      "include": true
+    },
+    {
+      "id": "SCAN 8",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 142,
+      "yStop": 162,
+      "include": true
+    },
+    {
+      "id": "SCAN 9",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 162,
+      "yStop": 182,
+      "include": true
+    },
+    {
+      "id": "SCAN 10",
+      "xStart": 120,
+      "xStop": 187,
+      "yStart": 182,
+      "yStop": 202,
+      "include": true
+    },
+    {
+      "id": "SCAN 11",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 202,
+      "yStop": 222,
+      "include": true
+    },
+    {
+      "id": "SCAN 12",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 222,
+      "yStop": 237,
+      "include": true
+    },
+    {
+      "id": "SCAN 13",
+      "xStart": 125,
+      "xStop": 187,
+      "yStart": 242,
+      "yStop": 262,
+      "include": true
+    },
+    {
+      "id": "SCAN 14",
+      "xStart": 125,
+      "xStop": 187,
+      "yStart": 262,
+      "yStop": 282,
+      "include": true
+    },
+    {
+      "id": "SCAN 15",
+      "xStart": 128,
+      "xStop": 143,
+      "yStart": 282,
+      "yStop": 301,
+      "include": true
+    },
+    {
+      "id": "SCAN 16",
+      "xStart": 162,
+      "xStop": 180,
+      "yStart": 282,
+      "yStop": 301,
+      "include": true
+    },
+    {
+      "id": "SCAN 17",
+      "xStart": 115,
+      "xStop": 187,
+      "yStart": 315,
+      "yStop": 335,
+      "include": true
+    }
+  ],
+  "scanImages": [
+    {
+      "scanId": "SCAN 1",
+      "imageFile": "S1",
+      "processedImage": "S1_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 2",
+      "imageFile": "S2",
+      "processedImage": "S2_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 3",
+      "imageFile": "S3",
+      "processedImage": "S3_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 4",
+      "imageFile": "S4",
+      "processedImage": "S4_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 5",
+      "imageFile": "S5",
+      "processedImage": "S5_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 6",
+      "imageFile": "S6",
+      "processedImage": "S6_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 7",
+      "imageFile": "S7",
+      "processedImage": "S7_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 8",
+      "imageFile": "S8",
+      "processedImage": "S8_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 9",
+      "imageFile": "S9",
+      "processedImage": "S9_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 10",
+      "imageFile": "S10",
+      "processedImage": "S10_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 11",
+      "imageFile": "S11",
+      "processedImage": "S11_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 12",
+      "imageFile": "S12",
+      "processedImage": "S12_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 13",
+      "imageFile": "S13",
+      "processedImage": "S13_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 14",
+      "imageFile": "S14",
+      "processedImage": "S14_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 15",
+      "imageFile": "S15",
+      "processedImage": "S15_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 16",
+      "imageFile": "S16",
+      "processedImage": "S16_FIT_B12.png",
+      "include": true
+    },
+    {
+      "scanId": "SCAN 17",
+      "imageFile": "S17",
+      "processedImage": "S17_FIT_B12.png",
+      "include": true
+    }
+  ]
+}
