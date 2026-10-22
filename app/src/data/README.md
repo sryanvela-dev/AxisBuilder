@@ -29,7 +29,9 @@ Files:
 - Project Settings / Drawing Information by label (also older labels), ignoring case and extra or
   non-breaking spaces; the five custom reference labels by position below Reference Label Mode.
 - Shell / Head Features sections found by header text, so the current and the older 20-nozzle layout
-  both import. Scan Import inputs only (A-E, L); formula columns F-K ignored.
+  both import. Columns are found by their header text too (v4.7 orders the shell nozzle and Head Features
+  columns differently); a column the layout lacks is left blank and listed. `sources` gives the cell of
+  every imported value. Scan Import inputs only (A-E, L); formula columns F-K ignored.
 - Include columns: YES/Y/TRUE/1 = yes, NO/N/FALSE/0 = no, blank = yes (v5.0's "not NO"). Weld Label
   columns: blank = no (v5.0's "= YES").
 - Head clocks: text kept; Excel time numbers (older workbooks) and degrees ("90°" -> 3, marked for

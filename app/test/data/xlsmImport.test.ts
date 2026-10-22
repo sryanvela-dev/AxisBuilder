@@ -233,3 +233,55 @@ describe('files that are not v5.0 workbooks', () => {
     expect(() => importWorkbook(bytes)).toThrow('This is not an AxisBuilder v5.0 workbook (no "Project Settings" sheet).')
   })
 })
+
+describe('older column orders (v4.7)', () => {
+  // Made-up v4.7-style workbook: shell nozzles Name, X, Y, Diameter; head nozzles with Clock in C,
+  // Diameter in F and no Min. T. column.
+  function v47Workbook(): ArrayBuffer {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Setting', 'Value'], ['Project Name', 'TEST-47']]), 'Project Settings')
+    const shell: (string | number | null)[][] = []
+    shell[24] = ['Nozzles / Circles']
+    shell[25] = ['Nozzle Name', 'X', 'Y', 'Diameter', 'Min. T.', 'Notes', 'Include', 'Label Mode']
+    shell[26] = ['N1', 100, 20, 6, 0.5, null, 'YES', 'AUTO']
+    shell[46] = ['Objects']
+    shell[47] = ['Object ID', 'X Position', 'Y Position', 'Circ. Width', 'Length', 'Include', 'Notes']
+    shell[68] = ['Shell MUT']
+    shell[69] = ['MUT ID', 'X Position', 'Y Position', 'Min. T.', 'Notes']
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(shell), 'Shell Features')
+    const head: (string | number | null)[][] = []
+    head[0] = ['Head Nozzles']
+    head[2] = ['Head', 'Nozzle', 'Clock Position', 'Radius Position', 'Custom Radius Factor', 'Nozzle Diameter',
+      'Label Mode', 'Include Label', 'Notes']
+    head[3] = ['HEAD 1', 'N11', '3:30', 'THREE_QUARTER', null, 12, 'AUTO', 'NO', null]
+    head[24] = ['Head MUT']
+    head[26] = ['Head', 'MUT ID', 'Clock Position', 'Radius Position', 'Custom Radius Factor', 'Min. T.', 'Label Mode',
+      'Include Label', 'Notes']
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(head), 'Head Features')
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+  const r = importWorkbook(v47Workbook())
+
+  it('finds columns by their header text', () => {
+    expect(r.project.shellNozzles[0]).toMatchObject({ id: 'N1', x: 100, y: 20, diameter: 6, minT: 0.5 })
+    expect(r.project.headNozzles[0]).toMatchObject({
+      head: 'HEAD 1', id: 'N11', clock: '3:30', radiusPosition: 'THREE_QUARTER', diameter: 12, include: false, minT: null,
+    })
+    expect(r.summary.reorderedSections).toEqual(['shellNozzles', 'headNozzles'])
+  })
+
+  it('lists a column the layout does not have', () => {
+    expect(r.report.find((e) => e.sheet === 'Head Features' && e.kind === 'notFound')?.message).toBe(
+      'Head nozzles: no "Min. T." column in this layout; left blank.',
+    )
+  })
+
+  it('returns the source row and column of each value', () => {
+    expect(r.sources.rows.headNozzles[0]).toEqual({
+      row: 4,
+      cols: { head: 'A', id: 'B', diameter: 'F', clock: 'C', radiusPosition: 'D', customRadiusPercent: 'E', minT: null,
+        notes: 'I', labelMode: 'G', include: 'H' },
+    })
+    expect(r.sources.fields.project.projectName).toEqual({ sheet: 'Project Settings', row: 2 })
+  })
+})
