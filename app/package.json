@@ -10,11 +10,13 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "lint": "oxlint",
-    "docs:settings": "node scripts/gen-settings-doc.ts"
+    "docs:settings": "node scripts/gen-settings-doc.ts",
+    "fixtures:xlsm": "node scripts/build-test-workbooks.ts"
   },
   "dependencies": {
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -22,6 +24,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "exceljs": "^4.4.0",
     "oxlint": "^1.88.0",
     "typescript": "~6.0.3",
     "vite": "^8.3.4",

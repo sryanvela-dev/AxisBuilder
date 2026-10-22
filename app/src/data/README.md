@@ -17,11 +17,22 @@ Files:
 - `projectFile.ts`: `saveProject` / `openProject` (JSON, `schemaVersion`, defaults, plain-language
   errors) and the `MIGRATIONS` table for upgrading older files.
 - `settingsDoc.ts`: renders `app/docs/settings-review.md` (`npm run docs:settings`).
+- `xlsmImport.ts`: `importWorkbook(bytes)` reads a v5.0 .xlsm/.xlsx (SheetJS) into a project plus an
+  import report and summary.
 
-Rules for the .xlsm importer (later phase):
-- Head clock positions in degrees ("90°", accepted by v5.0) convert to clock time (90° -> 3:00)
-  and are marked for review; the app itself only accepts clock positions 1-12.
-- Head "Custom Radius Factor" (0-1) becomes `customRadiusPercent` (factor x 100).
-- Dates convert to YYYY-MM-DD.
+.xlsm importer rules:
+- Project Settings / Drawing Information by label (also older labels), ignoring case and extra or
+  non-breaking spaces; the five custom reference labels by position below Reference Label Mode.
+- Shell / Head Features sections found by header text, so the current and the older 20-nozzle layout
+  both import. Scan Import inputs only (A-E, L); formula columns F-K ignored.
+- Include columns: YES/Y/TRUE/1 = yes, NO/N/FALSE/0 = no, blank = yes (v5.0's "not NO"). Weld Label
+  columns: blank = no (v5.0's "= YES").
+- Head clocks: text kept; Excel time numbers (older workbooks) and degrees ("90°" -> 3, marked for
+  review) are converted. Custom Radius Factor (0-1) becomes `customRadiusPercent` (x 100).
+- Dates convert to YYYY-MM-DD. Repeated IDs are renamed "N1 (2)". Rows with data but no ID, rows with an
+  unreadable ID or head, and Scan Images rows for unknown scans are not imported.
+- Every skipped, changed, invalid, REVIEW or yellow-highlighted value is listed in the report. Bad values
+  are left blank (null) or at their default; `findMissingData` lists what must be filled in before export.
+- Test workbooks: `npm run fixtures:xlsm` rebuilds `test/fixtures/xlsm/` (fictional data).
 
 No drawing or UI code here. Importers return plain data and validation messages.

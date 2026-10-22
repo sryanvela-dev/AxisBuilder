@@ -104,10 +104,16 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   - `app/docs/` – `settings-review.md`, generated from `app/src/data/settings.ts`; don't edit its tables by hand
 - npm scripts (run in `app/`): `dev` (dev server, no service worker), `build` (`tsc -b` + `vite build` to `dist/`),
   `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint),
-  `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date).
+  `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date), `fixtures:xlsm`
+  (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`).
+- TypeScript projects: `tsconfig.app.json` (src, browser only), `tsconfig.test.json` (src + test, adds Node types),
+  `tsconfig.node.json` (vite config and scripts).
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
   `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
-  in `app/src/data/projectFile.ts`.
+  in `app/src/data/projectFile.ts`. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
+  value); `findMissingData` lists them and export must refuse until they are filled in.
+- v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). The placeholder
+  page is a temporary test screen: open a .xlsm, see counts and the import report, save the project file.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -216,3 +222,10 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   v5.0 writes into the .lsp, so the approach (CAD picks once / desktop wrapper / relative path) is decided at the
   Images step after a DraftSight test.
   No VBA or workbook changes.
+- 2026-10-22 – Web app Phase 1b (branch feature/xlsm-import): v5.0 workbook importer. SheetJS 0.20.3 (from
+  cdn.sheetjs.com) added; `xlsmImport.ts` reads settings by label, sections by header (current and older 20-nozzle
+  layout), head clocks as text, Excel time or degrees, and lists every skipped/changed/invalid/REVIEW/highlighted value
+  in an import report. Schema: item measurements, clocks and head radius position may be null (not entered/selected yet; an
+  unknown imported radius value is left for the user to select); CUSTOM without a percent
+  moved from a file error to `findMissingData`. Fixture builder (`scripts/build-test-workbooks.ts`, ExcelJS dev-only)
+  and two made-up test workbooks; test screen on the placeholder page. No VBA or workbook changes.

@@ -19,8 +19,11 @@ const id = z
   .refine((s) => s.trim().length > 0, { message: 'must not be blank' })
   .refine((s) => s.trim() === s, { message: 'must not start or end with a space' })
 
-const position = z.number()
-const positiveSize = z.number().gt(0)
+// Measurements an item needs before it can be drawn. null = not entered yet (for example an
+// unreadable OCR "REVIEW" value from an imported workbook). The key must still be present.
+// findMissingData lists them; export refuses to run until they are filled in.
+const position = z.number().nullable()
+const positiveSize = z.number().gt(0).nullable()
 const thickness = z.number().gte(0)
 /** Min. T on nozzles: a thickness, "TOL" (v5.0 accepts it there), or not recorded. */
 const nozzleMinT = z.union([thickness, z.literal('TOL')]).nullable().default(null)
@@ -34,7 +37,8 @@ export const RADIUS_POSITIONS = ['CENTER', 'HALF', 'THREE_QUARTER', 'OUTER', 'CU
 
 const labelMode = z.enum(LABEL_MODES).default('AUTO')
 const head = z.enum(HEADS)
-const radiusPosition = z.enum(RADIUS_POSITIONS).default('CENTER')
+/** Blank in v5.0 means CENTER. null = not selected yet (an unknown value from an imported workbook). */
+const radiusPosition = z.enum(RADIUS_POSITIONS).nullable().default('CENTER')
 
 /**
  * Head clock position as written on the field form (12 = top, 3 = right): whole hours ("3"),
@@ -52,9 +56,10 @@ export function isValidClock(s: string): boolean {
   return false
 }
 
-const clock = z.string().refine(isValidClock, {
-  message: 'must be a clock position from 1 to 12, such as 3, 1:30 or 10.5',
-})
+const clock = z
+  .string()
+  .refine(isValidClock, { message: 'must be a clock position from 1 to 12, such as 3, 1:30 or 10.5' })
+  .nullable()
 
 // --- List items ------------------------------------------------------------------------------
 
@@ -69,9 +74,9 @@ export const longSeamSchema = z.strictObject({
   id,
   x: position,
   /** Blank = seam starts at Y 0. */
-  startY: position.nullable().default(null),
+  startY: position.default(null),
   /** Blank = seam runs to the vessel length. */
-  stopY: position.nullable().default(null),
+  stopY: position.default(null),
   include,
   showLabel: z.boolean().default(false),
 })
@@ -111,48 +116,31 @@ export const shellMutSchema = z.strictObject({
 /** 0 = head center, 100 = head edge (v5.0's 0-1 factor x 100). */
 const customRadiusPercent = z.number().gte(0).lte(100).nullable().default(null)
 
-export const headNozzleSchema = z
-  .strictObject({
-    head,
-    id,
-    diameter: positiveSize,
-    clock,
-    radiusPosition,
-    /** Percent of the head radius from the center. Required when radiusPosition is CUSTOM. */
-    customRadiusPercent,
-    minT: nozzleMinT,
-    notes,
-    labelMode,
-    include,
-  })
-  .superRefine(requireCustomFactor)
+export const headNozzleSchema = z.strictObject({
+  head,
+  id,
+  diameter: positiveSize,
+  clock,
+  radiusPosition,
+  /** Percent of the head radius from the center. Needed (see findMissingData) when radiusPosition is CUSTOM. */
+  customRadiusPercent,
+  minT: nozzleMinT,
+  notes,
+  labelMode,
+  include,
+})
 
-export const headMutSchema = z
-  .strictObject({
-    head,
-    id,
-    clock,
-    radiusPosition,
-    customRadiusPercent,
-    minT: mutMinT,
-    labelMode,
-    include,
-    notes,
-  })
-  .superRefine(requireCustomFactor)
-
-function requireCustomFactor(
-  item: { radiusPosition: string; customRadiusPercent: number | null },
-  ctx: z.RefinementCtx,
-) {
-  if (item.radiusPosition === 'CUSTOM' && item.customRadiusPercent === null) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['customRadiusPercent'],
-      message: 'is required when the radius position is CUSTOM',
-    })
-  }
-}
+export const headMutSchema = z.strictObject({
+  head,
+  id,
+  clock,
+  radiusPosition,
+  customRadiusPercent,
+  minT: mutMinT,
+  labelMode,
+  include,
+  notes,
+})
 
 export const scanSchema = z
   .strictObject({
@@ -164,10 +152,10 @@ export const scanSchema = z
     include,
   })
   .superRefine((s, ctx) => {
-    if (s.xStart === s.xStop) {
+    if (s.xStart !== null && s.xStart === s.xStop) {
       ctx.addIssue({ code: 'custom', path: ['xStop'], message: 'must differ from X start (the scan has no width)' })
     }
-    if (s.yStart === s.yStop) {
+    if (s.yStart !== null && s.yStart === s.yStop) {
       ctx.addIssue({ code: 'custom', path: ['yStop'], message: 'must differ from Y start (the scan has no height)' })
     }
   })
@@ -302,6 +290,45 @@ function checkUniqueIds(file: Record<ListKey, Record<string, unknown>[]>, lists:
       })
     })
   }
+}
+
+/** Measurements each list needs before it can be drawn (null = not entered yet). */
+const REQUIRED_FOR_EXPORT: { [K in ListKey]: string[] } = {
+  circWelds: ['y'],
+  longSeams: ['x'],
+  shellNozzles: ['diameter', 'x', 'y'],
+  objects: ['x', 'y', 'circWidth', 'length'],
+  shellMut: ['x', 'y'],
+  headNozzles: ['diameter', 'clock'],
+  headMut: ['clock'],
+  scans: ['xStart', 'xStop', 'yStart', 'yStop'],
+  scanImages: [],
+}
+
+/**
+ * Lists values that must be filled in before the drawing can be generated, as sentences.
+ * Like v5.0's generation check, items switched off (Include = No) are not checked; shell MUT
+ * has no Include and is always checked. A valid project may still have missing data.
+ */
+export function findMissingData(project: Project): string[] {
+  const out: string[] = []
+  if (project.vessel.length === null) out.push('Vessel: Shell length (Y) is not entered yet.')
+  if (project.vessel.height === null) out.push('Vessel: Circumference (X) is not entered yet.')
+  for (const list of Object.keys(REQUIRED_FOR_EXPORT) as ListKey[]) {
+    const meta = LIST_META[list]
+    const fields = meta.fields as Record<string, string>
+    ;(project[list] as Record<string, unknown>[]).forEach((item, i) => {
+      if (item.include === false) return
+      const missing = REQUIRED_FOR_EXPORT[list].filter((f) => item[f] === null)
+      if (item.radiusPosition === null) missing.push('radiusPosition')
+      if (item.radiusPosition === 'CUSTOM' && item.customRadiusPercent === null) missing.push('customRadiusPercent')
+      for (const f of missing) {
+        const verb = f === 'radiusPosition' ? 'is not selected yet' : 'is not entered yet'
+        out.push(`${meta.name}, item ${i + 1} (${String(item[meta.idField])}): ${fields[f]} ${verb}.`)
+      }
+    })
+  }
+  return out
 }
 
 /** A valid project, with every default filled in. */

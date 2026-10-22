@@ -1,9 +1,7 @@
+import { ImportTest } from './ui/ImportTest.tsx'
+
 function App() {
-  return (
-    <main className="placeholder">
-      <h1>AxisBuilder - app in development</h1>
-    </main>
-  )
+  return <ImportTest />
 }
 
 export default App

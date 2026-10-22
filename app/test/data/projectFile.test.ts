@@ -3,6 +3,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   ProjectFileError,
   createEmptyProject,
+  findMissingData,
   formatDate,
   isValidClock,
   openProject,
@@ -219,7 +220,7 @@ describe('readable errors', () => {
     )
   })
 
-  it('checks head clock positions and custom radius', () => {
+  it('checks head clock positions', () => {
     const errors = errorsFor(
       withChange((p) => {
         p.headNozzles[0].clock = 'REVIEW'
@@ -229,7 +230,6 @@ describe('readable errors', () => {
     )
     expect(errors).toEqual([
       'Head nozzles, item 1 (N2): Clock position must be a clock position from 1 to 12, such as 3, 1:30 or 10.5.',
-      'Head nozzles, item 2 (N3): Custom radius % is required when the radius position is CUSTOM.',
       'Head MUT, item 1 (HM1): Clock position must be a clock position from 1 to 12, such as 3, 1:30 or 10.5.',
     ])
   })
@@ -335,6 +335,29 @@ describe('migration hook', () => {
     })
     const broken = openProject(JSON.stringify({ schemaVersion: 0 }), { migrations: { 0: (d) => d } })
     expect(broken.ok).toBe(false)
+  })
+})
+
+describe('missing data', () => {
+  it('opens a project with blank measurements and lists them', () => {
+    const p = withChange((p) => {
+      p.vessel.length = null
+      p.shellNozzles[0].diameter = null
+      p.headNozzles[1].customRadiusPercent = null
+      p.headMut[0].clock = null
+      p.longSeams[0].x = null // switched off (include: false), so not listed
+    })
+    const { project } = expectOk(openProject(saveProject(p)))
+    expect(findMissingData(project)).toEqual([
+      'Vessel: Shell length (Y) is not entered yet.',
+      'Shell nozzles, item 1 (N1): Diameter is not entered yet.',
+      'Head nozzles, item 2 (N3): Custom radius % is not entered yet.',
+      'Head MUT, item 1 (HM1): Clock position is not entered yet.',
+    ])
+  })
+
+  it('is empty for a complete project', () => {
+    expect(findMissingData(expectOk(openProject(saveProject(sampleProject()))).project)).toEqual([])
   })
 })
 
