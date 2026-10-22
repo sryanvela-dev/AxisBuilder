@@ -148,3 +148,72 @@ td.num {
 .kind-changed {
   background: var(--kind-changed);
 }
+
+.status-line {
+  margin-top: 12px;
+}
+
+.import-test h3 {
+  font-size: 1rem;
+  margin: 20px 0 6px;
+}
+
+select {
+  font: inherit;
+  padding: 4px 6px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.thumb {
+  display: inline-block;
+  width: 72px;
+  height: 48px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--kind-other);
+  vertical-align: middle;
+}
+
+.formats {
+  display: grid;
+  gap: 8px;
+}
+
+.format {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.format-chosen {
+  border-color: var(--accent);
+}
+
+.notice {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--kind-review);
+}
+
+.notice p {
+  margin: 0 0 8px;
+}
+
+.notice-error {
+  background: var(--kind-invalid);
+}
+
+.button-plain {
+  background: transparent;
+  color: inherit;
+}
