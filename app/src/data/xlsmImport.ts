@@ -5,7 +5,8 @@
 //   and extra or non-breaking spaces, including older labels. The five custom reference labels are
 //   read by position below "Reference Label Mode", as the VBA does.
 // - Shell Features / Head Features by section header text, so both the current layout and the
-//   older 20-nozzle layout import. Columns are the fixed v5.0 columns.
+//   older 20-nozzle layout import. Columns are found by their header text (older versions such as
+//   v4.7 order the Head Features columns differently); without a header row, the v5.0 columns are used.
 // - Scan Import: inputs only (A-E, L); the formula columns F-K are ignored. Scan Images: A-D.
 //
 // Nothing is accepted or dropped silently: every value that is skipped, changed or invalid is listed
@@ -55,14 +56,25 @@ export interface ImportSummary {
   /** Settings/info fields found in the workbook, out of those v5.0 keeps on its sheets. */
   fieldsFound: number
   fieldsTotal: number
+  /** Sections whose columns were found by header in a different order from v5.0. */
+  reorderedSections: ListKey[]
   /** Values that must be filled in before export (see findMissingData). */
   missingData: string[]
+}
+
+/** Where each imported value came from in the workbook (used to copy jobs between workbooks). */
+export interface ImportSources {
+  /** Settings / project / vessel fields found: section -> key -> sheet and row (value in column B). */
+  fields: Record<string, Record<string, { sheet: string; row: number }>>
+  /** Per list, one entry per imported item (same order): its row and the column of each field (null = no such column). */
+  rows: Record<ListKey, { row: number; cols: Record<string, string | null> }[]>
 }
 
 export interface ImportResult {
   project: Project
   report: ReportEntry[]
   summary: ImportSummary
+  sources: ImportSources
 }
 
 export class XlsmImportError extends Error {
@@ -434,7 +446,11 @@ function indexLabels(sheet: Sheet): LabelIndex {
   return { rows, used: new Set() }
 }
 
-function importFields(sheets: Record<string, Sheet>, result: Record<string, Record<string, unknown>>) {
+function importFields(
+  sheets: Record<string, Sheet>,
+  result: Record<string, Record<string, unknown>>,
+  sources: ImportSources['fields'],
+) {
   const index = {
     [SHEET.settings]: indexLabels(sheets[SHEET.settings]),
     [SHEET.info]: indexLabels(sheets[SHEET.info]),
@@ -474,6 +490,7 @@ function importFields(sheets: Record<string, Sheet>, result: Record<string, Reco
       }
       found++
       idx.used.add(row)
+      ;(sources[table.section] ??= {})[key] = { sheet: sheet.name, row }
       const c: Cell = { sheet, col: 'B', row }
       switch (def.type) {
         case 'text':
@@ -611,6 +628,35 @@ interface SectionSpec {
 
 const col = (c: string, key: string, kind: ColumnKind): Column => ({ col: c, key, kind })
 
+/** Column header texts per list field (current v5.0 names first). Used to find columns by name. */
+const HEADER_NAMES: Record<ListKey, Record<string, string[]>> = {
+  circWelds: { id: ['Weld ID'], y: ['Y Position'], include: ['Include'], showLabel: ['Label'] },
+  longSeams: {
+    id: ['Seam ID'], x: ['X Position'], startY: ['Start Y'], stopY: ['Stop Y'], include: ['Include'], showLabel: ['Label'],
+  },
+  shellNozzles: {
+    id: ['Nozzle Name'], diameter: ['Diameter'], x: ['X'], y: ['Y'], minT: ['Min. T.', 'Min T'], notes: ['Notes'],
+    include: ['Include'], labelMode: ['Label Mode'],
+  },
+  objects: {
+    id: ['Object ID'], x: ['X Position'], y: ['Y Position'], circWidth: ['Circ. Width'], length: ['Length'],
+    include: ['Include'], notes: ['Notes'],
+  },
+  shellMut: { id: ['MUT ID'], x: ['X Position'], y: ['Y Position'], minT: ['Min. T.', 'Min T'], notes: ['Notes'] },
+  headNozzles: {
+    head: ['Head'], id: ['Nozzle'], diameter: ['Nozzle Diameter'], clock: ['Clock Position'],
+    radiusPosition: ['Radius Position'], customRadiusPercent: ['Custom Radius Factor'], minT: ['Min. T.', 'Min T'],
+    notes: ['Notes'], labelMode: ['Label Mode'], include: ['Include Label', 'Include'],
+  },
+  headMut: {
+    head: ['Head'], id: ['MUT ID'], clock: ['Clock Position'], radiusPosition: ['Radius Position'],
+    customRadiusPercent: ['Custom Radius Factor'], minT: ['Min. T.', 'Min T'], labelMode: ['Label Mode'],
+    include: ['Include Label', 'Include'], notes: ['Notes'],
+  },
+  scans: { id: ['Scan Name'], xStart: ['X Start'], xStop: ['X Stop'], yStart: ['Y Start'], yStop: ['Y Stop'], include: ['Include'] },
+  scanImages: { scanId: ['Scan Name'], imageFile: ['Image File'], processedImage: ['Processed Image'], include: ['Include'] },
+}
+
 const SECTIONS: SectionSpec[] = [
   {
     list: 'circWelds', sheet: SHEET.shell, header: 'Weld ID', fallback: [3, 12],
@@ -695,17 +741,20 @@ for (const s of SECTIONS) {
 }
 
 /** First and last data row of a section, found by its header text like the VBA does. */
-function sectionRows(sheet: Sheet, spec: SectionSpec): [number, number] {
+/** First and last data row, and the column-header row (0 if not found). */
+function sectionRows(sheet: Sheet, spec: SectionSpec): [number, number, number] {
   const title = sheet.findTitleRow(spec.titles)
   if (!title) {
     sheet.report.add(sheet.name, `rows ${spec.fallback[0]}-${spec.fallback[1]}`, '', 'notFound',
       `Section header "${spec.titles[0]}" not found; read the v5.0 rows ${spec.fallback[0]}-${spec.fallback[1]}.`)
-    return spec.fallback
+    return [...spec.fallback, 0]
   }
   let first = title + 2
+  let headerRow = 0
   for (let r = title + 1; r <= title + 3; r++) {
     if (labelKey(sheet.text('A', r)) === labelKey(spec.header)) {
       first = r + 1
+      headerRow = r
       break
     }
   }
@@ -717,22 +766,66 @@ function sectionRows(sheet: Sheet, spec: SectionSpec): [number, number] {
       break
     }
   }
-  return [first, last]
+  return [first, last, headerRow]
+}
+
+/**
+ * The column of each field: found by header text when the section has a header row. A field whose
+ * header is missing keeps its v5.0 column only if that column has no other header; otherwise the field
+ * has no column in this layout (col '').
+ */
+function resolveColumns(sheet: Sheet, spec: SectionSpec, headerRow: number): Column[] {
+  if (!headerRow) return spec.columns
+  const byHeader = new Map<string, string>()
+  for (const letter of 'ABCDEFGHIJKL') {
+    const t = sheet.text(letter, headerRow)
+    if (t && !byHeader.has(labelKey(t))) byHeader.set(labelKey(t), letter)
+  }
+  return spec.columns.map((c) => {
+    const names = HEADER_NAMES[spec.list][c.key] ?? []
+    const found = names.map((h) => byHeader.get(labelKey(h))).find(Boolean)
+    if (found) return { ...c, col: found }
+    if (sheet.text(c.col, headerRow) === '') return c
+    sheet.report.add(sheet.name, `row ${headerRow}`, '', 'notFound',
+      `${LIST_META[spec.list].name}: no "${names[0] ?? c.key}" column in this layout; left blank.`)
+    return { ...c, col: '' }
+  })
+}
+
+/** The value a field gets when its column does not exist in the workbook (same as a blank cell). */
+function blankValue(kind: ColumnKind): unknown {
+  switch (kind) {
+    case 'include':
+      return true
+    case 'showLabel':
+      return false
+    case 'labelMode':
+      return 'AUTO'
+    case 'radius':
+      return 'CENTER'
+    case 'notes':
+    case 'fileName':
+      return ''
+    default:
+      return null
+  }
 }
 
 function importSection(
   sheet: Sheet,
   spec: SectionSpec,
-): { items: Record<string, unknown>[]; rows: number[]; first: number } {
+): { items: Record<string, unknown>[]; rows: number[]; first: number; columns: Column[]; reordered: boolean } {
   const items: Record<string, unknown>[] = []
   const rows: number[] = []
-  if (!sheet.exists) return { items, rows, first: 0 }
-  const [first, last] = sectionRows(sheet, spec)
-  const idCol = spec.columns.find((c) => c.kind === 'id')!
-  const headCol = spec.columns.find((c) => c.kind === 'head')
+  if (!sheet.exists) return { items, rows, first: 0, columns: spec.columns, reordered: false }
+  const [first, last, headerRow] = sectionRows(sheet, spec)
+  const columns = resolveColumns(sheet, spec, headerRow)
+  const reordered = columns.some((c, i) => c.col !== spec.columns[i].col)
+  const idCol = columns.find((c) => c.kind === 'id')!
+  const headCol = columns.find((c) => c.kind === 'head')
 
   for (let r = first; r <= last; r++) {
-    const dataCells = spec.columns.filter((c) => DATA_KINDS.has(c.kind) && sheet.raw(c.col, r) !== undefined)
+    const dataCells = columns.filter((c) => c.col && DATA_KINDS.has(c.kind) && sheet.raw(c.col, r) !== undefined)
     if (dataCells.length === 0) continue
     const id = sheet.text(idCol.col, r)
     const where: Cell = { sheet, col: idCol.col, row: r }
@@ -755,14 +848,14 @@ function importSection(
       }
       item.head = head
     }
-    for (const c of spec.columns) {
+    for (const c of columns) {
       if (c.kind === 'head') continue
-      item[c.key] = c.kind === 'id' ? id : parseColumn({ sheet, col: c.col, row: r }, c.kind)
+      item[c.key] = c.kind === 'id' ? id : c.col ? parseColumn({ sheet, col: c.col, row: r }, c.kind) : blankValue(c.kind)
     }
     items.push(item)
     rows.push(r)
   }
-  return { items, rows, first }
+  return { items, rows, first, columns, reordered }
 }
 
 /** Renames repeated IDs (shared across the given lists) so nothing is dropped; each rename is listed. */
@@ -813,7 +906,8 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
   }
 
   const data: Record<string, unknown> = { schemaVersion: CURRENT_SCHEMA_VERSION }
-  const fields = importFields(sheets, data as Record<string, Record<string, unknown>>)
+  const fieldSources: ImportSources['fields'] = {}
+  const fields = importFields(sheets, data as Record<string, Record<string, unknown>>, fieldSources)
 
   const lists = SECTIONS.map((spec) => ({ spec, ...importSection(sheets[spec.sheet], spec) }))
   const byList = Object.fromEntries(lists.map((l) => [l.spec.list, l])) as Record<ListKey, (typeof lists)[number]>
@@ -856,6 +950,7 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
     }
   })
   byList.scanImages.items = keep.map((i) => byList.scanImages.items[i])
+  byList.scanImages.rows = keep.map((i) => byList.scanImages.rows[i])
 
   // Scan Images notes (column F) have no place in the project; the template's instruction note is ignored.
   const images = sheets[SHEET.images]
@@ -891,7 +986,24 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
       counts: Object.fromEntries(lists.map((l) => [l.spec.list, project[l.spec.list].length])) as Record<ListKey, number>,
       fieldsFound: fields.found,
       fieldsTotal: fields.total,
+      reorderedSections: lists.filter((l) => l.reordered).map((l) => l.spec.list),
       missingData: findMissingData(project),
     },
+    sources: {
+      fields: fieldSources,
+      rows: Object.fromEntries(
+        lists.map((l) => [
+          l.spec.list,
+          l.rows.map((row) => ({ row, cols: Object.fromEntries(l.columns.map((c) => [c.key, c.col || null])) })),
+        ]),
+      ) as ImportSources['rows'],
+    },
   }
+}
+
+/** The v5.0 workbook column of each list field (current layout), e.g. headNozzles.clock -> "D". */
+export function v5Columns(): Record<ListKey, Record<string, string>> {
+  return Object.fromEntries(
+    SECTIONS.map((s) => [s.list, Object.fromEntries(s.columns.map((c) => [c.key, c.col]))]),
+  ) as Record<ListKey, Record<string, string>>
 }

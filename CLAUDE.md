@@ -121,6 +121,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
   (no cropping). Must be verified on a real job in DraftSight and AutoCAD, all three orientations, before it replaces
   the v5.0 method.
+- Reference jobs for parity tests: `npm run convert:refjobs -- "<jobs folder>"` (`app/scripts/convert-reference-jobs.ts`
+  + `fill-v5-workbook.ps1`) converts old job workbooks into copies of the v5.0 workbook via Excel COM (macros forced
+  off, signature kept), copying the original cells found by `importWorkbook`, then re-imports and compares. The jobs
+  folder is outside the repo and holds real client data: never commit anything from it.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -249,3 +253,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   the project; a folder where nothing fits shows a "wrong folder?" message. No image resizing yet. Made-up sample CSV in `app/test/fixtures/aut/`. App updates: `main.tsx` now
   registers the service worker via `virtual:pwa-register` (immediate), so after an update the page reloads once onto the
   new build instead of showing the old one until the next visit (verified in the preview). No VBA or workbook changes.
+- 2026-10-22 – Reference job converter (branch feature/reference-job-convert): `importWorkbook` now finds list columns by
+  header text (v4.7 orders shell nozzle and Head Features columns differently; before this, v4.7 jobs were misread
+  without warning), reports columns a layout lacks, and returns `sources` (cell of every value) and
+  `summary.reorderedSections`; `v5Columns()` exported. New `app/scripts/convert-reference-jobs.ts` + `fill-v5-workbook.ps1`.
+  User decisions for the 4 reference jobs: job files used where they are (no original\ folder), images = REFn\screenshots,
+  processed images to REFn\v5.0\Processed_Images, scans copied from the old workbook (keeps hand edits) instead of
+  re-importing the CSV, missing AUT Hatch Transparency = 50, v4.7 head nozzle "Include Label" NO written as YES, duplicate
+  names (e.g. TOL) kept as written. No VBA or workbook changes; AxisBuilder_v5.0_Stable.xlsm only copied.

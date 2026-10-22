@@ -1,3 +1,8 @@
+# Web app files and Markdown: LF in the repo and the working tree (only src/*.bas is CRLF).
+# text=auto leaves binary files (images, test workbooks) untouched.
+app/** text=auto eol=lf
+*.md text eol=lf
+
 # VBA modules are cp1252 + CRLF; store byte-for-byte, no line-ending conversion
 *.bas -text diff
 *.xlsm binary
