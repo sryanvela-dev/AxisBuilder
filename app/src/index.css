@@ -1090,3 +1090,90 @@ table.preview td {
   max-height: 160px;
   overflow-y: auto;
 }
+
+/* --- AUT scans and Images steps ------------------------------------------------------------- */
+
+.drop-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 16px 18px;
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.drop-active {
+  border-color: var(--accent);
+  background: var(--kind-changed);
+}
+
+.col-derived {
+  color: var(--muted);
+  padding-top: 10px !important;
+}
+
+.photo-panel,
+.process-panel {
+  margin: 18px 0 8px;
+  padding: 4px 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.photo-panel h2,
+.process-panel h2 {
+  margin-top: 12px;
+}
+
+.folder-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 10px 0;
+}
+
+.folder-bar .button-row {
+  margin: 0;
+}
+
+.folder-label {
+  font-weight: 600;
+}
+
+.match-panel {
+  margin: 12px 0;
+  padding: 4px 16px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}
+
+.table-limit-tall {
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+table.grid.photos td {
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+table.grid.photos select {
+  max-width: 220px;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.progress-row progress {
+  width: 320px;
+  height: 18px;
+}

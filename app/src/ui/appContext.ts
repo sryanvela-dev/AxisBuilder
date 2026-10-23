@@ -4,6 +4,7 @@ import { createContext, useContext } from 'react'
 import type { Project } from '../data/schema.ts'
 import type { ImportResult } from '../data/xlsmImport.ts'
 import type { RecentJob, RecoveryRecord } from '../state/recovery.ts'
+import type { KeyValueStore } from '../state/storage.ts'
 import type { SessionAction, SessionState, StepId } from '../state/session.ts'
 import type { DialogRequest } from './Dialog.tsx'
 
@@ -55,6 +56,8 @@ export interface AppApi {
   save: (saveAs?: boolean) => Promise<boolean>
   closeJob: () => Promise<void>
   ask: <T extends string>(request: DialogRequest<T>) => Promise<T>
+  /** This browser's storage (recovery copy, recent jobs, remembered folders). */
+  browserStore: KeyValueStore
 }
 
 export const AppContext = createContext<AppApi | null>(null)

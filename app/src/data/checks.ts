@@ -16,6 +16,8 @@ export type CheckPlace =
   | { kind: 'setting'; section: 'project' | 'vessel' | 'settings'; key: string }
   | { kind: 'row'; list: ListKey; index: number; field?: string }
   | { kind: 'list'; list: ListKey }
+  /** The photo of a scan (Images step); index is the scan's row. */
+  | { kind: 'photo'; index: number; scanId: string }
 
 export interface Check {
   severity: Severity
@@ -36,6 +38,7 @@ export function placeText(p: Project, place: CheckPlace): string {
   if (place.kind === 'setting') {
     return fieldDef(place.section, place.key)?.name ?? place.key
   }
+  if (place.kind === 'photo') return `Photo of ${place.scanId}`
   const meta = LIST_META[place.list]
   if (place.kind === 'list') return meta.name
   const item = itemsOf(p, place.list)[place.index]
@@ -180,6 +183,9 @@ export function checkProject(p: Project): Check[] {
     outside('shellMut', i, 'y', m.y, len, lenName)
   })
 
+  checkScans(p, out, outside, lenName, circName)
+  checkPhotos(p, out)
+
   // Head items that are not drawn because their head view is off
   const mode = p.settings.headViewMode
   const shown = (head: string) => mode === 'BOTH' || mode === head
@@ -196,6 +202,80 @@ export function checkProject(p: Project): Check[] {
   }
 
   return out
+}
+
+type Outside = (list: ListKey, index: number, field: string, value: number | null, limit: number | null, limitName: string) => void
+
+/** AUT scans, following v5.0: reversed start/stop, outside the shell, overlaps (Overlap Detection). */
+function checkScans(p: Project, out: Check[], outside: Outside, lenName: string, circName: string) {
+  const flips = p.settings.enableValidation
+  const checkName = SETTINGS.enableValidation.name
+  p.scans.forEach((s, index) => {
+    if (!s.include) return
+    for (const [a, b, axis] of [['xStart', 'xStop', 'X'], ['yStart', 'yStop', 'Y']] as const) {
+      const start = s[a]
+      const stop = s[b]
+      if (start === null || stop === null || start <= stop) continue
+      out.push({
+        severity: 'warning', place: { kind: 'row', list: 'scans', index, field: a },
+        text: `${axis} start (${inches(start)}) is more than ${axis} stop (${inches(stop)}).`,
+        fix: flips
+          ? `The drawing swaps them, as v5.0 did, so the scan runs from ${inches(stop)} to ${inches(start)}. Swap them here if you want the table to match.`
+          : `"${checkName}" is off, so the drawing uses them as typed and the photo can land in the wrong place. Swap them.`,
+      })
+    }
+    for (const [f, limit, name] of [['xStart', p.vessel.height, circName], ['xStop', p.vessel.height, circName], ['yStart', p.vessel.length, lenName], ['yStop', p.vessel.length, lenName]] as const) {
+      outside('scans', index, f, s[f], limit, name)
+    }
+  })
+
+  const mode = p.settings.overlapDetection
+  if (mode === 'OFF') return
+  const rects = p.scans
+    .map((s, index) => ({ s, index }))
+    .filter(({ s }) => s.include && s.xStart !== null && s.xStop !== null && s.yStart !== null && s.yStop !== null)
+    .map(({ s, index }) => ({
+      id: s.id, index,
+      x0: Math.min(s.xStart!, s.xStop!), x1: Math.max(s.xStart!, s.xStop!),
+      y0: Math.min(s.yStart!, s.yStop!), y1: Math.max(s.yStart!, s.yStop!),
+    }))
+  const setting = SETTINGS.overlapDetection.name
+  for (let j = 1; j < rects.length; j++) {
+    for (let i = 0; i < j; i++) {
+      const a = rects[i]
+      const b = rects[j]
+      const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
+      const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0)
+      if (w <= 0 || h <= 0) continue
+      out.push({
+        severity: mode === 'BLOCK' ? 'error' : 'warning', place: { kind: 'row', list: 'scans', index: b.index, field: 'id' },
+        text: `Overlaps ${a.id} (row ${a.index + 1}) by ${formatNumber(w * h)} sq in.`,
+        fix: mode === 'BLOCK'
+          ? `"${setting}" is BLOCK, so export stops. Correct the positions, untick Include on one of them, or set the check to WARN.`
+          : 'Fine for a rescan or extra coverage (the coverage % counts both). Otherwise check the positions.',
+      })
+    }
+  }
+}
+
+/**
+ * Scan photos, following v5.0: with "Check data before export" on, every scan that is drawn needs its photo
+ * (v5.0 stops the export); with it off, a missing photo is only a warning. A scan whose photo is switched off,
+ * or a switched-off scan, needs none; with "Use scan images" off, no photo is needed at all.
+ */
+function checkPhotos(p: Project, out: Check[]) {
+  if (!p.settings.generateOverlayDrawing) return
+  const links = new Map(p.scanImages.map((l) => [idKey(l.scanId), l]))
+  p.scans.forEach((s, index) => {
+    if (!s.include) return
+    const link = links.get(idKey(s.id))
+    if (link && (!link.include || link.imageFile.trim() !== '')) return
+    out.push({
+      severity: p.settings.enableValidation ? 'error' : 'warning', place: { kind: 'photo', index, scanId: s.id },
+      text: 'No photo chosen.',
+      fix: 'Choose the photo folder and match the photos, or untick "Use photo" to draw this scan without one.',
+    })
+  })
 }
 
 /** Checks on one row (or one cell when `field` is given). */

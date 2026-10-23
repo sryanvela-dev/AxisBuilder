@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MIGRATIONS,
   CURRENT_SCHEMA_VERSION,
   ProjectFileError,
   createEmptyProject,
@@ -106,7 +107,8 @@ describe('save and open', () => {
 describe('defaults', () => {
   it('fills every section of an empty file', () => {
     const { project } = expectOk(openProject(JSON.stringify({ schemaVersion: CURRENT_SCHEMA_VERSION })))
-    expect(project).toEqual(createEmptyProject())
+    expect({ ...project, jobId: 'x' }).toEqual({ ...createEmptyProject(), jobId: 'x' })
+    expect(project.jobId).toMatch(/^[0-9a-f-]{36}$/)
     expect(project.vessel.length).toBeNull()
     expect(project.vessel.orientation).toBe('Horizontal CW')
     expect(project.settings.rulerSpacing).toBe(12)
@@ -316,11 +318,24 @@ describe('duplicate IDs', () => {
 describe('migration hook', () => {
   // Pretend an older format 0 stored the vessel length under "shellLength".
   const migrations: Record<number, Migration> = {
+    ...MIGRATIONS,
     0: (data) => {
       const { shellLength, ...rest } = data
       return { ...rest, schemaVersion: 1, vessel: { length: shellLength } }
     },
   }
+
+  it('format 1 files get a job ID; a format 2 file keeps its own', () => {
+    const v1 = expectOk(openProject(JSON.stringify({ schemaVersion: 1, project: { projectName: 'Old' } })))
+    expect(v1.migratedFrom).toBe(1)
+    expect(v1.project.schemaVersion).toBe(2)
+    expect(v1.project.jobId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(v1.project.project.projectName).toBe('Old')
+    const again = expectOk(openProject(saveProject(v1.project)))
+    expect(again.migratedFrom).toBeUndefined()
+    expect(again.project.jobId).toBe(v1.project.jobId)
+    expect(errorsFor({ schemaVersion: 2, jobId: ' ' })).toEqual(['Job ID must not be blank.'])
+  })
 
   it('upgrades older files before validating', () => {
     const result = expectOk(openProject(JSON.stringify({ schemaVersion: 0, shellLength: 300 }), { migrations }))

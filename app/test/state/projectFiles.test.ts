@@ -32,9 +32,9 @@ function fakeHandle(name: string, content: string, lastModified = 1000) {
   return handle
 }
 
+const base = createEmptyProject()
 function named(name: string): Project {
-  const p = createEmptyProject()
-  return { ...p, project: { ...p.project, projectName: name } }
+  return { ...base, project: { ...base.project, projectName: name } }
 }
 
 const abort = () => Object.assign(new Error('cancelled'), { name: 'AbortError' })

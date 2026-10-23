@@ -12,6 +12,7 @@ import {
   LIST_META,
   longSeamSchema,
   objectSchema,
+  scanSchema,
   shellMutSchema,
   shellNozzleSchema,
   type ListKey,
@@ -31,6 +32,8 @@ import {
 
 export const FIELD_LISTS = ['circWelds', 'longSeams', 'shellNozzles', 'objects', 'shellMut', 'headNozzles', 'headMut'] as const
 export type FieldListKey = (typeof FIELD_LISTS)[number]
+/** Lists shown as editable tables: the field data lists and the AUT scans. */
+export type TableListKey = FieldListKey | 'scans'
 
 export type ColumnKind = 'id' | 'text' | 'length' | 'thickness' | 'nozzleMinT' | 'clock' | 'percent' | 'yesNo' | 'labelMode' | 'radius' | 'head'
 
@@ -46,7 +49,7 @@ const c = (key: string, kind: ColumnKind): ColumnSpec => {
 }
 
 /** Table columns per list, in the order shown (the order of the v5.0 sheets). */
-export const TABLE_COLUMNS: Record<FieldListKey, ColumnSpec[]> = {
+export const TABLE_COLUMNS: Record<TableListKey, ColumnSpec[]> = {
   circWelds: [c('id', 'id'), c('y', 'length'), c('include', 'yesNo'), c('showLabel', 'yesNo')],
   longSeams: [c('id', 'id'), c('x', 'length'), c('startY', 'length'), c('stopY', 'length'), c('include', 'yesNo'), c('showLabel', 'yesNo')],
   shellNozzles: [
@@ -67,9 +70,10 @@ export const TABLE_COLUMNS: Record<FieldListKey, ColumnSpec[]> = {
     c('head', 'head'), c('id', 'id'), c('clock', 'clock'), c('radiusPosition', 'radius'), c('customRadiusPercent', 'percent'),
     c('minT', 'thickness'), c('labelMode', 'labelMode'), c('include', 'yesNo'), c('notes', 'text'),
   ],
+  scans: [c('id', 'id'), c('xStart', 'length'), c('xStop', 'length'), c('yStart', 'length'), c('yStop', 'length'), c('include', 'yesNo')],
 }
 
-export const ITEM_SCHEMAS: Record<FieldListKey, z.ZodType> = {
+export const ITEM_SCHEMAS: Record<TableListKey, z.ZodType> = {
   circWelds: circWeldSchema,
   longSeams: longSeamSchema,
   shellNozzles: shellNozzleSchema,
@@ -77,15 +81,16 @@ export const ITEM_SCHEMAS: Record<FieldListKey, z.ZodType> = {
   shellMut: shellMutSchema,
   headNozzles: headNozzleSchema,
   headMut: headMutSchema,
+  scans: scanSchema,
 }
 
 /** Column title with units, e.g. "Diameter (in)". */
-export function columnTitle(list: FieldListKey, col: ColumnSpec): string {
+export function columnTitle(list: TableListKey, col: ColumnSpec): string {
   const name = (LIST_META[list].fields as Record<string, string>)[col.key]
   return col.units && !name.endsWith(col.units) ? `${name} (${col.units})` : name
 }
 
-export function columnName(list: FieldListKey, key: string): string {
+export function columnName(list: TableListKey, key: string): string {
   return (LIST_META[list].fields as Record<string, string>)[key]
 }
 
@@ -142,7 +147,7 @@ export function schemaProblem(issue: z.core.$ZodIssue): string {
  * Puts one typed value into a row. Returns the new row, or the problem (a schema range, or a blank
  * name). Text is trimmed; an ID must not be blank.
  */
-export function setCell(list: FieldListKey, item: Record<string, unknown>, key: string, value: unknown): { ok: true; item: Record<string, unknown> } | { ok: false; problem: string } {
+export function setCell(list: TableListKey, item: Record<string, unknown>, key: string, value: unknown): { ok: true; item: Record<string, unknown> } | { ok: false; problem: string } {
   const col = TABLE_COLUMNS[list].find((x) => x.key === key)
   if (col?.kind === 'id' && (value === '' || value === null)) return { ok: false, problem: 'A name is needed. Enter one, like N1.' }
   if (col?.kind === 'yesNo' && value === null) value = key === 'include'
@@ -165,12 +170,12 @@ export function usedIds(project: Project, list: ListKey): Set<string> {
   return out
 }
 
-const DEFAULT_PREFIX: Record<FieldListKey, string> = {
-  circWelds: 'C', longSeams: 'L', shellNozzles: 'N', objects: 'OBJ', shellMut: 'M', headNozzles: 'N', headMut: 'M',
+const DEFAULT_PREFIX: Record<TableListKey, string> = {
+  circWelds: 'C', longSeams: 'L', shellNozzles: 'N', objects: 'OBJ', shellMut: 'M', headNozzles: 'N', headMut: 'M', scans: 'SCAN ',
 }
 
 /** A free name for a new row: the last row's name with the next number ("N3" -> "N4"), never one in use. */
-export function nextId(project: Project, list: FieldListKey): string {
+export function nextId(project: Project, list: TableListKey): string {
   const used = usedIds(project, list)
   const items = project[list] as { id: string }[]
   const last = items[items.length - 1]?.id ?? ''
@@ -182,7 +187,7 @@ export function nextId(project: Project, list: FieldListKey): string {
 }
 
 /** A free copy name: "N1" -> "N1 (2)", "N1 (3)", ... (the importer's style). */
-export function copyId(project: Project, list: FieldListKey, id: string): string {
+export function copyId(project: Project, list: TableListKey, id: string): string {
   const used = usedIds(project, list)
   const base = id.replace(/ \(\d+\)$/, '')
   let n = 2
@@ -191,11 +196,30 @@ export function copyId(project: Project, list: FieldListKey, id: string): string
 }
 
 /** An empty row (measurements blank, defaults from the schema). */
-export function newItem(list: FieldListKey, id: string, head: 'HEAD 1' | 'HEAD 2' = 'HEAD 1'): Record<string, unknown> {
+export function newItem(list: TableListKey, id: string, head: 'HEAD 1' | 'HEAD 2' = 'HEAD 1'): Record<string, unknown> {
   const raw: Record<string, unknown> = { id }
   for (const col of TABLE_COLUMNS[list]) {
     if (col.kind === 'length' || col.kind === 'clock') raw[col.key] = null
     if (col.kind === 'head') raw[col.key] = head
   }
   return ITEM_SCHEMAS[list].parse(raw) as Record<string, unknown>
+}
+
+/**
+ * Keeps the scan photo links in step with the scans after an edit of the scan table: a renamed scan
+ * keeps its photo (rows are compared by position), a deleted scan's link is removed.
+ */
+export function syncScanImages(prev: Project, next: Project): Project {
+  if (prev.scans === next.scans) return next
+  let links = next.scanImages
+  if (prev.scans.length === next.scans.length) {
+    const renamed = new Map<string, string>()
+    prev.scans.forEach((s, i) => {
+      if (idKey(s.id) !== idKey(next.scans[i].id)) renamed.set(idKey(s.id), next.scans[i].id)
+    })
+    if (renamed.size > 0) links = links.map((l) => (renamed.has(idKey(l.scanId)) ? { ...l, scanId: renamed.get(idKey(l.scanId))! } : l))
+  }
+  const ids = new Set(next.scans.map((s) => idKey(s.id)))
+  links = links.filter((l) => ids.has(idKey(l.scanId)))
+  return links.length === next.scanImages.length && links.every((l, i) => l === next.scanImages[i]) ? next : { ...next, scanImages: links }
 }

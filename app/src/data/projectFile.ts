@@ -8,6 +8,7 @@ import { fieldDef } from './settings.ts'
 import {
   CURRENT_SCHEMA_VERSION,
   LIST_META,
+  newJobId,
   projectFileSchema,
   type ListKey,
   type Project,
@@ -21,7 +22,8 @@ import {
 export type Migration = (data: Record<string, unknown>) => Record<string, unknown>
 
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
-  // Version 1 is the first released format; nothing to upgrade yet.
+  // Format 2 adds the job ID.
+  1: (data) => ({ ...data, schemaVersion: 2, jobId: newJobId() }),
 }
 
 export interface OpenOptions {
@@ -157,6 +159,7 @@ function describePath(path: readonly PropertyKey[], input: unknown): { prefix: s
   }
 
   if (first === 'schemaVersion') return { prefix: '', field: 'schemaVersion' }
+  if (first === 'jobId') return { prefix: '', field: 'Job ID' }
   return { prefix: 'Project file: ', field: path.map(String).join('.') }
 }
 

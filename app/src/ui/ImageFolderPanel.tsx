@@ -1,61 +1,23 @@
-// Scan image folder step (test screen): pick a folder, check the naming format against example
-// thumbnails, resolve scans with several candidate files, then save the choices into the project.
-// Files are read in this browser only (names, plus thumbnails on screen); nothing is uploaded.
+// Matching photos to scans (Images step): check the naming format against example thumbnails,
+// pick a file for scans with several candidates, confirm replacing photos already chosen, then save
+// the choices into the project. The folder comes from the Images step. Files are read in this browser
+// only (names, plus thumbnails on screen); nothing is uploaded.
 
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Project } from '../data/schema.ts'
+import type { PhotoFolder } from './photoFolder.ts'
 import { applyImageChoices, matchScanImages, resolveImageFile, type ScanMatchStatus } from '../data/imageMatch.ts'
 
 const STATUS_LABEL: Record<ScanMatchStatus, string> = { matched: 'Matched', choose: 'Choose', noMatch: 'No match' }
 const STATUS_KIND: Record<ScanMatchStatus, string> = { matched: 'changed', choose: 'review', noMatch: 'invalid' }
 const SKIP = '\u0000skip'
 
-interface Folder {
-  name: string
-  names: string[]
-  getFile: (name: string) => Promise<File | null>
-}
-
-interface FileEntry {
-  kind: 'file' | 'directory'
-  name: string
-  getFile?: () => Promise<File>
-}
-
-/** Chrome/Edge folder picker; top-level files only, like v5.0. Returns undefined if not supported. */
-async function pickWithDirectoryPicker(): Promise<Folder | null | undefined> {
-  const picker = (window as unknown as {
-    showDirectoryPicker?: () => Promise<{ name: string; values(): AsyncIterable<FileEntry> }>
-  }).showDirectoryPicker
-  if (!picker) return undefined
-  let dir
-  try {
-    dir = await picker()
-  } catch {
-    return null // cancelled
-  }
-  const entries = new Map<string, FileEntry>()
-  for await (const e of dir.values()) if (e.kind === 'file') entries.set(e.name, e)
-  return {
-    name: dir.name,
-    names: [...entries.keys()].sort(),
-    getFile: async (n) => (await entries.get(n)?.getFile?.()) ?? null,
-  }
-}
-
-function folderFromInput(files: FileList): Folder {
-  const top = [...files].filter((f) => (f as File & { webkitRelativePath: string }).webkitRelativePath.split('/').length === 2)
-  const byName = new Map(top.map((f) => [f.name, f]))
-  const first = (files[0] as (File & { webkitRelativePath: string }) | undefined)?.webkitRelativePath.split('/')[0] ?? ''
-  return { name: first, names: [...byName.keys()].sort(), getFile: async (n) => byName.get(n) ?? null }
-}
-
 /** Thumbnail of one file; a new file name mounts a fresh image. */
-function Thumb({ folder, name }: { folder: Folder; name: string | null }) {
+export function Thumb({ folder, name }: { folder: PhotoFolder; name: string | null }) {
   return <ThumbImage key={name ?? ''} folder={folder} name={name} />
 }
 
-function ThumbImage({ folder, name }: { folder: Folder; name: string | null }) {
+function ThumbImage({ folder, name }: { folder: PhotoFolder; name: string | null }) {
   const [url, setUrl] = useState('')
   useEffect(() => {
     let alive = true
@@ -77,8 +39,7 @@ function ThumbImage({ folder, name }: { folder: Folder; name: string | null }) {
   return url ? <img className="thumb" src={url} alt={name} loading="lazy" /> : <span className="thumb thumb-empty" />
 }
 
-export function ImageFolderPanel({ project, onApply }: { project: Project; onApply: (p: Project) => void }) {
-  const [folder, setFolder] = useState<Folder | null>(null)
+export function ImageFolderPanel({ project, folder, onApply, onClose }: { project: Project; folder: PhotoFolder; onApply: (p: Project) => void; onClose: () => void }) {
   const [pattern, setPattern] = useState<string | undefined>(undefined)
   const [picks, setPicks] = useState<Map<string, string>>(new Map())
   const [confirming, setConfirming] = useState<{ scanId: string; from: string; to: string }[] | null>(null)
@@ -90,28 +51,9 @@ export function ImageFolderPanel({ project, onApply }: { project: Project; onApp
   }, [project])
 
   const result = useMemo(
-    () => (folder ? matchScanImages(current, folder.names, pattern ? { pattern } : {}) : null),
+    () => matchScanImages(current, folder.names, pattern ? { pattern } : {}),
     [folder, current, pattern],
   )
-
-  function start(f: Folder) {
-    setFolder(f)
-    setPattern(undefined)
-    setPicks(new Map())
-    setConfirming(null)
-    setSaved('')
-  }
-
-  async function onChoose() {
-    const picked = await pickWithDirectoryPicker()
-    if (picked === undefined) document.getElementById('folder-input')?.click()
-    else if (picked) start(picked)
-  }
-
-  function onFolderInput(e: ChangeEvent<HTMLInputElement>) {
-    if (e.target.files?.length) start(folderFromInput(e.target.files))
-    e.target.value = ''
-  }
 
   function changePattern(p: string) {
     setPattern(p)
@@ -156,22 +98,20 @@ export function ImageFolderPanel({ project, onApply }: { project: Project; onApp
     onApply(applyImageChoices(project, choices))
     setConfirming(null)
     const skipped = result.scans.length - choices.size
-    setSaved(`Image files saved to the project for ${choices.size} scan(s)` + (skipped ? `; ${skipped} left as they were.` : '.'))
+    setSaved(`Photos saved for ${choices.size} scan(s)` + (skipped ? `; ${skipped} left as they were.` : '.'))
+    onClose()
   }
 
   return (
-    <section>
-      <h2>Scan images</h2>
-      <div className="actions">
-        <button type="button" className="button" onClick={onChoose} disabled={project.scans.length === 0}>
-          Choose image folder
+    <section className="match-panel">
+      <div className="group-head">
+        <h2>Match photos to scans</h2>
+        <button type="button" className="btn btn-small" onClick={onClose}>
+          Close without saving
         </button>
-        <input id="folder-input" type="file" hidden onChange={onFolderInput} {...{ webkitdirectory: '' }} />
-        {project.scans.length === 0 && <span className="muted">Open an AUT CSV or a .xlsm job first.</span>}
-        {folder && <span className="muted">Folder: {folder.name} ({folder.names.length} files)</span>}
       </div>
 
-      {result && folder && (
+      {result && (
         <>
           {result.nothingFits && (
             <div className="notice notice-error" role="alert">
@@ -265,7 +205,7 @@ export function ImageFolderPanel({ project, onApply }: { project: Project; onApp
             </table>
           </div>
 
-          <h3>3. Save to the project</h3>
+          <h3>3. Save to the job</h3>
           {confirming ? (
             <div className="notice">
               <p>
@@ -295,7 +235,7 @@ export function ImageFolderPanel({ project, onApply }: { project: Project; onApp
           ) : (
             <div className="actions">
               <button type="button" className="button" onClick={onUse} disabled={unresolved > 0 || result.nothingFits}>
-                Use these images
+                Use these photos
               </button>
               {unresolved > 0 && <span className="muted">Pick a file (or Skip) for {unresolved} scan(s) first.</span>}
               {saved && <span>{saved}</span>}

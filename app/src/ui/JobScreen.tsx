@@ -10,7 +10,8 @@ import { copyText } from './errorDetails.ts'
 import { checkProject } from '../data/checks.ts'
 import { ChecksContext } from './checksContext.ts'
 import { FieldDataStep, ProjectStep } from './projectSteps.tsx'
-import { ExportStep, ImagesStep, ReviewStep, ScansStep } from './steps.tsx'
+import { ImagesStep, ScansStep } from './scanSteps.tsx'
+import { ExportStep, ReviewStep } from './steps.tsx'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }

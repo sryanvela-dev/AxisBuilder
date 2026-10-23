@@ -433,6 +433,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     save,
     closeJob,
     ask,
+    browserStore: store,
   }
 
   return (

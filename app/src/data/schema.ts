@@ -10,7 +10,12 @@
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
+
+/** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
+export function newJobId(): string {
+  return globalThis.crypto.randomUUID()
+}
 
 // --- Building blocks -------------------------------------------------------------------------
 
@@ -235,6 +240,11 @@ export function idKey(value: string): string {
 
 const projectFileShape = {
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
+  /** Stable ID of the job (format 2): written next to the processed images so CAD can tell jobs apart. */
+  jobId: z
+    .string()
+    .refine((v) => v.trim().length > 0, { message: 'must not be blank' })
+    .default(() => newJobId()),
   project: z.strictObject(shapeOf(PROJECT_FIELDS)).prefault({}),
   vessel: z.strictObject(shapeOf(VESSEL_FIELDS)).prefault({}),
   settings: z.strictObject(shapeOf(SETTINGS)).prefault({}),
