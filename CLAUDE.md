@@ -180,8 +180,13 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - Drawing step (Phase 3f-1, `DrawingStep` in `ui/projectSteps.tsx`): every drawing-look setting, in the groups Text
   sizes and colors, Rulers and labels, Nozzle labels, Legend and title block, Head views (links to Field data for heads
   on/off and names), Show or hide, Line colors and transparency; wide preview beside it. Text sizes and colors: one row
-  per text layer (`TEXT_TYPES` in settings.ts = the 14 TEXTRESIZE layers; settings `<key>Size` Automatic / Scale /
-  Fixed height, `<key>Scale`, `<key>Height`, `<key>Color`), line colors `LINE_LAYERS` (`<key>Color`). CAD colors use
+  per text layer (`TEXT_TYPES` in settings.ts = v5.0's 14 TEXTRESIZE layers plus X_AXIS_LABEL_TEXT, Y_AXIS_LABEL_TEXT,
+  REFERENCE_TEXT, marked `appLayer`; settings `<key>Size` Automatic / Scale /
+  Fixed height, `<key>Scale`, `<key>Height`, `<key>Color`), line colors `LINE_LAYERS` (`<key>Color`; NOZZLE_LEADERS and
+  HEAD_NOZZLE_LEADERS are app layers). App layers: `APP_LIBRARY_PATCHES` / `patchLibraryLine` change the library lines
+  that list layers (ruler labels, AB... toggles, TEXTRESIZE reflow), `TEXTRESIZE_LAYERS` drives the app's TEXTRESIZE;
+  `appLayerSetup` writes the app layers after SL_SetupLayers. A legend or title block size other than Automatic scales
+  the block (`panelScales`, app SL_Legend / SL_TitleBlock) and `computeRightPanelLayout` makes room. CAD colors use
   `ui/ColorPicker.tsx` (`color: true` on a number setting; screen colors in `engine/aci.ts`). `engine/styles.ts` gives
   the size rules and changed colors; the .lsp (app mode only) writes `SL_TEXT_SIZES` + size-aware SL_Text/SL_TextLeft
   and `(SL_Layer ...)` after `(SL_SetupLayers)`, only for non-default values; the preview applies the same rules.
@@ -448,3 +453,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   height. Tests: default app .lsp fingerprints unchanged (taken before the change), every text type's size and color in
   the .lsp and the preview, line colors, search by new and old names, every shown setting placed. Step bar now 7 columns.
   New .lsp not yet checked in DraftSight/AutoCAD. No VBA or workbook changes.
+- 2026-10-23 – Web app Phase 3f-1 follow-up (feature/drawing-step, approved by the user): the three suggested improvements.
+  New layers X_AXIS_LABEL_TEXT, Y_AXIS_LABEL_TEXT, REFERENCE_TEXT, NOZZLE_LEADERS, HEAD_NOZZLE_LEADERS (same colors as
+  before; own size/color rows on the Drawing step); library lines patched where written (`APP_LIBRARY_PATCHES`), app
+  TEXTRESIZE with 17 layers (menu numbers moved), AB... toggles and the legend reflow know the new layers. A bigger
+  legend or title block scales as a whole and the right panel moves the heads and title up (`panelScales`,
+  `computeRightPanelLayout` scales, app SL_Legend / SL_TitleBlock written only when a size changes). Reset button per
+  text row. Default app .lsp changes only by the layer splits (19 library/drawing lines plus new definitions; checked
+  by diff, fingerprints regenerated); compat v5.0 unchanged. phase2-notes changes 17-18. Legend/title text splits left
+  out (TEXTRESIZE's legend reflow needs the summary lines on LEGEND_TEXT). Not yet checked in DraftSight/AutoCAD.

@@ -183,7 +183,10 @@ export const TEXT_TYPES = [
   { key: 'circWeldText', layer: 'CIRC_WELD_TEXT', base: 2 },
   { key: 'longSeamText', layer: 'LONG_SEAM_TEXT', base: 2 },
   { key: 'xRulerText', layer: 'X_RULER_TEXT', base: 1.8 },
+  { key: 'xAxisLabelText', layer: 'X_AXIS_LABEL_TEXT', base: 2.5, appLayer: true },
+  { key: 'referenceText', layer: 'REFERENCE_TEXT', base: 1.5, appLayer: true },
   { key: 'yRulerText', layer: 'Y_RULER_TEXT', base: 1.8 },
+  { key: 'yAxisLabelText', layer: 'Y_AXIS_LABEL_TEXT', base: 2.5, appLayer: true },
   { key: 'headTitleText', layer: 'HEAD_TITLE_TEXT', base: 2.3 },
   { key: 'headNozzleText', layer: 'HEAD_NOZZLE_TEXT', base: null },
   { key: 'headMutText', layer: 'HEAD_MUT_TEXT', base: 1.5 },
@@ -192,7 +195,10 @@ export const TEXT_TYPES = [
   { key: 'titleBlockText', layer: 'TITLE_BLOCK_TEXT', base: 1.8 },
 ] as const
 
-/** The geometry layers whose color the Drawing step sets (settings key prefix + CAD layer). */
+/**
+ * The geometry layers whose color the Drawing step sets (settings key prefix + CAD layer). appLayer:
+ * a layer the app's drawing adds (text or lines v5.0 kept on a shared layer), here and in TEXT_TYPES.
+ */
 export const LINE_LAYERS = [
   { key: 'vessel', layer: 'VESSEL' },
   { key: 'scanOutline', layer: 'SCANS' },
@@ -202,7 +208,9 @@ export const LINE_LAYERS = [
   { key: 'circWeld', layer: 'CIRC_WELDS' },
   { key: 'longSeam', layer: 'LONG_SEAMS' },
   { key: 'centerline', layer: 'CENTERLINE' },
+  { key: 'shellNozzleLeader', layer: 'NOZZLE_LEADERS', appLayer: true },
   { key: 'head', layer: 'HEADS' },
+  { key: 'headNozzleLeader', layer: 'HEAD_NOZZLE_LEADERS', appLayer: true },
   { key: 'xRuler', layer: 'X_AXIS' },
   { key: 'yRuler', layer: 'Y_AXIS' },
 ] as const
@@ -772,8 +780,11 @@ export const SETTINGS = {
   ...textStyle('shellMutText', 'Shell MUT labels', 7, 1.5),
   ...textStyle('circWeldText', 'Circ weld labels', 7, 2),
   ...textStyle('longSeamText', 'Long seam labels', 7, 2),
-  ...textStyle('xRulerText', 'X ruler text and reference labels', 1, 1.8),
-  ...textStyle('yRulerText', 'Y ruler text', 5, 1.8),
+  ...textStyle('xRulerText', 'X ruler numbers', 1, 1.8),
+  ...textStyle('xAxisLabelText', 'X axis direction label', 1, 2.5),
+  ...textStyle('referenceText', 'Reference labels', 1, 1.5),
+  ...textStyle('yRulerText', 'Y ruler numbers', 5, 1.8),
+  ...textStyle('yAxisLabelText', 'Y axis direction label', 5, 2.5),
   ...textStyle('headTitleText', 'Head titles', 7, 2.3),
   ...textStyle('headNozzleText', 'Head nozzle labels', 7, null),
   ...textStyle('headMutText', 'Head MUT labels', 7, 1.5),
@@ -790,7 +801,9 @@ export const SETTINGS = {
   ...layerColor('circWeld', 'Circ welds', 7),
   ...layerColor('longSeam', 'Long seams', 7),
   ...layerColor('centerline', 'Centerline', 7),
+  ...layerColor('shellNozzleLeader', 'Shell nozzle leaders', 7),
   ...layerColor('head', 'Head views', 7),
+  ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7),
   ...layerColor('xRuler', 'X ruler', 1),
   ...layerColor('yRuler', 'Y ruler', 5),
 

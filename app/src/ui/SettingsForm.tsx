@@ -131,8 +131,15 @@ function SettingField(props: FieldProps) {
 
 /** Text sizes and colors: one row per text type (each its own CAD layer). */
 function TextStylesTable({ fields, values, step }: { fields: GroupField[]; values: SectionValues; step: StepId }) {
+  const app = useApp()
   const byKey = new Map(fields.map((f) => [f.key, f]))
   const defs = SETTINGS as Record<string, FieldDef>
+  // One row back to Automatic and its default color (one undo step); drafts typed in the row go too.
+  const resetRow = (key: string, name: string) => {
+    const row = ['Size', 'Scale', 'Height', 'Color'].map((k) => byKey.get(`${key}${k}`)!)
+    app.edit(`Reset ${name}`, (p) => row.reduce((acc, f) => setValue(acc, f.section, f.key, f.def.default), p))
+    for (const f of row) app.dispatch({ type: 'setDraft', key: draftKey(f.section, f.key), draft: null })
+  }
   return (
     <div>
       <table className="text-styles">
@@ -142,6 +149,7 @@ function TextStylesTable({ fields, values, step }: { fields: GroupField[]; value
             <th scope="col">Size</th>
             <th scope="col">Scale or height</th>
             <th scope="col">Color</th>
+            <th scope="col"><span className="visually-hidden">Reset</span></th>
           </tr>
         </thead>
         <tbody>
@@ -150,6 +158,10 @@ function TextStylesTable({ fields, values, step }: { fields: GroupField[]; value
             const mode = values.settings[`${t.key}Size` as keyof SectionValues['settings']]
             const amount = mode === 'Scale' ? byKey.get(`${t.key}Scale`) : mode === 'Fixed height' ? byKey.get(`${t.key}Height`) : undefined
             const name = defs[`${t.key}Size`].name.replace(/: size$/, '')
+            const changed = ['Size', 'Scale', 'Height', 'Color'].some((k) => {
+              const f = byKey.get(`${t.key}${k}`)!
+              return !Object.is(values[f.section][f.key], f.def.default)
+            })
             return (
               <tr key={t.key}>
                 <th scope="row">
@@ -169,6 +181,12 @@ function TextStylesTable({ fields, values, step }: { fields: GroupField[]; value
                 <td>
                   <SettingField field={byKey.get(`${t.key}Color`)!} step={step} compact />
                 </td>
+                <td>
+                  <button type="button" className="btn btn-small" disabled={!changed} onClick={() => resetRow(t.key, name)}
+                    title={changed ? `Put ${name.toLowerCase()} back to Automatic and the default color` : 'Already at the default'} aria-label={`Reset ${name}`}>
+                    Reset
+                  </button>
+                </td>
               </tr>
             )
           })}
@@ -176,7 +194,7 @@ function TextStylesTable({ fields, values, step }: { fields: GroupField[]; value
       </table>
       <p className="muted hidden-note">
         Scale multiplies the automatic size. Fixed height sets the main text of that kind to the height (other text on the same layer, such as
-        a title, keeps its proportion). TEXTRESIZE in CAD still works on the same layers.
+        a title, keeps its proportion). A bigger legend or title block makes room for itself; TEXTRESIZE in CAD still works on every layer.
       </p>
     </div>
   )

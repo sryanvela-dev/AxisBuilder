@@ -5,26 +5,36 @@ import { describe, expect, it } from 'vitest'
 import type { Project } from '../../src/data/schema.ts'
 import { LINE_LAYERS, SETTINGS, TEXT_TYPES } from '../../src/data/settings.ts'
 import { aciHex, colorName } from '../../src/engine/aci.ts'
-import { buildDrawing, type Drawing } from '../../src/engine/drawing.ts'
-import { changedLayerColors, sizedHeight, textSizeRules } from '../../src/engine/styles.ts'
+import { LAYER_COLOR, buildDrawing, type Drawing } from '../../src/engine/drawing.ts'
+import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from '../../src/engine/styles.ts'
+import { TEXTRESIZE_LAYERS } from '../../src/export/lsp/appLibrary.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
 
-/** The sample job with every kind of text drawn (weld labels and the head 12 o'clock marker on). */
+/** The sample job with every kind of text drawn (weld labels, reference labels and the head 12 o'clock marker on). */
 function fullSample(settings: Record<string, unknown> = {}): Project {
   const p = sampleProject()
   return {
     ...p,
+    vessel: { ...p.vessel, referenceLabelMode: 'Auto Cardinal' },
     circWelds: p.circWelds.map((w) => ({ ...w, showLabel: true })),
     longSeams: p.longSeams.map((w) => ({ ...w, showLabel: true })),
-    settings: { ...p.settings, showWeldLabels: true, showHeadClockReferences: true, ...settings } as Project['settings'],
+    settings: { ...p.settings, showWeldLabels: true, showHeadClockReferences: true, showVesselReferenceLabels: true, ...settings } as Project['settings'],
   }
 }
 
 const lsp = (p: Project) => exportLsp(p, { processedImageFolder: 'X:\\img', generatedAt: new Date(2026, 0, 2, 3, 4, 5) })
 const lspV5 = (p: Project) => exportLsp(p, { processedImageFolder: 'X:\\img', generatedAt: new Date(2026, 0, 2, 3, 4, 5), compat: 'v5.0' })
-const textsOn = (d: Drawing, layer: string) => d.items.flatMap((i) => i.shapes).filter((s) => s.t === 'text' && s.layer === layer) as { h: number }[]
+/** The (SL_Layer ...) lines the drawing command writes right after (SL_SetupLayers). */
+function setupLines(p: Project): string[] {
+  const all = lsp(p).split('\r\n')
+  const start = all.indexOf('  (SL_SetupLayers)') + 1
+  let end = start
+  while (all[end].startsWith('  (SL_Layer ')) end++
+  return all.slice(start, end)
+}
+const textsOn =(d: Drawing, layer: string) => d.items.flatMap((i) => i.shapes).filter((s) => s.t === 'text' && s.layer === layer) as { h: number }[]
 
 /** The text layers SL_SetupLayers makes for TEXTRESIZE, with their colors. */
 function setupTextLayers(): Map<string, number> {
@@ -40,10 +50,19 @@ function setupTextLayers(): Map<string, number> {
 }
 
 describe('text types', () => {
-  it('are exactly the text layers TEXTRESIZE knows, with the same default colors', () => {
+  it("are v5.0's TEXTRESIZE layers plus the app's, with the same default colors", () => {
     const layers = setupTextLayers()
-    expect(new Set(TEXT_TYPES.map((t) => t.layer))).toEqual(new Set(layers.keys()))
-    for (const t of TEXT_TYPES) expect((SETTINGS as Record<string, { default: unknown }>)[`${t.key}Color`].default, t.layer).toBe(layers.get(t.layer))
+    const defaults = SETTINGS as Record<string, { default: unknown }>
+    expect(new Set(TEXT_TYPES.filter((t) => !('appLayer' in t)).map((t) => t.layer))).toEqual(new Set(layers.keys()))
+    for (const t of TEXT_TYPES) {
+      expect(defaults[`${t.key}Color`].default, t.layer).toBe('appLayer' in t ? LAYER_COLOR[t.layer] ?? 7 : layers.get(t.layer))
+    }
+  })
+
+  it("are exactly the layers the app's TEXTRESIZE offers", () => {
+    expect(TEXTRESIZE_LAYERS.map(([, l]) => l).sort()).toEqual(TEXT_TYPES.map((t) => t.layer).sort())
+    const out = lsp(fullSample())
+    for (const [label, layer] of TEXTRESIZE_LAYERS) expect(out).toContain(`(list "${label}" "${layer}")`)
   })
 
   it('each has a size, scale, height and color setting on the Drawing step', () => {
@@ -61,10 +80,13 @@ describe('text types', () => {
     for (const t of TEXT_TYPES) expect(textsOn(d, t.layer).length, t.layer).toBeGreaterThan(0)
   })
 
-  it('defaults give no size rules and no color changes', () => {
+  it('defaults give no size rules, no color changes and no scaled legend or title block', () => {
     const s = fullSample().settings
     expect(textSizeRules(s).size).toBe(0)
-    expect(changedLayerColors(s)).toEqual([])
+    // Only the layers the app adds, in their colors.
+    expect(appLayerSetup(s)).toEqual([['NOZZLE_LEADERS', 7], ['HEAD_NOZZLE_LEADERS', 7], ['X_AXIS_LABEL_TEXT', 1], ['REFERENCE_TEXT', 1], ['Y_AXIS_LABEL_TEXT', 5]])
+    expect(panelScales(s)).toEqual({ legend: 1, title: 1 })
+    expect(lsp(fullSample())).not.toMatch(/SL_LEGEND_SCALE|SL_TITLE_SCALE/)
     expect(lsp(fullSample())).not.toContain('SL_TEXT_SIZES')
   })
 })
@@ -100,9 +122,7 @@ describe.each(TEXT_TYPES)('$layer', (t) => {
 
   it('Color reaches the .lsp layer setup and the preview', () => {
     const p = fullSample({ [`${t.key}Color`]: 30 })
-    const out = lsp(p).split('\r\n')
-    const setup = out.indexOf('  (SL_SetupLayers)')
-    expect(out.indexOf(`  (SL_Layer "${t.layer}" 30)`)).toBe(setup + 1)
+    expect(setupLines(p)).toContain(`  (SL_Layer "${t.layer}" 30)`)
     const model = buildRenderModel(buildDrawing(p))
     expect(model.items.flatMap((i) => i.texts).filter((x) => x.color === 30)).toHaveLength(before.length)
   })
@@ -111,7 +131,7 @@ describe.each(TEXT_TYPES)('$layer', (t) => {
 describe.each(LINE_LAYERS)('line layer $layer', (l) => {
   it('color reaches the .lsp layer setup and the preview', () => {
     const p = fullSample({ [`${l.key}Color`]: 250 })
-    expect(lsp(p)).toContain(`\r\n  (SL_SetupLayers)\r\n  (SL_Layer "${l.layer}" 250)\r\n`)
+    expect(setupLines(p)).toContain(`  (SL_Layer "${l.layer}" 250)`)
     const d = buildDrawing(p)
     expect(d.layerColors[l.layer]).toBe(250)
     const model = buildRenderModel(d)
