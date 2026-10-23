@@ -3,10 +3,10 @@
 // exportLsp, and the shapes are TypeScript ports of the LISP drawing functions (SL_LabelRect,
 // SL_CircleSmart, SL_CircWeld, rulers, SL_Legend, SL_HeadView, ...).
 //
-// Preview approximation: CAD decides some things while it draws (smart nozzle label positions, text
-// sizes fitted to boxes, the legend summary reflow after TEXTRESIZE). Those are ported with the same
-// formulas, so the result matches CAD's choice; text is drawn with a browser font, so its exact width
-// differs. See PREVIEW_DIFFERENCES.
+// Nozzle label positions come from labels.ts, which the exporter writes into the .lsp too, so they are
+// exactly CAD's. Preview approximation: CAD still decides some things while it draws (text sizes fitted to
+// boxes, the legend summary reflow after TEXTRESIZE); those use the same formulas. Text is drawn with a
+// browser font, so its exact width differs. See PREVIEW_DIFFERENCES.
 
 import { vbaFormatFixed } from '../export/lsp/vbaFormat.ts'
 import type { ListKey, Project } from '../data/schema.ts'
@@ -25,13 +25,13 @@ import {
   titleLines,
   ucaseTrim,
 } from './layout.ts'
+import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.ts'
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
 
 /** Where the preview may look different from the drawing in CAD. */
 export const PREVIEW_DIFFERENCES = [
   'Text is drawn with the browser font; CAD uses its own font, so labels can be a little wider or narrower.',
-  'Nozzle labels are placed with the same rules CAD uses (inside the circle, or the first free spot outside); because the text width is estimated the same way, the choice matches, but a label can sit slightly differently.',
   'Scan photos are shown as the original photos stretched to the scan, not the processed images.',
   'Text sizes are the ones the drawing starts with; TEXTRESIZE in CAD changes them later.',
   'Section pages, viewports and the layout sheet are not shown.',
@@ -100,6 +100,8 @@ export interface Drawing {
   items: DrawingItem[]
   /** Hatch transparency, 0-90 %. */
   hatchTransparency: number
+  /** Centerline transparency, 0-90 % (app change). */
+  centerlineTransparency: number
 }
 
 /** SL_TextLayer: geometry layer -> its text layer. */
@@ -176,55 +178,23 @@ function fitTextHeight(w: number, h: number, txt: string): number {
   return Math.max(0.45, Math.min(byShort, byLong))
 }
 
-/** SL_LabelRect */
-function labelRect(pen: Pen, x: number, y: number, w: number, h: number, txt: string, outline: string, hatch: string, hatchOn: boolean, step: number) {
+/** SL_LabelRot (app): tall labels read upright in Horizontal CCW too. */
+function labelRot(o: Orientation, w: number, h: number): number {
+  return h > w ? (o === 'Horizontal CCW' ? -90 : 90) : 0
+}
+
+/** SL_LabelRect (app version) */
+function labelRect(pen: Pen, o: Orientation, x: number, y: number, w: number, h: number, txt: string, outline: string, hatch: string, hatchOn: boolean, step: number) {
   pen.rect(x, y, w, h, outline)
   if (hatch !== '' && hatchOn) pen.hatch(x, y, w, h, step, hatch)
-  pen.text(x + w / 2, y + h / 2, fitTextHeight(w, h, txt), h > w ? 90 : 0, txt, outline)
+  pen.text(x + w / 2, y + h / 2, fitTextHeight(w, h, txt), labelRot(o, w, h), txt, outline)
 }
 
-type Box = [number, number, number, number]
-
-/** SL_BBox: approximate text box. */
-function bbox(cx: number, cy: number, tw: number, th: number, rot: number): Box {
-  const [hw, hh] = Math.abs(rot) === 90 ? [th / 2, tw / 2] : [tw / 2, th / 2]
-  return [cx - hw, cy - hh, cx + hw, cy + hh]
-}
-
-const overlap = (a: Box, b: Box) => !(a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3])
-
-/** SL_CircleSmart (preview approximation of CAD's label placement, same rules). */
-function circleSmart(pen: Pen, avoid: Box[], o: Orientation, p: Project, x: number, y: number, dia: number, txt: string, modeIn: string, layer: string) {
-  const s = p.settings
-  const r = dia / 2
-  const mode = modeIn.toUpperCase() || 'AUTO'
-  pen.circle(x, y, r, layer)
-  const lr = readableRot(o)
-  const th = Math.max(1.6, Math.min(2.4, dia * 0.22))
-  const tw = Math.max(1, txt.length) * th * 0.6
-  const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < dia * 0.75
-  let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK) || !s.smartNozzleLabels
-  if (mode === 'INSIDE') outside = false
-  if (txt !== '' && !outside) pen.text(x, y, th, lr, txt, layer)
-  else if (txt !== '') {
-    const L = s.nozzleLeaderLength
-    const candidates: [number, number, number, number][] = [
-      [x + r + L + tw / 2, y, x + r, y],
-      [x + r + L + tw / 2, y + r + L, x + r, y + r],
-      [x + r + L + tw / 2, y - r - L, x + r, y - r],
-      [x - r - L - tw / 2, y, x - r, y],
-      [x - r - L - tw / 2, y + r + L, x - r, y + r],
-      [x - r - L - tw / 2, y - r - L, x - r, y - r],
-      [x, y + r + L + tw / 2, x, y + r],
-      [x, y - r - L - tw / 2, x, y - r],
-    ]
-    const clear = (bb: Box) => !(bb[0] < 0 || bb[1] < 0 || bb[2] > p.vessel.height! || bb[3] > p.vessel.length!) && !avoid.some((a) => overlap(bb, a))
-    const found = candidates.find((c) => clear(bbox(c[0], c[1], tw, th, lr))) ?? candidates[0]
-    pen.line(found[2], found[3], found[0], found[1], layer)
-    pen.text(found[0], found[1], th, lr, txt, layer)
-    avoid.push(bbox(found[0], found[1], tw, th, lr))
-  }
-  avoid.push([x - r, y - r, x + r, y + r])
+/** SL_NozzleAt: circle, leader and label where engine/labels.ts placed them. */
+function nozzleAt(pen: Pen, o: Orientation, l: NozzleLabel, layer: string, textLayer: string) {
+  pen.circle(l.x, l.y, l.r, layer)
+  if (l.leader) pen.line(l.leader[0], l.leader[1], l.leader[2], l.leader[3], layer)
+  if (l.txt !== '') pen.text(l.tx, l.ty, l.th, readableRot(o), l.txt, textLayer)
 }
 
 /** SL_RulerX / SL_RulerY and their orientation variants (one function, axis and tick side from the call). */
@@ -328,28 +298,6 @@ function headView(pen: Pen, o: Orientation, p: Project, cx: number, cy: number, 
   pen.text(lx, ly, 2.3, lr, label, 'HEAD_TITLE_TEXT')
 }
 
-/** SL_HeadNozzle (label placement is a preview approximation, same rules as CAD). */
-function headNozzle(pen: Pen, o: Orientation, p: Project, hcX: number, hcY: number, headDia: number, deg: number, factor: number, dia: number, txt: string, modeIn: string) {
-  const [dx, dy] = headVector(o, deg)
-  const r = headDia / 2
-  const nozR = dia / 2
-  const x = hcX + r * factor * dx
-  const y = hcY + r * factor * dy
-  const lr = readableRot(o)
-  const th = Math.max(1.4, Math.min(2.2, dia * 0.22))
-  const mode = modeIn.toUpperCase() || 'AUTO'
-  pen.circle(x, y, nozR, 'HEADS')
-  const insideOK = dia >= p.settings.minNozzleInsideLabelDiameter + 2 && txt.length * th * 0.55 < dia * 0.65
-  let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK)
-  if (mode === 'INSIDE') outside = false
-  if (txt === '') return
-  if (outside) {
-    const L = p.settings.headNozzleLeaderLength
-    pen.line(x + nozR * dx, y + nozR * dy, x + (nozR + L + 4) * dx, y + (nozR + L + 4) * dy, 'HEADS')
-    pen.text(x + (nozR + L + 8) * dx, y + (nozR + L + 8) * dy, th, lr, txt, 'HEAD_NOZZLE_TEXT')
-  } else pen.text(x, y, th, lr, txt, 'HEAD_NOZZLE_TEXT')
-}
-
 // --- The drawing -------------------------------------------------------------------------------------
 
 /** Builds the drawing for the preview. Items with values not entered yet are left out (the checks list them). */
@@ -375,14 +323,13 @@ export function buildDrawing(p: Project): Drawing {
   }
 
   // Scans (drawn as the .lsp does: reversed ones flipped while the data check is on)
-  const avoid: Box[] = []
   const scans = drawnScans(p)
   scans.forEach((sc, index) => {
     if (!sc.include || !complete(sc.xStart, sc.xStop, sc.yStart, sc.yStop)) return
     const pen = new Pen()
     const w = sc.xStop! - sc.xStart!
     const h = sc.yStop! - sc.yStart!
-    labelRect(pen, sc.xStart!, sc.yStart!, w, h, sc.id, 'SCANS', 'AUT_HATCH', s.autHatchEnabled, step)
+    labelRect(pen, o, sc.xStart!, sc.yStart!, w, h, sc.id, 'SCANS', 'AUT_HATCH', s.autHatchEnabled, step)
     add(`scans:${index}`, { list: 'scans', index, id: sc.id }, pen, `${sc.id}: X ${fmt(sc.xStart!)} to ${fmt(sc.xStop!)}, Y ${fmt(sc.yStart!)} to ${fmt(sc.yStop!)} (${fmt(Math.abs(w))} x ${fmt(Math.abs(h))} in)`)
   })
 
@@ -393,7 +340,6 @@ export function buildDrawing(p: Project): Drawing {
       const pen = new Pen()
       pen.shapes.push({ t: 'image', x: img.x, y: img.y, w: img.w, h: img.h, scanId: img.scanId, layer: 'SCAN_IMAGES' })
       add(`image:${index}`, { list: 'scans', index, id: img.scanId }, pen, `${img.scanId}: photo (${img.fileName})`)
-      avoid.push([img.x, img.y, img.x + img.w, img.y + img.h])
     }
   }
 
@@ -402,18 +348,19 @@ export function buildDrawing(p: Project): Drawing {
     p.objects.forEach((ob, index) => {
       if (!ob.include || !complete(ob.x, ob.y, ob.circWidth, ob.length)) return
       const pen = new Pen()
-      labelRect(pen, ob.x!, ob.y!, ob.circWidth!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
-      avoid.push([ob.x!, ob.y!, ob.x! + ob.circWidth!, ob.y! + ob.length!])
+      labelRect(pen, o, ob.x!, ob.y!, ob.circWidth!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
       add(`objects:${index}`, { list: 'objects', index, id: ob.id }, pen, `${ob.id}: X ${fmt(ob.x!)}, Y ${fmt(ob.y!)}, ${fmt(ob.circWidth!)} x ${fmt(ob.length!)} in`)
     })
   }
 
   // Shell nozzles
   if (s.showNozzlesOnOverlay && sized) {
+    const labels = shellNozzleLabels(p, scans)
     p.shellNozzles.forEach((n, index) => {
-      if (!n.include || !complete(n.x, n.y, n.diameter)) return
+      const l = labels.get(index)
+      if (!l) return
       const pen = new Pen()
-      circleSmart(pen, avoid, o, p, n.x!, n.y!, n.diameter!, n.id, n.labelMode, 'NOZZLES')
+      nozzleAt(pen, o, l, 'NOZZLES', 'NOZZLES')
       add(`shellNozzles:${index}`, { list: 'shellNozzles', index, id: n.id }, pen, `${n.id}: diameter ${fmt(n.diameter!)} in at X ${fmt(n.x!)}, Y ${fmt(n.y!)}${n.minT !== null ? `, min. T ${n.minT}` : ''}`)
     })
   }
@@ -443,12 +390,12 @@ export function buildDrawing(p: Project): Drawing {
       let labelY = y1 + 6
       if (labelY > y2 - 2) labelY = y1 + (y2 - y1) / 2
       pen.dash(ls.x!, y1, ls.x!, y2, 4, 2.5, 'LONG_SEAMS')
-      if (s.showWeldLabels && ls.showLabel && ls.id) pen.text(ls.x!, labelY, 2, 90, ls.id, 'LONG_SEAMS')
+      if (s.showWeldLabels && ls.showLabel && ls.id) pen.text(ls.x!, labelY, 2, o === 'Horizontal CCW' ? -90 : 90, ls.id, 'LONG_SEAMS')
       add(`longSeams:${index}`, { list: 'longSeams', index, id: ls.id }, pen, `${ls.id}: long seam at X ${fmt(ls.x!)}, Y ${fmt(y1)} to ${fmt(y2)}`)
     })
   }
 
-  if (!sized) return { orientation: o, items, hatchTransparency: s.autHatchTransparency }
+  if (!sized) return { orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency }
   const ori = o.toUpperCase()
 
   // Rulers
@@ -491,11 +438,12 @@ export function buildDrawing(p: Project): Drawing {
       add(`head:${head}`, null, pen, `${head} view (${fmt(headDia)} in)`)
     }
     if (s.showHeadNozzles) {
+      const labels = headNozzleLabels(p, panel, headDia)
       p.headNozzles.forEach((n, index) => {
-        if (!n.include || !shouldShowHead(mode, n.head) || !complete(n.diameter)) return
+        const l = labels.get(index)
+        if (!l) return
         const pen = new Pen()
-        const [cx, cy] = center(n.head)
-        headNozzle(pen, o, p, cx, cy, headDia, clockPositionDegrees(n.clock), radiusFactor(n), n.diameter!, n.id, n.labelMode)
+        nozzleAt(pen, o, l, 'HEADS', 'HEAD_NOZZLE_TEXT')
         add(`headNozzles:${index}`, { list: 'headNozzles', index, id: n.id }, pen, `${n.id} (${n.head}): diameter ${fmt(n.diameter!)} in at ${n.clock ?? '?'} o'clock`)
       })
     }
@@ -529,5 +477,5 @@ export function buildDrawing(p: Project): Drawing {
     add('titleBlock', null, pen, 'Title block')
   }
 
-  return { orientation: o, items, hatchTransparency: s.autHatchTransparency }
+  return { orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency }
 }

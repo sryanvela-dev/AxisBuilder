@@ -24,7 +24,8 @@ export interface RenderPath {
   color: number
   /** Path data in logical coordinates (drawn inside the orientation matrix). */
   d: string
-  transparent: boolean
+  /** 1 = solid; hatch layers and the centerline get their transparency. */
+  opacity: number
 }
 
 export interface RenderText {
@@ -64,8 +65,12 @@ const n = (v: number) => Math.round(v * 1000) / 1000
 /** CAD text height is the height of capital letters; a browser font's capitals are about 0.72 of its size. */
 const CAP_HEIGHT = 0.72
 
+const opacityOf = (transparency: number) => 1 - Math.min(90, Math.max(0, transparency)) / 100
+
 export function buildRenderModel(d: Drawing): RenderModel {
   const o = d.orientation
+  const hatchOpacity = opacityOf(d.hatchTransparency)
+  const centerlineOpacity = opacityOf(d.centerlineTransparency)
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -121,7 +126,8 @@ export function buildRenderModel(d: Drawing): RenderModel {
       }
     }
     const paths = [...byLayer].map(([layer, segs]) => ({
-      layer, group: groupOfLayer(layer), color: LAYER_COLOR[layer] ?? 7, d: segs.join(''), transparent: TRANSPARENT_LAYERS.includes(layer),
+      layer, group: groupOfLayer(layer), color: LAYER_COLOR[layer] ?? 7, d: segs.join(''),
+      opacity: TRANSPARENT_LAYERS.includes(layer) ? hatchOpacity : layer === 'CENTERLINE' ? centerlineOpacity : 1,
     }))
     return { key: item.key, item, paths, circles, texts, images, selectable: item.source !== null }
   })
@@ -131,6 +137,6 @@ export function buildRenderModel(d: Drawing): RenderModel {
     matrix: svgMatrix(o),
     items,
     bounds: [minX, minY, maxX, maxY],
-    hatchOpacity: 1 - Math.min(90, Math.max(0, d.hatchTransparency)) / 100,
+    hatchOpacity,
   }
 }

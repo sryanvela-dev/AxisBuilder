@@ -53,8 +53,17 @@ describe.each(jobs)('engine against the exported .lsp: %s', (job) => {
   it('images, nozzles, MUT and welds', () => {
     const imgs = shapes(d, 'image:', 'image') as Extract<Shape, { t: 'image' }>[]
     expect(imgs.map((i) => [N(i.x), N(i.y), N(i.w), N(i.h)])).toEqual(calls(lsp, 'SL_InsertFitImage').map((c) => c.slice(0, 4)))
-    const circles = d.items.filter((i) => i.key.startsWith('shellNozzles:')).map((i) => i.shapes.find((s) => s.t === 'circle') as Extract<Shape, { t: 'circle' }>)
-    expect(circles.map((c) => [N(c.cx), N(c.cy), N(c.r * 2)])).toEqual(calls(lsp, 'SL_CircleSmart').map((c) => c.slice(0, 3)))
+    // Nozzle circles and labels: the app writes the positions, so the preview matches them exactly.
+    const nozzles = (prefix: string) =>
+      d.items.filter((i) => i.key.startsWith(prefix)).map((i) => {
+        const c = i.shapes.find((s) => s.t === 'circle') as Extract<Shape, { t: 'circle' }>
+        const t = i.shapes.find((s) => s.t === 'text') as Extract<Shape, { t: 'text' }> | undefined
+        return [N(c.cx), N(c.cy), N(c.r), ...(t ? [N(t.x), N(t.y)] : [])]
+      })
+    const at = calls(lsp, 'SL_NozzleAt')
+    const pick = (layer: string) => at.filter((c) => c[c.length - 2] === layer).map((c) => (c[3] === '""' ? c.slice(0, 3) : [...c.slice(0, 3), c[5], c[6]]))
+    expect(nozzles('shellNozzles:')).toEqual(pick('"NOZZLES"'))
+    expect(nozzles('headNozzles:')).toEqual(pick('"HEADS"'))
     expect(d.items.filter((i) => i.key.startsWith('shellMut:')).length).toBe(calls(lsp, 'SL_MUTPoint').length)
     expect(d.items.filter((i) => i.key.startsWith('circWelds:')).length).toBe(calls(lsp, 'SL_CircWeld').length)
     expect(d.items.filter((i) => i.key.startsWith('longSeams:')).length).toBe(calls(lsp, 'SL_LongSeam').length)
@@ -64,7 +73,6 @@ describe.each(jobs)('engine against the exported .lsp: %s', (job) => {
     const views = calls(lsp, 'SL_HeadView')
     const heads = d.items.filter((i) => i.key.startsWith('head:')).map((i) => i.shapes[0] as Extract<Shape, { t: 'circle' }>)
     expect(heads.map((c) => [N(c.cx), N(c.cy), N(c.r * 2)])).toEqual(views.map((c) => c.slice(0, 3)))
-    expect(d.items.filter((i) => i.key.startsWith('headNozzles:')).length).toBe(calls(lsp, 'SL_HeadNozzle').length)
     expect(d.items.filter((i) => i.key.startsWith('headMut:')).length).toBe(calls(lsp, 'SL_HeadMUT').length)
   })
 

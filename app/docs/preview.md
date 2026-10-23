@@ -28,19 +28,30 @@ screen mapping, upright texts, transparency and the row/item selection mapping.
 
 ## Preview approximations (where it can differ from CAD)
 
+Nozzle labels are not an approximation any more: `engine/labels.ts` places them, and the .lsp writes the same
+positions (`SL_NozzleAt`), so they match CAD exactly.
+
 CAD decides some things while it draws. The preview uses the same formulas (marked "preview
 approximation" in the code):
 
-- Smart nozzle labels (inside, or the first free spot outside with a leader): same rules and the same
-  estimated text width, so the choice matches CAD; the label can sit slightly differently because
-  fonts differ.
 - Text sizes fitted to scan and object boxes (SL_FitTextHeight): same formula.
 - Text is drawn with a browser font (Arial); CAD uses its own font, so text width differs a little.
 - Scan photos are the original photos stretched to the scan (thumbnails), not the processed images.
 - Text sizes are the starting ones; TEXTRESIZE in CAD and the legend reflow it does are not shown.
 - Section pages, viewports and the layout sheet are not shown.
 
-## Things the preview showed that could be better (proposals, not changed)
+## App changes made after the preview (2026-10-23, approved)
 
-- In Horizontal CCW, the labels of tall scans, tall objects and long seams are drawn upside down
-  (rotation 90 + the orientation's 90 = 180). CW and Vertical read correctly.
+- Horizontal CCW labels (tall scans and objects, long seams) read upright.
+- Nozzle labels (shell and head) are placed by the app and written into the .lsp.
+- Head nozzle labels outside move out along their leader until they are clear of other labels, nozzles
+  and head MUT text.
+- The centerline is drawn with a transparency (setting Centerline transparency, default 50).
+
+All four are in the app's output only; compat 'v5.0' is unchanged (golden tests).
+
+## Planned (not built yet)
+
+The author wants, later: text size and color control in the app, more text on its own CAD layers so each
+kind can be sized and colored separately, and better-looking nozzle leaders. A proposal is in the
+Phase 3e summary; it will get its own phase.

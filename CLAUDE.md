@@ -410,3 +410,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   takes its layout numbers from `engine/layout.ts` (all 7 golden jobs byte for byte). Selection and folders contexts;
   rows highlight when selected. Job screen is a flex column with a `.work` area (page + preview). Tests: engine vs
   exported .lsp for every golden job, rulers, transforms, render model, selection mapping. No VBA or workbook changes.
+- 2026-10-23 – Approved app changes (feature/preview, user): CCW labels upright (app LISP block `export/lsp/appLibrary.ts`
+  redefines SL_LabelRect / SL_LongSeam), nozzle labels placed by the app (`engine/labels.ts`, written as `SL_NozzleAt`;
+  same rules as SL_CircleSmart; head labels also move out along their leader until clear), centerline transparency
+  (new app-only setting, default 50). App output only: compat 'v5.0' unchanged, all 7 golden jobs byte for byte; the
+  app-vs-v5.0 section test now also lists imageHelpers, drawSetup, nozzles, headNozzles. phase2-notes changes 11-14.

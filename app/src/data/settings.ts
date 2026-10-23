@@ -498,6 +498,12 @@ export const SETTINGS = {
     description: 'Draw the long-dash vessel centerline.',
     default: true, step: 'Export', level: 'Basic',
   }),
+  centerlineTransparency: num({
+    excelLabel: 'Centerline Transparency', excelSheet: PS, onSheet: false, name: 'Centerline transparency',
+    description: 'Transparency of the vessel centerline, 0 = solid, 90 = most transparent.',
+    units: '%', integer: true, min: 0, max: 90, default: 50, step: 'Export', level: 'Advanced',
+    v5: 'App only (user, 2026-10-23). v5.0 draws the centerline solid.',
+  }),
 
   // LEGEND / TITLE BLOCK
   legendEnabled: yesNo({

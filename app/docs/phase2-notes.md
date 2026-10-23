@@ -72,6 +72,10 @@ checks that the app output differs from v5.0 only where these changes apply (for
 | 8 | Horizontal CCW right panel ignores the right-ruler shift | Leave as is | Unchanged |
 | 9 | A reference tick length of 0 or less becomes 3 | That is the default | Unchanged |
 | 10 | Title-block date printed as the cell showed it (`10/13/26`) | Use the earlier ruling | Printed `Oct-13-2026` (title block and section pages) |
+| 11 | In Horizontal CCW, tall scan and object labels and long seam labels are upside down (90 + 90 = 180 degrees) | Fix (2026-10-23) | Read upright: the app LISP block redefines `SL_LabelRect` (via `SL_LabelRot`) and `SL_LongSeam` |
+| 12 | Shell nozzle labels are placed by CAD while it draws (`SL_CircleSmart`) | Place them in the app (2026-10-23) | `engine/labels.ts` places them with the same rules; the .lsp writes `SL_NozzleAt` with the exact positions, so preview and CAD match |
+| 13 | Head nozzle labels never avoid each other or head MUT text | Fix (2026-10-23) | A label outside moves further out along its leader, step by step, until it is clear (`SL_NozzleAt` for heads too) |
+| 14 | The vessel centerline is solid | Make it transparent (2026-10-23) | New setting Centerline transparency (default 50), `SL_SetLayerTransparencyTo "CENTERLINE"` |
 
 **About 4 and 7: where these lines are.** They are comment lines inside the `.lsp` file, in the
 drawing command `c:SCANOVERLAY`. In AutoLISP everything after `;;` is a comment: CAD ignores it, it

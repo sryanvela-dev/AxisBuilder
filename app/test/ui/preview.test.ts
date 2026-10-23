@@ -47,10 +47,12 @@ describe('drawing on screen', () => {
     const m = buildRenderModel(buildDrawing({ ...p, settings: { ...p.settings, autHatchTransparency: 70 } }))
     expect(m.hatchOpacity).toBeCloseTo(0.3)
     const scan = m.items.find((i) => i.key === 'scans:0')!
-    expect(scan.paths.map((x) => [x.layer, x.group, x.transparent])).toEqual([
-      ['SCANS', 'scans', false],
-      ['AUT_HATCH', 'hatch', true],
+    expect(scan.paths.map((x) => [x.layer, x.group, x.opacity])).toEqual([
+      ['SCANS', 'scans', 1],
+      ['AUT_HATCH', 'hatch', 1 - 0.7],
     ])
+    const centerline = m.items.find((i) => i.key === 'vessel')!.paths.find((x) => x.layer === 'CENTERLINE')!
+    expect(centerline.opacity).toBe(0.5)
   })
 })
 

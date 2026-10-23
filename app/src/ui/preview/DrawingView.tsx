@@ -180,7 +180,7 @@ const Item = memo(function Item(p: {
           ) : null
         })}
         {paths.map((x) => (
-          <path key={x.layer} d={x.d} className={`c${x.color}`} style={x.transparent ? { opacity: p.hatchOpacity } : undefined} />
+          <path key={x.layer} d={x.d} className={`c${x.color}`} style={x.opacity < 1 ? { opacity: x.opacity } : undefined} />
         ))}
         {circles.map((x, i) => (
           <circle key={i} cx={x.cx} cy={x.cy} r={x.r} className={`c${x.color}`} />
