@@ -168,7 +168,8 @@ one image per method with the exporter's own `SL_InsertFitImage` (both branches,
 C1 relative path, C2 `DWGPREFIX` + relative path, C3 folder of the `.lsp` found with `findfile`,
 A one `getfiled` pick in Processed_Images. Each attempt is caught; a failed AutoCAD attach can only move
 a throw-away point. `IPCHECK` lists every image with its saved path, loaded flag and `findfile` result.
-Four images instead of three, so no two methods attach the same image name. Results: pending (user).
+Four images instead of three, so no two methods attach the same image name. Results and the decision (no full path, DWGPREFIX -> findfile -> one pick): see
+"Image paths" in `overlay-image-scaling.md`.
 
 ## What's needed from you
 

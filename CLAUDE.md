@@ -309,3 +309,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   C3 .lsp folder (findfile), A one getfiled pick, using the exporter's SL_InsertFitImage (DraftSight and AutoCAD
   branches); `IPCHECK` lists saved image paths. Kit generated outside the repo (AxisBuilder Image Path Test); results
   pending from the user's DraftSight/AutoCAD runs. No VBA, workbook or exporter changes.
+- 2026-10-22 – Docs: Phase 3a CAD image-path results (user, DraftSight and AutoCAD) in `app/docs/overlay-image-scaling.md`
+  "Image paths". Unsaved drawing: relative, DWGPREFIX and findfile fail, one getfiled pick works; drawing saved in the job
+  folder first: all work; reopen keeps attached images; moved folder: DraftSight loses them (full paths), AutoCAD keeps
+  them (relative). Decision: no full Windows path in the app's .lsp, no installed program; LISP order DWGPREFIX +
+  Processed_Images, then findfile, then one getfiled pick for all images; findfile check before every attach; Export
+  screen suggests saving the drawing in the job folder first; v5.0 compat keeps full paths. No code changes.
