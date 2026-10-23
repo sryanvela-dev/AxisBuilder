@@ -80,6 +80,13 @@ be 3445 px for half of them, 6500 px for 90 % and up to 10834 px.
 total load as v5.0's 40 px/in, which already works in CAD on these jobs. If DraftSight or AutoCAD feel
 slow on a big job, 3000 is lighter than v5.0. The setting is on the Images step (Advanced).
 
+### When images are processed (decided by the user, 2026-10-23)
+
+- The Images step keeps its **Process images** button (make and check them early).
+- In Phase 3f, **Make CAD drawing** writes the .lsp and, in the same go, processes every image that is missing
+  or out of date (photo or scan size changed since it was made) into the same job folder. Images that are up to
+  date are left as they are. The same safety rules apply (marker file, ask before replacing, stop on another job).
+
 ## Verification before it replaces the v5.0 way
 
 - Automatic test: every processed image has exactly its scan's width:height (to the pixel). Done:

@@ -383,3 +383,5 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   the file check refused, and Save failed); `setCell` refuses a change for any problem it causes in the row. New
   "Swap reversed starts and stops" button on AUT scans (`swapReversedScans`). "v5.0" removed from what the app shows
   ("the Excel version" where it matters). No VBA or workbook changes.
+- 2026-10-23 – Decision (user) for Phase 3f: Make CAD drawing writes the .lsp and processes missing or out-of-date images
+  in one go; the Images step keeps its Process images button. Recorded in app/docs/overlay-image-scaling.md. Docs only.
