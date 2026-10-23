@@ -15,7 +15,7 @@ import { ProcessPanel } from './ProcessPanel.tsx'
 import { AutReportTable } from './reports.tsx'
 import { SettingsGroup } from './SettingsForm.tsx'
 import { ImportReportPart, StepIssues } from './stepParts.tsx'
-import { useRememberedFolder } from './useRememberedFolder.ts'
+import { useJobFolders } from './foldersContext.ts'
 
 type StepProps = { status: StepStatus }
 
@@ -145,8 +145,7 @@ export function ScansStep({ status }: StepProps) {
 export function ImagesStep({ status }: StepProps) {
   const app = useApp()
   const p = app.state.job!.history.present
-  const photos = useRememberedFolder('photos', 'read')
-  const jobFolder = useRememberedFolder('job', 'readwrite', photos.handle)
+  const { photos, jobFolder } = useJobFolders()
   if (p.scans.length === 0) {
     return (
       <>

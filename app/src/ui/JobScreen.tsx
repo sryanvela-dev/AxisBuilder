@@ -1,7 +1,7 @@
 // The screen while a job is open: top bar (save, undo), step bar, "before export" banner, the
-// current step's page and its main "Next" button.
+// current step's page with the drawing preview beside it, and its main "Next" button.
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { isDirty, jobTitle, type StepId } from '../state/session.ts'
 import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
@@ -12,6 +12,13 @@ import { ChecksContext } from './checksContext.ts'
 import { FieldDataStep, ProjectStep } from './projectSteps.tsx'
 import { ImagesStep, ScansStep } from './scanSteps.tsx'
 import { ExportStep, ReviewStep } from './steps.tsx'
+import { FoldersContext } from './foldersContext.ts'
+import { PreviewPanel } from './preview/PreviewPanel.tsx'
+import { SelectionContext, type Selected } from './selectionContext.ts'
+import { useRememberedFolder } from './useRememberedFolder.ts'
+
+/** Steps that show the drawing preview beside their page. */
+const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images']
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -34,8 +41,15 @@ export function JobScreen() {
   const step = job.step
   const Page = PAGES[step]
   const next = nextStep(step)
+  const photos = useRememberedFolder('photos', 'read')
+  const jobFolder = useRememberedFolder('job', 'readwrite', photos.handle)
+  const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
+  const [selected, setSelected] = useState<Selected | null>(null)
+  const selection = useMemo(() => ({ selected, select: setSelected }), [selected])
   return (
     <ChecksContext.Provider value={checks}>
+    <FoldersContext.Provider value={folders}>
+    <SelectionContext.Provider value={selection}>
       <div className="job">
         <TopBar />
         <nav className="stepbar" aria-label="Steps">
@@ -71,15 +85,22 @@ export function JobScreen() {
         </nav>
         <Banner statuses={statuses} />
         <Notices />
-        <main className="page">
-          <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
-            <header className="page-header">
-              <h1>{stepInfo(step).title}</h1>
-              <p className="muted">{stepInfo(step).intro}</p>
-            </header>
-            <Page status={statuses[step]} />
-          </ErrorBoundary>
-        </main>
+        <div className={`work${PREVIEW_STEPS.includes(step) ? ' with-preview' : ''}`}>
+          <main className="page">
+            <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
+              <header className="page-header">
+                <h1>{stepInfo(step).title}</h1>
+                <p className="muted">{stepInfo(step).intro}</p>
+              </header>
+              <Page status={statuses[step]} />
+            </ErrorBoundary>
+          </main>
+          {PREVIEW_STEPS.includes(step) && (
+            <ErrorBoundary where="Drawing preview">
+              <PreviewPanel />
+            </ErrorBoundary>
+          )}
+        </div>
         <footer className="page-footer">
           <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>
           {next ? (
@@ -93,6 +114,8 @@ export function JobScreen() {
           )}
         </footer>
       </div>
+    </SelectionContext.Provider>
+    </FoldersContext.Provider>
     </ChecksContext.Provider>
   )
 }

@@ -9,6 +9,7 @@ import { useJobChecks } from './checksContext.ts'
 import { ImageFolderPanel, Thumb } from './ImageFolderPanel.tsx'
 import { folderFromInput } from './photoFolder.ts'
 import { photoElementId } from './placeIds.ts'
+import { useSelection } from './selectionContext.ts'
 import type { RememberedFolder } from './useRememberedFolder.ts'
 
 const STATE_KIND: Record<PhotoState, string> = {
@@ -76,6 +77,7 @@ export function PhotoPanel({ photos }: { photos: RememberedFolder }) {
   const { checks } = useJobChecks()
   const p = app.state.job!.history.present
   const [matching, setMatching] = useState(false)
+  const { selected, select } = useSelection()
   const folder = photos.photoFolder
   const names = folder ? imageFiles(folder.names) : null
   const outNames = processedImageNames(p.scans.map((s) => s.id))
@@ -137,7 +139,13 @@ export function PhotoPanel({ photos }: { photos: RememberedFolder }) {
               const st = photoState(s, link, names)
               const problem = checks.find((c) => c.place.kind === 'photo' && c.place.index === index)
               return (
-                <tr key={`${s.id}-${index}`} id={photoElementId(index)} className={problem ? 'has-messages' : undefined}>
+                <tr
+                  key={`${s.id}-${index}`}
+                  id={photoElementId(index)}
+                  className={[problem ? 'has-messages' : '', selected?.list === 'scans' && selected.index === index ? 'row-selected' : ''].filter(Boolean).join(' ') || undefined}
+                  onClick={() => select({ list: 'scans', index })}
+                  onFocus={() => select({ list: 'scans', index })}
+                >
                   <td>{s.id}</td>
                   <td>{folder ? <Thumb folder={folder} name={st.state === 'found' ? st.file : null} /> : <span className="thumb thumb-empty" />}</td>
                   <td>

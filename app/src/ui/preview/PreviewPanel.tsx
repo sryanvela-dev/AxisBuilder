@@ -1,0 +1,154 @@
+// The drawing preview beside the step forms: the drawing as CAD will draw it (orientation, layers,
+// photos), updated as you edit. Click an item to go to its row; the selected row's item is highlighted;
+// items with errors or warnings are marked in the check colors. Collapsible, with a full-size view.
+
+import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { LAYER_GROUPS, PREVIEW_DIFFERENCES, buildDrawing, type DrawingItem, type LayerGroup } from '../../engine/drawing.ts'
+import { STEP_OF_LIST } from '../../state/steps.ts'
+import { useApp } from '../appContext.ts'
+import { useJobChecks } from '../checksContext.ts'
+import { useJobFolders } from '../foldersContext.ts'
+import { jumpTo } from '../placeIds.ts'
+import { itemKey, useSelection } from '../selectionContext.ts'
+import { DrawingView, type DrawingViewHandle, type Highlight } from './DrawingView.tsx'
+import { buildRenderModel } from './renderModel.ts'
+import { usePhotoThumbs } from './usePhotoThumbs.ts'
+
+const STORE_KEY = 'axisbuilder:preview'
+
+interface PreviewPrefs {
+  open: boolean
+  hidden: LayerGroup[]
+}
+
+function loadPrefs(): PreviewPrefs {
+  try {
+    const p = JSON.parse(localStorage.getItem(STORE_KEY) ?? '') as PreviewPrefs
+    if (typeof p.open === 'boolean' && Array.isArray(p.hidden)) return p
+  } catch {
+    // no saved preferences
+  }
+  return { open: true, hidden: [] }
+}
+
+function savePrefs(p: PreviewPrefs) {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(p))
+  } catch {
+    // storage blocked: the choice lasts until the page closes
+  }
+}
+
+export function PreviewPanel() {
+  const app = useApp()
+  const job = app.state.job!
+  const { checks } = useJobChecks()
+  const { photos } = useJobFolders()
+  const { selected, select } = useSelection()
+  const [prefs, setPrefs] = useState(loadPrefs)
+  const [full, setFull] = useState(false)
+  const view = useRef<DrawingViewHandle>(null)
+  // Typing stays smooth on big jobs: the drawing catches up right after the keystroke.
+  const project = useDeferredValue(job.history.present)
+  const model = useMemo(() => buildRenderModel(buildDrawing(project)), [project])
+  const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
+  const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
+
+  const highlights = useMemo(() => {
+    const out = new Map<string, Highlight>()
+    for (const c of checks) {
+      const key = c.place.kind === 'row' ? `${c.place.list}:${c.place.index}` : c.place.kind === 'photo' ? `scans:${c.place.index}` : null
+      if (!key) continue
+      if (c.severity === 'error' || !out.has(key)) out.set(key, c.severity)
+    }
+    return out
+  }, [checks])
+
+  const update = (p: PreviewPrefs) => {
+    setPrefs(p)
+    savePrefs(p)
+  }
+  const toggle = (g: LayerGroup) => update({ ...prefs, hidden: hidden.has(g) ? prefs.hidden.filter((x) => x !== g) : [...prefs.hidden, g] })
+
+  function pick(item: DrawingItem) {
+    const src = item.source!
+    select({ list: src.list, index: src.index })
+    const target = job.step === 'images' && src.list === 'scans' ? 'images' : STEP_OF_LIST[src.list]
+    if (job.step !== target) app.goToStep(target)
+    setFull(false)
+    // After the step page has rendered, put the cursor in the row.
+    setTimeout(() => {
+      if (target === 'images') jumpTo({ kind: 'photo', index: src.index, scanId: src.id })
+      else jumpTo({ kind: 'row', list: src.list, index: src.index })
+    }, 60)
+  }
+
+  if (!prefs.open) {
+    return (
+      <aside className="preview preview-closed" aria-label="Drawing preview">
+        <button type="button" className="btn preview-open-btn" onClick={() => update({ ...prefs, open: true })} title="Show the drawing preview">
+          Preview
+        </button>
+      </aside>
+    )
+  }
+
+  const selectedKey = selected ? (job.step === 'images' && selected.list === 'scans' ? `image:${selected.index}` : itemKey(selected)) : null
+  const vesselMissing = project.vessel.length === null || project.vessel.height === null
+  return (
+    <aside className={`preview${full ? ' preview-full' : ''}`} aria-label="Drawing preview">
+      <div className="preview-head">
+        <strong>Drawing preview</strong>
+        <span className="muted">{project.vessel.orientation}</span>
+        <span className="button-row">
+          <button type="button" className="icon-btn" onClick={() => view.current?.zoom(1.4)} aria-label="Zoom in" title="Zoom in (or use the mouse wheel)">
+            +
+          </button>
+          <button type="button" className="icon-btn" onClick={() => view.current?.zoom(1 / 1.4)} aria-label="Zoom out" title="Zoom out">
+            −
+          </button>
+          <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing">
+            Fit
+          </button>
+          <button type="button" className="btn btn-small" onClick={() => setFull(!full)}>
+            {full ? 'Close full size' : 'Full size'}
+          </button>
+          {!full && (
+            <button type="button" className="btn btn-small" onClick={() => update({ ...prefs, open: false })} title="Hide the preview">
+              Hide
+            </button>
+          )}
+        </span>
+      </div>
+      <div className="layer-toggles" role="group" aria-label="Layers">
+        {LAYER_GROUPS.map((g) => (
+          <label key={g.id} className={`layer-chip${hidden.has(g.id) ? ' off' : ''}`}>
+            <input type="checkbox" checked={!hidden.has(g.id)} onChange={() => toggle(g.id)} />
+            {g.id === 'images' ? 'Photos' : g.name}
+          </label>
+        ))}
+      </div>
+      <div className="preview-canvas">
+        <DrawingView
+          ref={view}
+          model={model}
+          hidden={hidden}
+          highlights={highlights}
+          selectedKey={selectedKey}
+          thumbs={thumbs}
+          onPick={pick}
+          fitKey={`${job.id}|${project.vessel.orientation}|${vesselMissing}`}
+        />
+        {vesselMissing && <p className="preview-note">Enter the shell length and circumference to see the whole drawing.</p>}
+      </div>
+      <details className="preview-diff">
+        <summary className="muted">Drag to move, wheel to zoom, click an item to go to its row. Where it can differ from CAD</summary>
+        <ul className="paste-list">
+          {PREVIEW_DIFFERENCES.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      </details>
+    </aside>
+  )
+}

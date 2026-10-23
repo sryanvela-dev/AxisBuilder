@@ -5,16 +5,32 @@
 // APP_CHANGES below and app/docs/phase2-notes.md). With `compat: 'v5.0'` the output is exactly
 // v5.0's, quirks included; the REF1 golden test uses that mode to prove the port byte for byte.
 //
-// The fixed function library comes from library.generated.ts (translated from the VBA). This file ports
-// the job-dependent parts: settings, the c:SCANOVERLAY drawing body, reference labels, the right-panel
-// layout and the section-page settings. Each block names the VBA routine it follows. Where v5.0 reads a
+// The fixed function library comes from library.generated.ts (translated from the VBA). This file writes
+// the job-dependent parts: settings, the c:SCANOVERLAY drawing body, reference labels and the section-page
+// settings. The numbers behind them (right panel, heads, clock angles, reference labels, title lines,
+// scans, coverage, images) come from engine/layout.ts, which the preview uses too. Each block names the VBA routine it follows. Where v5.0 reads a
 // worksheet cell, the matching project field is used (see app/docs/phase2-notes.md for the mapping
 // decisions). v5.0 quirks are kept on purpose and listed there too.
 
-import type { HeadMut, HeadNozzle, Project, Scan } from '../../data/schema.ts'
+import type { Project } from '../../data/schema.ts'
 import { findDuplicateIds, findMissingData } from '../../data/schema.ts'
-import { defaultProcessedName, processedImageNames } from '../../data/imageMatch.ts'
-import { formatDate } from '../../data/settings.ts'
+import {
+  REFERENCE_POSITIONS,
+  axisLabels,
+  clockPositionDegrees,
+  countedScans,
+  coveragePercent,
+  drawnReferenceLabels,
+  drawnScans,
+  imageInserts,
+  panelOf,
+  radiusFactor,
+  referenceLabelLayout,
+  sectionReferenceLabels,
+  shouldShowHead,
+  titleLines,
+  ucaseTrim,
+} from '../../engine/layout.ts'
 import {
   PrintVisualRulers,
   WriteCommandsTail,
@@ -70,7 +86,9 @@ export function exportProblems(project: Project): string[] {
 // --- Small v5.0 helpers ----------------------------------------------------------------------------
 
 const YES = (b: boolean) => (b ? 'YES' : 'NO')
-const ucaseTrim = (s: string) => s.trim().toUpperCase()
+
+/** clockPositionDegrees moved to engine/layout.ts; kept here for older imports. */
+export { clockPositionDegrees }
 
 /** VBA Format(Now, "yyyy-mm-dd hh:nn:ss"). */
 function timestamp(d: Date): string {
@@ -78,230 +96,27 @@ function timestamp(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-/**
- * GetDrawingInfoValue("Date"): v5.0 prints the cell's displayed text. The v5.0 workbook's Date cell is
- * formatted m/d/yy, so a date prints as "10/13/26".
- */
-function displayDate(iso: string): string {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-').map(Number)
-  return `${m}/${d}/${String(y % 100).padStart(2, '0')}`
-}
-
 /** v5.0 CombinePath: folder + "\" + file unless the folder already ends with a slash. */
 function combinePath(folder: string, file: string): string {
   return /[\\/]$/.test(folder) ? folder + file : `${folder}\\${file}`
 }
 
-/** v5.0 NormalizeHeadName (the app already stores "HEAD 1" / "HEAD 2"). */
-function shouldShowHead(headMode: string, head: string): boolean {
-  return headMode === 'BOTH' || (headMode === 'HEAD 1' && head === 'HEAD 1') || (headMode === 'HEAD 2' && head === 'HEAD 2')
-}
-
-/** v5.0 RadiusFactor (the app stores CUSTOM as a percent of the radius). */
-function radiusFactor(item: HeadNozzle | HeadMut): number {
-  switch (item.radiusPosition ?? 'CENTER') {
-    case 'CENTER':
-      return 0
-    case 'HALF':
-      return 0.5
-    case 'THREE_QUARTER':
-      return 0.75
-    case 'OUTER':
-      return 1
-    case 'CUSTOM':
-      return item.customRadiusPercent === null ? 0.5 : item.customRadiusPercent / 100
-  }
-}
-
-/** v5.0 ClockPositionDegrees: hours or H:MM (12 = 0 degrees), degrees with a degree sign. */
-export function clockPositionDegrees(clockText: string | null): number {
-  const t = (clockText ?? '').trim()
-  if (t === '' || t.toUpperCase() === 'REVIEW') return 0
-  const num = (s: string) => (/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s.trim()) ? Number(s) : NaN)
-  if (t.endsWith('°')) {
-    const d = num(t.slice(0, -1))
-    return Number.isNaN(d) ? 0 : d
-  }
-  let hr: number
-  let mn = 0
-  if (t.includes(':')) {
-    const parts = t.split(':')
-    hr = num(parts[0])
-    mn = num(parts[1])
-    if (Number.isNaN(hr) || Number.isNaN(mn)) return 0
-  } else {
-    hr = num(t)
-    if (Number.isNaN(hr)) return 0
-  }
-  if (hr === 12) hr = 0
-  return hr * 30 + mn * 0.5
-}
-
-/** v5.0 HeadViewDiameter. */
-function headViewDiameter(headSize: string, vesselHeight: number): number {
-  let d: number
-  switch (headSize) {
-    case 'MEDIUM':
-      d = vesselHeight * 0.3
-      break
-    case 'LARGE':
-      d = vesselHeight * 0.38
-      break
-    default:
-      d = vesselHeight * 0.24
-  }
-  return d < 24 ? 24 : d
-}
-
-/** v5.0 AxisDirectionText + AxisLabel. */
-function axisLabel(base: string, directionText: string, cardinal: string): string {
-  const dir = ucaseTrim(directionText) !== '' ? ucaseTrim(directionText) : ucaseTrim(cardinal)
-  return dir === '' ? base : `${base} ${dir}`
-}
-
-// --- Right-side panel (v5.0 ComputeRightPanelLayout and helpers) ------------------------------------
-
-interface Panel {
-  legendX: number
-  legendY: number
-  head1X: number
-  head1Y: number
-  head2X: number
-  head2Y: number
-  titleX: number
-  titleY: number
-}
-
-function computeRightPanelLayout(ori: string, placement: string, vesselHeight: number, vesselLength: number,
-  headDia: number, headMode: string): Panel {
-  // RightPanelExtraForRightRuler
-  const extra = (ori === 'VERTICAL' || ori === 'HORIZONTAL CW') &&
-    (placement === 'RIGHT' || placement === 'TOP + RIGHT' || placement === 'BOTTOM + RIGHT') ? 15 : 0
-  // RightPanelLeft (gap 12; CCW gap 12)
-  const panelLeft = ori === 'HORIZONTAL CW' ? vesselLength + 12 + extra : ori === 'HORIZONTAL CCW' ? 12 : vesselHeight + 12 + extra
-  // VisualVesselBottom
-  const panelBottom = ori === 'HORIZONTAL CW' ? -vesselHeight : 0
-  const r = headDia / 2
-  const headGap = 14
-  const legendClearance = 18
-  const titleBlockHeight = 6 * 3.4
-  const titleClearance = 16
-  const legendVisualBottom = panelBottom
-  const legendVisualTop = legendVisualBottom + 36
-
-  let h2VX = panelLeft + r
-  let h2VY = legendVisualTop + legendClearance + r
-  let h1VX = h2VX
-  let h1VY = h2VY + headDia + headGap
-  let titleVX: number
-  let titleVY: number
-  switch (headMode) {
-    case 'HEAD 1':
-    case 'HEAD 2':
-      h2VX = h1VX
-      h2VY = h1VY
-      titleVX = panelLeft
-      titleVY = h1VY + r + titleClearance + titleBlockHeight
-      break
-    case 'BOTH':
-      titleVX = panelLeft
-      titleVY = h1VY + r + titleClearance + titleBlockHeight
-      break
-    default:
-      h1VX = panelLeft + r
-      h1VY = legendVisualTop + legendClearance
-      h2VX = h1VX
-      h2VY = h1VY
-      titleVX = panelLeft
-      titleVY = legendVisualTop + legendClearance + titleBlockHeight
-  }
-  // VisualToLogicalX / VisualToLogicalY
-  const lx = (vx: number, vy: number) => (ori === 'HORIZONTAL CW' ? -vy : ori === 'HORIZONTAL CCW' ? vy : vx)
-  const ly = (vx: number, vy: number) => (ori === 'HORIZONTAL CW' ? vx : ori === 'HORIZONTAL CCW' ? -vx : vy)
-  let legendX: number
-  let legendY: number
-  if (ori === 'HORIZONTAL CW') {
-    legendX = -legendVisualBottom - 30.8
-    legendY = panelLeft
-  } else if (ori === 'HORIZONTAL CCW') {
-    legendX = legendVisualBottom + 15.8
-    legendY = -(panelLeft + 15)
-  } else {
-    legendX = panelLeft
-    legendY = legendVisualBottom + 10.8
-  }
-  return {
-    legendX,
-    legendY,
-    head1X: lx(h1VX, h1VY),
-    head1Y: ly(h1VX, h1VY),
-    head2X: lx(h2VX, h2VY),
-    head2Y: ly(h2VX, h2VY),
-    titleX: lx(titleVX, titleVY),
-    titleY: ly(titleVX, titleVY),
-  }
-}
-
-// --- Reference labels (v5.0 PrintVesselReferenceLabels / WriteSectionPageSettings) -----------------
-
-const SET_LABELS: Record<string, string[]> = {
-  NDC: ['N.D.C.', 'E.D.C.', 'S.D.C.', 'W.D.C.', 'N.D.C.'],
-  NP: ['NAMEPLATE D.C.', 'NP + 90°', '180° OPPOSITE', 'NP + 270°', 'NAMEPLATE D.C.'],
-  TDC: ['T.D.C.', 'R.D.C.', 'B.D.C.', 'L.D.C.', 'T.D.C.'],
-}
-
-function setLabels(setRef: string): string[] {
-  if (setRef === 'NDC/SDC' || setRef === 'NDC / SDC') return SET_LABELS.NDC
-  if (['NAMEPLATE DC', 'NAMEPLATE D.C.', 'NAMEPLATE D.C', 'NPDC'].includes(setRef)) return SET_LABELS.NP
-  return SET_LABELS.TDC
-}
-
-/** ReadCustomReferenceLabels: the five custom label cells, as they are. */
-function customLabels(p: Project): string[] {
-  const v = p.vessel
-  return [v.refLabel0, v.refLabel90, v.refLabel180, v.refLabel270, v.refLabel360]
-}
-
-/** PrintRefCardinalAlongVesselXAxis. */
-function printRefCardinal(w: (s: string) => void, labels: string[], baseY: string, tickLen: number, textGap: number,
-  textH: number, negativeOut: boolean) {
-  const op = negativeOut ? '-' : '+'
-  const yTick = `(${op} ${baseY} ${LispNum(tickLen)})`
-  const yText = `(${op} ${baseY} ${LispNum(tickLen + textGap)})`
-  const posExpr = ['0.0', '(* vesselXLen 0.25)', '(/ vesselXLen 2.0)', '(* vesselXLen 0.75)', 'vesselXLen']
+/** PrintVesselReferenceLabels + PrintRefCardinalAlongVesselXAxis. */
+function printVesselReferenceLabels(w: (s: string) => void, p: Project) {
+  const ref = referenceLabelLayout(p)
+  if (!ref) return
+  w('  ;; Vessel reference labels - v4.6.2 cardinal vessel X-axis references')
+  const baseY = ref.atStart ? '0.0' : 'vesselYLen'
+  const op = ref.atStart ? '-' : '+'
+  const yTick = `(${op} ${baseY} ${LispNum(ref.tickLen)})`
+  const yText = `(${op} ${baseY} ${LispNum(ref.tickLen + ref.textGap)})`
+  const posExpr = REFERENCE_POSITIONS.map((f) => (f === 0 ? '0.0' : f === 1 ? 'vesselXLen' : f === 0.5 ? '(/ vesselXLen 2.0)' : `(* vesselXLen ${f})`))
   for (let i = 0; i <= 4; i++) {
-    if (labels[i].trim() !== '') {
+    if (ref.labels[i].trim() !== '') {
       w(`  (SL_Line ${posExpr[i]} ${baseY} ${posExpr[i]} ${yTick} "X_AXIS")`)
-      w(`  (SL_Text ${posExpr[i]} ${yText} ${LispNum(textH)} (SL_RulerTextRotX) ${LispStr(labels[i])} "X_AXIS")`)
+      w(`  (SL_Text ${posExpr[i]} ${yText} ${LispNum(ref.textH)} (SL_RulerTextRotX) ${LispStr(ref.labels[i])} "X_AXIS")`)
     }
   }
-}
-
-/** The reference labels the main drawing shows, or null when it shows none (PrintVesselReferenceLabels). */
-function drawnReferenceLabels(p: Project): string[] | null {
-  if (!p.settings.showVesselReferenceLabels) return null
-  const modeRef = ucaseTrim(p.vessel.referenceLabelMode)
-  let labels: string[]
-  if (modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM') labels = customLabels(p)
-  else if (modeRef === 'NONE' || modeRef === 'OFF' || modeRef === 'NO') return null
-  else labels = setLabels(ucaseTrim(p.vessel.referenceLabelSet))
-  return labels.every((l) => l.trim() === '') ? null : labels
-}
-
-function printVesselReferenceLabels(w: (s: string) => void, p: Project, ori: string) {
-  const labels = drawnReferenceLabels(p)
-  if (!labels) return
-  let tickLen = p.settings.referenceLabelTickLength
-  if (tickLen <= 0) tickLen = 3
-  const textGap = 1.25
-  const textH = 1.5
-
-  const placement = ucaseTrim(p.settings.rulerPlacement) || 'BOTTOM + LEFT'
-  w('  ;; Vessel reference labels - v4.6.2 cardinal vessel X-axis references')
-  const opposite = ori === 'HORIZONTAL CW' ? placement.includes('RIGHT') : ori === 'HORIZONTAL CCW' ? placement.includes('LEFT') : placement.includes('TOP')
-  if (opposite) printRefCardinal(w, labels, '0.0', tickLen, textGap, textH, true)
-  else printRefCardinal(w, labels, 'vesselYLen', tickLen, textGap, textH, false)
 }
 
 // --- Exporter --------------------------------------------------------------------------------------
@@ -337,24 +152,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
     processedFolder = name.includes(':\\') || name.startsWith('\\\\') ? name : combinePath(imageFolder, name)
   }
 
-  // Validation (Enable Validation) flips reversed scan coordinates before drawing.
-  const scans: Scan[] = p.scans.map((sc) => {
-    if (!s.enableValidation) return sc
-    const out = { ...sc }
-    if (out.xStart! > out.xStop!) [out.xStart, out.xStop] = [out.xStop, out.xStart]
-    if (out.yStart! > out.yStop!) [out.yStart, out.yStop] = [out.yStop, out.yStart]
-    return out
-  })
-
-  // Coverage and scan count. v5.0 computes them before the flip, so a reversed scan is left out
-  // (change 1: the app counts it).
-  const counted = (v5 ? p.scans : scans).filter((sc) => sc.include && sc.xStop! - sc.xStart! > 0 && sc.yStop! - sc.yStart! > 0)
-  const vesselArea = vesselLength * vesselHeight
-  let coverageText = ''
-  if (vesselArea > 0 && s.showCoveragePercentage) {
-    const area = counted.reduce((a, sc) => a + (sc.xStop! - sc.xStart!) * (sc.yStop! - sc.yStart!), 0)
-    coverageText = `Coverage: ${vbaFormatFixed((area / vesselArea) * 100, 1, 1)}%`
-  }
+  // Scans as drawn (reversed ones flipped), coverage and scan count (engine/layout.ts).
+  const scans = drawnScans(p)
+  const counted = countedScans(p, scans, v5)
+  const coverage = coveragePercent(p, counted)
+  const coverageText = coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`
   const legendTotalScansText = `Total Scans: ${CStr(counted.length)}`
 
   const lib: LibraryContext = {
@@ -403,8 +205,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w(`(setq SL_HEAD_NOZZLE_LEADER_LEN ${LispNum(s.headNozzleLeaderLength)})`)
   w('')
 
-  const xAxisLabel = axisLabel('X AXIS DIRECTION', p.vessel.xAxisDirectionText, p.vessel.xAxisCardinal)
-  const yAxisLabel = axisLabel('Y AXIS DIRECTION', p.vessel.yAxisDirectionText, p.vessel.yAxisCardinal)
+  const { x: xAxisLabel, y: yAxisLabel } = axisLabels(p)
   w(`(setq SL_RULER_SPACING ${LispNum(spacing)})`)
   w(`(setq SL_RULER_OFFSET ${LispNum(s.rulerOffset)})`)
   w(`(setq SL_X_AXIS_LABEL ${LispStr(xAxisLabel)})`)
@@ -413,8 +214,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('')
 
   const headMode = s.headViewMode
-  const headDia = headViewDiameter(s.headViewSize, vesselHeight)
-  const panel = computeRightPanelLayout(ori, s.rulerPlacement.toUpperCase().trim(), vesselHeight, vesselLength, headDia, headMode)
+  const { headDia, panel } = panelOf(p)
 
   // Drawing command setup
   if (acad) w('(defun c:SCANOVERLAY ( / *error* vesselXLen vesselYLen spacing oldOsmode oldCmdecho oldNomutt)')
@@ -468,19 +268,12 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // scan gets a row whose Include follows its old image row (default YES), even if the scan itself is off.
   w('')
   w('  ;; Scan image overlays. IMAGEFRAME follows Project Settings: Show Scan Borders On Overlay.')
-  const imageInclude = new Map<string, boolean>()
-  for (const img of p.scanImages) if (!imageInclude.has(img.scanId.toUpperCase())) imageInclude.set(img.scanId.toUpperCase(), img.include)
-  const appNames = processedImageNames(scans.map((sc) => sc.id))
-  for (const sc of scans) {
-    if (imageInclude.get(sc.id.toUpperCase()) === false) continue
-    if (!v5 && !sc.include) continue // change 2: a scan switched off gets no image either
-    const row = scans.find((x) => x.id.toUpperCase() === sc.id.toUpperCase())! // FindScanRow: first match
-    const fileName = v5 ? defaultProcessedName(sc.id) : appNames.get(sc.id)! // change 3
-    const imgPath = combinePath(processedFolder, fileName).replace(/\\/g, '/')
-    const xs = LispNum(row.xStart!)
-    const ys = LispNum(row.yStart!)
-    const wd = LispNum(row.xStop! - row.xStart!)
-    const ht = LispNum(row.yStop! - row.yStart!)
+  for (const img of imageInserts(p, scans, v5)) {
+    const imgPath = combinePath(processedFolder, img.fileName).replace(/\\/g, '/')
+    const xs = LispNum(img.x)
+    const ys = LispNum(img.y)
+    const wd = LispNum(img.w)
+    const ht = LispNum(img.h)
     w(`  (SL_InsertFitImage ${xs} ${ys} ${wd} ${ht} ${LispStr(imgPath)})`)
     w(`  (SL_AddAvoidRect ${xs} ${ys} ${wd} ${ht})`)
   }
@@ -541,7 +334,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // Reference labels
   w('')
   w('  ;; Optional vessel reference indicators on overlay')
-  printVesselReferenceLabels(w, p, ori)
+  printVesselReferenceLabels(w, p)
 
   // Head views
   if (headMode !== 'NONE') {
@@ -612,29 +405,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
 }
 
 /**
- * The seven title block lines (GetDrawingInfoValue: blank title -> "AUT COVERAGE MAP"). The date is
- * v5.0's m/d/yy, or Oct-22-2026 in the app (change 10).
- */
-function titleLines(p: Project, v5: boolean): string[] {
-  const i = p.project
-  return [
-    i.drawingTitle.trim() === '' ? 'AUT COVERAGE MAP' : i.drawingTitle,
-    `COMPONENT: ${i.component}`,
-    `UNIT: ${i.unit}`,
-    `CLIENT: ${i.client}`,
-    `INSPECTOR: ${i.inspector}`,
-    `DATE: ${v5 ? displayDate(i.date) : formatDate(i.date)}`,
-    `REV: ${i.revision}`,
-  ]
-}
-
-/**
  * v5.0 WriteSectionPageSettings(f, "YES", "YES"). v5.0 always shows the labels on section pages; the
  * app shows them only when the main drawing does (change 5).
  */
 function writeSectionPageSettings(w: (s: string) => void, p: Project, v5: boolean) {
-  const modeRef = ucaseTrim(p.vessel.referenceLabelMode)
-  const labels = modeRef === 'CUSTOM CARDINAL' || modeRef === 'CUSTOM' ? customLabels(p) : setLabels(ucaseTrim(p.vessel.referenceLabelSet))
+  const labels = sectionReferenceLabels(p)
   const showRefs = v5 || drawnReferenceLabels(p) !== null
   w(`(setq SL_SECTION_SHOW_REFS ${LispStr(YES(showRefs))})`)
   w(`(setq SL_SECTION_REF_LABELS (list ${labels.map(LispStr).join(' ')}))`)
