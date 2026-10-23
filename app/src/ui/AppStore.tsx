@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { createEmptyProject } from '../data/projectFile.ts'
+import { reportTargets } from '../data/reportTargets.ts'
 import type { Project } from '../data/schema.ts'
 import { canRedo, canUndo, redoLabel, undoLabel } from '../state/history.ts'
 import {
@@ -267,7 +268,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       type: 'openJob',
       project: result.project,
       source: 'import',
-      workbookImport: { fileName, report: result.report, summary: result.summary, checkedSteps: [] },
+      workbookImport: {
+        fileName,
+        report: result.report,
+        summary: result.summary,
+        checkedSteps: [],
+        targets: reportTargets(result.report, result.sources, result.project),
+      },
     })
     setPendingImport(null)
     setNotice({ kind: 'info', text: `Imported ${fileName}. Save the job to keep it as an AxisBuilder job file.` })
@@ -398,9 +405,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     edit,
     undo,
     redo,
-    canUndo: job ? canUndo(job.history) : false,
+    canUndo: job ? canUndo(job.history) || Object.keys(job.drafts).length > 0 : false,
     canRedo: job ? canRedo(job.history) : false,
-    undoLabel: job ? undoLabel(job.history) : null,
+    undoLabel: job ? (Object.keys(job.drafts).length > 0 ? 'throw away the text that is not stored' : undoLabel(job.history)) : null,
     redoLabel: job ? redoLabel(job.history) : null,
     dirty: job ? isDirty(job) : false,
     goToStep,

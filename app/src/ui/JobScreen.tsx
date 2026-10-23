@@ -7,7 +7,10 @@ import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, typ
 import { useApp } from './appContext.ts'
 import { ErrorBoundary } from './ErrorBoundary.tsx'
 import { copyText } from './errorDetails.ts'
-import { ExportStep, FieldDataStep, ImagesStep, ProjectStep, ReviewStep, ScansStep } from './steps.tsx'
+import { checkProject } from '../data/checks.ts'
+import { ChecksContext } from './checksContext.ts'
+import { FieldDataStep, ProjectStep } from './projectSteps.tsx'
+import { ExportStep, ImagesStep, ReviewStep, ScansStep } from './steps.tsx'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -25,67 +28,71 @@ export function JobScreen() {
   const app = useApp()
   const job = app.state.job!
   const statuses = useMemo(() => stepStatuses(job), [job])
+  const present = job.history.present
+  const checks = useMemo(() => ({ checks: checkProject(present), workbookImport: job.workbookImport }), [present, job.workbookImport])
   const step = job.step
   const Page = PAGES[step]
   const next = nextStep(step)
   return (
-    <div className="job">
-      <TopBar />
-      <nav className="stepbar" aria-label="Steps">
-        <ol>
-          {STEPS.map((s, i) => {
-            const st = statuses[s.id]
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className={`step step-${st.state}${s.id === step ? ' step-current' : ''}`}
-                  aria-current={s.id === step ? 'step' : undefined}
-                  onClick={() => app.goToStep(s.id)}
-                  title={`${s.title}: ${STATE_TEXT[st.state]}`}
-                >
-                  <span className="step-icon" aria-hidden="true">
-                    {STATE_ICON[st.state]}
-                  </span>
-                  <span className="step-text">
-                    <span className="step-title">
-                      {i + 1}. {s.title}
+    <ChecksContext.Provider value={checks}>
+      <div className="job">
+        <TopBar />
+        <nav className="stepbar" aria-label="Steps">
+          <ol>
+            {STEPS.map((s, i) => {
+              const st = statuses[s.id]
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    className={`step step-${st.state}${s.id === step ? ' step-current' : ''}`}
+                    aria-current={s.id === step ? 'step' : undefined}
+                    onClick={() => app.goToStep(s.id)}
+                    title={`${s.title}: ${STATE_TEXT[st.state]}`}
+                  >
+                    <span className="step-icon" aria-hidden="true">
+                      {STATE_ICON[st.state]}
                     </span>
-                    <span className="step-state">
-                      <span className="visually-hidden">{STATE_TEXT[st.state]}: </span>
-                      {st.short}
+                    <span className="step-text">
+                      <span className="step-title">
+                        {i + 1}. {s.title}
+                      </span>
+                      <span className="step-state">
+                        <span className="visually-hidden">{STATE_TEXT[st.state]}: </span>
+                        {st.short}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-      </nav>
-      <Banner statuses={statuses} />
-      <Notices />
-      <main className="page">
-        <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
-          <header className="page-header">
-            <h1>{stepInfo(step).title}</h1>
-            <p className="muted">{stepInfo(step).intro}</p>
-          </header>
-          <Page status={statuses[step]} />
-        </ErrorBoundary>
-      </main>
-      <footer className="page-footer">
-        <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>
-        {next ? (
-          <button type="button" className="btn btn-primary btn-large" onClick={() => app.goToStep(next)}>
-            Next: {stepInfo(next).title}
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary btn-large" disabled title="Comes in a later update">
-            Make CAD drawing (coming soon)
-          </button>
-        )}
-      </footer>
-    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
+        <Banner statuses={statuses} />
+        <Notices />
+        <main className="page">
+          <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
+            <header className="page-header">
+              <h1>{stepInfo(step).title}</h1>
+              <p className="muted">{stepInfo(step).intro}</p>
+            </header>
+            <Page status={statuses[step]} />
+          </ErrorBoundary>
+        </main>
+        <footer className="page-footer">
+          <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>
+          {next ? (
+            <button type="button" className="btn btn-primary btn-large" onClick={() => app.goToStep(next)}>
+              Next: {stepInfo(next).title}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary btn-large" disabled title="Comes in a later update">
+              Make CAD drawing (coming soon)
+            </button>
+          )}
+        </footer>
+      </div>
+    </ChecksContext.Provider>
   )
 }
 

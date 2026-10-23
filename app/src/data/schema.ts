@@ -176,11 +176,11 @@ export const scanImageSchema = z.strictObject({
 export const LIST_META = {
   circWelds: {
     name: 'Circ welds', idField: 'id',
-    fields: { id: 'Weld ID', y: 'Y position', include: 'Include', showLabel: 'Label' },
+    fields: { id: 'Weld ID', y: 'Y position', include: 'Include', showLabel: 'Show label' },
   },
   longSeams: {
     name: 'Long seams', idField: 'id',
-    fields: { id: 'Seam ID', x: 'X position', startY: 'Start Y', stopY: 'Stop Y', include: 'Include', showLabel: 'Label' },
+    fields: { id: 'Seam ID', x: 'X position', startY: 'Start Y', stopY: 'Stop Y', include: 'Include', showLabel: 'Show label' },
   },
   shellNozzles: {
     name: 'Shell nozzles', idField: 'id',
@@ -304,7 +304,7 @@ export function findDuplicateIds(project: Pick<Project, ListKey>): string[] {
 }
 
 /** Measurements each list needs before it can be drawn (null = not entered yet). */
-const REQUIRED_FOR_EXPORT: { [K in ListKey]: string[] } = {
+export const REQUIRED_FOR_EXPORT: { [K in ListKey]: string[] } = {
   circWelds: ['y'],
   longSeams: ['x'],
   shellNozzles: ['diameter', 'x', 'y'],

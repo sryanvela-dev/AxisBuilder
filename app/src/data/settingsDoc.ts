@@ -1,7 +1,7 @@
 // Renders docs/settings-review.md from the field tables in settings.ts.
 // Regenerate with `npm run docs:settings`; a test fails when the doc is out of date.
 
-import { FIELD_TABLES, type FieldDef } from './settings.ts'
+import { FIELD_TABLES, SETTING_GROUPS, type FieldDef } from './settings.ts'
 
 function cell(text: string): string {
   return text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
@@ -64,7 +64,7 @@ export function renderSettingsReview(): string {
     '',
     '- **Default**: the value in the v5.0 workbook (New Project keeps these), or blank for values New Project clears.',
     '  Where the VBA uses a different value when the row is missing, the v5.0 notes say so.',
-    '- **Step**: the app step the value belongs to (Project, Field data, AUT scans, Images, Export).',
+    '- **Step**: the app step the value belongs to (Project, Field data, AUT scans, Images, Export), and its group on that step.',
     '- **Level**: suggested Basic (always shown) or Advanced (behind an "Advanced" switch).',
     '- All lengths are in inches.',
     '- "App: planned" in the v5.0 notes marks settings v5.0 does not use yet that the app will get code for.',
@@ -93,7 +93,7 @@ export function renderSettingsReview(): string {
             d.units ?? '',
             rangeText(d),
             defaultText(d),
-            d.step,
+            d.group ? `${d.step}: ${SETTING_GROUPS.find((g) => g.id === d.group)!.title}` : d.step,
             d.level,
             d.v5 ?? '',
           ]

@@ -16,6 +16,7 @@ const SAMPLE: ProjectInput = {
     revision: '0',
   },
   vessel: { orientation: 'Horizontal CW', length: 240, height: 188.5 },
+  settings: { headViewMode: 'BOTH', head1Label: 'EAST HEAD', head2Label: 'WEST HEAD' },
   circWelds: [
     { id: 'C1', y: 0 },
     { id: 'C2', y: 96 },

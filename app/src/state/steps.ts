@@ -1,8 +1,10 @@
 // The six steps of a job and their status (done / needs attention / not started), computed from
-// the project, its import reports, missing values (findMissingData) and repeated names
-// (findDuplicateIds). Pure functions, no React.
+// the project's checks (data/checks.ts: missing values, repeated names, values outside the shell,
+// ...), typed values that are not valid yet (drafts) and the import report. Pure functions, no React.
 
-import { findDuplicateIds, findMissingData, type ListKey, type Project } from '../data/schema.ts'
+import { checkProject, checkSentence, type Check } from '../data/checks.ts'
+import type { ListKey, Project } from '../data/schema.ts'
+import { fieldDef } from '../data/settings.ts'
 import type { ReportEntry } from '../data/xlsmImport.ts'
 import { STEP_IDS, type Job, type StepId, type WorkbookImport } from './session.ts'
 
@@ -38,6 +40,8 @@ export interface Issue {
   text: string
   /** True when export refuses until it is fixed (missing values, repeated names). */
   blocksExport: boolean
+  /** The check behind this issue, when it comes from one. */
+  check?: Check
 }
 
 export interface StepStatus {
@@ -48,8 +52,6 @@ export interface StepStatus {
 }
 
 const FIELD_LISTS: ListKey[] = ['circWelds', 'longSeams', 'shellNozzles', 'objects', 'shellMut', 'headNozzles', 'headMut']
-const SCAN_LISTS: ListKey[] = ['scans']
-const ALL_LISTS: ListKey[] = [...FIELD_LISTS, 'scans', 'scanImages']
 
 /** Workbook sheet -> step whose data it holds. */
 const SHEET_STEP: Record<string, StepId> = {
@@ -72,17 +74,29 @@ export function reportEntriesToCheck(wb: WorkbookImport | null, step: StepId): R
   return reportEntriesForStep(wb, step).filter((e) => e.kind === 'invalid' || e.kind === 'review')
 }
 
-/** The project with only the given lists kept (and the vessel size filled when not wanted). */
-function only(project: Project, lists: ListKey[], withVessel: boolean): Project {
-  const out: Project = { ...project }
-  for (const key of ALL_LISTS) if (!lists.includes(key)) (out[key] as unknown[]) = []
-  if (!withVessel) out.vessel = { ...project.vessel, length: 1, height: 1 }
-  return out
+const STEP_OF_LIST: Record<ListKey, StepId> = {
+  circWelds: 'fieldData', longSeams: 'fieldData', shellNozzles: 'fieldData', objects: 'fieldData', shellMut: 'fieldData',
+  headNozzles: 'fieldData', headMut: 'fieldData', scans: 'scans', scanImages: 'images',
+}
+const STEP_OF_APP_STEP: Record<string, StepId> = { Project: 'project', 'Field data': 'fieldData', 'AUT scans': 'scans', Images: 'images', Export: 'export' }
+
+/** The step whose page shows the check. */
+export function stepOfCheck(c: Check): StepId {
+  if (c.place.kind !== 'setting') return STEP_OF_LIST[c.place.list]
+  const def = fieldDef(c.place.section, c.place.key)
+  return def ? STEP_OF_APP_STEP[def.step] : 'project'
 }
 
-function blockers(project: Project, step: StepId, lists: ListKey[], withVessel: boolean): Issue[] {
-  const part = only(project, lists, withVessel)
-  return [...findMissingData(part), ...findDuplicateIds(part)].map((text) => ({ step, text, blocksExport: true }))
+/** Checks and typed-but-invalid values of one step, as issues. Errors and drafts block export. */
+function stepIssues(job: Job, checks: Check[], step: StepId): Issue[] {
+  const p = job.history.present
+  const out: Issue[] = checks
+    .filter((c) => stepOfCheck(c) === step)
+    .map((c) => ({ step, text: checkSentence(p, c), blocksExport: c.severity === 'error', check: c }))
+  for (const d of Object.values(job.drafts)) {
+    if (d.step === step) out.push({ step, text: `${d.where}: "${d.text}" is not stored. ${d.problem}`, blocksExport: true })
+  }
+  return out
 }
 
 function reportIssue(wb: WorkbookImport | null, step: StepId): Issue[] {
@@ -109,19 +123,19 @@ function status(started: boolean, issues: Issue[]): StepStatus {
 export function stepStatuses(job: Job): Record<StepId, StepStatus> {
   const p = job.history.present
   const wb = job.workbookImport
+  const checks = checkProject(p)
 
-  const projectIssues = [...blockers(p, 'project', [], true), ...reportIssue(wb, 'project')]
-  if (p.project.projectName.trim() === '') projectIssues.push({ step: 'project', text: 'Project name is not entered yet.', blocksExport: false })
+  const projectIssues = [...stepIssues(job, checks, 'project'), ...reportIssue(wb, 'project')]
   const projectStarted = p.project.projectName.trim() !== '' || p.vessel.length !== null || p.vessel.height !== null
   const project = status(projectStarted, projectStarted || wb ? projectIssues : [])
 
   const fieldStarted = FIELD_LISTS.some((k) => p[k].length > 0)
-  const fieldData = status(fieldStarted, [...blockers(p, 'fieldData', FIELD_LISTS, false), ...reportIssue(wb, 'fieldData')])
+  const fieldData = status(fieldStarted, [...stepIssues(job, checks, 'fieldData'), ...reportIssue(wb, 'fieldData')])
 
   const scansStarted = p.scans.length > 0
-  const scans = status(scansStarted, [...blockers(p, 'scans', SCAN_LISTS, false), ...reportIssue(wb, 'scans')])
+  const scans = status(scansStarted, [...stepIssues(job, checks, 'scans'), ...reportIssue(wb, 'scans')])
 
-  const images = imageStatus(p, wb)
+  const images = imageStatus(p, wb, stepIssues(job, checks, 'images'))
 
   const before = [project, fieldData, scans, images]
   const open = before.flatMap((s) => s.issues)
@@ -152,11 +166,11 @@ export function scansWithoutImage(project: Project): string[] {
     .map((s) => s.id)
 }
 
-function imageStatus(p: Project, wb: WorkbookImport | null): StepStatus {
+function imageStatus(p: Project, wb: WorkbookImport | null, checkIssues: Issue[]): StepStatus {
   if (p.scans.length === 0) return { state: 'notStarted', short: 'Not started', issues: [] }
   const missing = scansWithoutImage(p)
   const started = p.scanImages.length > 0
-  const issues = [...blockers(p, 'images', ['scanImages'], false), ...reportIssue(wb, 'images')]
+  const issues = [...checkIssues, ...reportIssue(wb, 'images')]
   if (started && missing.length > 0) {
     issues.unshift({ step: 'images', text: `${plural(missing.length, 'scan')} ${missing.length === 1 ? 'has' : 'have'} no photo yet.`, blocksExport: false })
   }

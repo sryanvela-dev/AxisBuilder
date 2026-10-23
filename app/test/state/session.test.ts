@@ -3,11 +3,10 @@ import { createEmptyProject } from '../../src/data/projectFile.ts'
 import type { Project } from '../../src/data/schema.ts'
 import { initialSession, isDirty, jobTitle, sessionReducer, type SessionAction, type SessionState } from '../../src/state/session.ts'
 
-const rename = (name: string, now = 0): SessionAction => ({
+const rename = (name: string): SessionAction => ({
   type: 'edit',
   label: 'Change Project name',
   group: 'project.projectName',
-  now,
   update: (p: Project) => ({ ...p, project: { ...p.project, projectName: name } }),
 })
 
@@ -29,7 +28,7 @@ describe('session state', () => {
 
   it('every edit can be undone and redone; undoing back to the saved state is clean again', () => {
     let s = run([{ type: 'openJob', project: createEmptyProject(), source: 'file', file, saved: true }])
-    s = run([rename('V-1', 0), rename('V-2', 10_000)], s)
+    s = run([rename('V-1'), { type: 'endEditGroup' }, rename('V-2')], s)
     expect(s.job!.history.present.project.projectName).toBe('V-2')
     expect(isDirty(s.job!)).toBe(true)
     s = run([{ type: 'undo' }], s)
@@ -43,7 +42,7 @@ describe('session state', () => {
 
   it('typing in one box is one undo step', () => {
     let s = run([{ type: 'openJob', project: createEmptyProject(), source: 'new' }])
-    s = run([rename('V', 0), rename('V-', 200), rename('V-1', 400)], s)
+    s = run([rename('V'), rename('V-'), rename('V-1')], s)
     s = run([{ type: 'undo' }], s)
     expect(s.job!.history.present.project.projectName).toBe('')
   })
@@ -55,7 +54,7 @@ describe('session state', () => {
     expect(isDirty(s.job!)).toBe(false)
     expect(s.job!.file!.name).toBe('Job.axb')
     // An edit made while the save was running keeps the job dirty.
-    s = run([rename('V-2', 10_000)], s)
+    s = run([{ type: 'endEditGroup' }, rename('V-2')], s)
     expect(isDirty(s.job!)).toBe(true)
     s = run([{ type: 'undo' }], s)
     expect(isDirty(s.job!)).toBe(false)
@@ -70,6 +69,21 @@ describe('session state', () => {
 
   it('actions without an open job change nothing', () => {
     expect(run([rename('x'), { type: 'undo' }, { type: 'goToStep', step: 'review' }])).toBe(initialSession)
+  })
+
+  it('typed values that are not valid yet are kept apart; the first undo only throws them away', () => {
+    let s = run([{ type: 'openJob', project: createEmptyProject(), source: 'new' }, rename('A')])
+    const draft = { text: 'abc', problem: 'Not a length.', step: 'project' as const, where: 'Shell length (Y)' }
+    s = run([{ type: 'setDraft', key: 'vessel.length', draft }, { type: 'setDraft', key: 'shellNozzles.0.x', draft }], s)
+    expect(Object.keys(s.job!.drafts)).toEqual(['vessel.length', 'shellNozzles.0.x'])
+    expect(isDirty(s.job!)).toBe(true)
+    s = run([{ type: 'clearDrafts', prefix: 'shellNozzles.' }], s)
+    expect(Object.keys(s.job!.drafts)).toEqual(['vessel.length'])
+    s = run([{ type: 'setDraft', key: 'vessel.length', draft: null }, { type: 'setDraft', key: 'x', draft }, { type: 'undo' }], s)
+    expect(s.job!.drafts).toEqual({})
+    expect(s.job!.history.present.project.projectName).toBe('A')
+    s = run([{ type: 'undo' }], s)
+    expect(s.job!.history.present.project.projectName).toBe('')
   })
 
   it('closing forgets the job', () => {

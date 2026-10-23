@@ -1,150 +1,16 @@
-// Step pages. For now most are placeholders that show the step's data and what is open; the full
-// editors come in later updates. The earlier test tools live here under their steps: AUT CSV import
-// (AUT scans) and scan photo folder matching (Images).
+// Step pages for AUT scans, Images, Review and Export (Project and Field data are in projectSteps.tsx).
+// The AUT CSV import and the scan photo folder matching live here until their steps are finished.
 
 import { importAutCsv, replaceScans } from '../data/autCsvImport.ts'
-import { LIST_META, type ListKey } from '../data/schema.ts'
-import { STEP_IDS, type StepId } from '../state/session.ts'
-import { plural, reportEntriesForStep, reportEntriesToCheck, scansWithoutImage, stepInfo, type StepStatus } from '../state/steps.ts'
+import { STEP_IDS } from '../state/session.ts'
+import { plural, scansWithoutImage, stepInfo, type StepStatus } from '../state/steps.ts'
 import { pickWithInput } from '../state/projectFiles.ts'
 import { useApp } from './appContext.ts'
-import { FieldInput } from './FieldInput.tsx'
 import { ImageFolderPanel } from './ImageFolderPanel.tsx'
 import { AutReportTable, WorkbookReportTable } from './reports.tsx'
+import { ComingSoon, ImportReportPart, StepIssues } from './stepParts.tsx'
 
 type StepProps = { status: StepStatus }
-
-function ComingSoon({ children }: { children: React.ReactNode }) {
-  return <p className="coming-soon">{children}</p>
-}
-
-/** What is open on this step, as a short list. */
-function StepIssues({ status }: StepProps) {
-  if (status.issues.length === 0) return null
-  const fix = status.issues.filter((i) => i.blocksExport)
-  const check = status.issues.filter((i) => !i.blocksExport)
-  return (
-    <section className="issues" aria-label="Open items">
-      {fix.length > 0 && (
-        <>
-          <h2>To fix before export ({fix.length})</h2>
-          <ul>
-            {fix.slice(0, 30).map((i) => (
-              <li key={i.text}>{i.text}</li>
-            ))}
-            {fix.length > 30 && <li>...and {fix.length - 30} more.</li>}
-          </ul>
-        </>
-      )}
-      {check.length > 0 && (
-        <>
-          <h2>To check</h2>
-          <ul>
-            {check.map((i) => (
-              <li key={i.text}>{i.text}</li>
-            ))}
-          </ul>
-        </>
-      )}
-    </section>
-  )
-}
-
-/** Import report entries for this step's data, with "Mark as checked". */
-function ImportReportPart({ step }: { step: StepId }) {
-  const app = useApp()
-  const wb = app.state.job!.workbookImport
-  const all = reportEntriesForStep(wb, step)
-  if (!wb || all.length === 0) return null
-  const toCheck = reportEntriesToCheck(wb, step)
-  const checked = wb.checkedSteps.includes(step)
-  return (
-    <section>
-      <h2>From the Excel job ({wb.fileName})</h2>
-      {toCheck.length > 0 ? (
-        <>
-          <p>
-            {plural(toCheck.length, 'value')} could not be read or {toCheck.length === 1 ? 'was' : 'were'} marked for review
-            in the workbook. Check {toCheck.length === 1 ? 'it' : 'them'} against the field form, then mark them as checked.
-          </p>
-          <WorkbookReportTable entries={toCheck} />
-          <div className="button-row">
-            <button type="button" className="btn" onClick={() => app.dispatch({ type: 'markReportChecked', step })}>
-              Mark as checked
-            </button>
-          </div>
-        </>
-      ) : (
-        <p className="muted">{checked ? 'The values to check here are marked as checked.' : 'Nothing here needs checking.'}</p>
-      )}
-      <details>
-        <summary>Full import report for this step ({all.length})</summary>
-        <WorkbookReportTable entries={all} />
-      </details>
-    </section>
-  )
-}
-
-export function ProjectStep({ status }: StepProps) {
-  return (
-    <>
-      <StepIssues status={status} />
-      <section>
-        <h2>Job</h2>
-        <div className="field-grid">
-          <FieldInput section="project" field="projectName" />
-          <FieldInput section="project" field="client" />
-          <FieldInput section="project" field="component" />
-          <FieldInput section="project" field="unit" />
-          <FieldInput section="project" field="inspector" />
-          <FieldInput section="project" field="date" />
-        </div>
-      </section>
-      <section>
-        <h2>Shell</h2>
-        <div className="field-grid">
-          <FieldInput section="vessel" field="orientation" />
-          <FieldInput section="vessel" field="length" />
-          <FieldInput section="vessel" field="height" />
-        </div>
-      </section>
-      <ComingSoon>The other job details and drawing options come in a later update.</ComingSoon>
-      <ImportReportPart step="project" />
-    </>
-  )
-}
-
-const FIELD_LISTS: ListKey[] = ['circWelds', 'longSeams', 'shellNozzles', 'objects', 'shellMut', 'headNozzles', 'headMut']
-
-export function FieldDataStep({ status }: StepProps) {
-  const p = useApp().state.job!.history.present
-  return (
-    <>
-      <StepIssues status={status} />
-      <section>
-        <h2>What the job has</h2>
-        <table className="counts">
-          <thead>
-            <tr>
-              <th>List</th>
-              <th>Items</th>
-            </tr>
-          </thead>
-          <tbody>
-            {FIELD_LISTS.map((k) => (
-              <tr key={k}>
-                <td>{LIST_META[k].name}</td>
-                <td className="num">{p[k].length}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-      <ComingSoon>Entering and editing welds, nozzles, objects and MUT readings comes in the next update.</ComingSoon>
-      <ImportReportPart step="fieldData" />
-    </>
-  )
-}
 
 export function ScansStep({ status }: StepProps) {
   const app = useApp()
