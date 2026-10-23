@@ -3,7 +3,7 @@
 
 import { useState, type DragEvent } from 'react'
 import { importAutCsv, replaceScans } from '../data/autCsvImport.ts'
-import { syncScanImages } from '../data/columns.ts'
+import { reversedScans, swapReversedScans, syncScanImages } from '../data/columns.ts'
 import { formatNumber } from '../data/parse.ts'
 import { pickWithInput } from '../state/projectFiles.ts'
 import type { StepStatus } from '../state/steps.ts'
@@ -31,6 +31,7 @@ export function ScansStep({ status }: StepProps) {
   const p = job.history.present
   const last = job.autImport
   const [dragging, setDragging] = useState(false)
+  const reversed = reversedScans(p)
 
   async function importFile(file: File) {
     if (!/\.csv$/i.test(file.name)) {
@@ -114,9 +115,25 @@ export function ScansStep({ status }: StepProps) {
         <h2>
           AUT scans <span className="muted">({p.scans.length})</span>
         </h2>
-        <p className="muted">
-          X runs around the shell, Y along it, in inches. A start larger than its stop is swapped in the drawing, as in v5.0.
-        </p>
+        <p className="muted">X runs around the shell, Y along it, in inches.</p>
+        {reversed.length > 0 && (
+          <div className="notice">
+            <p>
+              {plural(reversed.length, 'scan')} {reversed.length === 1 ? 'has' : 'have'} a start larger than its stop ({reversed.slice(0, 6).join(', ')}
+              {reversed.length > 6 ? ', ...' : ''}). The drawing swaps them anyway; swap them here so the table shows them the right way round.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                app.edit(`Swap reversed starts and stops (${plural(reversed.length, 'scan')})`, swapReversedScans)
+                app.dispatch({ type: 'clearDrafts', prefix: 'scans.' })
+              }}
+            >
+              Swap reversed starts and stops
+            </button>
+          </div>
+        )}
         <DataTable list="scans" step="scans" derived={SCAN_SIZES} afterEdit={syncScanImages} />
       </section>
       <SettingsGroup group="scans" step="scans" />

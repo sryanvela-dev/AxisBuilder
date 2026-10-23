@@ -26,7 +26,7 @@ describe('scan checks', () => {
   it('a reversed start/stop is a warning; the drawing swaps it while the data check is on (v5.0)', () => {
     const on = scanChecks(withScans([scan('S1', 30, 10, 0, 20)]))
     expect(texts(on)).toEqual(['warning: X start (30 in) is more than X stop (10 in).'])
-    expect(on[0].fix).toContain('swaps them, as v5.0 did, so the scan runs from 10 in to 30 in')
+    expect(on[0].fix).toContain('swaps them, so the scan runs from 10 in to 30 in')
     const off = scanChecks(withScans([scan('S1', 30, 10, 0, 20)], { enableValidation: false }))
     expect(off[0].fix).toContain('is off, so the drawing uses them as typed')
   })
@@ -38,9 +38,18 @@ describe('scan checks', () => {
     ])
   })
 
-  it('a scan with no width can not be stored (zero size)', async () => {
+  it('a scan with no width or height saves, but is an error that blocks export', async () => {
     const { setCell } = await import('../../src/data/columns.ts')
-    expect(setCell('scans', scan('S1', 0, 10, 0, 10), 'xStop', 0)).toEqual({ ok: false, problem: 'Must differ from X start (the scan has no width).' })
+    expect(setCell('scans', scan('S1', 0, 10, 0, 10), 'xStart', 10)).toMatchObject({ ok: true })
+    expect(setCell('scans', scan('S1', 0, 10, 0, 10), 'xStop', 0)).toMatchObject({ ok: true })
+    const cs = scanChecks(withScans([scan('S1', 24, 24, 0, 48), scan('S2', 0, 24, 10, 10)]))
+    expect(texts(cs)).toEqual([
+      'error: X start and X stop are both 24 in, so the scan has no width.',
+      'error: Y start and Y stop are both 10 in, so the scan has no height.',
+    ])
+    expect(cs[0].place).toEqual({ kind: 'row', list: 'scans', index: 0, field: 'xStop' })
+    const { saveProject } = await import('../../src/data/projectFile.ts')
+    expect(() => saveProject(withScans([scan('S1', 24, 24, 0, 48)]))).not.toThrow()
   })
 
   const overlapping = [scan('S1', 0, 24, 0, 48), scan('S2', 20, 44, 40, 88), scan('S3', 100, 110, 0, 10), scan('S4', 24, 48, 0, 48)]
@@ -110,5 +119,20 @@ describe('scans and their photos stay in step', () => {
     const rows = parseClipboardTable('Scan Name\tX Start\tX Stop\tY Start\tY Stop\nSCAN 7\t0\t24 1/2\t0\t48')
     const r = buildPastedRows(p, 'scans', rows, guessMapping('scans', rows))
     expect(r.items).toEqual([{ id: 'SCAN 7', xStart: 0, xStop: 24.5, yStart: 0, yStop: 48, include: true }])
+  })
+})
+
+describe('swapping reversed scans', () => {
+  it('swaps every reversed start/stop in one change; nothing else changes', async () => {
+    const { reversedScans, swapReversedScans } = await import('../../src/data/columns.ts')
+    const p = withScans([scan('S1', 30, 10, 0, 20), scan('S2', 0, 24, 48, 0), scan('S3', 0, 24, 0, 48)])
+    expect(reversedScans(p)).toEqual(['S1', 'S2'])
+    const swapped = swapReversedScans(p)
+    expect(swapped.scans).toEqual([scan('S1', 10, 30, 0, 20), scan('S2', 0, 24, 0, 48), scan('S3', 0, 24, 0, 48)])
+    expect(swapped.scans[2]).toBe(p.scans[2])
+    expect(swapped.scanImages).toBe(p.scanImages)
+    expect(reversedScans(swapped)).toEqual([])
+    expect(scanChecks(swapped).filter((c) => c.text.includes('is more than'))).toEqual([])
+    expect(swapReversedScans(swapped)).toBe(swapped)
   })
 })

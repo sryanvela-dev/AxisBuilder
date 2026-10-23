@@ -147,23 +147,15 @@ export const headMutSchema = z.strictObject({
   notes,
 })
 
-export const scanSchema = z
-  .strictObject({
-    id,
-    xStart: position,
-    xStop: position,
-    yStart: position,
-    yStop: position,
-    include,
-  })
-  .superRefine((s, ctx) => {
-    if (s.xStart !== null && s.xStart === s.xStop) {
-      ctx.addIssue({ code: 'custom', path: ['xStop'], message: 'must differ from X start (the scan has no width)' })
-    }
-    if (s.yStart !== null && s.yStart === s.yStop) {
-      ctx.addIssue({ code: 'custom', path: ['yStop'], message: 'must differ from Y start (the scan has no height)' })
-    }
-  })
+/** A scan with no width or height can be saved (so a half-typed job always saves); checks.ts blocks its export. */
+export const scanSchema = z.strictObject({
+  id,
+  xStart: position,
+  xStop: position,
+  yStart: position,
+  yStop: position,
+  include,
+})
 
 export const scanImageSchema = z.strictObject({
   /** ID of the scan this photo belongs to. */

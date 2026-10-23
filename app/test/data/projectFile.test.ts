@@ -257,10 +257,8 @@ describe('readable errors', () => {
     expect(errorsFor(withChange((p) => (p.project.date = '10/22/2026')))).toHaveLength(1)
   })
 
-  it('rejects zero-size scans and image links to missing scans', () => {
-    expect(errorsFor(withChange((p) => (p.scans[0].yStop = 0)))).toEqual([
-      'AUT scans, item 1 (SCAN1): Y stop must differ from Y start (the scan has no height).',
-    ])
+  it('saves zero-size scans (checks.ts blocks their export); rejects image links to missing scans', () => {
+    expect(openProject(JSON.stringify(withChange((p) => (p.scans[0].yStop = p.scans[0].yStart)))).ok).toBe(true)
     expect(errorsFor(withChange((p) => (p.scanImages[0].scanId = 'SCAN9')))).toEqual([
       'Scan images, item 1 (SCAN9): Scan "SCAN9" does not match any AUT scan.',
     ])

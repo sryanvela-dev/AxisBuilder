@@ -156,8 +156,9 @@ export function setCell(list: TableListKey, item: Record<string, unknown>, key: 
   const next = { ...item, [key]: value }
   const res = ITEM_SCHEMAS[list].safeParse(next)
   if (!res.success) {
-    const issue = res.error.issues.find((i) => i.path[0] === key)
-    if (issue) return { ok: false, problem: schemaProblem(issue) }
+    // The problem with this value (or, to be safe, any problem the change causes in the row).
+    const issue = res.error.issues.find((i) => i.path[0] === key) ?? res.error.issues[0]
+    return { ok: false, problem: schemaProblem(issue) }
   }
   return { ok: true, item: next }
 }
@@ -222,4 +223,25 @@ export function syncScanImages(prev: Project, next: Project): Project {
   const ids = new Set(next.scans.map((s) => idKey(s.id)))
   links = links.filter((l) => ids.has(idKey(l.scanId)))
   return links.length === next.scanImages.length && links.every((l, i) => l === next.scanImages[i]) ? next : { ...next, scanImages: links }
+}
+
+/** Scans with a start larger than its stop (in X or Y). */
+export function reversedScans(p: Project): string[] {
+  return p.scans
+    .filter((s) => (s.xStart !== null && s.xStop !== null && s.xStart > s.xStop) || (s.yStart !== null && s.yStop !== null && s.yStart > s.yStop))
+    .map((s) => s.id)
+}
+
+/** Swaps every reversed start/stop so each start is the smaller value. */
+export function swapReversedScans(p: Project): Project {
+  if (reversedScans(p).length === 0) return p
+  return {
+    ...p,
+    scans: p.scans.map((s) => {
+      let out = s
+      if (s.xStart !== null && s.xStop !== null && s.xStart > s.xStop) out = { ...out, xStart: s.xStop, xStop: s.xStart }
+      if (s.yStart !== null && s.yStop !== null && s.yStart > s.yStop) out = { ...out, yStart: s.yStop, yStop: s.yStart }
+      return out
+    }),
+  }
 }

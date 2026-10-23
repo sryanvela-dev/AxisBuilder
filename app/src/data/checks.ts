@@ -215,12 +215,20 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
     for (const [a, b, axis] of [['xStart', 'xStop', 'X'], ['yStart', 'yStop', 'Y']] as const) {
       const start = s[a]
       const stop = s[b]
+      if (start !== null && start === stop) {
+        out.push({
+          severity: 'error', place: { kind: 'row', list: 'scans', index, field: b },
+          text: `${axis} start and ${axis} stop are both ${inches(start)}, so the scan has no ${axis === 'X' ? 'width' : 'height'}.`,
+          fix: 'Correct one of them.',
+        })
+        continue
+      }
       if (start === null || stop === null || start <= stop) continue
       out.push({
         severity: 'warning', place: { kind: 'row', list: 'scans', index, field: a },
         text: `${axis} start (${inches(start)}) is more than ${axis} stop (${inches(stop)}).`,
         fix: flips
-          ? `The drawing swaps them, as v5.0 did, so the scan runs from ${inches(stop)} to ${inches(start)}. Swap them here if you want the table to match.`
+          ? `The drawing swaps them, so the scan runs from ${inches(stop)} to ${inches(start)}. Use "Swap reversed starts and stops" (above the table) to fix them in the table too.`
           : `"${checkName}" is off, so the drawing uses them as typed and the photo can land in the wrong place. Swap them.`,
       })
     }

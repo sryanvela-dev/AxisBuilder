@@ -146,7 +146,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - AUT scans and Images steps (Phase 3d, `ui/scanSteps.tsx`): CSV import by button or drop (asks before replacing
   scans), scan table = DataTable list 'scans' with read-only width/height (`syncScanImages` keeps photo links in step
   with renamed/deleted scans), scan settings group. Scan checks follow v5.0: reversed start/stop = warning (the drawing
-  swaps it while Check data before export is on), outside the shell = warning, overlaps per Overlap Detection (OFF
+  swaps it while Check data before export is on; "Swap reversed starts and stops" fixes all in one undo step), zero width or
+  height = error (the job still saves; the schema no longer refuses it), outside the shell = warning, overlaps per Overlap Detection (OFF
   nothing / WARN warning / BLOCK error). Photo rule (v5.0): a drawn scan needs a photo (error while Check data before
   export is on, warning when off); a switched-off scan, or a scan whose photo is switched off ("Use photo"), needs
   none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
@@ -377,3 +378,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   names, marker, folder check, run, migration, overlap modes, photo rule, CSV replace, and that the job ID and size
   setting don't change the .lsp (golden jobs unchanged). Checked in the preview with browser test folders (6 photos
   1915x957 -> 1915x3830, marker, replace question, other-job refusal). No VBA or workbook changes.
+- 2026-10-23 – Web app Phase 3d follow-up (user click-through): a scan with no width or height is now a check error
+  (blocks export) instead of a file error, so the job always saves (before, typing X start = X stop could store a value
+  the file check refused, and Save failed); `setCell` refuses a change for any problem it causes in the row. New
+  "Swap reversed starts and stops" button on AUT scans (`swapReversedScans`). "v5.0" removed from what the app shows
+  ("the Excel version" where it matters). No VBA or workbook changes.
