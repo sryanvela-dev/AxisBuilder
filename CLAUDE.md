@@ -98,6 +98,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   - `app/src/data/` – project file schema, importers (.xlsm, AUT CSV, images)
   - `app/src/engine/` – vessel geometry, pure functions, no UI
   - `app/src/export/` – LISP, DXF, PDF output
+  - `app/src/state/` – app state without React: undo history, session (open job), step status, project file
+    open/save, recovery copy and recent jobs (IndexedDB)
   - `app/src/ui/` – screens, 2D/3D views
   - `app/test/` – Vitest tests; `app/test/golden/` holds reference jobs and their v5.0 .lsp outputs for parity tests
   - `app/public/` – PWA icons and favicon (placeholders)
@@ -115,9 +117,17 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   in `app/src/data/projectFile.ts`. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in.
 - v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). AUT CSV:
-  `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`). The placeholder
-  page is a temporary test screen: open a .xlsm or AUT CSV, choose an image folder, see the reports, save the
-  project file.
+  `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`).
+- App shell (Phase 3b): start screen (new, open, import Excel with its report first, sample job, recent jobs, restore
+  unsaved work) and the job screen: top bar (Undo/Redo/Save/Save as/Close), step bar Project -> Field data -> AUT
+  scans -> Images -> Review -> Export with done / needs attention / not started from `stepStatuses`
+  (`app/src/state/steps.ts`), "Before export" banner, one "Next: ..." button. All state in `AppStoreProvider`
+  (`app/src/ui/AppStore.tsx`, read with `useApp()`); every project change goes through `edit()` and can be undone
+  (Ctrl+Z / Ctrl+Y; typing in one box is one step). Project file extension `.axb` (JSON; `.json` also opens).
+  Edge/Chrome save back to the job's file (File System Access API); the first Save over an opened file and a Save after
+  the file changed elsewhere ask first; other browsers download a copy. A recovery copy per tab is kept in IndexedDB
+  while there are unsaved changes and offered on the next start. Step pages are placeholders for 3c-3f; the old test
+  tools moved under their steps (AUT CSV import on AUT scans, photo folder matching on Images). No UI library.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -315,3 +325,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   them (relative). Decision: no full Windows path in the app's .lsp, no installed program; LISP order DWGPREFIX +
   Processed_Images, then findfile, then one getfiled pick for all images; findfile check before every attach; Export
   screen suggests saving the drawing in the job folder first; v5.0 compat keeps full paths. No code changes.
+- 2026-10-22 – Web app Phase 3b (branch feature/app-shell): app shell. New `app/src/state/` (history.ts undo/redo with
+  grouped typing, session.ts reducer for the open job, steps.ts step status / "before export" list, projectFiles.ts
+  .axb open/save with File System Access API + download fallback and ask-before-replace, recovery.ts + storage.ts
+  IndexedDB recovery copy per tab (Web Locks tell open tabs apart) and recent jobs). New UI: StartScreen (with Excel
+  import report before continuing), JobScreen (top bar, step bar, banner, Next), placeholder step pages, FieldInput,
+  Dialog, ErrorBoundary with "Copy error details", made-up sample job (`ui/sampleJob.ts`). `ImportTest.tsx` removed (its
+  tools moved under the steps). Vite defines `__APP_VERSION__` for error reports. Tests in `app/test/state/`. No VBA or
+  workbook changes.
