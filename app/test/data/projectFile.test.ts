@@ -326,13 +326,20 @@ describe('migration hook', () => {
   it('format 1 files get a job ID; a format 2 file keeps its own', () => {
     const v1 = expectOk(openProject(JSON.stringify({ schemaVersion: 1, project: { projectName: 'Old' } })))
     expect(v1.migratedFrom).toBe(1)
-    expect(v1.project.schemaVersion).toBe(2)
+    expect(v1.project.schemaVersion).toBe(3)
     expect(v1.project.jobId).toMatch(/^[0-9a-f-]{36}$/)
     expect(v1.project.project.projectName).toBe('Old')
     const again = expectOk(openProject(saveProject(v1.project)))
     expect(again.migratedFrom).toBeUndefined()
     expect(again.project.jobId).toBe(v1.project.jobId)
-    expect(errorsFor({ schemaVersion: 2, jobId: ' ' })).toEqual(['Job ID must not be blank.'])
+    expect(errorsFor({ schemaVersion: 3, jobId: ' ' })).toEqual(['Job ID must not be blank.'])
+    // A format 2 file (before the Drawing step) opens with the new settings at their defaults.
+    const v2 = expectOk(openProject(JSON.stringify({ schemaVersion: 2, jobId: 'j2', settings: { rulerSpacing: 10 } })))
+    expect(v2.migratedFrom).toBe(2)
+    expect(v2.project.jobId).toBe('j2')
+    expect(v2.project.settings.rulerSpacing).toBe(10)
+    expect(v2.project.settings.scanTextSize).toBe('Automatic')
+    expect(v2.project.settings.vesselColor).toBe(7)
   })
 
   it('upgrades older files before validating', () => {

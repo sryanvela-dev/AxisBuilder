@@ -9,7 +9,7 @@
 
 import { z } from 'zod'
 
-export type AppStep = 'Project' | 'Field data' | 'AUT scans' | 'Images' | 'Export'
+export type AppStep = 'Project' | 'Field data' | 'AUT scans' | 'Images' | 'Drawing' | 'Export'
 export type Level = 'Basic' | 'Advanced'
 export type ExcelSheet = 'Project Settings' | 'Drawing Information'
 
@@ -22,6 +22,14 @@ export const SETTING_GROUPS = [
   { id: 'heads', step: 'Field data', title: 'Heads', intro: 'Head views drawn beside the shell layout, and their names.' },
   { id: 'scans', step: 'AUT scans', title: 'Scan drawing and checks', intro: 'How scanned areas are hatched, and how overlapping scans are treated.' },
   { id: 'images', step: 'Images', title: 'Scan images', intro: 'Whether photos are used, and how the processed copies are made.' },
+  { id: 'textStyles', step: 'Drawing', title: 'Text sizes and colors', intro: 'One row per kind of text (each has its own CAD layer). Automatic is the size the drawing has always used.' },
+  { id: 'rulers', step: 'Drawing', title: 'Rulers and labels', intro: 'Rulers along the shell, reference labels and direction arrows.' },
+  { id: 'nozzleLabels', step: 'Drawing', title: 'Nozzle labels', intro: 'When a nozzle label goes inside its circle, and how long the leaders are.' },
+  { id: 'legendTitle', step: 'Drawing', title: 'Legend and title block', intro: 'The legend, the coverage figure and the title block.' },
+  { id: 'headsDrawing', step: 'Drawing', title: 'Head views', intro: 'How the head views are drawn. Which heads are shown, and their names, are on the Field data step.' },
+  { id: 'showHide', step: 'Drawing', title: 'Show or hide', intro: 'What the drawing includes (the legend and title block are above). In CAD the AB... commands turn the same groups on and off.' },
+  { id: 'lineStyles', step: 'Drawing', title: 'Line colors and transparency', intro: 'Colors of the main drawing layers (standard CAD color numbers) and how transparent the hatch and centerline are.' },
+  { id: 'export', step: 'Export', title: 'CAD program and checks', intro: 'Which CAD program the drawing file is for, and the checks before export.' },
 ] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
 
 export type SettingGroupId = (typeof SETTING_GROUPS)[number]['id']
@@ -60,6 +68,8 @@ export interface TextDef extends BaseDef {
 
 export interface NumberDef extends BaseDef {
   type: 'number'
+  /** A CAD color number (1-255), shown as a color picker. */
+  color?: boolean
   /** null = not entered yet. Only allowed when `nullable` is set. */
   default: number | null
   nullable?: boolean
@@ -157,6 +167,93 @@ function date<D extends Omit<DateDef, 'type'>>(d: D) {
 }
 
 const PS = 'Project Settings' as const
+
+export const TEXT_SIZE_MODES = ['Automatic', 'Scale', 'Fixed height'] as const
+
+/**
+ * The text layers whose size and color the Drawing step sets (the same 14 TEXTRESIZE knows), with the
+ * settings key prefix and the automatic main height (null when it varies). Must match the textStyle(...)
+ * calls in SETTINGS (a test checks).
+ */
+export const TEXT_TYPES = [
+  { key: 'scanText', layer: 'SCAN_TEXT', base: null },
+  { key: 'objectText', layer: 'SUPPORT_TEXT', base: null },
+  { key: 'shellNozzleText', layer: 'SHELL_NOZZLE_TEXT', base: null },
+  { key: 'shellMutText', layer: 'SHELL_MUT_TEXT', base: 1.5 },
+  { key: 'circWeldText', layer: 'CIRC_WELD_TEXT', base: 2 },
+  { key: 'longSeamText', layer: 'LONG_SEAM_TEXT', base: 2 },
+  { key: 'xRulerText', layer: 'X_RULER_TEXT', base: 1.8 },
+  { key: 'yRulerText', layer: 'Y_RULER_TEXT', base: 1.8 },
+  { key: 'headTitleText', layer: 'HEAD_TITLE_TEXT', base: 2.3 },
+  { key: 'headNozzleText', layer: 'HEAD_NOZZLE_TEXT', base: null },
+  { key: 'headMutText', layer: 'HEAD_MUT_TEXT', base: 1.5 },
+  { key: 'headClockText', layer: 'HEAD_CLOCK_TEXT', base: 1.7 },
+  { key: 'legendText', layer: 'LEGEND_TEXT', base: 2 },
+  { key: 'titleBlockText', layer: 'TITLE_BLOCK_TEXT', base: 1.8 },
+] as const
+
+/** The geometry layers whose color the Drawing step sets (settings key prefix + CAD layer). */
+export const LINE_LAYERS = [
+  { key: 'vessel', layer: 'VESSEL' },
+  { key: 'scanOutline', layer: 'SCANS' },
+  { key: 'hatch', layer: 'AUT_HATCH' },
+  { key: 'object', layer: 'SUPPORTS' },
+  { key: 'shellNozzle', layer: 'NOZZLES' },
+  { key: 'circWeld', layer: 'CIRC_WELDS' },
+  { key: 'longSeam', layer: 'LONG_SEAMS' },
+  { key: 'centerline', layer: 'CENTERLINE' },
+  { key: 'head', layer: 'HEADS' },
+  { key: 'xRuler', layer: 'X_AXIS' },
+  { key: 'yRuler', layer: 'Y_AXIS' },
+] as const
+
+/**
+ * Size and color of one kind of text. base = the height the drawing normally uses for its main text
+ * (null when it varies, e.g. scan labels fitted to their box). Fixed height scales a layer's texts in
+ * proportion to that base (a title stays bigger than its lines); with no base, every text gets the height.
+ */
+function textStyle<K extends string>(key: K, name: string, color: number, base: number | null) {
+  const lower = name.charAt(0).toLowerCase() + name.slice(1)
+  const when = (v: string) => ({ section: 'settings' as const, key: `${key}Size`, values: [v] })
+  const common = { excelSheet: PS, onSheet: false, group: 'textStyles' as const, step: 'Drawing' as const, level: 'Basic' as const }
+  const v5 = 'App only. In v5.0 the size is fixed in the LISP (TEXTRESIZE changes it in CAD).'
+  const auto = base === null ? 'sized to fit' : `${base} in`
+  return {
+    [`${key}Size`]: choice(TEXT_SIZE_MODES, {
+      ...common, excelLabel: `${name} Size`, name: `${name}: size`,
+      description: `How big ${lower} are: Automatic (as the drawing always made them, ${auto}), Scale (a multiple of that) or Fixed height.`,
+      default: 'Automatic', v5,
+    }),
+    [`${key}Scale`]: num({
+      ...common, excelLabel: `${name} Scale`, name: `${name}: scale`, showWhen: when('Scale'),
+      description: `Multiple of the automatic size of ${lower}, e.g. 1.5 = half as big again.`,
+      units: 'x', greaterThan: 0, max: 10, default: 1, v5,
+    }),
+    [`${key}Height`]: num({
+      ...common, excelLabel: `${name} Height`, name: `${name}: height`, showWhen: when('Fixed height'),
+      description: base === null ? `Height of every one of the ${lower}.` : `Height of the main text (${base} in automatic); other text on the same layer keeps its proportion.`,
+      units: 'in', greaterThan: 0, max: 50, default: base ?? 2, v5,
+    }),
+    [`${key}Color`]: num({
+      ...common, excelLabel: `${name} Color`, name: `${name}: color`, color: true,
+      description: `CAD color of ${lower}.`, integer: true, min: 1, max: 255, default: color, v5: 'App only. v5.0 sets this layer color in SL_SetupLayers.',
+    }),
+  } as unknown as { [P in `${K}Size`]: ReturnType<typeof textSizeChoice> } & { [P in `${K}Scale` | `${K}Height` | `${K}Color`]: ReturnType<typeof plainNumber> }
+}
+
+function layerColor<K extends string>(key: K, name: string, color: number) {
+  return {
+    [`${key}Color`]: num({
+      excelSheet: PS, onSheet: false, group: 'lineStyles', step: 'Drawing', level: 'Basic', color: true,
+      excelLabel: `${name} Color`, name: `${name}: color`, description: `CAD color of the ${name.toLowerCase()} layer.`,
+      integer: true, min: 1, max: 255, default: color, v5: 'App only. v5.0 sets this layer color in SL_SetupLayers.',
+    }),
+  } as unknown as { [P in `${K}Color`]: ReturnType<typeof plainNumber> }
+}
+
+// Only for the return types above.
+const textSizeChoice = () => choice(TEXT_SIZE_MODES, { excelLabel: '', excelSheet: PS, name: '', description: '', default: 'Automatic', step: 'Drawing', level: 'Basic' })
+const plainNumber = () => num({ excelLabel: '', excelSheet: PS, name: '', description: '', default: 1, step: 'Drawing', level: 'Basic' })
 const DI = 'Drawing Information' as const
 
 // ---------------------------------------------------------------------------------------------
@@ -373,7 +470,7 @@ export const SETTINGS = {
   outputCommand: text({
     excelLabel: 'Output Command', excelSheet: PS, name: 'CAD command name',
     description: 'CAD command name for the exported .lsp.',
-    default: 'SCANLAYOUT', step: 'Export', level: 'Advanced',
+    default: 'SCANLAYOUT', hidden: true, step: 'Drawing', level: 'Advanced',
     v5: 'Not read by the VBA; the command is always AXISBUILDER. App: planned feature (to be designed).',
   }),
   rulerPlacement: choice(
@@ -381,60 +478,60 @@ export const SETTINGS = {
     {
       excelLabel: 'Ruler Placement', excelSheet: PS, name: 'Ruler position',
       description: 'Where the rulers sit around the vessel as seen on the drawing.',
-      default: 'Bottom + Left', step: 'Export', level: 'Basic',
+      default: 'Bottom + Left', group: 'rulers', step: 'Drawing', level: 'Basic',
     },
   ),
   rulerSpacing: num({
     excelLabel: 'Ruler Spacing', excelSheet: PS, name: 'Ruler tick spacing',
     description: 'Distance between ruler ticks.',
-    units: 'in', greaterThan: 0, default: 12, step: 'Export', level: 'Basic',
+    units: 'in', greaterThan: 0, default: 12, group: 'rulers', step: 'Drawing', level: 'Basic',
     v5: 'The v5.0 workbook has 20; the code fallback is 12.',
   }),
   rulerOffset: num({
     excelLabel: 'Ruler Offset', excelSheet: PS, name: 'Ruler gap',
     description: 'Gap between the vessel outline and the rulers.',
-    units: 'in', min: 0, default: 2, step: 'Export', level: 'Advanced',
+    units: 'in', min: 0, default: 2, group: 'rulers', step: 'Drawing', level: 'Advanced',
   }),
   showRulers: yesNo({
     excelLabel: 'Show Rulers', excelSheet: PS, legacyLabels: ['Show Ruler'], name: 'Show rulers',
     description: 'Draw the X and Y rulers with their axis direction labels.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'rulers', step: 'Drawing', level: 'Basic',
   }),
   showDirectionLabels: yesNo({
     excelLabel: 'Show Direction Labels', excelSheet: PS, name: 'Show direction labels',
     description: 'Show the axis direction labels.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, hidden: true, step: 'Drawing', level: 'Advanced',
     v5: 'Read by the older layout export but never used. App: planned feature (to be designed).',
   }),
   arrowLengthMode: choice(['Text Based', 'Fixed'], {
     excelLabel: 'Arrow Length Mode', excelSheet: PS, name: 'Direction arrow length mode',
     description: 'Whether direction arrows size to their text or use a fixed length.',
-    default: 'Text Based', step: 'Export', level: 'Advanced',
+    default: 'Text Based', hidden: true, step: 'Drawing', level: 'Advanced',
     v5: 'Not read by the VBA. App: planned feature (to be designed).',
   }),
   arrowLength: num({
     excelLabel: 'Arrow Length', excelSheet: PS, name: 'Fixed arrow length',
     description: 'Direction arrow length when the arrow length mode is Fixed.',
-    units: 'in', greaterThan: 0, default: 28, step: 'Export', level: 'Advanced',
+    units: 'in', greaterThan: 0, default: 28, hidden: true, step: 'Drawing', level: 'Advanced',
     v5: 'Not read by the VBA. App: planned feature (to be designed).',
   }),
   arrowHeadSize: num({
     excelLabel: 'Arrow Head Size', excelSheet: PS, name: 'Arrow head size',
     description: 'Size of direction arrow heads.',
-    units: 'in', greaterThan: 0, default: 3, step: 'Export', level: 'Advanced',
+    units: 'in', greaterThan: 0, default: 3, group: 'rulers', step: 'Drawing', level: 'Advanced',
   }),
 
   // VESSEL / REFERENCE INDICATORS (display options; the labels themselves are in VESSEL_FIELDS)
   showVesselReferenceLabels: yesNo({
     excelLabel: 'Show Vessel Reference Labels', excelSheet: PS, name: 'Show reference labels',
     description: 'Draw the start, stop and centerline reference labels around the vessel.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'rulers', step: 'Drawing', level: 'Basic',
     v5: 'Code fallback is NO.',
   }),
   referenceLabelTickLength: num({
     excelLabel: 'Reference Label Tick Length', excelSheet: PS, name: 'Reference tick length',
     description: 'Length of the tick mark drawn at each reference label.',
-    units: 'in', greaterThan: 0, default: 2, step: 'Export', level: 'Advanced',
+    units: 'in', greaterThan: 0, default: 2, group: 'rulers', step: 'Drawing', level: 'Advanced',
     v5: 'Code fallback is 3; zero or less is replaced by 3.',
   }),
 
@@ -464,7 +561,7 @@ export const SETTINGS = {
   autHatchTransparency: num({
     excelLabel: 'AUT Hatch Transparency', excelSheet: PS, name: 'Hatch transparency',
     description: 'Transparency of all hatch layers, 0 = solid, 90 = most transparent.',
-    units: '%', integer: true, min: 0, max: 90, default: 50, group: 'scans', step: 'AUT scans', level: 'Basic',
+    units: '%', integer: true, min: 0, max: 90, default: 50, group: 'lineStyles', step: 'Drawing', level: 'Basic',
     v5: 'The v5.0 workbook has 70; the code fallback and sheet note say 50. The sheet label has a trailing space.',
   }),
 
@@ -472,18 +569,18 @@ export const SETTINGS = {
   smartNozzleLabels: yesNo({
     excelLabel: 'Smart Nozzle Labels', excelSheet: PS, name: 'Smart nozzle labels',
     description: 'Place AUTO nozzle labels so they avoid scans and objects.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'nozzleLabels', step: 'Drawing', level: 'Advanced',
   }),
   minNozzleInsideLabelDiameter: num({
     excelLabel: 'Minimum Nozzle Inside Label Diameter', excelSheet: PS, name: 'Smallest nozzle labeled inside',
     description: 'AUTO nozzle labels go outside the circle, with a leader, below this diameter.',
-    units: 'in', min: 0, default: 6, step: 'Export', level: 'Advanced',
+    units: 'in', min: 0, default: 6, group: 'nozzleLabels', step: 'Drawing', level: 'Advanced',
     v5: 'Code fallback is 8.',
   }),
   nozzleLeaderLength: num({
     excelLabel: 'Nozzle Leader Length', excelSheet: PS, name: 'Nozzle leader length',
     description: 'Leader line length for shell nozzle labels placed outside.',
-    units: 'in', greaterThan: 0, default: 4, step: 'Export', level: 'Advanced',
+    units: 'in', greaterThan: 0, default: 4, group: 'nozzleLabels', step: 'Drawing', level: 'Advanced',
     v5: 'Code fallback is 6.',
   }),
 
@@ -491,17 +588,17 @@ export const SETTINGS = {
   showWeldLabels: yesNo({
     excelLabel: 'Show Weld Labels', excelSheet: PS, name: 'Show weld labels',
     description: 'Master switch for circ weld and long seam labels.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Basic',
   }),
   showCenterline: yesNo({
     excelLabel: 'Show Centerline', excelSheet: PS, name: 'Show vessel centerline',
     description: 'Draw the long-dash vessel centerline.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Basic',
   }),
   centerlineTransparency: num({
     excelLabel: 'Centerline Transparency', excelSheet: PS, onSheet: false, name: 'Centerline transparency',
     description: 'Transparency of the vessel centerline, 0 = solid, 90 = most transparent.',
-    units: '%', integer: true, min: 0, max: 90, default: 50, step: 'Export', level: 'Advanced',
+    units: '%', integer: true, min: 0, max: 90, default: 50, group: 'lineStyles', step: 'Drawing', level: 'Advanced',
     v5: 'App only (user, 2026-10-23). v5.0 draws the centerline solid.',
   }),
 
@@ -509,13 +606,13 @@ export const SETTINGS = {
   legendEnabled: yesNo({
     excelLabel: 'Legend Enabled', excelSheet: PS, name: 'Legend (older layout)',
     description: 'Draw the legend in the older geometry-only layout export.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, hidden: true, step: 'Drawing', level: 'Advanced',
     v5: 'Older layout export only; the master drawing uses Show Legend On Overlay. App: planned, controlled in the app and shown/hidden by a CAD command.',
   }),
   showTitleBlock: yesNo({
     excelLabel: 'Show Title Block', excelSheet: PS, name: 'Title block (older layout)',
     description: 'Draw the title block in the older geometry-only layout export.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, hidden: true, step: 'Drawing', level: 'Advanced',
     v5: 'Older layout export only; the master drawing uses Show Title Block On Overlay. Code fallback is NO. App: planned, controlled in the app and shown/hidden by a CAD command.',
   }),
 
@@ -523,7 +620,7 @@ export const SETTINGS = {
   enableValidation: yesNo({
     excelLabel: 'Enable Validation', excelSheet: PS, name: 'Check data before export',
     description: 'Run scan, image and overlap checks before generating the drawing.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'export', step: 'Export', level: 'Advanced',
   }),
   overlapDetection: choice(['OFF', 'WARN', 'BLOCK'], {
     excelLabel: 'Overlap Detection', excelSheet: PS, name: 'Scan overlap check',
@@ -533,7 +630,7 @@ export const SETTINGS = {
   showValidationSummary: yesNo({
     excelLabel: 'Show Validation Summary', excelSheet: PS, name: 'Show check summary',
     description: 'Show a summary of the checks after generating.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'export', step: 'Export', level: 'Advanced',
   }),
 
   // HEAD VIEWS
@@ -545,12 +642,12 @@ export const SETTINGS = {
   headViewSize: choice(['SMALL', 'MEDIUM', 'LARGE'], {
     excelLabel: 'Head View Size', excelSheet: PS, name: 'Head view size',
     description: 'Size of the head views (24%, 30% or 38% of the circumference, at least 24 in).',
-    default: 'SMALL', step: 'Export', level: 'Advanced',
+    default: 'SMALL', group: 'headsDrawing', step: 'Drawing', level: 'Advanced',
   }),
   showHeadNozzles: yesNo({
     excelLabel: 'Show Head Nozzles', excelSheet: PS, name: 'Show head nozzles',
     description: 'Draw nozzles on the head views.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'headsDrawing', step: 'Drawing', level: 'Advanced',
   }),
   head1Label: text({
     excelLabel: 'Head 1 Label', excelSheet: PS, name: 'Head 1 name',
@@ -569,18 +666,18 @@ export const SETTINGS = {
   headNozzleLeaderLength: num({
     excelLabel: 'Head Nozzle Leader Length', excelSheet: PS, name: 'Head nozzle leader length',
     description: 'Leader line length for head nozzle labels placed outside.',
-    units: 'in', greaterThan: 0, default: 8, step: 'Export', level: 'Advanced',
+    units: 'in', greaterThan: 0, default: 8, group: 'headsDrawing', step: 'Drawing', level: 'Advanced',
   }),
   showHeadCenterlines: yesNo({
     excelLabel: 'Show Head Centerlines', excelSheet: PS, name: 'Show head centerlines',
     description: 'Draw crosshair centerlines on the head views.',
-    default: false, step: 'Export', level: 'Advanced',
+    default: false, group: 'headsDrawing', step: 'Drawing', level: 'Advanced',
   }),
   showHeadClockReferences: yesNo({
     excelLabel: 'Show Head Clock References', excelSheet: PS, legacyLabels: ['Show Head Clock Reference'],
     name: 'Show head 12 o\'clock marker',
     description: 'Draw the 12 o\'clock reference arrow and text on the head views.',
-    default: false, step: 'Export', level: 'Advanced',
+    default: false, group: 'headsDrawing', step: 'Drawing', level: 'Advanced',
   }),
 
   // OVERLAY DRAWING / IMAGE PREPROCESSING
@@ -628,51 +725,80 @@ export const SETTINGS = {
   showVesselOnOverlay: yesNo({
     excelLabel: 'Show Vessel On Overlay', excelSheet: PS, name: 'Draw vessel outline',
     description: 'Draw the vessel outline and centerline in the drawing.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Advanced',
   }),
   showWeldsOnOverlay: yesNo({
     excelLabel: 'Show Welds On Overlay', excelSheet: PS, name: 'Draw welds',
     description: 'Draw circ welds and long seams in the drawing.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Advanced',
   }),
   showSupportsOnOverlay: yesNo({
     excelLabel: 'Show Supports On Overlay', excelSheet: PS, name: 'Draw objects',
     description: 'Draw supports and other objects in the drawing.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Advanced',
   }),
   showNozzlesOnOverlay: yesNo({
     excelLabel: 'Show Nozzles On Overlay', excelSheet: PS, name: 'Draw shell nozzles',
     description: 'Draw shell nozzles in the drawing.',
-    default: true, step: 'Export', level: 'Advanced',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Advanced',
   }),
   showLegendOnOverlay: yesNo({
     excelLabel: 'Show Legend On Overlay', excelSheet: PS, name: 'Draw legend',
     description: 'Draw the legend in the drawing.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'legendTitle', step: 'Drawing', level: 'Basic',
   }),
   showTitleBlockOnOverlay: yesNo({
     excelLabel: 'Show Title Block On Overlay', excelSheet: PS, name: 'Draw title block',
     description: 'Draw the title block in the drawing.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'legendTitle', step: 'Drawing', level: 'Basic',
   }),
   showScanBordersOnOverlay: yesNo({
     excelLabel: 'Show Scan Borders On Overlay', excelSheet: PS, name: 'Show image frames',
     description: 'Show frames around the scan images (sets CAD IMAGEFRAME).',
-    default: true, group: 'images', step: 'Images', level: 'Advanced',
+    default: true, group: 'showHide', step: 'Drawing', level: 'Advanced',
     v5: 'Code fallback is NO, and the sheet note says default NO.',
   }),
   cadPlatform: choice(['DraftSight', 'AutoCAD'], {
     excelLabel: 'CAD Platform', excelSheet: PS, name: 'CAD program',
     description: 'CAD program the .lsp is written for.',
-    default: 'DraftSight', step: 'Export', level: 'Basic',
+    default: 'DraftSight', group: 'export', step: 'Export', level: 'Basic',
     v5: 'Set by the Home toggle. Anything other than AutoCAD means DraftSight.',
   }),
+
+  // TEXT SIZES AND COLORS (app only): one set per text layer, the same layers TEXTRESIZE knows.
+  ...textStyle('scanText', 'Scan labels', 7, null),
+  ...textStyle('objectText', 'Object labels', 7, null),
+  ...textStyle('shellNozzleText', 'Shell nozzle labels', 7, null),
+  ...textStyle('shellMutText', 'Shell MUT labels', 7, 1.5),
+  ...textStyle('circWeldText', 'Circ weld labels', 7, 2),
+  ...textStyle('longSeamText', 'Long seam labels', 7, 2),
+  ...textStyle('xRulerText', 'X ruler text and reference labels', 1, 1.8),
+  ...textStyle('yRulerText', 'Y ruler text', 5, 1.8),
+  ...textStyle('headTitleText', 'Head titles', 7, 2.3),
+  ...textStyle('headNozzleText', 'Head nozzle labels', 7, null),
+  ...textStyle('headMutText', 'Head MUT labels', 7, 1.5),
+  ...textStyle('headClockText', "Head 12 o'clock text", 7, 1.7),
+  ...textStyle('legendText', 'Legend text', 7, 2),
+  ...textStyle('titleBlockText', 'Title block text', 7, 1.8),
+
+  // LINE COLORS (app only): the main geometry layers.
+  ...layerColor('vessel', 'Vessel outline', 7),
+  ...layerColor('scanOutline', 'Scan outlines', 7),
+  ...layerColor('hatch', 'Scan hatch', 5),
+  ...layerColor('object', 'Objects', 6),
+  ...layerColor('shellNozzle', 'Shell nozzles', 7),
+  ...layerColor('circWeld', 'Circ welds', 7),
+  ...layerColor('longSeam', 'Long seams', 7),
+  ...layerColor('centerline', 'Centerline', 7),
+  ...layerColor('head', 'Head views', 7),
+  ...layerColor('xRuler', 'X ruler', 1),
+  ...layerColor('yRuler', 'Y ruler', 5),
 
   // Read by the VBA but not on the v5.0 sheet.
   showCoveragePercentage: yesNo({
     excelLabel: 'Show Coverage Percentage', excelSheet: PS, onSheet: false, name: 'Show coverage %',
     description: 'Print the scan coverage percentage in the legend.',
-    default: true, step: 'Export', level: 'Basic',
+    default: true, group: 'legendTitle', step: 'Drawing', level: 'Basic',
     v5: 'Not on the sheet, so v5.0 always uses the fallback YES.',
   }),
 }

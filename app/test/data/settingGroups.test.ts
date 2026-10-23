@@ -14,8 +14,8 @@ function values(over: Partial<{ vessel: Record<string, unknown>; settings: Recor
 }
 
 describe('setting groups', () => {
-  it('every setting shown on the Project, Field data, AUT scans and Images steps is in a group of its own step', () => {
-    for (const f of allFields.filter((x) => !x.def.hidden && ['Project', 'Field data', 'AUT scans', 'Images'].includes(x.def.step))) {
+  it('every setting that is shown is placed on a step, in a group of that step (nothing unplaced)', () => {
+    for (const f of allFields.filter((x) => !x.def.hidden)) {
       const group = SETTING_GROUPS.find((g) => g.id === f.def.group)
       expect(group, `${f.section}.${f.key}`).toBeDefined()
       expect(group!.step, `${f.section}.${f.key}`).toBe(f.def.step)
@@ -24,9 +24,12 @@ describe('setting groups', () => {
 
   it('the v5.0-only settings the app does not use are hidden from the forms, and kept in the file', () => {
     const hidden = allFields.filter((f) => f.def.hidden).map((f) => f.key)
-    expect(hidden).toEqual(['autHatchPattern', 'autHatchAngle', 'originalImageFolder', 'overlayPixelsPerInch', 'draftSightImagePixelsPerUnit', 'overlayPreprocessRotation'])
-    expect(groupFields('images').map((f) => f.key)).toEqual(['generateOverlayDrawing', 'processedImageFolder', 'maxImageSide', 'showScanBordersOnOverlay'])
-    expect(groupFields('scans').map((f) => f.key)).toEqual(['autHatchEnabled', 'autHatchScale', 'autHatchTransparency', 'overlapDetection'])
+    expect(hidden).toEqual([
+      'outputCommand', 'showDirectionLabels', 'arrowLengthMode', 'arrowLength', 'autHatchPattern', 'autHatchAngle', 'legendEnabled',
+      'showTitleBlock', 'originalImageFolder', 'overlayPixelsPerInch', 'draftSightImagePixelsPerUnit', 'overlayPreprocessRotation',
+    ])
+    expect(groupFields('images').map((f) => f.key)).toEqual(['generateOverlayDrawing', 'processedImageFolder', 'maxImageSide'])
+    expect(groupFields('scans').map((f) => f.key)).toEqual(['autHatchEnabled', 'autHatchScale', 'overlapDetection'])
     expect(Object.keys(createEmptyProject().settings)).toEqual(expect.arrayContaining(hidden))
     expect(createEmptyProject().settings.maxImageSide).toBe(4096)
   })

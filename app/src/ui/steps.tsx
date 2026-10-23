@@ -6,6 +6,7 @@ import { stepInfo, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { WorkbookReportTable } from './reports.tsx'
 import { ComingSoon } from './stepParts.tsx'
+import { SettingsGroup } from './SettingsForm.tsx'
 
 type StepProps = { status: StepStatus }
 
@@ -67,6 +68,7 @@ export function ExportStep({ status }: StepProps) {
       ) : (
         <p>Nothing blocks the export.</p>
       )}
+      <SettingsGroup group="export" step="export" />
       <ComingSoon>Making the CAD drawing file (DraftSight or AutoCAD) comes in a later update.</ComingSoon>
     </>
   )

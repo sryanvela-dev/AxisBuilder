@@ -32,7 +32,8 @@ import {
   ucaseTrim,
 } from '../../engine/layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
-import { writeAppLibrary } from './appLibrary.ts'
+import { writeAppLibrary, writeTextSizes } from './appLibrary.ts'
+import { changedLayerColors, textSizeRules } from '../../engine/styles.ts'
 import {
   PrintVisualRulers,
   WriteCommandsTail,
@@ -58,6 +59,7 @@ export const APP_CHANGES = [
   'Shell nozzle label positions are worked out by the app (same rules), so the preview and CAD match.',
   'Head nozzle labels placed outside move further out along their leader instead of overlapping.',
   'The vessel centerline is drawn with a transparency (setting, default 50).',
+  'Text sizes and layer colors can be set per text layer and for the main layers (Drawing step); defaults change nothing.',
 ] as const
 
 export interface ExportOptions {
@@ -191,6 +193,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   WriteLispHeader(lib)
   WriteOverlayLispFunctions(lib)
   if (!v5) writeAppLibrary(w) // changes 8-10
+  const sizes = v5 ? new Map() : textSizeRules(s) // change 12: text sizes (only when one is changed)
+  if (sizes.size > 0) {
+    writeTextSizes(w, [...sizes].map(([layer, r]) =>
+      r.mode === 'SCALE' ? `(list ${LispStr(layer)} "SCALE" ${LispNum(r.value)})` : `(list ${LispStr(layer)} "HEIGHT" ${LispNum(r.value)} ${r.base === null ? 'nil' : LispNum(r.base)})`))
+  }
 
   // Job settings
   w(`(setq SL_ORIENTATION ${LispStr(orientation)})`)
@@ -251,6 +258,8 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   }
   w('  (setvar "OSMODE" 0)')
   w('  (SL_SetupLayers)')
+  // Change 13: layer colors chosen in the app (only the ones that differ from SL_SetupLayers).
+  if (!v5) for (const [layer, color] of changedLayerColors(s)) w(`  (SL_Layer ${LispStr(layer)} ${CStr(color)})`)
   if (!v5) w(`  (SL_SetLayerTransparencyTo "CENTERLINE" ${CStr(Math.round(Math.min(90, Math.max(0, s.centerlineTransparency))))})`) // change 11
   w('  (SL_SetupViewportLayers)')
   w('  (setvar "UCSICON" 0)')

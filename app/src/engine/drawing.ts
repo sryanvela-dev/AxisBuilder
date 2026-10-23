@@ -28,12 +28,13 @@ import {
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.ts'
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
+import { changedLayerColors, sizedHeight, textSizeRules } from './styles.ts'
 
 /** Where the preview may look different from the drawing in CAD. */
 export const PREVIEW_DIFFERENCES = [
   'Text is drawn with the browser font; CAD uses its own font, so labels can be a little wider or narrower.',
   'Scan photos are shown as the original photos stretched to the scan, not the processed images.',
-  'Text sizes are the ones the drawing starts with; TEXTRESIZE in CAD changes them later.',
+  'Text sizes are the ones set on the Drawing step; TEXTRESIZE in CAD can change them later (not shown here).',
   'Section pages, viewports and the layout sheet are not shown.',
 ] as const
 
@@ -102,6 +103,8 @@ export interface Drawing {
   hatchTransparency: number
   /** Centerline transparency, 0-90 % (app change). */
   centerlineTransparency: number
+  /** Layer colors chosen on the Drawing step that differ from LAYER_COLOR. */
+  layerColors: Record<string, number>
 }
 
 /** SL_TextLayer: geometry layer -> its text layer. */
@@ -395,7 +398,7 @@ export function buildDrawing(p: Project): Drawing {
     })
   }
 
-  if (!sized) return { orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency }
+  if (!sized) return finish(p, o, items)
   const ori = o.toUpperCase()
 
   // Rulers
@@ -477,5 +480,18 @@ export function buildDrawing(p: Project): Drawing {
     add('titleBlock', null, pen, 'Title block')
   }
 
-  return { orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency }
+  return finish(p, o, items)
+}
+
+function finish(p: Project, o: Orientation, items: DrawingItem[]): Drawing {
+  const s = p.settings
+  // Text sizes from the Drawing step, applied the way SL_TextHeight does in the .lsp.
+  const rules = textSizeRules(s)
+  if (rules.size > 0) {
+    for (const it of items) for (const sh of it.shapes) if (sh.t === 'text') sh.h = sizedHeight(rules, sh.layer, sh.h)
+  }
+  return {
+    orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency,
+    layerColors: Object.fromEntries(changedLayerColors(s)),
+  }
 }

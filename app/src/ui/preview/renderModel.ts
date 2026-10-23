@@ -71,6 +71,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
   const o = d.orientation
   const hatchOpacity = opacityOf(d.hatchTransparency)
   const centerlineOpacity = opacityOf(d.centerlineTransparency)
+  const colorOf = (layer: string) => d.layerColors[layer] ?? LAYER_COLOR[layer] ?? 7
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -105,7 +106,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
           grow(s.x + s.w, s.y + s.h)
           break
         case 'circle':
-          circles.push({ cx: s.cx, cy: s.cy, r: s.r, group: groupOfLayer(s.layer), color: LAYER_COLOR[s.layer] ?? 7 })
+          circles.push({ cx: s.cx, cy: s.cy, r: s.r, group: groupOfLayer(s.layer), color: colorOf(s.layer) })
           grow(s.cx - s.r, s.cy - s.r)
           grow(s.cx + s.r, s.cy + s.r)
           break
@@ -113,7 +114,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
           const [x, y] = toSvg(o, s.x, s.y)
           texts.push({
             x, y, rotate: -(s.rot + rotationOffset(o)), size: s.h / CAP_HEIGHT, anchor: s.just === 'ML' ? 'start' : 'middle', text: s.text,
-            group: groupOfLayer(s.layer), color: LAYER_COLOR[s.layer] ?? 7,
+            group: groupOfLayer(s.layer), color: colorOf(s.layer),
           })
           grow(s.x, s.y)
           break
@@ -126,7 +127,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
       }
     }
     const paths = [...byLayer].map(([layer, segs]) => ({
-      layer, group: groupOfLayer(layer), color: LAYER_COLOR[layer] ?? 7, d: segs.join(''),
+      layer, group: groupOfLayer(layer), color: colorOf(layer), d: segs.join(''),
       opacity: TRANSPARENT_LAYERS.includes(layer) ? hatchOpacity : layer === 'CENTERLINE' ? centerlineOpacity : 1,
     }))
     return { key: item.key, item, paths, circles, texts, images, selectable: item.source !== null }

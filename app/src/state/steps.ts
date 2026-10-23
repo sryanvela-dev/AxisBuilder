@@ -20,6 +20,7 @@ export const STEPS: readonly StepInfo[] = [
   { id: 'fieldData', title: 'Field data', intro: 'Welds, nozzles, objects and MUT readings from the field form.' },
   { id: 'scans', title: 'AUT scans', intro: 'Scan positions from the AUT CSV.' },
   { id: 'images', title: 'Images', intro: 'A photo for each AUT scan.' },
+  { id: 'drawing', title: 'Drawing', intro: 'How the drawing looks: text sizes and colors, rulers, legend, head views and what is shown.' },
   { id: 'review', title: 'Review', intro: 'Everything still open before the drawing can be made.' },
   { id: 'export', title: 'Export', intro: 'Make the CAD drawing file.' },
 ]
@@ -79,7 +80,7 @@ export const STEP_OF_LIST: Record<ListKey, StepId> = {
   circWelds: 'fieldData', longSeams: 'fieldData', shellNozzles: 'fieldData', objects: 'fieldData', shellMut: 'fieldData',
   headNozzles: 'fieldData', headMut: 'fieldData', scans: 'scans', scanImages: 'images',
 }
-const STEP_OF_APP_STEP: Record<string, StepId> = { Project: 'project', 'Field data': 'fieldData', 'AUT scans': 'scans', Images: 'images', Export: 'export' }
+export const STEP_OF_APP_STEP: Record<string, StepId> = { Project: 'project', 'Field data': 'fieldData', 'AUT scans': 'scans', Images: 'images', Drawing: 'drawing', Export: 'export' }
 
 /** The step whose page shows the check. */
 export function stepOfCheck(c: Check): StepId {
@@ -139,7 +140,10 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
 
   const images = imageStatus(p, wb, stepIssues(job, checks, 'images'))
 
-  const before = [project, fieldData, scans, images]
+  // Drawing: every setting has a working default, so it is done as soon as there is a shell to draw.
+  const drawing = status(p.vessel.length !== null && p.vessel.height !== null, stepIssues(job, checks, 'drawing'))
+
+  const before = [project, fieldData, scans, images, drawing]
   const open = before.flatMap((s) => s.issues)
   const todo: Issue[] = []
   if (!scansStarted) todo.push({ step: 'scans', text: 'No AUT scans yet.', blocksExport: false })
@@ -152,7 +156,7 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
       ? { state: 'attention', short: `${exportBlockers.length} to fix`, issues: exportBlockers }
       : { state: 'notStarted', short: 'Not started', issues: [] }
 
-  return { project, fieldData, scans, images, review, export: exportStatus }
+  return { project, fieldData, scans, images, drawing, review, export: exportStatus }
 }
 
 function imageStatus(p: Project, wb: WorkbookImport | null, checkIssues: Issue[]): StepStatus {
@@ -164,7 +168,7 @@ function imageStatus(p: Project, wb: WorkbookImport | null, checkIssues: Issue[]
 /** Short lines for the "before export" banner: what is left, grouped by step. Empty when ready. */
 export function whatsLeft(statuses: Record<StepId, StepStatus>): { step: StepId; text: string }[] {
   const out: { step: StepId; text: string }[] = []
-  for (const id of ['project', 'fieldData', 'scans', 'images'] as const) {
+  for (const id of ['project', 'fieldData', 'scans', 'images', 'drawing'] as const) {
     const s = statuses[id]
     const fix = s.issues.filter((i) => i.blocksExport).length
     const check = s.issues.length - fix

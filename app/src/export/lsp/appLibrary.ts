@@ -48,3 +48,37 @@ export function writeAppLibrary(w: (line: string) => void): void {
   w(')')
   w('')
 }
+
+/**
+ * Text sizes from the Drawing step (only written when one is not Automatic). SL_Text and SL_TextLeft are
+ * v5.0's, with the height passed through SL_TextHeight; every text in the drawing goes through them.
+ * entries: (layer "SCALE" factor) or (layer "HEIGHT" height base-or-nil).
+ */
+export function writeTextSizes(w: (line: string) => void, entries: string[]): void {
+  w(';; Text sizes chosen in the app (Drawing step). TEXTRESIZE still works on the same layers.')
+  w(`(setq SL_TEXT_SIZES (list ${entries.join(' ')}))`)
+  w('(defun SL_TextHeight (layer h / e)')
+  w('  (setq e (assoc layer SL_TEXT_SIZES))')
+  w('  (cond')
+  w('    ((not e) h)')
+  w('    ((= (nth 1 e) "SCALE") (* h (nth 2 e)))')
+  w('    ((nth 3 e) (* h (/ (nth 2 e) (nth 3 e))))')
+  w('    (T (nth 2 e))')
+  w('  )')
+  w(')')
+  w('')
+  for (const [name, just, note] of [['SL_Text', 'MC', ''], ['SL_TextLeft', 'ML', '  ;; Middle-left justification for title blocks and notes.']] as const) {
+    w(`(defun ${name} (x y h rot txt layer / textLayer)`)
+    if (note) w(note)
+    w('  (setq textLayer (SL_TextLayer layer))')
+    w('  (SL_SetLayer textLayer)')
+    w(`  (command "-TEXT" "J" "${just}"`)
+    w('    (SL_pt (SL_tf_x x y) (SL_tf_y x y))')
+    w('    (rtos (SL_TextHeight textLayer h) 2 3)')
+    w('    (rtos (SL_rot rot) 2 0)')
+    w('    txt')
+    w('  )')
+    w(')')
+    w('')
+  }
+}

@@ -76,6 +76,8 @@ checks that the app output differs from v5.0 only where these changes apply (for
 | 12 | Shell nozzle labels are placed by CAD while it draws (`SL_CircleSmart`) | Place them in the app (2026-10-23) | `engine/labels.ts` places them with the same rules; the .lsp writes `SL_NozzleAt` with the exact positions, so preview and CAD match |
 | 13 | Head nozzle labels never avoid each other or head MUT text | Fix (2026-10-23) | A label outside moves further out along its leader, step by step, until it is clear (`SL_NozzleAt` for heads too) |
 | 14 | The vessel centerline is solid | Make it transparent (2026-10-23) | New setting Centerline transparency (default 50), `SL_SetLayerTransparencyTo "CENTERLINE"` |
+| 15 | Text heights are fixed in the LISP (only TEXTRESIZE changes them in CAD) | Set them in the app (2026-10-23, Phase 3f-1) | Drawing step text sizes: `SL_TEXT_SIZES`, `SL_TextHeight` and size-aware `SL_Text` / `SL_TextLeft`, written only when a size is not Automatic |
+| 16 | Layer colors are fixed in `SL_SetupLayers` | Set them in the app (2026-10-23, Phase 3f-1) | `(SL_Layer "LAYER" n)` after `(SL_SetupLayers)`, only for colors changed on the Drawing step |
 
 **About 4 and 7: where these lines are.** They are comment lines inside the `.lsp` file, in the
 drawing command `c:SCANOVERLAY`. In AutoLISP everything after `;;` is a comment: CAD ignores it, it

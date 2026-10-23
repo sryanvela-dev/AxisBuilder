@@ -1,9 +1,13 @@
 // The SVG drawing: pan by dragging, zoom with the wheel or buttons, fit to window. Items are drawn in
 // logical coordinates inside the orientation matrix (texts outside it, so they read the right way up).
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
+import { aciCss } from '../../engine/aci.ts'
 import type { DrawingItem, LayerGroup } from '../../engine/drawing.ts'
 import type { RenderItem, RenderModel } from './renderModel.ts'
+
+/** The CAD color as the CSS variable --c (the stylesheet strokes and fills with it; highlights win). */
+const colorStyle = (n: number) => ({ '--c': aciCss(n) }) as CSSProperties
 
 export type Highlight = 'error' | 'warning'
 
@@ -180,14 +184,14 @@ const Item = memo(function Item(p: {
           ) : null
         })}
         {paths.map((x) => (
-          <path key={x.layer} d={x.d} className={`c${x.color}`} style={x.opacity < 1 ? { opacity: x.opacity } : undefined} />
+          <path key={x.layer} d={x.d} style={x.opacity < 1 ? { ...colorStyle(x.color), opacity: x.opacity } : colorStyle(x.color)} />
         ))}
         {circles.map((x, i) => (
-          <circle key={i} cx={x.cx} cy={x.cy} r={x.r} className={`c${x.color}`} />
+          <circle key={i} cx={x.cx} cy={x.cy} r={x.r} style={colorStyle(x.color)} />
         ))}
       </g>
       {texts.map((t, i) => (
-        <text key={i} x={t.x} y={t.y} fontSize={t.size} textAnchor={t.anchor} transform={t.rotate ? `rotate(${t.rotate} ${t.x} ${t.y})` : undefined} className={`t${t.color}`}>
+        <text key={i} x={t.x} y={t.y} fontSize={t.size} textAnchor={t.anchor} transform={t.rotate ? `rotate(${t.rotate} ${t.x} ${t.y})` : undefined} style={colorStyle(t.color)}>
           {t.text}
         </text>
       ))}

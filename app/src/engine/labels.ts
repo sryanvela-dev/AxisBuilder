@@ -9,6 +9,7 @@
 
 import type { Project, Scan } from '../data/schema.ts'
 import { clockPositionDegrees, imageInserts, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
+import { sizedHeight, textSizeRules } from './styles.ts'
 import { headVector, readableRot, type Orientation } from './transform.ts'
 
 export type Box = [number, number, number, number]
@@ -19,7 +20,7 @@ export interface NozzleLabel {
   y: number
   r: number
   txt: string
-  /** Text height. */
+  /** Text height before the Drawing step's size (SL_Text in the .lsp applies that, as the preview does). */
   th: number
   /** Label center. */
   tx: number
@@ -56,13 +57,15 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const H = p.vessel.height
   const L = p.vessel.length
   const lr = readableRot(o)
+  const rules = textSizeRules(s)
   p.shellNozzles.forEach((n, index) => {
     if (!n.include || n.x === null || n.y === null || n.diameter === null) return
     const { x, y, diameter: dia, id: txt } = n
     const r = dia / 2
     const mode = n.labelMode.toUpperCase() || 'AUTO'
     const th = Math.max(1.6, Math.min(2.4, dia * 0.22))
-    const tw = Math.max(1, txt.length) * th * 0.6
+    const sh = sizedHeight(rules, 'SHELL_NOZZLE_TEXT', th)
+    const tw = Math.max(1, txt.length) * sh * 0.6
     const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < dia * 0.75
     let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK) || !s.smartNozzleLabels
     if (mode === 'INSIDE') outside = false
@@ -80,9 +83,9 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
         [x, y - r - ld - tw / 2, x, y - r],
       ]
       const clear = (bb: Box) => !(bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L) && !avoid.some((a) => overlap(bb, a))
-      const found = candidates.find((c) => clear(textBox(c[0], c[1], tw, th, lr))) ?? candidates[0]
+      const found = candidates.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? candidates[0]
       label = { x, y, r, txt, th, tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]] }
-      avoid.push(textBox(found[0], found[1], tw, th, lr))
+      avoid.push(textBox(found[0], found[1], tw, sh, lr))
     }
     out.set(index, label)
     avoid.push([x - r, y - r, x + r, y + r])
@@ -98,6 +101,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
   const mode = s.headViewMode
   if (mode === 'NONE' || !s.showHeadNozzles) return out
   const lr = readableRot(o)
+  const rules = textSizeRules(s)
   const r = headDia / 2
   const center = (head: string): [number, number] => (head === 'HEAD 1' ? [panel.head1X, panel.head1Y] : [panel.head2X, panel.head2Y])
   const shown = p.headNozzles.map((n, index) => ({ n, index })).filter(({ n }) => n.include && shouldShowHead(mode, n.head) && n.diameter !== null)
@@ -109,7 +113,8 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const [cx, cy] = center(m.head)
     const [dx, dy] = headVector(o, clockPositionDegrees(m.clock))
     const f = r * radiusFactor(m)
-    avoid.push(textBox(cx + f * dx, cy + f * dy, m.id.length * 1.5 * 0.6, 1.5, lr))
+    const mh = sizedHeight(rules, 'HEAD_MUT_TEXT', 1.5)
+    avoid.push(textBox(cx + f * dx, cy + f * dy, m.id.length * mh * 0.6, mh, lr))
   }
   const bodies = shown.map(({ n }) => {
     const [cx, cy] = center(n.head)
@@ -125,24 +130,25 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const dia = n.diameter!
     const txt = n.id
     const th = Math.max(1.4, Math.min(2.2, dia * 0.22))
-    const tw = Math.max(1, txt.length) * th * 0.6
+    const sh = sizedHeight(rules, 'HEAD_NOZZLE_TEXT', th)
+    const tw = Math.max(1, txt.length) * sh * 0.6
     const m = n.labelMode.toUpperCase() || 'AUTO'
-    const insideOK = dia >= s.minNozzleInsideLabelDiameter + 2 && txt.length * th * 0.55 < dia * 0.65
+    const insideOK = dia >= s.minNozzleInsideLabelDiameter + 2 && txt.length * sh * 0.55 < dia * 0.65
     let outside = m === 'OUTSIDE' || (m === 'AUTO' && !insideOK)
     if (m === 'INSIDE') outside = false
     if (txt === '' || !outside) {
       out.set(index, { x, y, r: nozR, txt, th, tx: x, ty: y, leader: null })
-      if (txt !== '') avoid.push(textBox(x, y, tw, th, lr))
+      if (txt !== '') avoid.push(textBox(x, y, tw, sh, lr))
       return
     }
     // SL_HeadNozzle: leader along the clock direction, text beyond it; moved out step by step if crowded.
     const ld = s.headNozzleLeaderLength
-    const step = th * 1.6
+    const step = sh * 1.6
     const own = bodyBoxes[i]
     let k = 0
     for (; k <= 6; k++) {
       const t = nozR + ld + 8 + k * step
-      const bb = textBox(x + t * dx, y + t * dy, tw, th, lr)
+      const bb = textBox(x + t * dx, y + t * dy, tw, sh, lr)
       if (!avoid.some((a) => a !== own && overlap(bb, a))) break
     }
     if (k > 6) k = 0
@@ -150,7 +156,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const lEnd = nozR + ld + 4 + k * step
     const label: NozzleLabel = { x, y, r: nozR, txt, th, tx: x + tDist * dx, ty: y + tDist * dy, leader: [x + nozR * dx, y + nozR * dy, x + lEnd * dx, y + lEnd * dy] }
     out.set(index, label)
-    avoid.push(textBox(label.tx, label.ty, tw, th, lr))
+    avoid.push(textBox(label.tx, label.ty, tw, sh, lr))
   })
   return out
 }
