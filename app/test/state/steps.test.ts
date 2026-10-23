@@ -53,7 +53,7 @@ describe('step status', () => {
     expect(s.project.short).toBe('1 to fix')
     expect(s.fieldData.state).toBe('done')
     expect(s.export.state).toBe('attention')
-    expect(s.export.issues.map((i) => i.text)).toEqual(['Vessel: Shell length (Y) is not entered yet.'])
+    expect(s.export.issues.map((i) => i.text)).toEqual(['Shell length (Y): Not entered yet. Enter the shell length in inches on the Project step.'])
   })
 
   it('missing values and repeated names go to the step that holds them', () => {
@@ -66,9 +66,9 @@ describe('step status', () => {
     const s = stepStatuses(jobOf(broken))
     expect(s.project.state).toBe('done')
     expect(s.fieldData.state).toBe('attention')
-    expect(s.fieldData.issues[0].text).toContain('"N1" is also used by Shell nozzles')
+    expect(s.fieldData.issues[0].text).toContain('The name "N1" is also used in Shell nozzles, row 1.')
     expect(s.scans.state).toBe('attention')
-    expect(s.scans.issues[0].text).toBe('AUT scans, item 1 (SCAN 1): Y stop is not entered yet.')
+    expect(s.scans.issues[0].text).toBe('AUT scans, row 1 (SCAN 1): Y stop is blank. Enter the Y stop, or untick Include if it is not drawn.')
     expect(s.export.issues.length).toBe(2)
   })
 

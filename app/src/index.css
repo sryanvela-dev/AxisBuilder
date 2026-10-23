@@ -5,6 +5,7 @@
   color: #1f2933;
   background: #f5f7fa;
   --surface: #ffffff;
+  --page-bg: #f5f7fa;
   --muted: #5b6876;
   --line: #d3dce6;
   --accent: #1f3a5f;
@@ -27,6 +28,7 @@
     color: #e4e7eb;
     background: #10161d;
     --surface: #18212b;
+    --page-bg: #10161d;
     --muted: #9aa5b1;
     --line: #2f3b47;
     --accent: #7fa7d9;
@@ -499,7 +501,7 @@ input[aria-invalid='true'] {
 }
 
 .page > * {
-  max-width: 1200px;
+  max-width: 1320px;
 }
 
 .page-header {
@@ -778,4 +780,313 @@ td.num {
   .footer-hint {
     display: none;
   }
+}
+
+/* --- Settings groups (Project and Field data steps) ----------------------------------------- */
+
+.settings-group {
+  margin: 18px 0 8px;
+  padding: 4px 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.group-head h2 {
+  margin: 12px 0 2px;
+}
+
+.group-head .button-row {
+  margin: 10px 0 0;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  cursor: pointer;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.field textarea {
+  font: inherit;
+  padding: 6px 10px;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  width: 100%;
+  resize: vertical;
+}
+
+.field-bad input,
+.field-bad textarea,
+.field-bad select {
+  border-color: var(--error);
+}
+
+.field-messages {
+  display: grid;
+  gap: 2px;
+}
+
+.tag {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--kind-other);
+  color: var(--muted);
+}
+
+.hidden-note {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.msg {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.msg-error {
+  color: var(--error);
+}
+
+.msg-warning,
+.msg-report {
+  color: var(--warn);
+}
+
+.msg-note {
+  color: var(--ok);
+}
+
+.link-btn {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--accent);
+}
+
+/* --- Field data tables -------------------------------------------------------------------------- */
+
+.list-nav {
+  position: sticky;
+  top: -16px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+  background: var(--page-bg);
+}
+
+.list-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.list-chip:hover {
+  border-color: var(--accent);
+}
+
+.list-section {
+  margin-top: 18px;
+  scroll-margin-top: 56px;
+}
+
+.list-msg {
+  margin: 4px 0 8px;
+}
+
+table.grid {
+  border-collapse: collapse;
+}
+
+table.grid th {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  padding: 6px 4px;
+  vertical-align: bottom;
+}
+
+table.grid td {
+  padding: 3px 4px;
+  border-bottom: 0;
+  vertical-align: top;
+}
+
+table.grid tbody tr:not(.row-messages) td {
+  border-top: 1px solid var(--line);
+}
+
+table.grid tr.has-messages td {
+  background: var(--kind-other);
+}
+
+table.grid tr.row-messages td {
+  background: var(--kind-other);
+  padding: 0 4px 6px;
+}
+
+table.grid input[type='text'],
+table.grid select {
+  min-height: 36px;
+  padding: 4px 6px;
+}
+
+table.grid input[type='checkbox'] {
+  margin: 7px 0 0 6px;
+}
+
+.col-id input {
+  width: 96px;
+}
+
+.col-length input,
+.col-thickness input,
+.col-nozzleMinT input {
+  width: 78px;
+}
+
+.col-clock input {
+  width: 70px;
+}
+
+.col-percent input {
+  width: 62px;
+}
+
+.col-text input {
+  width: 150px;
+}
+
+.col-head select {
+  width: 96px;
+}
+
+.col-labelMode select,
+.col-radius select {
+  width: 116px;
+}
+
+.row-no {
+  color: var(--muted);
+  padding-top: 10px !important;
+}
+
+.cell-bad {
+  border-color: var(--error) !important;
+  box-shadow: inset 0 0 0 1px var(--error);
+}
+
+.cell-warn {
+  border-color: var(--warn) !important;
+}
+
+.cell-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.not-used {
+  display: inline-block;
+  padding: 8px 10px;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.icon-btn {
+  min-width: 34px;
+  min-height: 36px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-btn:hover:not(:disabled) {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.icon-danger:hover:not(:disabled) {
+  color: var(--error);
+}
+
+/* --- Paste dialog ------------------------------------------------------------------------------- */
+
+.dialog-wide {
+  width: min(1100px, 100%);
+}
+
+.paste-area {
+  width: 100%;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+  background: var(--surface);
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+table.mapping select {
+  min-width: 120px;
+}
+
+table.preview td {
+  border-top: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.paste-list {
+  margin: 4px 0;
+  padding-left: 20px;
+  font-size: 0.88rem;
+  max-height: 160px;
+  overflow-y: auto;
 }

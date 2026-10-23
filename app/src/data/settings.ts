@@ -13,6 +13,17 @@ export type AppStep = 'Project' | 'Field data' | 'AUT scans' | 'Images' | 'Expor
 export type Level = 'Basic' | 'Advanced'
 export type ExcelSheet = 'Project Settings' | 'Drawing Information'
 
+/** Groups of settings on the step forms, in the order shown. */
+export const SETTING_GROUPS = [
+  { id: 'job', step: 'Project', title: 'Job information', intro: 'Printed in the title block of the drawing.' },
+  { id: 'vessel', step: 'Project', title: 'Vessel size and orientation', intro: 'Size of the shell layout and which way it is drawn.' },
+  { id: 'axes', step: 'Project', title: 'Axis directions', intro: 'Direction text printed along the rulers.' },
+  { id: 'refLabels', step: 'Project', title: 'Reference labels', intro: 'Labels printed around the vessel, such as TDC and BDC.' },
+  { id: 'heads', step: 'Field data', title: 'Heads', intro: 'Head views drawn beside the shell layout, and their names.' },
+] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
+
+export type SettingGroupId = (typeof SETTING_GROUPS)[number]['id']
+
 interface BaseDef {
   /** Label in column A of the v5.0 sheet (exact text, without trailing spaces). */
   excelLabel: string
@@ -25,6 +36,10 @@ interface BaseDef {
   description: string
   units?: string
   step: AppStep
+  /** Form group on its step (see SETTING_GROUPS). */
+  group?: SettingGroupId
+  /** Shown only while another value is one of `values` (a hidden value is kept, not cleared). */
+  showWhen?: { section: 'project' | 'vessel' | 'settings'; key: string; values: readonly string[] }
   level: Level
   /** How v5.0 actually uses it, when that is worth knowing (unused, other fallback, ...). */
   v5?: string
@@ -35,6 +50,8 @@ interface BaseDef {
 export interface TextDef extends BaseDef {
   type: 'text'
   default: string
+  /** Longer free text (a multi-line box). */
+  multiline?: boolean
 }
 
 export interface NumberDef extends BaseDef {
@@ -144,93 +161,93 @@ const DI = 'Drawing Information' as const
 export const PROJECT_FIELDS = {
   projectName: text({
     excelLabel: 'Project Name', excelSheet: PS, name: 'Project name',
-    description: 'Name used for the suggested .lsp file name.',
-    default: '', step: 'Project', level: 'Basic',
+    description: 'Name of the job; also used to name the job and drawing files.',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
     v5: 'OCR import fills it from the Equipment ID. Blank gives the file name "Scan_Layout".',
   }),
   drawingTitle: text({
     excelLabel: 'Drawing Title', excelSheet: DI, name: 'Drawing title',
     description: 'Main title printed in the title block.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
     v5: 'Blank prints "AUT COVERAGE MAP".',
   }),
   component: text({
     excelLabel: 'Component', excelSheet: DI, name: 'Component',
     description: 'Vessel or equipment ID printed in the title block.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   unit: text({
     excelLabel: 'Unit', excelSheet: DI, name: 'Unit',
     description: 'Unit, area or facility printed in the title block.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   client: text({
     excelLabel: 'Client', excelSheet: DI, name: 'Client',
     description: 'Client name printed in the title block.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   inspector: text({
     excelLabel: 'Inspector', excelSheet: DI, name: 'Inspector',
     description: 'Inspector name printed in the title block.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   date: date({
     excelLabel: 'Date', excelSheet: DI, name: 'Date',
     description: 'Inspection or drawing date printed in the title block as month-day-year (Oct-22-2026).',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
     v5: 'Printed as the cell shows it; no fixed date format.',
   }),
   revision: text({
     excelLabel: 'Revision', excelSheet: DI, name: 'Revision',
     description: 'Drawing revision printed in the title block.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   drawingNotes: text({
     excelLabel: 'Notes', excelSheet: DI, name: 'Drawing note',
     description: 'Optional short note for the drawing.',
-    default: '', step: 'Project', level: 'Advanced',
+    multiline: true, default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   equipmentType: choice(['Vessel', 'Tank', 'Pipe', 'Sphere', 'Exchanger', 'Column', 'Other'], {
     excelLabel: 'Equipment Type', excelSheet: DI, name: 'Equipment type',
     description: 'Kind of equipment inspected.',
-    allowBlank: true, default: '', step: 'Project', level: 'Advanced',
+    allowBlank: true, default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   inspectionMethod: choice(['AUT', 'PAUT', 'MUT', 'AUT + MUT', 'PAUT + MUT', 'UT Shearwave', 'Visual'], {
     excelLabel: 'Inspection Method', excelSheet: DI, name: 'Inspection method',
     description: 'Inspection method used on the job.',
-    allowBlank: true, default: '', step: 'Project', level: 'Advanced',
+    allowBlank: true, default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   procedure: text({
     excelLabel: 'Procedure', excelSheet: DI, name: 'Procedure',
     description: 'Inspection procedure number.',
-    default: '', step: 'Project', level: 'Advanced',
+    default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   reportNumber: text({
     excelLabel: 'Report Number', excelSheet: DI, name: 'Report number',
     description: 'Inspection report number.',
-    default: '', step: 'Project', level: 'Advanced',
+    default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   workOrder: text({
     excelLabel: 'Work Order', excelSheet: DI, name: 'Work order',
     description: 'Work order number for the job.',
-    default: '', step: 'Project', level: 'Advanced',
+    default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   service: text({
     excelLabel: 'Service', excelSheet: DI, name: 'Service',
     description: 'Process service of the equipment.',
-    default: '', step: 'Project', level: 'Advanced',
+    default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   material: choice(['Carbon Steel', 'Stainless Steel', 'Duplex', 'Inconel', 'Chrome-Moly', 'Aluminum', 'Other'], {
     excelLabel: 'Material', excelSheet: DI, name: 'Material',
     description: 'Shell material.',
-    allowBlank: true, default: '', step: 'Project', level: 'Advanced',
+    allowBlank: true, default: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   inspectionScope: choice(
@@ -238,14 +255,14 @@ export const PROJECT_FIELDS = {
     {
       excelLabel: 'Inspection Scope', excelSheet: DI, name: 'Inspection scope',
       description: 'Scope of the inspection.',
-      allowBlank: true, default: '', step: 'Project', level: 'Advanced',
+      allowBlank: true, default: '', group: 'job', step: 'Project', level: 'Advanced',
       v5: 'Stored only; not drawn.',
     },
   ),
   inspectionNotes: text({
     excelLabel: 'Notes:', excelSheet: DI, name: 'Inspection notes',
     description: 'Free-text inspection notes, including vessel notes from the field form.',
-    default: '', step: 'Project', level: 'Basic',
+    multiline: true, default: '', group: 'job', step: 'Project', level: 'Basic',
     v5: 'OCR import appends the field-form vessel notes here. Stored only; not drawn.',
   }),
 }
@@ -258,83 +275,89 @@ export const VESSEL_FIELDS = {
   orientation: choice(['Vertical', 'Horizontal CW', 'Horizontal CCW'], {
     excelLabel: 'Vessel Orientation', excelSheet: PS, name: 'Orientation',
     description: 'How the shell rollout is turned on the drawing.',
-    default: 'Horizontal CW', step: 'Project', level: 'Basic',
+    default: 'Horizontal CW', group: 'vessel', step: 'Project', level: 'Basic',
     v5: 'Also accepts field-form wording such as "Clockwise Horizontal".',
   }),
   length: num({
     excelLabel: 'Vessel Length', excelSheet: PS, name: 'Shell length (Y)',
-    description: 'Shell length along the vessel axis; the logical Y extent of the rollout.',
-    units: 'in', nullable: true, greaterThan: 0, default: null, step: 'Project', level: 'Basic',
+    description: 'Length of the shell along the vessel axis (the Y direction of the layout).',
+    units: 'in', nullable: true, greaterThan: 0, default: null, group: 'vessel', step: 'Project', level: 'Basic',
     v5: 'Required to generate. Export falls back to 144 if the row is missing.',
   }),
   height: num({
     excelLabel: 'Vessel Height', excelSheet: PS, name: 'Circumference (X)',
-    description: 'Shell circumference; the logical X extent of the rollout.',
-    units: 'in', nullable: true, greaterThan: 0, default: null, step: 'Project', level: 'Basic',
+    description: 'Distance around the shell (the X direction of the layout).',
+    units: 'in', nullable: true, greaterThan: 0, default: null, group: 'vessel', step: 'Project', level: 'Basic',
     v5: 'Required to generate. Export falls back to 151 if the row is missing.',
   }),
   xAxisCardinal: choice(['North', 'South', 'East', 'West'], {
     excelLabel: 'X Axis Cardinal Direction', excelSheet: PS, name: 'X axis compass direction',
     description: 'Compass direction printed after "X AXIS DIRECTION" when no direction text is given.',
-    allowBlank: true, default: 'South', step: 'Project', level: 'Basic',
+    allowBlank: true, default: 'South', group: 'axes', step: 'Project', level: 'Basic',
     v5: 'Code fallback is blank.',
   }),
   yAxisCardinal: choice(['North', 'South', 'East', 'West'], {
     excelLabel: 'Y Axis Cardinal Direction', excelSheet: PS, name: 'Y axis compass direction',
     description: 'Compass direction printed after "Y AXIS DIRECTION" when no direction text is given.',
-    allowBlank: true, default: 'East', step: 'Project', level: 'Basic',
+    allowBlank: true, default: 'East', group: 'axes', step: 'Project', level: 'Basic',
     v5: 'Code fallback is blank.',
   }),
   xAxisDirectionText: text({
     excelLabel: 'X Axis Direction Text', excelSheet: PS, legacyLabels: ['X Axis Custom Direction'],
     name: 'X axis direction text',
     description: 'Text printed after "X AXIS DIRECTION" (for example CW LOOKING NORTH); overrides the compass direction.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'axes', step: 'Project', level: 'Basic',
     v5: 'Filled by OCR import. Printed in upper case.',
   }),
   yAxisDirectionText: text({
     excelLabel: 'Y Axis Direction Text', excelSheet: PS, legacyLabels: ['Y Axis Custom Direction'],
     name: 'Y axis direction text',
     description: 'Text printed after "Y AXIS DIRECTION" (for example TOWARD NORTH); overrides the compass direction.',
-    default: '', step: 'Project', level: 'Basic',
+    default: '', group: 'axes', step: 'Project', level: 'Basic',
     v5: 'Filled by OCR import. Printed in upper case.',
   }),
   referenceLabelMode: choice(['None', 'Auto Cardinal', 'Custom Cardinal'], {
     excelLabel: 'Reference Label Mode', excelSheet: PS, name: 'Reference label mode',
     description: 'Auto Cardinal uses the chosen label set; Custom Cardinal uses the five custom labels below.',
-    default: 'Custom Cardinal', step: 'Project', level: 'Basic',
+    default: 'Custom Cardinal', group: 'refLabels', step: 'Project', level: 'Basic',
     v5: 'Code fallback is Auto Cardinal. OCR import sets Custom Cardinal.',
   }),
   referenceLabelSet: choice(['TDC/BDC', 'NDC/SDC', 'NamePlate DC'], {
     excelLabel: 'Reference Label Set', excelSheet: PS, name: 'Reference label set',
     description: 'Predefined labels for Auto Cardinal mode (TDC/BDC for horizontal, NDC/SDC or NamePlate DC for vertical).',
-    default: 'TDC/BDC', step: 'Project', level: 'Basic',
+    showWhen: { section: 'vessel', key: 'referenceLabelMode', values: ['Auto Cardinal'] },
+    default: 'TDC/BDC', group: 'refLabels', step: 'Project', level: 'Basic',
   }),
   refLabel0: text({
     excelLabel: 'Ref 0° Label', excelSheet: PS, name: '0° reference label',
     description: 'Custom label at 0° around the vessel; blank draws nothing.',
-    default: '', step: 'Project', level: 'Basic',
+    showWhen: { section: 'vessel', key: 'referenceLabelMode', values: ['Custom Cardinal'] },
+    default: '', group: 'refLabels', step: 'Project', level: 'Basic',
     v5: 'VBA reads the five custom labels by position (3 to 7 rows below Reference Label Mode), not by label.',
   }),
   refLabel90: text({
     excelLabel: 'Ref 90° Label', excelSheet: PS, name: '90° reference label',
     description: 'Custom label at 90° around the vessel; blank draws nothing.',
-    default: '', step: 'Project', level: 'Basic',
+    showWhen: { section: 'vessel', key: 'referenceLabelMode', values: ['Custom Cardinal'] },
+    default: '', group: 'refLabels', step: 'Project', level: 'Basic',
   }),
   refLabel180: text({
     excelLabel: 'Ref 180° Label', excelSheet: PS, name: '180° reference label',
     description: 'Custom label at 180° around the vessel; blank draws nothing.',
-    default: '', step: 'Project', level: 'Basic',
+    showWhen: { section: 'vessel', key: 'referenceLabelMode', values: ['Custom Cardinal'] },
+    default: '', group: 'refLabels', step: 'Project', level: 'Basic',
   }),
   refLabel270: text({
     excelLabel: 'Ref 270° Label', excelSheet: PS, name: '270° reference label',
     description: 'Custom label at 270° around the vessel; blank draws nothing.',
-    default: '', step: 'Project', level: 'Basic',
+    showWhen: { section: 'vessel', key: 'referenceLabelMode', values: ['Custom Cardinal'] },
+    default: '', group: 'refLabels', step: 'Project', level: 'Basic',
   }),
   refLabel360: text({
     excelLabel: 'Ref 360° Label', excelSheet: PS, name: '360° reference label',
     description: 'Custom label at 360° (back to the start) around the vessel; blank draws nothing.',
-    default: '', step: 'Project', level: 'Basic',
+    showWhen: { section: 'vessel', key: 'referenceLabelMode', values: ['Custom Cardinal'] },
+    default: '', group: 'refLabels', step: 'Project', level: 'Basic',
   }),
 }
 
@@ -506,8 +529,8 @@ export const SETTINGS = {
   // HEAD VIEWS
   headViewMode: choice(['NONE', 'HEAD 1', 'HEAD 2', 'BOTH'], {
     excelLabel: 'Head View Mode', excelSheet: PS, name: 'Head views',
-    description: 'Which head views to draw on the right side of the rollout.',
-    default: 'NONE', step: 'Field data', level: 'Basic',
+    description: 'Which head views to draw beside the shell layout. Head nozzles and head MUT are only drawn on a head that is shown.',
+    default: 'NONE', group: 'heads', step: 'Field data', level: 'Basic',
   }),
   headViewSize: choice(['SMALL', 'MEDIUM', 'LARGE'], {
     excelLabel: 'Head View Size', excelSheet: PS, name: 'Head view size',
@@ -522,13 +545,15 @@ export const SETTINGS = {
   head1Label: text({
     excelLabel: 'Head 1 Label', excelSheet: PS, name: 'Head 1 name',
     description: 'Title printed on the Head 1 view (for example NORTH HEAD).',
-    default: 'HEAD 1', step: 'Field data', level: 'Basic',
+    showWhen: { section: 'settings', key: 'headViewMode', values: ['HEAD 1', 'BOTH'] },
+    default: 'HEAD 1', group: 'heads', step: 'Field data', level: 'Basic',
     v5: 'The v5.0 workbook has EAST HEAD. Printed in upper case.',
   }),
   head2Label: text({
     excelLabel: 'Head 2 Label', excelSheet: PS, name: 'Head 2 name',
     description: 'Title printed on the Head 2 view (for example SOUTH HEAD).',
-    default: 'HEAD 2', step: 'Field data', level: 'Basic',
+    showWhen: { section: 'settings', key: 'headViewMode', values: ['HEAD 2', 'BOTH'] },
+    default: 'HEAD 2', group: 'heads', step: 'Field data', level: 'Basic',
     v5: 'The v5.0 workbook has WEST HEAD. Printed in upper case.',
   }),
   headNozzleLeaderLength: num({
@@ -655,4 +680,30 @@ export type FieldSection = (typeof FIELD_TABLES)[number]['section']
 export function fieldDef(section: string, key: string): FieldDef | undefined {
   const table = FIELD_TABLES.find((t) => t.section === section)
   return table ? (table.fields as Record<string, FieldDef>)[key] : undefined
+}
+
+export interface GroupField {
+  section: FieldSection
+  key: string
+  /** The definition with its value schema. */
+  def: FieldDef & { schema: z.ZodType }
+}
+
+/** The fields of one form group, in table order. */
+export function groupFields(group: SettingGroupId): GroupField[] {
+  return FIELD_TABLES.flatMap((t) =>
+    Object.entries(t.fields as Record<string, FieldDef & { schema: z.ZodType }>)
+      .filter(([, d]) => d.group === group)
+      .map(([key, def]) => ({ section: t.section, key, def })),
+  )
+}
+
+/** Values of the three setting sections, as stored in a project. */
+export type SectionValues = Record<FieldSection, Record<string, unknown>>
+
+/** False when the field's showWhen condition is not met (the field doesn't apply right now). */
+export function isFieldShown(def: FieldDef, values: SectionValues): boolean {
+  if (!def.showWhen) return true
+  const v = values[def.showWhen.section][def.showWhen.key]
+  return def.showWhen.values.includes(String(v))
 }

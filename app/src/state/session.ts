@@ -5,9 +5,10 @@
 // the import reports are not: undo never "unsaves" a file or jumps between screens.
 
 import type { AutImportResult } from '../data/autCsvImport.ts'
+import type { ReportTarget } from '../data/reportTargets.ts'
 import type { Project } from '../data/schema.ts'
 import type { ImportSummary, ReportEntry } from '../data/xlsmImport.ts'
-import { canRedo, canUndo, createHistory, record, redo, undo, type History } from './history.ts'
+import { canRedo, canUndo, createHistory, endGroup, record, redo, undo, type History } from './history.ts'
 
 export const STEP_IDS = ['project', 'fieldData', 'scans', 'images', 'review', 'export'] as const
 export type StepId = (typeof STEP_IDS)[number]
@@ -42,6 +43,18 @@ export interface WorkbookImport {
   summary: ImportSummary
   /** Steps whose report entries the user marked as checked. */
   checkedSteps: StepId[]
+  /** Per report entry (same order): the setting or row it is about, found when the job was imported. */
+  targets?: (ReportTarget | null)[]
+}
+
+
+/** Text typed into a box that is not a valid value yet. It is not stored in the project (and not undone). */
+export interface Draft {
+  text: string
+  problem: string
+  step: StepId
+  /** Where it is, e.g. "Shell nozzles, row 3 (N3), Diameter". */
+  where: string
 }
 
 export interface Job {
@@ -55,6 +68,8 @@ export interface Job {
   workbookImport: WorkbookImport | null
   autImport: { fileName: string; result: AutImportResult } | null
   step: StepId
+  /** Typed values that are not valid yet, by box (see draftKey). The first undo (or any redo) clears them. */
+  drafts: Record<string, Draft>
 }
 
 export interface SessionState {
@@ -74,7 +89,12 @@ export type SessionAction =
       step?: StepId
     }
   | { type: 'closeJob' }
-  | { type: 'edit'; label: string; group?: string; now?: number; update: (project: Project) => Project }
+  | { type: 'edit'; label: string; group?: string; update: (project: Project) => Project }
+  /** Leaving a box: the next change is a new undo step. */
+  | { type: 'endEditGroup' }
+  | { type: 'setDraft'; key: string; draft: Draft | null }
+  /** Forgets drafts whose key starts with the prefix (rows moved or deleted). */
+  | { type: 'clearDrafts'; prefix: string }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'saved'; project: Project; file: JobFile }
@@ -100,6 +120,7 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
         workbookImport: action.workbookImport ?? null,
         autImport: null,
         step: action.step ?? 'project',
+        drafts: {},
       },
     }
   }
@@ -110,13 +131,33 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
   switch (action.type) {
     case 'edit': {
       const next = action.update(job.history.present)
-      const history = record(job.history, next, { label: action.label, group: action.group, now: action.now })
+      const history = record(job.history, next, { label: action.label, group: action.group })
+      return history === job.history ? state : { job: { ...job, history } }
+    }
+    case 'endEditGroup': {
+      const history = endGroup(job.history)
       return history === job.history ? state : { job: { ...job, history } }
     }
     case 'undo':
+      // Text typed but not stored yet is what the user sees last: the first undo throws it away.
+      if (Object.keys(job.drafts).length > 0) return { job: { ...job, drafts: {}, history: endGroup(job.history) } }
       return canUndo(job.history) ? { job: { ...job, history: undo(job.history) } } : state
     case 'redo':
-      return canRedo(job.history) ? { job: { ...job, history: redo(job.history) } } : state
+      return canRedo(job.history) ? { job: { ...job, history: redo(job.history), drafts: {} } } : state
+    case 'setDraft': {
+      if (action.draft === null && !(action.key in job.drafts)) return state
+      const drafts = { ...job.drafts }
+      if (action.draft) drafts[action.key] = action.draft
+      else delete drafts[action.key]
+      return { job: { ...job, drafts } }
+    }
+    case 'clearDrafts': {
+      const keys = Object.keys(job.drafts).filter((k) => k.startsWith(action.prefix))
+      if (keys.length === 0) return state
+      const drafts = { ...job.drafts }
+      for (const k of keys) delete drafts[k]
+      return { job: { ...job, drafts } }
+    }
     case 'saved':
       return { job: { ...job, savedProject: action.project, file: action.file } }
     case 'goToStep':
@@ -137,6 +178,11 @@ export function isDirty(job: Job): boolean {
 }
 
 /** Name to show for the job: project name, else file name, else "Untitled job". */
+/** Key of a box for drafts and undo groups: "vessel.length", "shellNozzles.3.diameter". */
+export function draftKey(...parts: (string | number)[]): string {
+  return parts.join('.')
+}
+
 export function jobTitle(job: Job): string {
   const name = job.history.present.project.projectName.trim()
   if (name) return name

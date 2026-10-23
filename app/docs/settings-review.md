@@ -8,7 +8,7 @@ To change a level (or anything else), note the change here or tell Claude; the c
 
 - **Default**: the value in the v5.0 workbook (New Project keeps these), or blank for values New Project clears.
   Where the VBA uses a different value when the row is missing, the v5.0 notes say so.
-- **Step**: the app step the value belongs to (Project, Field data, AUT scans, Images, Export).
+- **Step**: the app step the value belongs to (Project, Field data, AUT scans, Images, Export), and its group on that step.
 - **Level**: suggested Basic (always shown) or Advanced (behind an "Advanced" switch).
 - All lengths are in inches.
 - "App: planned" in the v5.0 notes marks settings v5.0 does not use yet that the app will get code for.
@@ -17,43 +17,43 @@ To change a level (or anything else), note the change here or tell Claude; the c
 
 | Key | Excel label | Plain name | Description | Type | Units | Range / choices | Default | Step | Level | v5.0 notes |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `projectName` | Project Name | Project name | Name used for the suggested .lsp file name. | Text |  | Any text | (blank) | Project | Basic | OCR import fills it from the Equipment ID. Blank gives the file name "Scan_Layout". |
-| `drawingTitle` | Drawing Information: Drawing Title | Drawing title | Main title printed in the title block. | Text |  | Any text | (blank) | Project | Basic | Blank prints "AUT COVERAGE MAP". |
-| `component` | Drawing Information: Component | Component | Vessel or equipment ID printed in the title block. | Text |  | Any text | (blank) | Project | Basic |  |
-| `unit` | Drawing Information: Unit | Unit | Unit, area or facility printed in the title block. | Text |  | Any text | (blank) | Project | Basic |  |
-| `client` | Drawing Information: Client | Client | Client name printed in the title block. | Text |  | Any text | (blank) | Project | Basic |  |
-| `inspector` | Drawing Information: Inspector | Inspector | Inspector name printed in the title block. | Text |  | Any text | (blank) | Project | Basic |  |
-| `date` | Drawing Information: Date | Date | Inspection or drawing date printed in the title block as month-day-year (Oct-22-2026). | Date |  | Real date or blank; printed as Oct-22-2026 | (blank) | Project | Basic | Printed as the cell shows it; no fixed date format. |
-| `revision` | Drawing Information: Revision | Revision | Drawing revision printed in the title block. | Text |  | Any text | (blank) | Project | Basic |  |
-| `drawingNotes` | Drawing Information: Notes | Drawing note | Optional short note for the drawing. | Text |  | Any text | (blank) | Project | Advanced | Stored only; not drawn. |
-| `equipmentType` | Drawing Information: Equipment Type | Equipment type | Kind of equipment inspected. | Choice |  | Vessel / Tank / Pipe / Sphere / Exchanger / Column / Other / (blank) | (blank) | Project | Advanced | Stored only; not drawn. |
-| `inspectionMethod` | Drawing Information: Inspection Method | Inspection method | Inspection method used on the job. | Choice |  | AUT / PAUT / MUT / AUT + MUT / PAUT + MUT / UT Shearwave / Visual / (blank) | (blank) | Project | Advanced | Stored only; not drawn. |
-| `procedure` | Drawing Information: Procedure | Procedure | Inspection procedure number. | Text |  | Any text | (blank) | Project | Advanced | Stored only; not drawn. |
-| `reportNumber` | Drawing Information: Report Number | Report number | Inspection report number. | Text |  | Any text | (blank) | Project | Advanced | Stored only; not drawn. |
-| `workOrder` | Drawing Information: Work Order | Work order | Work order number for the job. | Text |  | Any text | (blank) | Project | Advanced | Stored only; not drawn. |
-| `service` | Drawing Information: Service | Service | Process service of the equipment. | Text |  | Any text | (blank) | Project | Advanced | Stored only; not drawn. |
-| `material` | Drawing Information: Material | Material | Shell material. | Choice |  | Carbon Steel / Stainless Steel / Duplex / Inconel / Chrome-Moly / Aluminum / Other / (blank) | (blank) | Project | Advanced | Stored only; not drawn. |
-| `inspectionScope` | Drawing Information: Inspection Scope | Inspection scope | Scope of the inspection. | Choice |  | External AUT Mapping / Internal Corrosion Survey / Shell and Head Inspection / Nozzle Inspection / CML Monitoring / (blank) | (blank) | Project | Advanced | Stored only; not drawn. |
-| `inspectionNotes` | Drawing Information: Notes: | Inspection notes | Free-text inspection notes, including vessel notes from the field form. | Text |  | Any text | (blank) | Project | Basic | OCR import appends the field-form vessel notes here. Stored only; not drawn. |
+| `projectName` | Project Name | Project name | Name of the job; also used to name the job and drawing files. | Text |  | Any text | (blank) | Project: Job information | Basic | OCR import fills it from the Equipment ID. Blank gives the file name "Scan_Layout". |
+| `drawingTitle` | Drawing Information: Drawing Title | Drawing title | Main title printed in the title block. | Text |  | Any text | (blank) | Project: Job information | Basic | Blank prints "AUT COVERAGE MAP". |
+| `component` | Drawing Information: Component | Component | Vessel or equipment ID printed in the title block. | Text |  | Any text | (blank) | Project: Job information | Basic |  |
+| `unit` | Drawing Information: Unit | Unit | Unit, area or facility printed in the title block. | Text |  | Any text | (blank) | Project: Job information | Basic |  |
+| `client` | Drawing Information: Client | Client | Client name printed in the title block. | Text |  | Any text | (blank) | Project: Job information | Basic |  |
+| `inspector` | Drawing Information: Inspector | Inspector | Inspector name printed in the title block. | Text |  | Any text | (blank) | Project: Job information | Basic |  |
+| `date` | Drawing Information: Date | Date | Inspection or drawing date printed in the title block as month-day-year (Oct-22-2026). | Date |  | Real date or blank; printed as Oct-22-2026 | (blank) | Project: Job information | Basic | Printed as the cell shows it; no fixed date format. |
+| `revision` | Drawing Information: Revision | Revision | Drawing revision printed in the title block. | Text |  | Any text | (blank) | Project: Job information | Basic |  |
+| `drawingNotes` | Drawing Information: Notes | Drawing note | Optional short note for the drawing. | Text |  | Any text | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `equipmentType` | Drawing Information: Equipment Type | Equipment type | Kind of equipment inspected. | Choice |  | Vessel / Tank / Pipe / Sphere / Exchanger / Column / Other / (blank) | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `inspectionMethod` | Drawing Information: Inspection Method | Inspection method | Inspection method used on the job. | Choice |  | AUT / PAUT / MUT / AUT + MUT / PAUT + MUT / UT Shearwave / Visual / (blank) | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `procedure` | Drawing Information: Procedure | Procedure | Inspection procedure number. | Text |  | Any text | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `reportNumber` | Drawing Information: Report Number | Report number | Inspection report number. | Text |  | Any text | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `workOrder` | Drawing Information: Work Order | Work order | Work order number for the job. | Text |  | Any text | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `service` | Drawing Information: Service | Service | Process service of the equipment. | Text |  | Any text | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `material` | Drawing Information: Material | Material | Shell material. | Choice |  | Carbon Steel / Stainless Steel / Duplex / Inconel / Chrome-Moly / Aluminum / Other / (blank) | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `inspectionScope` | Drawing Information: Inspection Scope | Inspection scope | Scope of the inspection. | Choice |  | External AUT Mapping / Internal Corrosion Survey / Shell and Head Inspection / Nozzle Inspection / CML Monitoring / (blank) | (blank) | Project: Job information | Advanced | Stored only; not drawn. |
+| `inspectionNotes` | Drawing Information: Notes: | Inspection notes | Free-text inspection notes, including vessel notes from the field form. | Text |  | Any text | (blank) | Project: Job information | Basic | OCR import appends the field-form vessel notes here. Stored only; not drawn. |
 
 ## Vessel (`vessel`)
 
 | Key | Excel label | Plain name | Description | Type | Units | Range / choices | Default | Step | Level | v5.0 notes |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `orientation` | Vessel Orientation | Orientation | How the shell rollout is turned on the drawing. | Choice |  | Vertical / Horizontal CW / Horizontal CCW | Horizontal CW | Project | Basic | Also accepts field-form wording such as "Clockwise Horizontal". |
-| `length` | Vessel Length | Shell length (Y) | Shell length along the vessel axis; the logical Y extent of the rollout. | Number | in | > 0, or blank | (blank) | Project | Basic | Required to generate. Export falls back to 144 if the row is missing. |
-| `height` | Vessel Height | Circumference (X) | Shell circumference; the logical X extent of the rollout. | Number | in | > 0, or blank | (blank) | Project | Basic | Required to generate. Export falls back to 151 if the row is missing. |
-| `xAxisCardinal` | X Axis Cardinal Direction | X axis compass direction | Compass direction printed after "X AXIS DIRECTION" when no direction text is given. | Choice |  | North / South / East / West / (blank) | South | Project | Basic | Code fallback is blank. |
-| `yAxisCardinal` | Y Axis Cardinal Direction | Y axis compass direction | Compass direction printed after "Y AXIS DIRECTION" when no direction text is given. | Choice |  | North / South / East / West / (blank) | East | Project | Basic | Code fallback is blank. |
-| `xAxisDirectionText` | X Axis Direction Text (also: X Axis Custom Direction) | X axis direction text | Text printed after "X AXIS DIRECTION" (for example CW LOOKING NORTH); overrides the compass direction. | Text |  | Any text | (blank) | Project | Basic | Filled by OCR import. Printed in upper case. |
-| `yAxisDirectionText` | Y Axis Direction Text (also: Y Axis Custom Direction) | Y axis direction text | Text printed after "Y AXIS DIRECTION" (for example TOWARD NORTH); overrides the compass direction. | Text |  | Any text | (blank) | Project | Basic | Filled by OCR import. Printed in upper case. |
-| `referenceLabelMode` | Reference Label Mode | Reference label mode | Auto Cardinal uses the chosen label set; Custom Cardinal uses the five custom labels below. | Choice |  | None / Auto Cardinal / Custom Cardinal | Custom Cardinal | Project | Basic | Code fallback is Auto Cardinal. OCR import sets Custom Cardinal. |
-| `referenceLabelSet` | Reference Label Set | Reference label set | Predefined labels for Auto Cardinal mode (TDC/BDC for horizontal, NDC/SDC or NamePlate DC for vertical). | Choice |  | TDC/BDC / NDC/SDC / NamePlate DC | TDC/BDC | Project | Basic |  |
-| `refLabel0` | Ref 0° Label | 0° reference label | Custom label at 0° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project | Basic | VBA reads the five custom labels by position (3 to 7 rows below Reference Label Mode), not by label. |
-| `refLabel90` | Ref 90° Label | 90° reference label | Custom label at 90° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project | Basic |  |
-| `refLabel180` | Ref 180° Label | 180° reference label | Custom label at 180° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project | Basic |  |
-| `refLabel270` | Ref 270° Label | 270° reference label | Custom label at 270° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project | Basic |  |
-| `refLabel360` | Ref 360° Label | 360° reference label | Custom label at 360° (back to the start) around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project | Basic |  |
+| `orientation` | Vessel Orientation | Orientation | How the shell rollout is turned on the drawing. | Choice |  | Vertical / Horizontal CW / Horizontal CCW | Horizontal CW | Project: Vessel size and orientation | Basic | Also accepts field-form wording such as "Clockwise Horizontal". |
+| `length` | Vessel Length | Shell length (Y) | Length of the shell along the vessel axis (the Y direction of the layout). | Number | in | > 0, or blank | (blank) | Project: Vessel size and orientation | Basic | Required to generate. Export falls back to 144 if the row is missing. |
+| `height` | Vessel Height | Circumference (X) | Distance around the shell (the X direction of the layout). | Number | in | > 0, or blank | (blank) | Project: Vessel size and orientation | Basic | Required to generate. Export falls back to 151 if the row is missing. |
+| `xAxisCardinal` | X Axis Cardinal Direction | X axis compass direction | Compass direction printed after "X AXIS DIRECTION" when no direction text is given. | Choice |  | North / South / East / West / (blank) | South | Project: Axis directions | Basic | Code fallback is blank. |
+| `yAxisCardinal` | Y Axis Cardinal Direction | Y axis compass direction | Compass direction printed after "Y AXIS DIRECTION" when no direction text is given. | Choice |  | North / South / East / West / (blank) | East | Project: Axis directions | Basic | Code fallback is blank. |
+| `xAxisDirectionText` | X Axis Direction Text (also: X Axis Custom Direction) | X axis direction text | Text printed after "X AXIS DIRECTION" (for example CW LOOKING NORTH); overrides the compass direction. | Text |  | Any text | (blank) | Project: Axis directions | Basic | Filled by OCR import. Printed in upper case. |
+| `yAxisDirectionText` | Y Axis Direction Text (also: Y Axis Custom Direction) | Y axis direction text | Text printed after "Y AXIS DIRECTION" (for example TOWARD NORTH); overrides the compass direction. | Text |  | Any text | (blank) | Project: Axis directions | Basic | Filled by OCR import. Printed in upper case. |
+| `referenceLabelMode` | Reference Label Mode | Reference label mode | Auto Cardinal uses the chosen label set; Custom Cardinal uses the five custom labels below. | Choice |  | None / Auto Cardinal / Custom Cardinal | Custom Cardinal | Project: Reference labels | Basic | Code fallback is Auto Cardinal. OCR import sets Custom Cardinal. |
+| `referenceLabelSet` | Reference Label Set | Reference label set | Predefined labels for Auto Cardinal mode (TDC/BDC for horizontal, NDC/SDC or NamePlate DC for vertical). | Choice |  | TDC/BDC / NDC/SDC / NamePlate DC | TDC/BDC | Project: Reference labels | Basic |  |
+| `refLabel0` | Ref 0° Label | 0° reference label | Custom label at 0° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project: Reference labels | Basic | VBA reads the five custom labels by position (3 to 7 rows below Reference Label Mode), not by label. |
+| `refLabel90` | Ref 90° Label | 90° reference label | Custom label at 90° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project: Reference labels | Basic |  |
+| `refLabel180` | Ref 180° Label | 180° reference label | Custom label at 180° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project: Reference labels | Basic |  |
+| `refLabel270` | Ref 270° Label | 270° reference label | Custom label at 270° around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project: Reference labels | Basic |  |
+| `refLabel360` | Ref 360° Label | 360° reference label | Custom label at 360° (back to the start) around the vessel; blank draws nothing. | Text |  | Any text | (blank) | Project: Reference labels | Basic |  |
 
 ## Settings (`settings`)
 
@@ -85,11 +85,11 @@ To change a level (or anything else), note the change here or tell Claude; the c
 | `enableValidation` | Enable Validation | Check data before export | Run scan, image and overlap checks before generating the drawing. | Yes/No |  | Yes / No | Yes | Export | Advanced |  |
 | `overlapDetection` | Overlap Detection | Scan overlap check | OFF ignores overlapping scans, WARN asks before continuing, BLOCK stops the export. | Choice |  | OFF / WARN / BLOCK | WARN | AUT scans | Advanced |  |
 | `showValidationSummary` | Show Validation Summary | Show check summary | Show a summary of the checks after generating. | Yes/No |  | Yes / No | Yes | Export | Advanced |  |
-| `headViewMode` | Head View Mode | Head views | Which head views to draw on the right side of the rollout. | Choice |  | NONE / HEAD 1 / HEAD 2 / BOTH | NONE | Field data | Basic |  |
+| `headViewMode` | Head View Mode | Head views | Which head views to draw beside the shell layout. Head nozzles and head MUT are only drawn on a head that is shown. | Choice |  | NONE / HEAD 1 / HEAD 2 / BOTH | NONE | Field data: Heads | Basic |  |
 | `headViewSize` | Head View Size | Head view size | Size of the head views (24%, 30% or 38% of the circumference, at least 24 in). | Choice |  | SMALL / MEDIUM / LARGE | SMALL | Export | Advanced |  |
 | `showHeadNozzles` | Show Head Nozzles | Show head nozzles | Draw nozzles on the head views. | Yes/No |  | Yes / No | Yes | Export | Advanced |  |
-| `head1Label` | Head 1 Label | Head 1 name | Title printed on the Head 1 view (for example NORTH HEAD). | Text |  | Any text | HEAD 1 | Field data | Basic | The v5.0 workbook has EAST HEAD. Printed in upper case. |
-| `head2Label` | Head 2 Label | Head 2 name | Title printed on the Head 2 view (for example SOUTH HEAD). | Text |  | Any text | HEAD 2 | Field data | Basic | The v5.0 workbook has WEST HEAD. Printed in upper case. |
+| `head1Label` | Head 1 Label | Head 1 name | Title printed on the Head 1 view (for example NORTH HEAD). | Text |  | Any text | HEAD 1 | Field data: Heads | Basic | The v5.0 workbook has EAST HEAD. Printed in upper case. |
+| `head2Label` | Head 2 Label | Head 2 name | Title printed on the Head 2 view (for example SOUTH HEAD). | Text |  | Any text | HEAD 2 | Field data: Heads | Basic | The v5.0 workbook has WEST HEAD. Printed in upper case. |
 | `headNozzleLeaderLength` | Head Nozzle Leader Length | Head nozzle leader length | Leader line length for head nozzle labels placed outside. | Number | in | > 0 | 8 | Export | Advanced |  |
 | `showHeadCenterlines` | Show Head Centerlines | Show head centerlines | Draw crosshair centerlines on the head views. | Yes/No |  | Yes / No | No | Export | Advanced |  |
 | `showHeadClockReferences` | Show Head Clock References (also: Show Head Clock Reference) | Show head 12 o'clock marker | Draw the 12 o'clock reference arrow and text on the head views. | Yes/No |  | Yes / No | No | Export | Advanced |  |

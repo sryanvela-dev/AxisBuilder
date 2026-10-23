@@ -126,8 +126,20 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (Ctrl+Z / Ctrl+Y; typing in one box is one step). Project file extension `.axb` (JSON; `.json` also opens).
   Edge/Chrome save back to the job's file (File System Access API); the first Save over an opened file and a Save after
   the file changed elsewhere ask first; other browsers download a copy. A recovery copy per tab is kept in IndexedDB
-  while there are unsaved changes and offered on the next start. Step pages are placeholders for 3c-3f; the old test
-  tools moved under their steps (AUT CSV import on AUT scans, photo folder matching on Images). No UI library.
+  while there are unsaved changes and offered on the next start. Step pages for AUT scans, Images, Review and Export
+  are placeholders for 3d-3f; the old test tools moved under their steps (AUT CSV import on AUT scans, photo folder
+  matching on Images). No UI library.
+- Project and Field data steps (Phase 3c): settings forms built only from `settings.ts` (`group` and `showWhen` on
+  each definition, `SETTING_GROUPS`, `groupFields`, `isFieldShown`; Basic always shown, Advanced behind "Show
+  advanced", "Reset to default" per group; a hidden setting keeps its value). Field data tables (`ui/DataTable.tsx`)
+  with columns from `data/columns.ts` (`TABLE_COLUMNS`; names from `LIST_META`, ranges from the item schemas).
+  Typing goes through `ui/useEditBox.ts`: valid values are stored at once, text that isn't valid is kept as a draft
+  in the session (`job.drafts`, not in the project file; it blocks export; the first Ctrl+Z throws drafts away), and
+  leaving a box ends its undo step (`endEditGroup`). Parsers in `data/parse.ts` (lengths: 12.5, 12 1/2, 12-1/2,
+  10' 6"; clock 3, 3:30, 3.5). Checks in `data/checks.ts` (`checkProject`): errors block export (its `exportRule`
+  checks match findMissingData + findDuplicateIds, tested on every golden job), warnings don't. Paste from Excel:
+  `data/paste.ts` + `ui/PasteDialog.tsx`. Import report entries are linked to settings and rows by
+  `data/reportTargets.ts` when an Excel job is imported.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -333,3 +345,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Dialog, ErrorBoundary with "Copy error details", made-up sample job (`ui/sampleJob.ts`). `ImportTest.tsx` removed (its
   tools moved under the steps). Vite defines `__APP_VERSION__` for error reports. Tests in `app/test/state/`. No VBA or
   workbook changes.
+- 2026-10-23 – Web app Phase 3c (branch feature/project-field-data): Project and Field data steps. `settings.ts` gets
+  `group`, `showWhen` and `multiline` per definition plus `SETTING_GROUPS` (Job information, Vessel size and orientation,
+  Axis directions, Reference labels, Heads); four descriptions reworded in plain language; settings-review.md shows the
+  group. New `data/parse.ts`, `data/columns.ts`, `data/checks.ts`, `data/paste.ts`, `data/reportTargets.ts`. Undo: a
+  group now lasts until you leave the box (`endGroup`, no time window); typed-but-invalid values are session drafts.
+  `steps.ts` reads `checkProject` and drafts. New UI: SettingsForm, DataTable, PasteDialog, stepParts, projectSteps,
+  placeIds, useEditBox, checksContext; `FieldInput.tsx` removed. LIST_META "Label" columns renamed "Show label".
+  Sample job shows both heads. Tests for parsing, checks (incl. export-rule parity on all golden jobs), paste, setting
+  groups / conditions, report links, undo grouping and drafts. No VBA or workbook changes.
