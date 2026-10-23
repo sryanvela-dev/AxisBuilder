@@ -74,7 +74,8 @@ export function reportEntriesToCheck(wb: WorkbookImport | null, step: StepId): R
   return reportEntriesForStep(wb, step).filter((e) => e.kind === 'invalid' || e.kind === 'review')
 }
 
-const STEP_OF_LIST: Record<ListKey, StepId> = {
+/** The step whose page holds each list. */
+export const STEP_OF_LIST: Record<ListKey, StepId> = {
   circWelds: 'fieldData', longSeams: 'fieldData', shellNozzles: 'fieldData', objects: 'fieldData', shellMut: 'fieldData',
   headNozzles: 'fieldData', headMut: 'fieldData', scans: 'scans', scanImages: 'images',
 }

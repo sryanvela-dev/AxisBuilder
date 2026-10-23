@@ -149,8 +149,9 @@ describe('REF1 app output: v5.0 plus the requested changes only', () => {
 
   it('differs from v5.0 only in the sections the changes touch', () => {
     // REF1 has no reversed or switched-off scans and shows its reference labels, so changes 1, 2 and 5
-    // don't show here (unit tests cover them).
-    expect(diffs.filter((d) => d.status !== 'same').map((d) => d.name)).toEqual(['header', 'jobSettings', 'images', 'titleBlock'])
+    // don't show here (unit tests cover them). Changes 8-11 (2026-10-23) add the app LISP block (imageHelpers), the
+    // centerline transparency (drawSetup) and the nozzle labels placed by the app (nozzles, headNozzles).
+    expect(diffs.filter((d) => d.status !== 'same').map((d) => d.name)).toEqual(['header', 'imageHelpers', 'jobSettings', 'drawSetup', 'images', 'nozzles', 'headNozzles', 'titleBlock'])
   })
 
   it('drops the unused overlay values, names images by scan, prints the date as Oct-13-2026', () => {

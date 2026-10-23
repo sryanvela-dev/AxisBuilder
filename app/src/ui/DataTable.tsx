@@ -24,6 +24,7 @@ import { useApp } from './appContext.ts'
 import { REPORT_KIND_TEXT, reportNotesFor, useJobChecks } from './checksContext.ts'
 import { PasteDialog } from './PasteDialog.tsx'
 import { rowElementId } from './placeIds.ts'
+import { useSelection } from './selectionContext.ts'
 import { useEditBox } from './useEditBox.ts'
 
 type Item = Record<string, unknown>
@@ -197,10 +198,17 @@ function Row(props: {
   const notes = reportNotesFor(workbookImport, step, { kind: 'row', list, id: String(item.id) })
   const id = String(item.id)
   const hasMessages = rowChecks.length + drafts.length + notes.length > 0
+  const { selected, select } = useSelection()
+  const isSelected = selected?.list === list && selected.index === index
   const cols = TABLE_COLUMNS[list]
   return (
     <>
-      <tr data-row={index} id={rowElementId(list, index)} className={hasMessages ? 'has-messages' : undefined}>
+      <tr
+        data-row={index}
+        id={rowElementId(list, index)}
+        className={[hasMessages ? 'has-messages' : '', isSelected ? 'row-selected' : ''].filter(Boolean).join(' ') || undefined}
+        onFocus={() => !isSelected && select({ list, index })}
+      >
         <td className="num row-no">{index + 1}</td>
         {cols.map((col) => (
           <td key={col.key} className={`col-${col.kind}`} data-field={col.key}>

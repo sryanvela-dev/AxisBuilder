@@ -5,6 +5,13 @@ inspection field data and AUT scan coordinates into an AutoLISP (.lsp) file. Loa
 in DraftSight or AutoCAD draws the AUT coverage layout for a pressure vessel or tank shell.
 The owner is an Integrity EPC inspection engineer who uses it in the field.
 
+## Working rules
+Improvements over v5.0 are welcome. When you see a function or behaviour that would work better than v5.0,
+propose it. Don't change it silently. List proposals under "Suggested improvements" at the end of your summary:
+what, why it's better, and what it changes for the user or the drawing. The author decides. Approved changes go
+into the app's output only; compat 'v5.0' stays exact so the golden tests keep proving the port. Record approved
+changes in the Change log.
+
 ## Folder layout
 - `src/*.bas` – **master copy of all VBA code** (9 standard modules). Edit only these.
 - `AxisBuilder_v5.0_Stable.xlsm` – the signed, working workbook. **Never modify it.** Claude
@@ -155,6 +162,13 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
   (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
   + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
+- Drawing preview (Phase 3e, `app/docs/preview.md`): `app/src/engine/` holds the job layout (`layout.ts`, moved out of
+  exportLsp.ts; the exporter uses it), transforms, rulers (read from the generated `PrintVisualRulers`) and
+  `buildDrawing` (items in logical coordinates with CAD layer, source row and hover text; ports of the LISP drawing
+  functions, run-time placement marked "preview approximation"). `app/src/ui/preview/`: render model, SVG view (pan,
+  zoom, fit), panel beside the Project / Field data / AUT scans / Images steps (layer toggles = CAD AB... groups,
+  photos, full size, click item -> row, row -> highlight via `selectionContext`, check colors). The photo and job
+  folders now live in JobScreen (`foldersContext`), shared by the Images step and the preview.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -390,3 +404,14 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   covering that (`excelSize`, `raised` flag; e.g. 280 x 20 in with a 1915 x 957 photo -> 11200 x 800). New numbers for
   the reference jobs in overlay-image-scaling.md (default cap 4096: 3.21 MP average, about 1.44 GB for 150 images vs
   1.08 GB in v5.0); setting description updated. No VBA or workbook changes.
+- 2026-10-23 – Working rules section added (propose improvements over v5.0, author decides, compat stays exact).
+- 2026-10-23 – Web app Phase 3e (branch feature/preview): live 2D preview. New `app/src/engine/` (layout, transform,
+  rulers, drawing) and `app/src/ui/preview/` (renderModel, DrawingView, PreviewPanel, usePhotoThumbs); exportLsp.ts now
+  takes its layout numbers from `engine/layout.ts` (all 7 golden jobs byte for byte). Selection and folders contexts;
+  rows highlight when selected. Job screen is a flex column with a `.work` area (page + preview). Tests: engine vs
+  exported .lsp for every golden job, rulers, transforms, render model, selection mapping. No VBA or workbook changes.
+- 2026-10-23 – Approved app changes (feature/preview, user): CCW labels upright (app LISP block `export/lsp/appLibrary.ts`
+  redefines SL_LabelRect / SL_LongSeam), nozzle labels placed by the app (`engine/labels.ts`, written as `SL_NozzleAt`;
+  same rules as SL_CircleSmart; head labels also move out along their leader until clear), centerline transparency
+  (new app-only setting, default 50). App output only: compat 'v5.0' unchanged, all 7 golden jobs byte for byte; the
+  app-vs-v5.0 section test now also lists imageHelpers, drawSetup, nozzles, headNozzles. phase2-notes changes 11-14.
