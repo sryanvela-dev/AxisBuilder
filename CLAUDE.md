@@ -114,8 +114,11 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `tsconfig.node.json` (vite config and scripts).
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
   `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
-  in `app/src/data/projectFile.ts`. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
-  value); `findMissingData` lists them and export must refuse until they are filled in.
+  in `app/src/data/projectFile.ts`. Format 2 (Phase 3d) adds `jobId` (random, stable per job; format 1 files get
+  one when opened). Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
+  value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
+  (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
+  Preprocess Rotation) is kept in the file for the v5.0 output but not shown in the app.
 - v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). AUT CSV:
   `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`).
 - App shell (Phase 3b): start screen (new, open, import Excel with its report first, sample job, recent jobs, restore
@@ -140,6 +143,18 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   checks match findMissingData + findDuplicateIds, tested on every golden job), warnings don't. Paste from Excel:
   `data/paste.ts` + `ui/PasteDialog.tsx`. Import report entries are linked to settings and rows by
   `data/reportTargets.ts` when an Excel job is imported.
+- AUT scans and Images steps (Phase 3d, `ui/scanSteps.tsx`): CSV import by button or drop (asks before replacing
+  scans), scan table = DataTable list 'scans' with read-only width/height (`syncScanImages` keeps photo links in step
+  with renamed/deleted scans), scan settings group. Scan checks follow v5.0: reversed start/stop = warning (the drawing
+  swaps it while Check data before export is on; "Swap reversed starts and stops" fixes all in one undo step), zero width or
+  height = error (the job still saves; the schema no longer refuses it), outside the shell = warning, overlaps per Overlap Detection (OFF
+  nothing / WARN warning / BLOCK error). Photo rule (v5.0): a drawn scan needs a photo (error while Check data before
+  export is on, warning when off); a switched-off scan, or a scan whose photo is switched off ("Use photo"), needs
+  none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
+  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening needs one "Allow" click), matching flow
+  (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
+  (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
+  + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -354,3 +369,24 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   placeIds, useEditBox, checksContext; `FieldInput.tsx` removed. LIST_META "Label" columns renamed "Show label".
   Sample job shows both heads. Tests for parsing, checks (incl. export-rule parity on all golden jobs), paste, setting
   groups / conditions, report links, undo grouping and drafts. No VBA or workbook changes.
+- 2026-10-23 – Web app Phase 3d (branch feature/scans-images): AUT scans and Images steps with image processing in the
+  browser. Project file format 2 (`jobId`, migration from 1). Settings: groups 'scans' and 'images', `hidden` flag for
+  six v5.0-only settings, new app-only "Largest processed image side" (default 4096 px; numbers from the reference jobs
+  in overlay-image-scaling.md). New: `data/photos.ts`, `state/folders.ts`, `export/images/` (fit, marker, process,
+  worker), UI scanSteps, PhotoPanel, ProcessPanel, useRememberedFolder, photoFolder; ImageFolderPanel now takes the
+  folder from the step. Checks: reversed/outside/overlap scans, missing photos (v5.0 rule). Tests for fit shapes, cap,
+  names, marker, folder check, run, migration, overlap modes, photo rule, CSV replace, and that the job ID and size
+  setting don't change the .lsp (golden jobs unchanged). Checked in the preview with browser test folders (6 photos
+  1915x957 -> 1915x3830, marker, replace question, other-job refusal). No VBA or workbook changes.
+- 2026-10-23 – Web app Phase 3d follow-up (user click-through): a scan with no width or height is now a check error
+  (blocks export) instead of a file error, so the job always saves (before, typing X start = X stop could store a value
+  the file check refused, and Save failed); `setCell` refuses a change for any problem it causes in the row. New
+  "Swap reversed starts and stops" button on AUT scans (`swapReversedScans`). "v5.0" removed from what the app shows
+  ("the Excel version" where it matters). No VBA or workbook changes.
+- 2026-10-23 – Decision (user) for Phase 3f: Make CAD drawing writes the .lsp and processes missing or out-of-date images
+  in one go; the Images step keeps its Process images button. Recorded in app/docs/overlay-image-scaling.md. Docs only.
+- 2026-10-23 – Web app Phase 3d follow-up (user): processed images are never smaller than v5.0 made them (scan w x 40 by
+  h x 40 px, at least 100 px each way): `fitSize` raises a capped or small result to the smallest exact-shape size
+  covering that (`excelSize`, `raised` flag; e.g. 280 x 20 in with a 1915 x 957 photo -> 11200 x 800). New numbers for
+  the reference jobs in overlay-image-scaling.md (default cap 4096: 3.21 MP average, about 1.44 GB for 150 images vs
+  1.08 GB in v5.0); setting description updated. No VBA or workbook changes.

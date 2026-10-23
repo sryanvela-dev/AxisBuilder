@@ -20,6 +20,8 @@ export const SETTING_GROUPS = [
   { id: 'axes', step: 'Project', title: 'Axis directions', intro: 'Direction text printed along the rulers.' },
   { id: 'refLabels', step: 'Project', title: 'Reference labels', intro: 'Labels printed around the vessel, such as TDC and BDC.' },
   { id: 'heads', step: 'Field data', title: 'Heads', intro: 'Head views drawn beside the shell layout, and their names.' },
+  { id: 'scans', step: 'AUT scans', title: 'Scan drawing and checks', intro: 'How scanned areas are hatched, and how overlapping scans are treated.' },
+  { id: 'images', step: 'Images', title: 'Scan images', intro: 'Whether photos are used, and how the processed copies are made.' },
 ] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
 
 export type SettingGroupId = (typeof SETTING_GROUPS)[number]['id']
@@ -38,6 +40,8 @@ interface BaseDef {
   step: AppStep
   /** Form group on its step (see SETTING_GROUPS). */
   group?: SettingGroupId
+  /** Not shown in the app: kept in the file only for the v5.0-compatible output (the app doesn't use it). */
+  hidden?: boolean
   /** Shown only while another value is one of `values` (a hidden value is kept, not cleared). */
   showWhen?: { section: 'project' | 'vessel' | 'settings'; key: string; values: readonly string[] }
   level: Level
@@ -438,29 +442,29 @@ export const SETTINGS = {
   autHatchEnabled: yesNo({
     excelLabel: 'AUT Hatch Enabled', excelSheet: PS, name: 'Hatch AUT scans',
     description: 'Fill scanned areas with hatch lines and show the AUT sample in the legend.',
-    default: true, step: 'AUT scans', level: 'Basic',
+    default: true, group: 'scans', step: 'AUT scans', level: 'Basic',
   }),
   autHatchPattern: text({
     excelLabel: 'AUT Hatch Pattern', excelSheet: PS, name: 'Hatch pattern name',
     description: 'Hatch pattern name (informational only).',
-    default: 'ANSI31', step: 'AUT scans', level: 'Advanced',
+    default: 'ANSI31', hidden: true, step: 'AUT scans', level: 'Advanced',
     v5: 'Not read by the VBA; the drawing always uses its own 45-degree line hatch. App: planned feature (to be designed).',
   }),
   autHatchScale: num({
     excelLabel: 'AUT Hatch Scale', excelSheet: PS, legacyLabels: ['Hatch Scale'], name: 'Hatch line spacing',
     description: 'Spacing between hatch lines; larger is wider.',
-    units: 'in', greaterThan: 0, default: 2.5, step: 'AUT scans', level: 'Advanced',
+    units: 'in', greaterThan: 0, default: 2.5, group: 'scans', step: 'AUT scans', level: 'Advanced',
   }),
   autHatchAngle: num({
     excelLabel: 'AUT Hatch Angle', excelSheet: PS, name: 'Hatch angle',
     description: 'Hatch line angle, reserved for future use.',
-    units: 'degrees', default: 45, step: 'AUT scans', level: 'Advanced',
+    units: 'degrees', default: 45, hidden: true, step: 'AUT scans', level: 'Advanced',
     v5: 'Written to the .lsp but not used; hatch is always 45 degrees. App: planned feature (to be designed).',
   }),
   autHatchTransparency: num({
     excelLabel: 'AUT Hatch Transparency', excelSheet: PS, name: 'Hatch transparency',
     description: 'Transparency of all hatch layers, 0 = solid, 90 = most transparent.',
-    units: '%', integer: true, min: 0, max: 90, default: 50, step: 'AUT scans', level: 'Basic',
+    units: '%', integer: true, min: 0, max: 90, default: 50, group: 'scans', step: 'AUT scans', level: 'Basic',
     v5: 'The v5.0 workbook has 70; the code fallback and sheet note say 50. The sheet label has a trailing space.',
   }),
 
@@ -518,7 +522,7 @@ export const SETTINGS = {
   overlapDetection: choice(['OFF', 'WARN', 'BLOCK'], {
     excelLabel: 'Overlap Detection', excelSheet: PS, name: 'Scan overlap check',
     description: 'OFF ignores overlapping scans, WARN asks before continuing, BLOCK stops the export.',
-    default: 'WARN', step: 'AUT scans', level: 'Advanced',
+    default: 'WARN', group: 'scans', step: 'AUT scans', level: 'Advanced',
   }),
   showValidationSummary: yesNo({
     excelLabel: 'Show Validation Summary', excelSheet: PS, name: 'Show check summary',
@@ -577,37 +581,43 @@ export const SETTINGS = {
   generateOverlayDrawing: yesNo({
     excelLabel: 'Generate Overlay Drawing', excelSheet: PS, name: 'Use scan images',
     description: 'Include scan photos in the drawing.',
-    default: true, step: 'Images', level: 'Advanced',
+    default: true, group: 'images', step: 'Images', level: 'Advanced',
     v5: 'Only used by the Home status check (NO skips the image check); the master export always processes images.',
   }),
   originalImageFolder: text({
     excelLabel: 'Original Image Folder', excelSheet: PS, legacyLabels: ['Image Folder'], name: 'Scan image folder',
     description: 'Folder that holds the scan photos.',
-    default: '', step: 'Images', level: 'Basic',
+    default: '', hidden: true, step: 'Images', level: 'Basic',
     v5: 'Windows path; blank uses the workbook folder.',
   }),
   processedImageFolder: text({
     excelLabel: 'Processed Image Folder', excelSheet: PS, name: 'Processed image folder',
     description: 'Subfolder (or full path) for the stretched, drawing-ready copies of the scan photos.',
-    default: 'Processed_Images', step: 'Images', level: 'Advanced',
+    default: 'Processed_Images', group: 'images', step: 'Images', level: 'Advanced',
   }),
   overlayPixelsPerInch: num({
     excelLabel: 'Overlay Pixels Per Inch', excelSheet: PS, name: 'Processed image resolution',
     description: 'Resolution of the processed scan images.',
-    units: 'px/in', greaterThan: 0, default: 40, step: 'Images', level: 'Advanced',
+    units: 'px/in', greaterThan: 0, default: 40, hidden: true, step: 'Images', level: 'Advanced',
     v5: 'Sheet says do not change from 40.',
   }),
   draftSightImagePixelsPerUnit: num({
     excelLabel: 'DraftSight Image Pixels Per Unit', excelSheet: PS, name: 'CAD image calibration',
     description: 'Inserted image pixels per drawing unit; image scale = this value / image resolution.',
-    units: 'px/in', greaterThan: 0, default: 400, step: 'Images', level: 'Advanced',
+    units: 'px/in', greaterThan: 0, default: 400, hidden: true, step: 'Images', level: 'Advanced',
     v5: 'Sheet says do not change from 400. Used for AutoCAD output too.',
   }),
   overlayPreprocessRotation: choice(['NONE', 'AUTO', 'CW90', 'CCW90'], {
     excelLabel: 'Overlay Preprocess Rotation', excelSheet: PS, name: 'Image rotation override',
     description: 'Rotation applied to scan photos during processing; NONE is the tested baseline.',
-    default: 'NONE', step: 'Images', level: 'Advanced',
+    default: 'NONE', hidden: true, step: 'Images', level: 'Advanced',
     v5: 'Code fallback is AUTO. Sheet says do not change from NONE.',
+  }),
+  maxImageSide: num({
+    excelLabel: 'Largest Processed Image Side', excelSheet: PS, onSheet: false, name: 'Largest processed image side',
+    description: 'Longest side of a processed scan image. A larger one is scaled down (the shape stays exactly that of the scan) so the drawing stays quick to open, but never below the size the Excel version made (40 px per inch of scan).',
+    units: 'px', integer: true, min: 500, max: 10000, default: 4096, group: 'images', step: 'Images', level: 'Advanced',
+    v5: 'App only. v5.0 sized every image at 40 px per inch of scan; the app never goes below that.',
   }),
   showVesselOnOverlay: yesNo({
     excelLabel: 'Show Vessel On Overlay', excelSheet: PS, name: 'Draw vessel outline',
@@ -642,7 +652,7 @@ export const SETTINGS = {
   showScanBordersOnOverlay: yesNo({
     excelLabel: 'Show Scan Borders On Overlay', excelSheet: PS, name: 'Show image frames',
     description: 'Show frames around the scan images (sets CAD IMAGEFRAME).',
-    default: true, step: 'Images', level: 'Advanced',
+    default: true, group: 'images', step: 'Images', level: 'Advanced',
     v5: 'Code fallback is NO, and the sheet note says default NO.',
   }),
   cadPlatform: choice(['DraftSight', 'AutoCAD'], {
@@ -693,7 +703,7 @@ export interface GroupField {
 export function groupFields(group: SettingGroupId): GroupField[] {
   return FIELD_TABLES.flatMap((t) =>
     Object.entries(t.fields as Record<string, FieldDef & { schema: z.ZodType }>)
-      .filter(([, d]) => d.group === group)
+      .filter(([, d]) => d.group === group && !d.hidden)
       .map(([key, def]) => ({ section: t.section, key, def })),
   )
 }

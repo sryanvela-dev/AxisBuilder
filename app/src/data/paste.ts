@@ -3,7 +3,7 @@
 // v5.0 sheets), then turn the rows into items. Every cell that can't be used is listed with a reason.
 
 import { LIST_META, type Project } from './schema.ts'
-import { TABLE_COLUMNS, columnName, copyId, newItem, nextId, parseCell, setCell, usedIds, type FieldListKey } from './columns.ts'
+import { TABLE_COLUMNS, columnName, copyId, newItem, nextId, parseCell, setCell, usedIds, type TableListKey } from './columns.ts'
 import { idKey } from './schema.ts'
 
 /** Excel's clipboard text: tab-separated cells, one line per row, quoted cells may hold tabs, line breaks and "". */
@@ -83,10 +83,14 @@ const ALIASES: Record<string, string[]> = {
   clock: ['clock', 'clock position', 'clock pos'],
   radiusPosition: ['radius', 'radius position', 'radius pos'],
   customRadiusPercent: ['custom', 'custom radius', 'custom %', 'custom radius %', 'custom radius percent'],
+  xStart: ['x start', 'start x', 'x1', 'x from'],
+  xStop: ['x stop', 'stop x', 'end x', 'x2', 'x to'],
+  yStart: ['y start', 'start y', 'y1', 'y from'],
+  yStop: ['y stop', 'stop y', 'end y', 'y2', 'y to'],
 }
 
 /** The table column a header names, or null. */
-export function matchHeader(list: FieldListKey, header: string): string | null {
+export function matchHeader(list: TableListKey, header: string): string | null {
   const h = norm(header)
   if (h === '') return null
   for (const col of TABLE_COLUMNS[list]) {
@@ -106,7 +110,7 @@ export interface PasteMapping {
 }
 
 /** Header row when most of the first row's cells name table columns; otherwise columns in table order. */
-export function guessMapping(list: FieldListKey, rows: string[][]): PasteMapping {
+export function guessMapping(list: TableListKey, rows: string[][]): PasteMapping {
   const width = Math.max(0, ...rows.map((r) => r.length))
   const first = rows[0] ?? []
   const matched = first.map((h) => matchHeader(list, h))
@@ -144,7 +148,7 @@ export interface PasteResult {
 }
 
 /** Turns pasted rows into new items for the list, using the mapping. */
-export function buildPastedRows(project: Project, list: FieldListKey, rows: string[][], mapping: PasteMapping): PasteResult {
+export function buildPastedRows(project: Project, list: TableListKey, rows: string[][], mapping: PasteMapping): PasteResult {
   const items: Record<string, unknown>[] = []
   const rejected: RejectedCell[] = []
   const notes: string[] = []

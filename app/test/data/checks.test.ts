@@ -15,17 +15,19 @@ function load(job: string): Project {
   return r.project
 }
 
+/** Checks without the photo checks (the sample job has no photos linked). */
+const checkFields = (p: Project) => checkProject(p).filter((c) => c.place.kind !== 'photo')
 const errors = (cs: Check[]) => cs.filter((c) => c.severity === 'error')
 const warnings = (cs: Check[]) => cs.filter((c) => c.severity === 'warning')
 
 describe('checks', () => {
   it('the sample job has nothing to fix or check', () => {
-    expect(checkProject(sampleProject())).toEqual([])
+    expect(checkFields(sampleProject())).toEqual([])
   })
 
   it.each(goldenJobs)('%s: the export rules match what the exporter refuses on', (job) => {
     const p = load(job)
-    const rules = checkProject(p).filter((c) => c.exportRule)
+    const rules = checkFields(p).filter((c) => c.exportRule)
     expect(rules.length).toBe(findMissingData(p).length + findDuplicateIds(p).length)
   })
 
@@ -39,14 +41,14 @@ describe('checks', () => {
       headMut: [{ ...p.headMut[0], radiusPosition: null }],
       shellMut: [{ ...p.shellMut[0], x: null }],
     }
-    const rules = checkProject(bad).filter((c) => c.exportRule)
+    const rules = checkFields(bad).filter((c) => c.exportRule)
     expect(rules.length).toBe(findMissingData(bad).length + findDuplicateIds(bad).length)
     expect(rules.length).toBeGreaterThan(5)
   })
 
   it('each check is placed on its row and field and says how to fix it', () => {
     const p = sampleProject()
-    const cs = checkProject({ ...p, shellNozzles: [{ ...p.shellNozzles[0], diameter: null }] })
+    const cs = checkFields({ ...p, shellNozzles: [{ ...p.shellNozzles[0], diameter: null }] })
     expect(cs).toEqual([
       {
         severity: 'error', exportRule: true, place: { kind: 'row', list: 'shellNozzles', index: 0, field: 'diameter' },
@@ -60,21 +62,21 @@ describe('checks', () => {
 
   it('shell and head nozzles share names (ignoring capitals)', () => {
     const p = sampleProject()
-    const cs = checkProject({ ...p, headNozzles: [{ ...p.headNozzles[0], id: 'mw' }] })
+    const cs = checkFields({ ...p, headNozzles: [{ ...p.headNozzles[0], id: 'mw' }] })
     expect(errors(cs).map((c) => c.text)).toEqual(['The name "mw" is also used in Shell nozzles, row 3.'])
     expect(errors(cs)[0].place).toMatchObject({ list: 'headNozzles', index: 0, field: 'id' })
   })
 
   it('a long seam that starts after it stops is an error', () => {
     const p = sampleProject()
-    const cs = checkProject({ ...p, longSeams: [{ ...p.longSeams[0], startY: 100, stopY: 40 }] })
+    const cs = checkFields({ ...p, longSeams: [{ ...p.longSeams[0], startY: 100, stopY: 40 }] })
     expect(errors(cs).map((c) => c.text)).toEqual(['Start Y (100 in) is after Stop Y (40 in).'])
     expect(errors(cs)[0].exportRule).toBeUndefined()
   })
 
   it('items outside the shell are warnings', () => {
     const p = sampleProject() // 240 long, 188.5 around
-    const cs = checkProject({
+    const cs = checkFields({
       ...p,
       circWelds: [{ ...p.circWelds[0], y: 250 }],
       shellNozzles: [{ ...p.shellNozzles[0], x: -2 }],
@@ -92,24 +94,24 @@ describe('checks', () => {
 
   it('a switched-off item is not checked for missing or outside values', () => {
     const p = sampleProject()
-    expect(checkProject({ ...p, circWelds: [{ ...p.circWelds[0], include: false, y: null }, { ...p.circWelds[1], include: false, y: 999 }] })).toEqual([])
+    expect(checkFields({ ...p, circWelds: [{ ...p.circWelds[0], include: false, y: null }, { ...p.circWelds[1], include: false, y: 999 }] })).toEqual([])
   })
 
   it('head items are a warning while their head view is off', () => {
     const p = sampleProject()
-    const none = checkProject({ ...p, settings: { ...p.settings, headViewMode: 'NONE' } })
+    const none = checkFields({ ...p, settings: { ...p.settings, headViewMode: 'NONE' } })
     expect(errors(none)).toEqual([])
     expect(warnings(none).map((c) => c.text)).toEqual([
       '2 are on HEAD 1 and HEAD 2, but Head views is NONE, so they are not drawn.',
       '1 is on HEAD 1, but Head views is NONE, so it is not drawn.',
     ])
-    const one = checkProject({ ...p, settings: { ...p.settings, headViewMode: 'HEAD 1' } })
+    const one = checkFields({ ...p, settings: { ...p.settings, headViewMode: 'HEAD 1' } })
     expect(warnings(one).map((c) => c.text)).toEqual(['1 is on HEAD 2, but Head views is HEAD 1, so it is not drawn.'])
   })
 
   it('a blank project name is a warning only', () => {
     const p = sampleProject()
-    const cs = checkProject({ ...p, project: { ...p.project, projectName: ' ' } })
+    const cs = checkFields({ ...p, project: { ...p.project, projectName: ' ' } })
     expect(cs).toMatchObject([{ severity: 'warning', place: { kind: 'setting', section: 'project', key: 'projectName' } }])
   })
 })

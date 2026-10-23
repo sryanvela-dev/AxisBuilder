@@ -15,7 +15,7 @@ import {
   parseCell,
   setCell,
   type ColumnSpec,
-  type FieldListKey,
+  type TableListKey,
 } from '../data/columns.ts'
 import { LABEL_MODE_LABELS, RADIUS_LABELS, describeClock } from '../data/parse.ts'
 import { HEADS, LABEL_MODES, LIST_META, RADIUS_POSITIONS, type Project } from '../data/schema.ts'
@@ -28,10 +28,24 @@ import { useEditBox } from './useEditBox.ts'
 
 type Item = Record<string, unknown>
 
-const itemsOf = (p: Project, list: FieldListKey) => p[list] as Item[]
-const withItems = (p: Project, list: FieldListKey, items: Item[]) => ({ ...p, [list]: items }) as Project
+const itemsOf = (p: Project, list: TableListKey) => p[list] as Item[]
+const withItems = (p: Project, list: TableListKey, items: Item[]) => ({ ...p, [list]: items }) as Project
 
-export function DataTable({ list, step }: { list: FieldListKey; step: StepId }) {
+/** A read-only column worked out from the row, e.g. a scan's width. */
+export interface DerivedColumn {
+  title: string
+  value: (item: Item) => string
+}
+
+export interface DataTableProps {
+  list: TableListKey
+  step: StepId
+  derived?: DerivedColumn[]
+  /** Runs after every change to this list, e.g. to keep scan photo links in step with the scans. */
+  afterEdit?: (prev: Project, next: Project) => Project
+}
+
+export function DataTable({ list, step, derived = [], afterEdit }: DataTableProps) {
   const app = useApp()
   const { checks } = useJobChecks()
   const project = app.state.job!.history.present
@@ -52,7 +66,10 @@ export function DataTable({ list, step }: { list: FieldListKey; step: StepId }) 
 
   /** A change to the rows themselves (add, delete, move): typed-but-invalid values of this list are dropped. */
   function editRows(label: string, update: (rows: Item[], p: Project) => Item[]) {
-    app.edit(label, (p) => withItems(p, list, update(itemsOf(p, list), p)))
+    app.edit(label, (p) => {
+      const next = withItems(p, list, update(itemsOf(p, list), p))
+      return afterEdit ? afterEdit(p, next) : next
+    })
     app.dispatch({ type: 'clearDrafts', prefix: `${list}.` })
   }
 
@@ -95,6 +112,11 @@ export function DataTable({ list, step }: { list: FieldListKey; step: StepId }) 
                     {columnTitle(list, c)}
                   </th>
                 ))}
+                {derived.map((d) => (
+                  <th key={d.title} className="col-derived">
+                    {d.title}
+                  </th>
+                ))}
                 <th aria-label="Row actions" />
               </tr>
             </thead>
@@ -117,6 +139,8 @@ export function DataTable({ list, step }: { list: FieldListKey; step: StepId }) 
                   item={item}
                   count={items.length}
                   step={step}
+                  derived={derived}
+                  afterEdit={afterEdit}
                   onMove={(dir) =>
                     editRows(`Move ${String(item.id)} ${dir < 0 ? 'up' : 'down'}`, (rows) => {
                       const out = [...rows]
@@ -153,11 +177,13 @@ export function DataTable({ list, step }: { list: FieldListKey; step: StepId }) 
 }
 
 function Row(props: {
-  list: FieldListKey
+  list: TableListKey
   index: number
   item: Item
   count: number
   step: StepId
+  derived: DerivedColumn[]
+  afterEdit?: (prev: Project, next: Project) => Project
   onMove: (dir: -1 | 1) => void
   onDuplicate: () => void
   onDelete: () => void
@@ -178,7 +204,12 @@ function Row(props: {
         <td className="num row-no">{index + 1}</td>
         {cols.map((col) => (
           <td key={col.key} className={`col-${col.kind}`} data-field={col.key}>
-            <Cell list={list} index={index} item={item} col={col} step={step} checks={rowChecks.filter((c) => c.place.kind === 'row' && c.place.field === col.key)} />
+            <Cell list={list} index={index} item={item} col={col} step={step} afterEdit={props.afterEdit} checks={rowChecks.filter((c) => c.place.kind === 'row' && c.place.field === col.key)} />
+          </td>
+        ))}
+        {props.derived.map((d) => (
+          <td key={d.title} className="num col-derived">
+            {d.value(item)}
           </td>
         ))}
         <td className="row-actions">
@@ -199,7 +230,7 @@ function Row(props: {
       {hasMessages && (
         <tr className="row-messages">
           <td />
-          <td colSpan={cols.length + 1}>
+          <td colSpan={cols.length + props.derived.length + 1}>
             {drafts.map(([k, d]: [string, Draft]) => (
               <p key={k} className="msg msg-error">
                 {columnName(list, k.slice(prefix.length))}: "{d.text}" is not stored. {d.problem}
@@ -222,7 +253,15 @@ function Row(props: {
   )
 }
 
-function Cell(props: { list: FieldListKey; index: number; item: Item; col: ColumnSpec; step: StepId; checks: Check[] }) {
+function Cell(props: {
+  list: TableListKey
+  index: number
+  item: Item
+  col: ColumnSpec
+  step: StepId
+  checks: Check[]
+  afterEdit?: (prev: Project, next: Project) => Project
+}) {
   const { list, index, item, col } = props
   const app = useApp()
   const value = item[col.key]
@@ -236,7 +275,10 @@ function Cell(props: { list: FieldListKey; index: number; item: Item; col: Colum
     if (!set.ok) return set.problem
     app.edit(
       `Change ${name} of ${String(item.id)}`,
-      (p) => withItems(p, list, itemsOf(p, list).map((it, i) => (i === index ? set.item : it))),
+      (p) => {
+        const next = withItems(p, list, itemsOf(p, list).map((it, i) => (i === index ? set.item : it)))
+        return props.afterEdit ? props.afterEdit(p, next) : next
+      },
       group,
     )
     return null
@@ -270,7 +312,7 @@ function Cell(props: { list: FieldListKey; index: number; item: Item; col: Colum
 }
 
 function TextCell(props: {
-  list: FieldListKey
+  list: TableListKey
   index: number
   item: Item
   col: ColumnSpec

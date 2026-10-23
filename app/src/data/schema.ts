@@ -10,7 +10,12 @@
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
+
+/** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
+export function newJobId(): string {
+  return globalThis.crypto.randomUUID()
+}
 
 // --- Building blocks -------------------------------------------------------------------------
 
@@ -142,23 +147,15 @@ export const headMutSchema = z.strictObject({
   notes,
 })
 
-export const scanSchema = z
-  .strictObject({
-    id,
-    xStart: position,
-    xStop: position,
-    yStart: position,
-    yStop: position,
-    include,
-  })
-  .superRefine((s, ctx) => {
-    if (s.xStart !== null && s.xStart === s.xStop) {
-      ctx.addIssue({ code: 'custom', path: ['xStop'], message: 'must differ from X start (the scan has no width)' })
-    }
-    if (s.yStart !== null && s.yStart === s.yStop) {
-      ctx.addIssue({ code: 'custom', path: ['yStop'], message: 'must differ from Y start (the scan has no height)' })
-    }
-  })
+/** A scan with no width or height can be saved (so a half-typed job always saves); checks.ts blocks its export. */
+export const scanSchema = z.strictObject({
+  id,
+  xStart: position,
+  xStop: position,
+  yStart: position,
+  yStop: position,
+  include,
+})
 
 export const scanImageSchema = z.strictObject({
   /** ID of the scan this photo belongs to. */
@@ -235,6 +232,11 @@ export function idKey(value: string): string {
 
 const projectFileShape = {
   schemaVersion: z.literal(CURRENT_SCHEMA_VERSION),
+  /** Stable ID of the job (format 2): written next to the processed images so CAD can tell jobs apart. */
+  jobId: z
+    .string()
+    .refine((v) => v.trim().length > 0, { message: 'must not be blank' })
+    .default(() => newJobId()),
   project: z.strictObject(shapeOf(PROJECT_FIELDS)).prefault({}),
   vessel: z.strictObject(shapeOf(VESSEL_FIELDS)).prefault({}),
   settings: z.strictObject(shapeOf(SETTINGS)).prefault({}),

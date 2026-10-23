@@ -14,6 +14,12 @@ function withImages(p: Project, ids: string[]): Project {
   return { ...p, scanImages: ids.map((scanId) => ({ scanId, imageFile: `${scanId}.png`, processedImage: '', include: true })) }
 }
 
+/** The sample job with a photo for every scan. */
+const linked = () => {
+  const p = sampleProject()
+  return withImages(p, p.scans.map((x) => x.id))
+}
+
 const report = (sheet: string, kind: ReportEntry['kind']): ReportEntry => ({ sheet, cell: 'B10', value: 'REVIEW', kind, message: 'Check it.' })
 
 describe('step status', () => {
@@ -23,22 +29,29 @@ describe('step status', () => {
     expect(whatsLeft(s).map((l) => l.text)).toEqual(['AUT scans: not imported yet'])
   })
 
-  it('the sample job is complete except for photos', () => {
+  it('the sample job is complete except for photos, which block export (v5.0 rule)', () => {
     const p = sampleProject()
     const s = stepStatuses(jobOf(p))
     expect(s.project.state).toBe('done')
     expect(s.fieldData.state).toBe('done')
     expect(s.scans.state).toBe('done')
-    expect(s.images.state).toBe('notStarted')
-    expect(s.export.issues).toEqual([])
-    expect(whatsLeft(s)).toEqual([{ step: 'images', text: 'Images: no photos linked yet' }])
+    expect(s.images.state).toBe('attention')
+    expect(s.images.short).toBe('6 to fix')
+    expect(s.export.issues).toHaveLength(6)
+    expect(whatsLeft(s)).toEqual([{ step: 'images', text: 'Images: 6 things to fix' }])
     expect(s.review.state).toBe('attention')
-    expect(s.review.issues.map((i) => i.text)).toEqual(['No photos linked yet.'])
 
     const some = stepStatuses(jobOf(withImages(p, ['SCAN 1', 'SCAN 2'])))
-    expect(some.images.state).toBe('attention')
-    expect(some.images.issues[0].text).toBe('4 scans have no photo yet.')
-    expect(some.images.issues[0].blocksExport).toBe(false)
+    expect(some.images.short).toBe('4 to fix')
+    expect(some.images.issues[0].text).toBe('Photo of SCAN 3: No photo chosen. Choose the photo folder and match the photos, or untick "Use photo" to draw this scan without one.')
+
+    const noPhotos = stepStatuses(jobOf({ ...p, settings: { ...p.settings, generateOverlayDrawing: false } }))
+    expect(noPhotos.images.state).toBe('notStarted')
+    expect(noPhotos.export.issues).toEqual([])
+
+    const unchecked = stepStatuses(jobOf({ ...p, settings: { ...p.settings, enableValidation: false } }))
+    expect(unchecked.images.short).toBe('6 to check')
+    expect(unchecked.export.issues).toEqual([])
 
     const all = stepStatuses(jobOf(withImages(p, p.scans.map((x) => x.id))))
     expect(all.images.state).toBe('done')
@@ -47,7 +60,7 @@ describe('step status', () => {
   })
 
   it('a missing vessel size needs attention on Project and blocks export', () => {
-    const p = sampleProject()
+    const p = linked()
     const s = stepStatuses(jobOf({ ...p, vessel: { ...p.vessel, length: null } }))
     expect(s.project.state).toBe('attention')
     expect(s.project.short).toBe('1 to fix')
@@ -57,7 +70,7 @@ describe('step status', () => {
   })
 
   it('missing values and repeated names go to the step that holds them', () => {
-    const p = sampleProject()
+    const p = linked()
     const broken: Project = {
       ...p,
       headNozzles: [...p.headNozzles, { ...p.headNozzles[0], id: 'N1' }], // N1 is also a shell nozzle
@@ -87,7 +100,7 @@ describe('step status', () => {
       summary: {} as WorkbookImport['summary'],
       checkedSteps: [],
     }
-    let job = jobOf(sampleProject(), wb)
+    let job = jobOf(linked(), wb)
     let s = stepStatuses(job)
     expect(s.fieldData.state).toBe('attention')
     expect(s.fieldData.short).toBe('1 to check')

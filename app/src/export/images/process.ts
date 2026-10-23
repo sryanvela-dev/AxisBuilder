@@ -1,0 +1,167 @@
+// Making the processed scan images: which scans get one (and why the others don't), what is already
+// in the target folder, and the run itself. Reading photos, fitting them (a Web Worker in the app)
+// and writing files are passed in, so the rules are tested without a browser.
+
+import { processedImageNames, resolveImageFile } from '../../data/imageMatch.ts'
+import { idKey, type Project } from '../../data/schema.ts'
+import { MARKER_FILE, markerText, parseMarker, type JobMarker } from './marker.ts'
+
+/** The Processed_Images folder name: the setting when it is a plain folder name, else Processed_Images. */
+export function processedFolderName(setting: string): string {
+  const name = setting.trim()
+  return name === '' || /[\\/:*?"<>|]/.test(name) ? 'Processed_Images' : name
+}
+
+export interface PhotoJob {
+  scanId: string
+  scanIndex: number
+  /** File name in the photo folder. */
+  photoName: string
+  /** File name in Processed_Images, e.g. "SCAN_1_FIT.png" (processedImageNames, as the .lsp uses). */
+  outName: string
+  /** Scan size (inches): the processed image gets exactly this width:height. */
+  scanW: number
+  scanH: number
+}
+
+export interface Skipped {
+  scanId: string
+  reason: string
+}
+
+export interface ProcessPlan {
+  jobs: PhotoJob[]
+  skipped: Skipped[]
+}
+
+/**
+ * The scans to process, in table order. `photoNames` = the files in the photo folder (null when it is not
+ * open; then no scan with a photo can be processed).
+ */
+export function planProcessing(project: Project, photoNames: readonly string[] | null): ProcessPlan {
+  const outNames = processedImageNames(project.scans.map((s) => s.id))
+  const links = new Map(project.scanImages.map((l) => [idKey(l.scanId), l]))
+  const jobs: PhotoJob[] = []
+  const skipped: Skipped[] = []
+  project.scans.forEach((s, scanIndex) => {
+    const skip = (reason: string) => skipped.push({ scanId: s.id, reason })
+    if (!s.include) return skip('The scan is not drawn (Include is off).')
+    const link = links.get(idKey(s.id))
+    if (link && !link.include) return skip('Its photo is switched off.')
+    if (!link || link.imageFile.trim() === '') return skip('No photo is chosen for it.')
+    if (s.xStart === null || s.xStop === null || s.yStart === null || s.yStop === null) return skip('Its position is not complete.')
+    if (!photoNames) return skip('The photo folder is not open.')
+    const photo = resolveImageFile(link.imageFile, photoNames)
+    if (!photo) return skip(`${link.imageFile} is not in the photo folder.`)
+    jobs.push({
+      scanId: s.id,
+      scanIndex,
+      photoName: photo,
+      outName: outNames.get(s.id)!,
+      scanW: Math.abs(s.xStop - s.xStart),
+      scanH: Math.abs(s.yStop - s.yStart),
+    })
+  })
+  return { jobs, skipped }
+}
+
+export type FolderCheck =
+  /** The folder holds another job's processed images: stop. */
+  | { kind: 'otherJob'; marker: JobMarker }
+  | {
+      kind: 'ok'
+      /** Processed images of this run that are already there (replacing them needs a yes). */
+      existing: string[]
+      /** True when the folder has files but no marker (e.g. made by the Excel version). */
+      unmarked: boolean
+    }
+
+/** Looks at the target Processed_Images folder before anything is written. */
+export function checkTargetFolder(fileNames: readonly string[], markerFileText: string | null, jobId: string, plan: ProcessPlan): FolderCheck {
+  const marker = markerFileText === null ? null : parseMarker(markerFileText)
+  if (marker && marker.jobId !== jobId) return { kind: 'otherJob', marker }
+  const present = new Set(fileNames.map((n) => n.toLowerCase()))
+  const existing = plan.jobs.map((j) => j.outName).filter((n) => present.has(n.toLowerCase()))
+  const others = fileNames.filter((n) => n.toLowerCase() !== MARKER_FILE.toLowerCase())
+  return { kind: 'ok', existing, unmarked: !marker && others.length > 0 }
+}
+
+export interface FitResult {
+  blob: Blob
+  width: number
+  height: number
+  capped: boolean
+  /** Made bigger to match the Excel version's size. */
+  raised: boolean
+}
+
+export interface ProcessIO {
+  readPhoto: (name: string) => Promise<Blob>
+  fit: (photo: Blob, scanW: number, scanH: number, maxSide: number) => Promise<FitResult>
+  write: (name: string, data: Blob | string) => Promise<void>
+}
+
+export interface RunOptions {
+  plan: ProcessPlan
+  /** Output names already in the folder that the user chose to keep. */
+  keep: ReadonlySet<string>
+  maxSide: number
+  marker: JobMarker
+  io: ProcessIO
+  onProgress?: (done: number, total: number, current: string) => void
+  signal?: AbortSignal
+}
+
+export interface RunSummary {
+  processed: { scanId: string; outName: string; width: number; height: number; capped: boolean; raised: boolean }[]
+  skipped: Skipped[]
+  failed: Skipped[]
+  cancelled: boolean
+}
+
+export async function runProcessing(o: RunOptions): Promise<RunSummary> {
+  const summary: RunSummary = { processed: [], skipped: [...o.plan.skipped], failed: [], cancelled: false }
+  const todo = o.plan.jobs.filter((j) => {
+    if (!o.keep.has(j.outName)) return true
+    summary.skipped.push({ scanId: j.scanId, reason: `${j.outName} was already there and kept.` })
+    return false
+  })
+  // The marker goes first, so the folder is claimed for this job even if the run stops halfway.
+  await o.io.write(MARKER_FILE, markerText(o.marker, o.plan.jobs.length))
+  for (let i = 0; i < todo.length; i++) {
+    const j = todo[i]
+    o.onProgress?.(i, todo.length, j.scanId)
+    if (o.signal?.aborted) {
+      summary.cancelled = true
+      for (const k of todo.slice(i)) summary.skipped.push({ scanId: k.scanId, reason: 'Not done: cancelled.' })
+      break
+    }
+    let photo: Blob
+    try {
+      photo = await o.io.readPhoto(j.photoName)
+    } catch (err) {
+      summary.failed.push({ scanId: j.scanId, reason: `${j.photoName} could not be read (${message(err)}).` })
+      continue
+    }
+    let fitted: FitResult
+    try {
+      fitted = await o.io.fit(photo, j.scanW, j.scanH, o.maxSide)
+    } catch (err) {
+      summary.failed.push({ scanId: j.scanId, reason: `${j.photoName} could not be opened as a picture (${message(err)}).` })
+      continue
+    }
+    try {
+      await o.io.write(j.outName, fitted.blob)
+    } catch (err) {
+      summary.failed.push({ scanId: j.scanId, reason: `${j.outName} could not be written (${message(err)}).` })
+      continue
+    }
+    summary.processed.push({ scanId: j.scanId, outName: j.outName, width: fitted.width, height: fitted.height, capped: fitted.capped, raised: fitted.raised })
+  }
+  if (!summary.cancelled) o.onProgress?.(todo.length, todo.length, '')
+  return summary
+}
+
+function message(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}

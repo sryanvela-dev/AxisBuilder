@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MIGRATIONS,
   CURRENT_SCHEMA_VERSION,
   ProjectFileError,
   createEmptyProject,
@@ -106,7 +107,8 @@ describe('save and open', () => {
 describe('defaults', () => {
   it('fills every section of an empty file', () => {
     const { project } = expectOk(openProject(JSON.stringify({ schemaVersion: CURRENT_SCHEMA_VERSION })))
-    expect(project).toEqual(createEmptyProject())
+    expect({ ...project, jobId: 'x' }).toEqual({ ...createEmptyProject(), jobId: 'x' })
+    expect(project.jobId).toMatch(/^[0-9a-f-]{36}$/)
     expect(project.vessel.length).toBeNull()
     expect(project.vessel.orientation).toBe('Horizontal CW')
     expect(project.settings.rulerSpacing).toBe(12)
@@ -255,10 +257,8 @@ describe('readable errors', () => {
     expect(errorsFor(withChange((p) => (p.project.date = '10/22/2026')))).toHaveLength(1)
   })
 
-  it('rejects zero-size scans and image links to missing scans', () => {
-    expect(errorsFor(withChange((p) => (p.scans[0].yStop = 0)))).toEqual([
-      'AUT scans, item 1 (SCAN1): Y stop must differ from Y start (the scan has no height).',
-    ])
+  it('saves zero-size scans (checks.ts blocks their export); rejects image links to missing scans', () => {
+    expect(openProject(JSON.stringify(withChange((p) => (p.scans[0].yStop = p.scans[0].yStart)))).ok).toBe(true)
     expect(errorsFor(withChange((p) => (p.scanImages[0].scanId = 'SCAN9')))).toEqual([
       'Scan images, item 1 (SCAN9): Scan "SCAN9" does not match any AUT scan.',
     ])
@@ -316,11 +316,24 @@ describe('duplicate IDs', () => {
 describe('migration hook', () => {
   // Pretend an older format 0 stored the vessel length under "shellLength".
   const migrations: Record<number, Migration> = {
+    ...MIGRATIONS,
     0: (data) => {
       const { shellLength, ...rest } = data
       return { ...rest, schemaVersion: 1, vessel: { length: shellLength } }
     },
   }
+
+  it('format 1 files get a job ID; a format 2 file keeps its own', () => {
+    const v1 = expectOk(openProject(JSON.stringify({ schemaVersion: 1, project: { projectName: 'Old' } })))
+    expect(v1.migratedFrom).toBe(1)
+    expect(v1.project.schemaVersion).toBe(2)
+    expect(v1.project.jobId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(v1.project.project.projectName).toBe('Old')
+    const again = expectOk(openProject(saveProject(v1.project)))
+    expect(again.migratedFrom).toBeUndefined()
+    expect(again.project.jobId).toBe(v1.project.jobId)
+    expect(errorsFor({ schemaVersion: 2, jobId: ' ' })).toEqual(['Job ID must not be blank.'])
+  })
 
   it('upgrades older files before validating', () => {
     const result = expectOk(openProject(JSON.stringify({ schemaVersion: 0, shellLength: 300 }), { migrations }))

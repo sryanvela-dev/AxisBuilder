@@ -10,13 +10,21 @@ export function rowElementId(list: string, index: number): string {
   return `row-${list}-${index}`
 }
 
+export function photoElementId(scanIndex: number): string {
+  return `photo-${scanIndex}`
+}
+
 export function listElementId(list: string): string {
   return `list-${list}`
 }
 
 /** Scrolls to a setting or row and puts the cursor in it (in the cell of the field, when given). */
 export function jumpTo(place: CheckPlace) {
-  const id = place.kind === 'setting' ? settingElementId(place.section, place.key) : place.kind === 'row' ? rowElementId(place.list, place.index) : listElementId(place.list)
+  const id =
+    place.kind === 'setting' ? settingElementId(place.section, place.key)
+      : place.kind === 'row' ? rowElementId(place.list, place.index)
+        : place.kind === 'photo' ? photoElementId(place.index)
+          : listElementId(place.list)
   const el = document.getElementById(id)
   if (!el) return
   el.scrollIntoView({ block: 'center', behavior: 'smooth' })

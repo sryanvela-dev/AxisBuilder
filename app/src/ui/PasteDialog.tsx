@@ -2,7 +2,7 @@
 // see the rows that will be added and every cell that can't be used, then add them as one undo step.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { TABLE_COLUMNS, columnTitle, formatCell, type FieldListKey } from '../data/columns.ts'
+import { TABLE_COLUMNS, columnTitle, formatCell, type TableListKey } from '../data/columns.ts'
 import { LABEL_MODE_LABELS, RADIUS_LABELS } from '../data/parse.ts'
 import { buildPastedRows, guessMapping, parseClipboardTable, type PasteMapping } from '../data/paste.ts'
 import { LIST_META } from '../data/schema.ts'
@@ -10,7 +10,7 @@ import { useApp } from './appContext.ts'
 
 const PREVIEW_ROWS = 8
 
-export function PasteDialog({ list, initialText, onClose }: { list: FieldListKey; initialText: string; onClose: () => void }) {
+export function PasteDialog({ list, initialText, onClose }: { list: TableListKey; initialText: string; onClose: () => void }) {
   const app = useApp()
   const project = app.state.job!.history.present
   const [text, setTextOnly] = useState(initialText)

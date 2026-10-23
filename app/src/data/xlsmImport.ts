@@ -99,7 +99,7 @@ const SHEET = {
 /** OCR import review fill RGB(255,255,153) and the generation check's RGB(255,255,0). */
 const FLAG_FILLS: Record<string, string> = {
   FFFF99: 'highlighted yellow for review by the OCR import',
-  FFFF00: 'highlighted yellow by the v5.0 generation check',
+  FFFF00: "highlighted yellow by the Excel version's check before generating",
 }
 
 // --- Text helpers ----------------------------------------------------------------------------
@@ -604,7 +604,7 @@ function parseColumn(c: Cell, kind: ColumnKind): unknown {
       const found = RADIUS_ALIASES[labelKey(raw).toUpperCase()]
       if (found) return found
       report(c, raw, hasReview(raw) ? 'review' : 'invalid',
-        'Not CENTER, HALF, THREE_QUARTER, OUTER or CUSTOM; left unselected, choose a radius position (v5.0 drew it at half radius).')
+        'Not CENTER, HALF, THREE_QUARTER, OUTER or CUSTOM; left unselected, choose a radius position (the Excel version drew it at half radius).')
       return null
     }
     case 'customPercent': {
@@ -749,7 +749,7 @@ function sectionRows(sheet: Sheet, spec: SectionSpec): [number, number, number] 
   const title = sheet.findTitleRow(spec.titles)
   if (!title) {
     sheet.report.add(sheet.name, `rows ${spec.fallback[0]}-${spec.fallback[1]}`, '', 'notFound',
-      `Section header "${spec.titles[0]}" not found; read the v5.0 rows ${spec.fallback[0]}-${spec.fallback[1]}.`)
+      `Section header "${spec.titles[0]}" not found; read the usual rows ${spec.fallback[0]}-${spec.fallback[1]}.`)
     return [...spec.fallback, 0]
   }
   let first = title + 2

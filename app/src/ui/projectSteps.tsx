@@ -31,7 +31,7 @@ export function FieldDataStep({ status }: StepProps) {
   const { checks } = useJobChecks()
   const p = app.state.job!.history.present
   const counts = (list: (typeof FIELD_LISTS)[number]) => {
-    const own = checks.filter((c) => c.place.kind !== 'setting' && c.place.list === list)
+    const own = checks.filter((c) => (c.place.kind === 'row' || c.place.kind === 'list') && c.place.list === list)
     return { errors: own.filter((c) => c.severity === 'error').length, warnings: own.filter((c) => c.severity === 'warning').length }
   }
   const size = (v: number | null) => (v === null ? 'not entered' : `${formatNumber(v)} in`)

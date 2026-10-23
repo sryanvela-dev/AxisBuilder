@@ -196,3 +196,15 @@ describe('export guard', () => {
     expect(exportProblems(ref1())).toEqual([])
   })
 })
+
+describe('settings and data that only the app uses', () => {
+  it('the job ID, the image size limit and hidden v5.0 image settings do not change the drawing file', () => {
+    const base = ref1()
+    const changed = ref1((p) => {
+      p.jobId = 'another-job-id'
+      p.settings.maxImageSide = 1000
+    })
+    expect(exportV5(changed)).toBe(exportV5(base))
+    expect(exportText(changed)).toBe(exportText(base))
+  })
+})

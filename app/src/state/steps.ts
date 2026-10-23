@@ -82,6 +82,7 @@ const STEP_OF_APP_STEP: Record<string, StepId> = { Project: 'project', 'Field da
 
 /** The step whose page shows the check. */
 export function stepOfCheck(c: Check): StepId {
+  if (c.place.kind === 'photo') return 'images'
   if (c.place.kind !== 'setting') return STEP_OF_LIST[c.place.list]
   const def = fieldDef(c.place.section, c.place.key)
   return def ? STEP_OF_APP_STEP[def.step] : 'project'
@@ -141,7 +142,6 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
   const open = before.flatMap((s) => s.issues)
   const todo: Issue[] = []
   if (!scansStarted) todo.push({ step: 'scans', text: 'No AUT scans yet.', blocksExport: false })
-  else if (images.state === 'notStarted') todo.push({ step: 'images', text: 'No photos linked yet.', blocksExport: false })
   const anyStarted = before.some((s) => s.state !== 'notStarted')
   const review = status(anyStarted, anyStarted ? [...open, ...todo] : [])
 
@@ -154,27 +154,10 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
   return { project, fieldData, scans, images, review, export: exportStatus }
 }
 
-/** Included scans that have no photo chosen yet (a link switched off counts as dealt with). */
-export function scansWithoutImage(project: Project): string[] {
-  const links = new Map(project.scanImages.map((l) => [l.scanId.trim().toLowerCase(), l]))
-  return project.scans
-    .filter((s) => s.include)
-    .filter((s) => {
-      const link = links.get(s.id.trim().toLowerCase())
-      return !link || (link.include && link.imageFile.trim() === '')
-    })
-    .map((s) => s.id)
-}
-
 function imageStatus(p: Project, wb: WorkbookImport | null, checkIssues: Issue[]): StepStatus {
   if (p.scans.length === 0) return { state: 'notStarted', short: 'Not started', issues: [] }
-  const missing = scansWithoutImage(p)
-  const started = p.scanImages.length > 0
-  const issues = [...checkIssues, ...reportIssue(wb, 'images')]
-  if (started && missing.length > 0) {
-    issues.unshift({ step: 'images', text: `${plural(missing.length, 'scan')} ${missing.length === 1 ? 'has' : 'have'} no photo yet.`, blocksExport: false })
-  }
-  return status(started, issues)
+  // Missing photos come from the checks (data/checks.ts, v5.0's rule).
+  return status(p.scanImages.length > 0, [...checkIssues, ...reportIssue(wb, 'images')])
 }
 
 /** Short lines for the "before export" banner: what is left, grouped by step. Empty when ready. */
@@ -188,9 +171,6 @@ export function whatsLeft(statuses: Record<StepId, StepStatus>): { step: StepId;
     if (fix > 0) out.push({ step: id, text: `${title}: ${plural(fix, 'thing')} to fix` })
     if (check > 0) out.push({ step: id, text: `${title}: ${plural(check, 'thing')} to check` })
     if (id === 'scans' && s.state === 'notStarted') out.push({ step: id, text: 'AUT scans: not imported yet' })
-    if (id === 'images' && s.state === 'notStarted' && statuses.scans.state !== 'notStarted') {
-      out.push({ step: id, text: 'Images: no photos linked yet' })
-    }
   }
   return out
 }
