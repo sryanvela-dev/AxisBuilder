@@ -14,7 +14,8 @@
     "fixtures:xlsm": "node scripts/build-test-workbooks.ts",
     "convert:refjobs": "node scripts/convert-reference-jobs.ts",
     "golden:make": "node scripts/make-golden.ts",
-    "gen:lsp-library": "node scripts/gen-lsp-library.ts"
+    "gen:lsp-library": "node scripts/gen-lsp-library.ts",
+    "imagepath:test": "node scripts/make-image-path-test.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

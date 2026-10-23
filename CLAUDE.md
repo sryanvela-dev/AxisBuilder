@@ -106,7 +106,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `preview` (serves `dist/` with the service worker), `test` (`vitest run`), `typecheck` (`tsc -b`), `lint` (oxlint),
   `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date), `fixtures:xlsm`
   (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`), `gen:lsp-library` (regenerates
-  `src/export/lsp/library.generated.ts` from `src/SLG_Utilities.bas`; a test fails when it is out of date).
+  `src/export/lsp/library.generated.ts` from `src/SLG_Utilities.bas`; a test fails when it is out of date),
+  `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit).
 - TypeScript projects: `tsconfig.app.json` (src, browser only), `tsconfig.test.json` (src + test, adds Node types),
   `tsconfig.node.json` (vite config and scripts).
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
@@ -303,3 +304,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   AutoCAD, long seams, head MUT). Anonymization checked: no original name, client, inspector or path in app/test/golden.
   Image folder: user answers recorded in app/docs/phase2-notes.md (both CADs, job folder, one click OK, installed
   program acceptable); the CAD test at the Images step decides. No VBA, workbook or REF folder changes.
+- 2026-10-22 – Web app Phase 3a (branch feature/image-path-test): CAD image-path test kit generator
+  `app/scripts/make-image-path-test.ts` (`npm run imagepath:test`). `IPTEST` tries C1 relative path, C2 DWGPREFIX,
+  C3 .lsp folder (findfile), A one getfiled pick, using the exporter's SL_InsertFitImage (DraftSight and AutoCAD
+  branches); `IPCHECK` lists saved image paths. Kit generated outside the repo (AxisBuilder Image Path Test); results
+  pending from the user's DraftSight/AutoCAD runs. No VBA, workbook or exporter changes.

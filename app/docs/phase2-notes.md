@@ -161,6 +161,15 @@ decides between C + A (web app is enough) and B (wrap the same app as an install
 Saving: in Chrome/Edge the app writes the `.lsp` and `Processed_Images` into a folder you pick
 (File System Access API; Firefox can only download).
 
+**CAD test kit (Phase 3a, 2026-10-22):** `npm run imagepath:test -- "<output folder>"`
+(`scripts/make-image-path-test.ts`) writes `image-path-test.lsp`, `Processed_Images\` (TEST_1..4_FIT.png)
+and `INSTRUCTIONS.txt` (4 scenarios for DraftSight and AutoCAD, results table). Command `IPTEST` attaches
+one image per method with the exporter's own `SL_InsertFitImage` (both branches, renamed `_DS`/`_ACAD`):
+C1 relative path, C2 `DWGPREFIX` + relative path, C3 folder of the `.lsp` found with `findfile`,
+A one `getfiled` pick in Processed_Images. Each attempt is caught; a failed AutoCAD attach can only move
+a throw-away point. `IPCHECK` lists every image with its saved path, loaded flag and `findfile` result.
+Four images instead of three, so no two methods attach the same image name. Results: pending (user).
+
 ## What's needed from you
 
 Nothing for the exporter right now. A job with **shell MUT points**, or with more options switched
