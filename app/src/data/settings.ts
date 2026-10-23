@@ -615,9 +615,9 @@ export const SETTINGS = {
   }),
   maxImageSide: num({
     excelLabel: 'Largest Processed Image Side', excelSheet: PS, onSheet: false, name: 'Largest processed image side',
-    description: 'Longest side of a processed scan image. A larger one is scaled down (the shape stays exactly that of the scan) so the drawing stays quick to open.',
+    description: 'Longest side of a processed scan image. A larger one is scaled down (the shape stays exactly that of the scan) so the drawing stays quick to open, but never below the size the Excel version made (40 px per inch of scan).',
     units: 'px', integer: true, min: 500, max: 10000, default: 4096, group: 'images', step: 'Images', level: 'Advanced',
-    v5: 'App only. v5.0 sized every image at 40 px per inch of scan instead.',
+    v5: 'App only. v5.0 sized every image at 40 px per inch of scan; the app never goes below that.',
   }),
   showVesselOnOverlay: yesNo({
     excelLabel: 'Show Vessel On Overlay', excelSheet: PS, name: 'Draw vessel outline',

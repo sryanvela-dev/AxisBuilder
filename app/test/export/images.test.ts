@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fitSize } from '../../src/export/images/fit.ts'
+import { excelSize, fitSize } from '../../src/export/images/fit.ts'
 import { MARKER_FILE, markerText, parseMarker } from '../../src/export/images/marker.ts'
 import { checkTargetFolder, planProcessing, processedFolderName, runProcessing, type ProcessIO } from '../../src/export/images/process.ts'
 import type { Project } from '../../src/data/schema.ts'
@@ -7,46 +7,65 @@ import { sampleProject } from '../../src/ui/sampleJob.ts'
 
 /** Photo sizes like the reference jobs (screen captures) and a few odd ones. */
 const PHOTOS: [number, number][] = [[1915, 957], [1532, 767], [1687, 562], [1341, 442], [800, 1200], [1000, 1000], [37, 23]]
-/** Scan sizes in inches: wide, tall, square, long and thin, fractions. */
-const SCANS: [number, number][] = [[23, 10], [14, 20], [24, 24], [92, 6.5], [6.5, 92], [12.375, 7.125], [180, 12.75], [2.5, 47], [1, 1.5], [33.3333, 3]]
+/** Scan sizes in inches: wide, tall, square, long and thin, fractions, very long. */
+const SCANS: [number, number][] = [[23, 10], [14, 20], [24, 24], [92, 6.5], [6.5, 92], [12.375, 7.125], [180, 12.75], [2.5, 47], [1, 1.5], [33.3333, 3], [280, 20]]
+const CASES = PHOTOS.flatMap((ph) => SCANS.map((sc) => [...ph, ...sc] as const))
+
+/** The shape is exact to the pixel: the rounded side is within half a pixel of the scan's width:height. */
+function expectExactShape(f: { width: number; height: number }, sw: number, sh: number) {
+  const r = sw / sh
+  expect(Math.min(Math.abs(f.width - f.height * r), Math.abs(f.height - f.width / r))).toBeLessThanOrEqual(0.5)
+  expect(Number.isInteger(f.width) && Number.isInteger(f.height)).toBe(true)
+}
 
 describe('processed image size', () => {
-  it.each(PHOTOS.flatMap((ph) => SCANS.map((sc) => [...ph, ...sc] as const)))('photo %ix%i, scan %s x %s: exact shape, nothing shrunk', (pw, ph, sw, sh) => {
+  it.each(CASES)('photo %ix%i, scan %s x %s in: exact shape, nothing shrunk, never below the Excel version', (pw, ph, sw, sh) => {
     const f = fitSize(pw, ph, sw, sh, 1e9)
-    // Exact to the pixel: the rounded side is within half a pixel of the scan's ratio.
-    if (f.stretched === 'width') expect(Math.abs(f.width - f.height * (sw / sh))).toBeLessThanOrEqual(0.5)
-    else expect(Math.abs(f.height - f.width * (sh / sw))).toBeLessThanOrEqual(0.5)
-    // One direction only, and never smaller than the photo.
+    const excel = excelSize(sw, sh)
+    expectExactShape(f, sw, sh)
     expect(f.width).toBeGreaterThanOrEqual(pw)
     expect(f.height).toBeGreaterThanOrEqual(ph)
-    expect(f.width === pw || f.height === ph).toBe(true)
-    expect(Number.isInteger(f.width) && Number.isInteger(f.height)).toBe(true)
+    expect(f.width).toBeGreaterThanOrEqual(excel.width)
+    expect(f.height).toBeGreaterThanOrEqual(excel.height)
+    // Stretched in one direction only, unless it had to grow to the Excel version's size.
+    if (!f.raised) expect(f.width === pw || f.height === ph).toBe(true)
     expect(f.capped).toBe(false)
   })
 
-  it('examples', () => {
-    expect(fitSize(1915, 957, 23, 10, 1e9)).toEqual({ width: 2201, height: 957, capped: false, stretched: 'width' })
-    expect(fitSize(1915, 957, 14, 20, 1e9)).toEqual({ width: 1915, height: 2736, capped: false, stretched: 'height' })
-    expect(fitSize(1000, 500, 20, 10, 1e9)).toEqual({ width: 1000, height: 500, capped: false, stretched: 'none' })
-  })
-
-  it.each(PHOTOS.flatMap((ph) => SCANS.map((sc) => [...ph, ...sc] as const)))('photo %ix%i, scan %s x %s with a 1000 px cap: long side 1000 at most, shape still exact', (pw, ph, sw, sh) => {
+  it.each(CASES)('photo %ix%i, scan %s x %s in, 1000 px cap: at most the cap or the Excel size, shape still exact', (pw, ph, sw, sh) => {
     const free = fitSize(pw, ph, sw, sh, 1e9)
     const f = fitSize(pw, ph, sw, sh, 1000)
-    expect(Math.max(f.width, f.height)).toBeLessThanOrEqual(1000)
-    if (Math.max(free.width, free.height) <= 1000) {
-      expect(f).toEqual(free)
-      return
-    }
-    expect(f.capped).toBe(true)
-    expect(Math.max(f.width, f.height)).toBe(1000)
-    if (f.width >= f.height) expect(Math.abs(f.height - 1000 * (sh / sw))).toBeLessThanOrEqual(0.5)
-    else expect(Math.abs(f.width - 1000 * (sw / sh))).toBeLessThanOrEqual(0.5)
+    const excel = excelSize(sw, sh)
+    expectExactShape(f, sw, sh)
+    expect(f.width).toBeGreaterThanOrEqual(excel.width)
+    expect(f.height).toBeGreaterThanOrEqual(excel.height)
+    if (Math.max(free.width, free.height) <= 1000) expect(f).toEqual(free)
+    else if (!f.raised) expect(Math.max(f.width, f.height)).toBe(1000)
+    else expect(Math.max(f.width, f.height)).toBeLessThanOrEqual(Math.max(excel.width, excel.height) + 1)
   })
 
-  it('the cap scales both directions together', () => {
-    expect(fitSize(1915, 957, 92, 6.5, 4096)).toEqual({ width: 4096, height: 289, capped: true, stretched: 'width' })
-    expect(fitSize(1915, 957, 6.5, 92, 4096)).toEqual({ width: 289, height: 4096, capped: true, stretched: 'height' })
+  it('examples', () => {
+    expect(fitSize(1915, 957, 23, 10, 1e9)).toEqual({ width: 2201, height: 957, capped: false, raised: false, stretched: 'width' })
+    expect(fitSize(1915, 957, 14, 20, 1e9)).toEqual({ width: 1915, height: 2736, capped: false, raised: false, stretched: 'height' })
+    expect(fitSize(1000, 500, 20, 10, 1e9)).toEqual({ width: 1000, height: 500, capped: false, raised: false, stretched: 'none' })
+    expect(excelSize(23, 10)).toEqual({ width: 920, height: 400 })
+    expect(excelSize(1, 1.5)).toEqual({ width: 100, height: 100 })
+  })
+
+  it('the cap scales both directions together, but never below the Excel version', () => {
+    // 92 x 6.5 in: the cap gives 4096 x 289, the Excel version 3680 x 260, so the cap stands.
+    expect(fitSize(1915, 957, 92, 6.5, 4096)).toEqual({ width: 4096, height: 289, capped: true, raised: false, stretched: 'width' })
+    expect(fitSize(1915, 957, 6.5, 92, 4096)).toEqual({ width: 289, height: 4096, capped: true, raised: false, stretched: 'height' })
+    // 280 x 20 in: the cap would give 4096 x 293, but the Excel version made 11200 x 800, so that is used.
+    expect(fitSize(1915, 957, 280, 20, 4096)).toEqual({ width: 11200, height: 800, capped: true, raised: true, stretched: 'width' })
+    expect(excelSize(280, 20)).toEqual({ width: 11200, height: 800 })
+  })
+
+  it('a small photo grows to the Excel version size', () => {
+    // 400 x 200 px photo, 23 x 10 in scan: stretching alone gives 460 x 200; the Excel version made 920 x 400.
+    expect(fitSize(400, 200, 23, 10, 4096)).toEqual({ width: 920, height: 400, capped: false, raised: true, stretched: 'width' })
+    // A tiny scan: 100 px minimum each way, shape kept (1 x 1.5 in -> 100 x 150).
+    expect(fitSize(37, 23, 1, 1.5, 4096)).toEqual({ width: 100, height: 150, capped: false, raised: true, stretched: 'height' })
   })
 
   it('refuses a photo or scan without a size', () => {
@@ -140,7 +159,7 @@ describe('a processing run', () => {
       }),
       fit: vi.fn(async (photo, w, h) => {
         if (fail.fit === (await photo.text())) throw new Error('not a picture')
-        return { blob: new Blob(['png']), width: Math.round(w * 10), height: Math.round(h * 10), capped: false }
+        return { blob: new Blob(['png']), width: Math.round(w * 10), height: Math.round(h * 10), capped: false, raised: false }
       }),
       write: vi.fn(async (name) => {
         if (fail.write === name) throw new Error('disk full')

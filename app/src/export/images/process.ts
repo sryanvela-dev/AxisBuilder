@@ -91,6 +91,8 @@ export interface FitResult {
   width: number
   height: number
   capped: boolean
+  /** Made bigger to match the Excel version's size. */
+  raised: boolean
 }
 
 export interface ProcessIO {
@@ -111,7 +113,7 @@ export interface RunOptions {
 }
 
 export interface RunSummary {
-  processed: { scanId: string; outName: string; width: number; height: number; capped: boolean }[]
+  processed: { scanId: string; outName: string; width: number; height: number; capped: boolean; raised: boolean }[]
   skipped: Skipped[]
   failed: Skipped[]
   cancelled: boolean
@@ -154,7 +156,7 @@ export async function runProcessing(o: RunOptions): Promise<RunSummary> {
       summary.failed.push({ scanId: j.scanId, reason: `${j.outName} could not be written (${message(err)}).` })
       continue
     }
-    summary.processed.push({ scanId: j.scanId, outName: j.outName, width: fitted.width, height: fitted.height, capped: fitted.capped })
+    summary.processed.push({ scanId: j.scanId, outName: j.outName, width: fitted.width, height: fitted.height, capped: fitted.capped, raised: fitted.raised })
   }
   if (!summary.cancelled) o.onProgress?.(todo.length, todo.length, '')
   return summary

@@ -16,7 +16,7 @@ export function createFitter(): Fitter {
     const w = waiting.get(e.data.id)
     if (!w) return
     waiting.delete(e.data.id)
-    if (e.data.ok) w.resolve({ blob: e.data.blob, width: e.data.width, height: e.data.height, capped: e.data.capped })
+    if (e.data.ok) w.resolve({ blob: e.data.blob, width: e.data.width, height: e.data.height, capped: e.data.capped, raised: e.data.raised })
     else w.reject(new Error(e.data.error))
   }
   worker.onerror = (e) => {

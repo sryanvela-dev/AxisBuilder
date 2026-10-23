@@ -42,7 +42,10 @@ The photos are only the scan area (no borders, color scales or toolbars), so no 
 2. **Correct only the shape.** Stretch one direction (never shrink the other) so the image's
    width:height equals the scan's w:h exactly. Cap the size (setting "Largest processed image side",
    default 4096 px, see below): above it both directions are scaled down together, so the shape stays
-   exact. Resize in the browser (no WIA or PowerShell).
+   exact. **Never smaller than v5.0** (user, 2026-10-23): if the result is smaller than v5.0's image
+   (scan width x 40 by scan height x 40 px, at least 100 px each way) in either direction, it is raised to
+   the smallest exact-shape size that covers v5.0's, even past the cap. Resize in the browser (no WIA or
+   PowerShell).
 3. **Insert exactly as v5.0 does:** steps 2-4 above unchanged (attach at scan width, same insert
    points, rotations and IMAGEFRAME handling).
 4. **Drop "DraftSight Image Pixels Per Unit" from the fit**, since placement never depended on it.
@@ -67,18 +70,23 @@ screen captures 1341-1915 px wide and 442-958 px high (about 2:1). Their 111 sca
 width:height from 0.79 to 14.1, so shape-only scaling stretches a lot: uncapped, the long side would
 be 3445 px for half of them, 6500 px for 90 % and up to 10834 px.
 
-| Cap (long side) | Scans scaled down | Average image | 150 images in memory (RGB) |
-|---|---|---|---|
-| none | 0 of 111 | 3.71 MP | about 1.7 GB |
-| 5000 | 28 | 2.99 MP | about 1.35 GB |
-| **4096 (default)** | 50 | 2.65 MP | about 1.2 GB |
-| 3000 | 68 | 1.99 MP | about 0.9 GB |
-| 2048 | 80 | 1.33 MP | about 0.6 GB |
-| v5.0 (40 px/in) | - | 2.39 MP | about 1.1 GB |
+With the "never smaller than v5.0" rule (`fitSize` today), for those 111 scans:
 
-4096 keeps the photo's full detail in both directions for 55 % of the scans and gives about the same
-total load as v5.0's 40 px/in, which already works in CAD on these jobs. If DraftSight or AutoCAD feel
-slow on a big job, 3000 is lighter than v5.0. The setting is on the Images step (Advanced).
+| Cap (long side) | Scaled down by the cap | Raised to v5.0's size | Average image | Largest | 150 images in memory (RGB) |
+|---|---|---|---|---|---|
+| none | 0 | 34 | 3.81 MP | 8.70 MP | about 1.71 GB |
+| 5000 | 13 | 38 | 3.31 MP | 6.08 MP | about 1.49 GB |
+| **4096 (default)** | 7 | 49 | 3.21 MP | 6.08 MP | about 1.44 GB |
+| 3000 | 20 | 54 | 3.02 MP | 6.08 MP | about 1.36 GB |
+| 2048 | 5 | 79 | 2.87 MP | 6.08 MP | about 1.29 GB |
+| v5.0 (40 px/in) | - | - | 2.39 MP | 6.08 MP | about 1.08 GB |
+
+"Raised" counts images that would have been smaller than v5.0's (the photo was small for its scan, or the
+cap cut too deep), so they get v5.0's size in the exact shape. 34 of the 111 are raised even without a
+cap: for long scans v5.0's 40 px/in is more than the photo has. The largest image (6.08 MP, e.g. 7600 x
+800 px) is the same as v5.0's, so the cap no longer limits the worst case; it only limits photos that are
+already sharper than v5.0. The total load is about a third more than v5.0 at 4096, and about a quarter more
+at 3000. 4096 stays the default; 3000 or 2048 save a little memory if CAD feels slow on a big job.
 
 ### When images are processed (decided by the user, 2026-10-23)
 

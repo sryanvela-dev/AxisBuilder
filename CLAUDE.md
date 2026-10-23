@@ -153,7 +153,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
   (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening needs one "Allow" click), matching flow
   (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
-  (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, Web Worker, `<job folder>Processed_Images`
+  (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
   + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
@@ -385,3 +385,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   ("the Excel version" where it matters). No VBA or workbook changes.
 - 2026-10-23 – Decision (user) for Phase 3f: Make CAD drawing writes the .lsp and processes missing or out-of-date images
   in one go; the Images step keeps its Process images button. Recorded in app/docs/overlay-image-scaling.md. Docs only.
+- 2026-10-23 – Web app Phase 3d follow-up (user): processed images are never smaller than v5.0 made them (scan w x 40 by
+  h x 40 px, at least 100 px each way): `fitSize` raises a capped or small result to the smallest exact-shape size
+  covering that (`excelSize`, `raised` flag; e.g. 280 x 20 in with a 1915 x 957 photo -> 11200 x 800). New numbers for
+  the reference jobs in overlay-image-scaling.md (default cap 4096: 3.21 MP average, about 1.44 GB for 150 images vs
+  1.08 GB in v5.0); setting description updated. No VBA or workbook changes.

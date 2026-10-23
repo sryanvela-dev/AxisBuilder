@@ -12,7 +12,7 @@ export interface FitRequest {
 }
 
 export type FitResponse =
-  | { id: number; ok: true; blob: Blob; width: number; height: number; capped: boolean }
+  | { id: number; ok: true; blob: Blob; width: number; height: number; capped: boolean; raised: boolean }
   | { id: number; ok: false; error: string }
 
 const scope = self as unknown as { onmessage: ((e: MessageEvent<FitRequest>) => void) | null; postMessage: (m: FitResponse) => void }
@@ -30,7 +30,7 @@ scope.onmessage = async (e) => {
     ctx.drawImage(bitmap, 0, 0, size.width, size.height)
     bitmap.close()
     const blob = await canvas.convertToBlob({ type: 'image/png' })
-    scope.postMessage({ id, ok: true, blob, width: size.width, height: size.height, capped: size.capped })
+    scope.postMessage({ id, ok: true, blob, width: size.width, height: size.height, capped: size.capped, raised: size.raised })
   } catch (err) {
     scope.postMessage({ id, ok: false, error: err instanceof Error ? err.message : String(err) })
   }

@@ -133,7 +133,7 @@ export function ProcessPanel({ photos, jobFolder }: { photos: RememberedFolder; 
       <h2>Processed images</h2>
       <p className="muted">
         Each photo is stretched in one direction only, to the exact shape of its scan, keeping its own detail (very large ones are scaled down to the
-        size limit). They are written to the job folder, in {folderName}, where the drawing file looks for them. Save the CAD drawing in the job folder
+        size limit, but never below the size the Excel version made). They are written to the job folder, in {folderName}, where the drawing file looks for them. Save the CAD drawing in the job folder
         too.
       </p>
       {!canWrite ? (
@@ -190,12 +190,15 @@ export function ProcessPanel({ photos, jobFolder }: { photos: RememberedFolder; 
 }
 
 function Summary({ summary, folder }: { summary: RunSummary; folder: string }) {
-  const capped = summary.processed.filter((x) => x.capped).length
+  const capped = summary.processed.filter((x) => x.capped && !x.raised).length
+  const raised = summary.processed.filter((x) => x.raised).length
   return (
     <div className={`notice${summary.failed.length ? ' notice-error' : ''}`} role="status">
       <p>
         <strong>{summary.cancelled ? 'Stopped.' : 'Done.'}</strong> {plural(summary.processed.length, 'image')} written to {folder}
-        {capped ? ` (${capped} scaled down to the size limit)` : ''}; {summary.skipped.length} skipped; {summary.failed.length} failed.
+        {capped || raised
+          ? ` (${[capped ? `${capped} scaled down to the size limit` : '', raised ? `${raised} made larger, to at least the Excel version's size` : ''].filter(Boolean).join(', ')})`
+          : ''}; {summary.skipped.length} skipped; {summary.failed.length} failed.
       </p>
       {summary.failed.length > 0 && (
         <ul className="paste-list">
