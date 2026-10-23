@@ -210,7 +210,10 @@ function FieldFrame(props: { id: string; field: GroupField; step: StepId; input:
   )
 }
 
-/** " Allowed: 0 to 90." from the setting's own range. */
+/** How lengths can be typed (shown under every length box). */
+const LENGTH_TYPING = `Type it as 12.5, 12 1/2, 12-1/2 or 10' 6".`
+
+/** " Allowed: 0 to 90." from the setting's own range (and how to type a length). */
 function rangeHint(def: FieldDef): string {
   if (def.type !== 'number') return ''
   const parts: string[] = []
@@ -219,5 +222,6 @@ function rangeHint(def: FieldDef): string {
   else if (def.max !== undefined) parts.push(`up to ${def.max}`)
   if (def.greaterThan !== undefined) parts.push(`more than ${def.greaterThan}`)
   if (def.integer) parts.push('whole numbers')
-  return parts.length ? ` Allowed: ${parts.join(', ')}.` : ''
+  const allowed = parts.length ? ` Allowed: ${parts.join(', ')}.` : ''
+  return def.units === 'in' ? `${allowed} ${LENGTH_TYPING}` : allowed
 }
