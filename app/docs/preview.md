@@ -92,10 +92,16 @@ photo for its piece (the same split as the processed _A / _B images). Hover text
 
 While "Make section sheets" is on (Drawing step), the preview draws the plan (layer SECTION_PLAN, toggle "Sections"):
 each section across the whole circumference with its number, and dashes where the sheet's overlap ends. The Sheets
-button flips through the sheets as they print (`ui/preview/SheetsView.tsx`): letter landscape, the template viewport
-area assumed to be 10 x 7.5 in, the section viewport placed as SECTIONPAGES does (68% of the width, the information
-panel on the right), "SECTION n OF N", match lines "MATCH LINE - SEE SECTION n", and on the overview a numbered box per
-section. In CAD the real template viewport sets the scale, so it can differ a little from the preview.
+button opens full size and flips through the sheets as they print (`ui/preview/SheetsView.tsx`): white paper, print
+colors (7 prints black), letter landscape, the template viewport area assumed to be 10 x 7.5 in. Everything on a sheet
+is `engine/sheets.ts` (`sheetPages`): the viewport placed as SECTIONPAGES does (68% of the width, the information panel
+on the right), SECTIONPAGES' paper rulers, reference labels and title/legend panel, "SECTION n OF N", match lines
+"MATCH LINE - SEE SECTION n", and on the overview a numbered box per section. Vertical layouts get vertical sheets (the
+length up the sheet, the circumference across; app only, CAD builds horizontal sheets). In CAD the real template
+viewport sets the scale, so it can differ a little from the preview.
+
+The divider on the preview's left edge (`PreviewSplitter.tsx`) makes the page or the preview wider (drag, or arrow
+keys); the width is remembered in the browser.
 
 ## Planned (not built yet)
 

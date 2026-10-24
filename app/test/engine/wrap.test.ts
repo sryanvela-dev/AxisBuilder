@@ -82,10 +82,19 @@ describe('nozzle circles', () => {
   it("Don't wrap draws the whole circle where typed", () => {
     expect(circlePieces(0, 50, 3, C, true)).toEqual([{ cx: 0, cy: 50, r: 3, arc: null }])
   })
-  it('the label stays with the main piece', () => {
+  it('split in half: the label always goes on a leader, starting on the part drawn there', () => {
     const p = job([], (q) => ({ ...q, shellNozzles: [{ ...q.shellNozzles[0], x: 0, y: 100, diameter: 6, labelMode: 'INSIDE' }] }))
     const l = shellNozzleLabels(p, drawnScans(p)).get(0)!
-    expect([l.x, l.tx, l.arcs!.length]).toEqual([0, 0, 2])
+    expect([l.x, l.arcs!.length]).toEqual([0, 2])
+    expect(l.leader).not.toBeNull()
+    expect(l.leader![0]).toBeGreaterThanOrEqual(0)
+    expect(l.tx).toBeGreaterThan(3)
+  })
+  it('a partial split keeps the label inside the larger part when it fits', () => {
+    const p = job([], (q) => ({ ...q, shellNozzles: [{ ...q.shellNozzles[0], id: 'N1', x: 6, y: 100, diameter: 20, labelMode: 'AUTO' }] }))
+    const l = shellNozzleLabels(p, drawnScans(p)).get(0)!
+    // Drawn part 0..16: the label sits in its middle, inside the circle.
+    expect([l.leader, l.tx, l.arcs!.length]).toEqual([null, 8, 2])
   })
 })
 
@@ -93,7 +102,19 @@ describe('scans across the seam', () => {
   it('290 to 310 is clearly across the seam and wraps without asking', () => {
     const p = job([scan('S1', 290, 310)])
     expect(scanPieces(drawnScans(p)[0], C)).toHaveLength(2)
-    expect(wrapNote(p, 'scans', 0)).toContain('X 290 to 302 and 0 to 8')
+    expect(wrapNote(p, 'scans', 0)!.text).toContain('X 290 to 302 and 0 to 8')
+  })
+  it('past the seam is fine as typed: a note says where it is drawn, with an optional button', () => {
+    const p = job([scan('S1', 305, 315)], (q) => ({ ...q, shellNozzles: [{ ...q.shellNozzles[0], x: -2 }], objects: [{ ...q.objects[0], x: 310 }] }))
+    expect(wrapNote(p, 'scans', 0)).toEqual({
+      text: 'A scan wholly past the seam is fine as typed: it is drawn at X 3 to 13.',
+      actions: [{ label: 'Write as 3 to 13', list: 'scans', index: 0, changes: { xStart: 3, xStop: 13 } }],
+    })
+    expect(wrapNote(p, 'shellNozzles', 0)!.actions).toEqual([{ label: 'Write as 300', list: 'shellNozzles', index: 0, changes: { x: 300 } }])
+    expect(wrapNote(p, 'objects', 0)).toEqual({
+      text: 'An X position past the seam is fine as typed: it is drawn at X 8.',
+      actions: [{ label: 'Write as 8', list: 'objects', index: 0, changes: { x: 8 } }],
+    })
   })
   it('a reversed scan is drawn swapped until it is marked across the seam', () => {
     expect(drawnScans(job([scan('S1', 290, 8)]))[0]).toMatchObject({ xStart: 8, xStop: 290 })

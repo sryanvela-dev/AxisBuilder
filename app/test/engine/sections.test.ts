@@ -5,7 +5,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { openProject } from '../../src/data/projectFile.ts'
 import type { Project } from '../../src/data/schema.ts'
-import { paperX, parseRanges, sectionPlan, sectionPlanItems, sheetScale, sheetViewport, snapCandidates, type SectionPlan } from '../../src/engine/sections.ts'
+import { paperAlong, parseRanges, sectionPlan, sectionPlanItems, sheetScale, sheetViewport, snapCandidates, type SectionPlan } from '../../src/engine/sections.ts'
+import { sheetPages } from '../../src/engine/sheets.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
 
@@ -27,7 +28,6 @@ const ranges = (pl: SectionPlan) => pl.sections.map((s) => [s.n, s.start, s.end,
 describe('when there is no plan', () => {
   it('is off by default, and says why otherwise', () => {
     expect(sectionPlan(sampleProject())).toBe('off')
-    expect(sectionPlan(golden('REF3'))).toBe('vertical')
     const p = golden('REF1')
     expect(sectionPlan({ ...p, vessel: { ...p.vessel, length: null } })).toBe('noSize')
   })
@@ -51,8 +51,66 @@ describe('golden jobs with section sheets on (suggested values)', () => {
     expect(unsnapped.sections.map((s) => s.end)).toEqual([226.667, 453.333, 680])
   })
 
-  it('the same plan comes out in every orientation of REF1', () => {
+  it('the same plan comes out in CW and CCW', () => {
     expect(ranges(plan(golden('REF1-CCW')))).toEqual(ranges(plan(golden('REF1'))))
+  })
+
+  it('Vertical (REF3, 168 long, 458 around): the length runs up the sheet, the circumference across', () => {
+    const pl = plan(golden('REF3'))
+    expect(pl.sections.length).toBeGreaterThan(0)
+    const s = pl.sections[0]
+    // The circumference has to fit the sheet's width: 6.8 in for 458 in.
+    expect(s.scale).toBeCloseTo(Math.min((10 * 0.68) / 458, (7.5 * 0.86) / (s.viewEnd - s.viewStart)), 9)
+    const vp = sheetViewport(s.viewEnd - s.viewStart, 458, 'Vertical')
+    expect(vp.w).toBeCloseTo(458 * vp.scale, 9)
+    expect(vp.h).toBeCloseTo((s.viewEnd - s.viewStart) * vp.scale, 9)
+  })
+})
+
+describe('readable size and the text sizes', () => {
+  it('bigger scan labels (Drawing step) mean fewer, longer sections for the same printed size', () => {
+    const base = golden('REF2', { sectionMinLabel: 0.03 })
+    const bigger = golden('REF2', { sectionMinLabel: 0.03, scanTextSize: 'Scale', scanTextScale: 2 })
+    expect(plan(bigger).sections.length).toBeLessThan(plan(base).sections.length)
+    expect(plan(bigger).sections[0].smallestLabel!).toBeGreaterThanOrEqual(0.03 - 1e-9)
+  })
+})
+
+describe('what is on a sheet (engine/sheets.ts)', () => {
+  const texts = (job: string, i: number) =>
+    sheetPages(golden(job), plan(golden(job)))[i].shapes.filter((s) => s.t === 'text').map((s) => (s as { text: string }).text)
+
+  it('an overview, then each section with its rulers, references, title panel and match lines', () => {
+    const pages = sheetPages(golden('REF1'), plan(golden('REF1')))
+    expect(pages.map((pg) => pg.title)).toEqual(['OVERVIEW', 'SECTION 1 OF 2', 'SECTION 2 OF 2'])
+    const t = texts('REF1', 1)
+    // X ruler 0" .. 302" every 12 in, Y ruler from the sheet's start, the axis labels, references, title, legend.
+    expect(t).toContain('0"')
+    expect(t).toContain('300"')
+    expect(t).toContain('302"')
+    expect(t).toContain('186"')
+    expect(t).toContain('LEGEND')
+    expect(t).toContain('MATCH LINE - SEE SECTION 2')
+    expect(t).toContain('SECTION 1 OF 2')
+    expect(t.some((x) => x.startsWith('Total Scans:'))).toBe(true)
+    expect(pages[0].shapes.filter((s) => s.layer === 'REPORT_SECTION_BOX' && s.t === 'rect')).toHaveLength(2)
+  })
+
+  it('the rulers follow SECTIONPAGES: X ruler left of the viewport, Y ruler below it', () => {
+    const p = golden('REF1')
+    const pg = sheetPages(p, plan(p))[1]
+    const off = p.settings.rulerOffset * pg.vp.scale
+    const xRuler = pg.shapes.find((s) => s.t === 'line' && s.layer === 'REPORT_X_RULER')!
+    const yRuler = pg.shapes.find((s) => s.t === 'line' && s.layer === 'REPORT_Y_RULER')!
+    expect(xRuler).toMatchObject({ x1: pg.vp.left - off, x2: pg.vp.left - off })
+    expect(yRuler).toMatchObject({ y1: pg.vp.bottom - off, y2: pg.vp.bottom - off })
+  })
+
+  it('Vertical sheets get the same parts, turned', () => {
+    const pages = sheetPages(golden('REF3'), plan(golden('REF3')))
+    const t = pages[pages.length - 1].shapes.filter((s) => s.t === 'text').map((s) => (s as { text: string }).text)
+    expect(t).toContain('458"')
+    expect(t).toContain('LEGEND')
   })
 })
 
@@ -96,9 +154,10 @@ describe('sheet geometry (as SECTIONPAGES)', () => {
     expect(vp.h).toBeCloseTo(7.5 * 0.92, 9)
     expect(vp.left).toBeCloseTo(10 * 0.13 + (10 * 0.68 - vp.w) / 2, 9)
   })
-  it('CW runs left to right, CCW right to left', () => {
-    expect(paperX(10, 0, 100, 0.1, 'Horizontal CW')).toBeCloseTo(1)
-    expect(paperX(10, 0, 100, 0.1, 'Horizontal CCW')).toBeCloseTo(9)
+  it('CW runs left to right, CCW right to left, Vertical bottom to top', () => {
+    expect(paperAlong(10, 0, 100, 0.1, 'Horizontal CW')).toBeCloseTo(1)
+    expect(paperAlong(10, 0, 100, 0.1, 'Horizontal CCW')).toBeCloseTo(9)
+    expect(paperAlong(10, 0, 100, 0.1, 'Vertical')).toBeCloseTo(1)
   })
 })
 
@@ -123,6 +182,10 @@ describe('preview and .lsp', () => {
     expect(cmd.slice(0, cmd.indexOf('\r\n)\r\n'))).not.toContain('getreal')
     // SECTIONPAGES stays as the backup.
     expect(out).toContain('(defun c:SECTIONPAGES (')
+  })
+
+  it('Vertical: the sheets are the app\'s, the .lsp gets no ABSECTIONSHEETS', () => {
+    expect(exportLsp(golden('REF3'), OPTIONS)).not.toMatch(/ABSECTIONSHEETS|SL_APP_SECTIONS/)
   })
 
   it('sections off, or compat v5.0: nothing about the app sections is written', () => {

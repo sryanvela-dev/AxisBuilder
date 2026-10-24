@@ -10,7 +10,7 @@ import { formatNumber } from './parse.ts'
 import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, type ListKey, type Project } from './schema.ts'
 import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
 import { drawnScans } from '../engine/layout.ts'
-import { circumference, pastSeamValue, scanPieces, scanXRange } from '../engine/wrap.ts'
+import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
 
 export type Severity = 'error' | 'warning'
 
@@ -179,14 +179,13 @@ export function checkProject(p: Project): Check[] {
   const wraps = (item: { noWrap: boolean }) => C !== null && !item.noWrap
   p.shellNozzles.forEach((n, i) => {
     if (!n.include) return
-    if (wraps(n)) pastSeam(out, 'shellNozzles', i, 'x', n.x, C!, circName)
-    else outside('shellNozzles', i, 'x', n.x, circ, circName)
+    // Wrapping: a position past the seam is fine as typed (the row shows a note, engine/wrapNotes.ts).
+    if (!wraps(n)) outside('shellNozzles', i, 'x', n.x, circ, circName)
     outside('shellNozzles', i, 'y', n.y, len, lenName)
   })
   p.objects.forEach((o, i) => {
     if (!o.include) return
     if (wraps(o)) {
-      pastSeam(out, 'objects', i, 'x', o.x === C ? null : o.x, C!, circName)
       if (o.circWidth !== null && o.circWidth >= C!) widerThanShell(out, 'objects', i, 'circWidth', o.circWidth, C!, circName)
     } else outside('objects', i, 'x', o.x, circ, circName)
     outside('objects', i, 'y', o.y, len, lenName)
@@ -230,21 +229,6 @@ export function checkProject(p: Project): Check[] {
 }
 
 type Outside = (list: ListKey, index: number, field: string, value: number | null, limit: number | null, limitName: string) => void
-
-/**
- * A position typed past the circumference seam: drawn that far past the seam (engine/wrap.ts), with a
- * one-click fix that writes the value as it is drawn. value null = nothing to check.
- */
-function pastSeam(out: Check[], list: ListKey, index: number, field: string, value: number | null, C: number, circName: string) {
-  if (value === null || (value >= 0 && value <= C)) return
-  const read = pastSeamValue(value, C)
-  out.push({
-    severity: 'warning', place: { kind: 'row', list, index, field },
-    text: `${fieldName(list, field)} (${inches(value)}) is ${value < 0 ? 'below 0' : `past the ${circName} (${inches(C)})`}.`,
-    fix: `X = 0 and X = ${inches(C)} are the same line on the vessel, so it is drawn at ${inches(read)}. Fix the value, or switch Don't wrap on.`,
-    actions: [{ label: `Read ${formatNumber(value)} as ${formatNumber(read)} past the seam`, list, index, changes: { [field]: read } }],
-  })
-}
 
 function widerThanShell(out: Check[], list: ListKey, index: number, field: string, width: number, C: number, circName: string) {
   out.push({
@@ -297,21 +281,9 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
       })
     }
     if (wraps && s.xStart !== null && s.xStop !== null) {
-      // Running past the seam is fine (it is drawn in two pieces); wholly past it is checked.
+      // Past the seam is fine as typed (drawn in pieces, or where it lands: the row shows a note).
       const { a, b } = scanXRange(s, C)
-      const lo = Math.min(a, b)
-      const hi = Math.max(a, b)
-      if (hi - lo >= C!) widerThanShell(out, 'scans', index, 'xStop', hi - lo, C!, circName)
-      else if (lo >= C! || hi <= 0) {
-        const shift = lo >= C! ? -C! * Math.floor(lo / C!) : C! * Math.ceil(-hi / C!)
-        const fmt = (n: number) => formatNumber(Math.round(n * 1e6) / 1e6)
-        out.push({
-          severity: 'warning', place: { kind: 'row', list: 'scans', index, field: 'xStart' },
-          text: `X start and X stop (${inches(s.xStart)} to ${inches(s.xStop)}) are wholly ${lo >= C! ? `past the ${circName} (${inches(C!)})` : 'below 0'}.`,
-          fix: `X = 0 and X = ${inches(C!)} are the same line on the vessel, so it is drawn at ${fmt(s.xStart + shift)} to ${fmt(s.xStop + shift)}.`,
-          actions: [{ label: `Read as ${fmt(s.xStart + shift)} to ${fmt(s.xStop + shift)} past the seam`, list: 'scans', index, changes: { xStart: Math.round((s.xStart + shift) * 1e6) / 1e6, xStop: Math.round((s.xStop + shift) * 1e6) / 1e6 } }],
-        })
-      }
+      if (Math.abs(b - a) >= C!) widerThanShell(out, 'scans', index, 'xStop', Math.abs(b - a), C!, circName)
     }
     for (const [f, limit, name] of [['xStart', p.vessel.height, circName], ['xStop', p.vessel.height, circName], ['yStart', p.vessel.length, lenName], ['yStop', p.vessel.length, lenName]] as const) {
       if (wraps && (f === 'xStart' || f === 'xStop')) continue

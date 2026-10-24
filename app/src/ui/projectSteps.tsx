@@ -46,25 +46,11 @@ export function DrawingStep({ status }: StepProps) {
   )
 }
 
-/** Section sheets: the settings and the plan they give (engine/sections.ts); not for Vertical yet. */
+/** Section sheets: the settings and the plan they give (engine/sections.ts). */
 function SectionSheets() {
   const app = useApp()
   const p = app.state.job!.history.present
-  if (p.vessel.orientation === 'Vertical') {
-    return (
-      <section className="settings-group" aria-labelledby="group-sections">
-        <div className="group-head">
-          <div>
-            <h2 id="group-sections">Section sheets</h2>
-            <p className="muted">
-              Section sheets are not available for a vertical layout yet. They work for Horizontal CW and Horizontal CCW (Orientation, on the
-              Project step).
-            </p>
-          </div>
-        </div>
-      </section>
-    )
-  }
+  const vertical = p.vessel.orientation === 'Vertical'
   const plan = sectionPlan(p)
   return (
     <>
@@ -114,8 +100,10 @@ function SectionSheets() {
             </table>
           )}
           <p className="muted">
-            In CAD: after loading the drawing, switch to the letter-size Sheet tab and type ABSECTIONSHEETS. The preview's Sheets view shows
-            each sheet.
+            The preview's Sheets button shows each sheet as it prints.{' '}
+            {vertical
+              ? 'Vertical sheets (the length up the sheet) are made by the app; the CAD command builds horizontal layouts only, so for this job they come with the PDF export.'
+              : 'In CAD: after loading the drawing, switch to the letter-size Sheet tab and type ABSECTIONSHEETS.'}
           </p>
         </section>
       )}

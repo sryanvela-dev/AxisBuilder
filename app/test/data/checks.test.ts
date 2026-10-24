@@ -84,13 +84,11 @@ describe('checks', () => {
       shellMut: [{ ...p.shellMut[0], y: 300 }],
     })
     expect(errors(cs)).toEqual([])
-    // X past the seam is drawn wrapped (one-click fix); the object across the seam is fine.
+    // X past the seam is fine as typed (the row shows a note, wrapNotes.test); the object across the seam too.
     expect(warnings(cs).map((c) => c.text)).toEqual([
       'Y position (250 in) is past the shell length (240 in).',
-      'X position (-2 in) is below 0.',
       'Y position (300 in) is past the shell length (240 in).',
     ])
-    expect(warnings(cs)[1].actions).toEqual([{ label: 'Read -2 as 186.5 past the seam', list: 'shellNozzles', index: 0, changes: { x: 186.5 } }])
   })
 
   it("items with Don't wrap keep the Excel version's outside-the-shell checks", () => {

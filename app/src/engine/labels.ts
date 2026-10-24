@@ -77,11 +77,19 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     const th = Math.max(1.6, Math.min(2.4, dia * 0.22))
     const sh = sizedHeight(rules, 'SHELL_NOZZLE_TEXT', th)
     const tw = Math.max(1, txt.length) * sh * 0.6
-    const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < dia * 0.75
+    // Across the seam (user rule, 2026-10-23): split about in half (center within a quarter radius of the edge)
+    // always gets a leader; a partial split keeps the label inside the larger part when it fits there.
+    const v0 = Math.max(0, x - r)
+    const v1 = C === null ? x + r : Math.min(C, x + r)
+    const halfSplit = wrapped && C !== null && Math.min(x, C - x) < r * 0.25
+    const room = wrapped ? v1 - v0 : dia
+    const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < room * 0.75
     let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK) || !s.smartNozzleLabels
     if (mode === 'INSIDE') outside = false
+    if (halfSplit) outside = true
+    const inX = wrapped ? (v0 + v1) / 2 : x
     const arcs = wrapped ? { arcs: pieces } : {}
-    let label: NozzleLabel = { x, y, r, txt, th, tx: x, ty: y, leader: null, ...arcs }
+    let label: NozzleLabel = { x, y, r, txt, th, tx: inX, ty: y, leader: null, ...arcs }
     if (txt !== '' && outside) {
       const ld = s.nozzleLeaderLength
       const candidates: [number, number, number, number][] = [
@@ -95,7 +103,9 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
         [x, y - r - ld - tw / 2, x, y - r],
       ]
       const clear = (bb: Box) => !(bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L) && !avoid.some((a) => overlap(bb, a))
-      const found = candidates.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? candidates[0]
+      // Across the seam, the leader starts on the part of the circle that is drawn here.
+      const usable = wrapped ? candidates.filter((c) => c[2] >= v0 - 1e-6 && c[2] <= v1 + 1e-6) : candidates
+      const found = usable.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? usable[0] ?? candidates[0]
       label = { x, y, r, txt, th, tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]], ...arcs }
       avoid.push(textBox(found[0], found[1], tw, sh, lr))
     }

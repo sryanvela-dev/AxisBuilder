@@ -276,7 +276,16 @@ function Row(props: {
                 ))}
               </p>
             ))}
-            {wrap && <p className="msg msg-note">{wrap}</p>}
+            {wrap && (
+              <p className="msg msg-note">
+                {wrap.text}
+                {wrap.actions?.map((a) => (
+                  <button key={a.label} type="button" className="btn btn-small msg-action" onClick={() => fix(a)}>
+                    {a.label}
+                  </button>
+                ))}
+              </p>
+            )}
             {across && (
               <p className="msg msg-note">
                 Marked as running across the seam (X start {String(item.xStart)} on past X = 0 to {String(item.xStop)}).

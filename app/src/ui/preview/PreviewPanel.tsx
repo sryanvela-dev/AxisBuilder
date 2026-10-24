@@ -13,6 +13,7 @@ import { itemKey, useSelection } from '../selectionContext.ts'
 import { DrawingView, type DrawingViewHandle, type Highlight } from './DrawingView.tsx'
 import { buildRenderModel } from './renderModel.ts'
 import { SheetsView } from './SheetsView.tsx'
+import { PreviewSplitter } from './PreviewSplitter.tsx'
 import { activeSectionPlan, sectionPlanItems } from '../../engine/sections.ts'
 import { usePhotoThumbs } from './usePhotoThumbs.ts'
 
@@ -106,6 +107,7 @@ export function PreviewPanel() {
   const vesselMissing = project.vessel.length === null || project.vessel.height === null
   return (
     <aside className={`preview${full ? ' preview-full' : ''}`} aria-label="Drawing preview">
+      {!full && <PreviewSplitter />}
       <div className="preview-head">
         <strong>Drawing preview</strong>
         <span className="muted">{project.vessel.orientation}</span>
@@ -120,7 +122,11 @@ export function PreviewPanel() {
             Fit
           </button>
           {plan && (
-            <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => setSheets(!showSheets)} aria-pressed={showSheets}
+            <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => {
+                // The sheets open full size, so they are big enough to read; closing full size keeps them.
+                if (!showSheets) setFull(true)
+                setSheets(!showSheets)
+              }} aria-pressed={showSheets}
               title="Flip through the section sheets as they will print">
               {showSheets ? 'Drawing' : 'Sheets'}
             </button>

@@ -46,12 +46,10 @@ describe('scan checks', () => {
     expect(scanChecks(withScans([{ ...scan('S1', 180, 10, 0, 20), acrossSeam: true }]))).toEqual([])
   })
 
-  it('a scan running past the seam is fine; one wholly past it, or wider than the shell, is a warning', () => {
+  it('a scan running past the seam, or wholly past it, is fine; one wider than the shell is a warning', () => {
     // 240 long, 188.5 around
     expect(texts(scanChecks(withScans([scan('S1', 180, 200, 230, 250)])))).toEqual(['warning: Y stop (250 in) is past the shell length (240 in).'])
-    const past = scanChecks(withScans([scan('S1', 190, 200, 0, 20)]))
-    expect(texts(past)).toEqual(['warning: X start and X stop (190 in to 200 in) are wholly past the circumference (188.5 in).'])
-    expect(past[0].actions![0]).toMatchObject({ label: 'Read as 1.5 to 11.5 past the seam', changes: { xStart: 1.5, xStop: 11.5 } })
+    expect(scanChecks(withScans([scan('S1', 190, 200, 0, 20)]))).toEqual([])
     expect(texts(scanChecks(withScans([scan('S1', 0, 200, 0, 20)])))).toEqual([
       "warning: It is 200 in wide, as wide as the circumference (188.5 in) or wider, so it can't be wrapped across the seam.",
     ])

@@ -6,11 +6,13 @@ in DraftSight or AutoCAD draws the AUT coverage layout for a pressure vessel or 
 The owner is an Integrity EPC inspection engineer who uses it in the field.
 
 ## End goal
-The app is where everything is adjusted: the LISP's on-the-fly commands (TEXTRESIZE, NOZZLEWRAP, OBJECTWRAP,
-visibility toggles, SECTIONPAGES) become app settings shown live in the preview. The finished deliverable is a
-2D PDF exported straight from the app's own paper-space sheets, plus a DXF for further CAD edits. LISP stays as
-the bridge until PDF and DXF are proven; the CAD-side commands stay in the .lsp as a backup until their app
-versions are proven. The geometry engine serves all of these.
+The app is where everything is built, adjusted and exported: the LISP's on-the-fly commands (TEXTRESIZE,
+NOZZLEWRAP, OBJECTWRAP, visibility toggles, SECTIONPAGES) become app settings shown live in the preview. The
+finished deliverable is a 2D PDF exported straight from the app's own sheets (the drawing and its section sheets),
+plus a DXF for anyone who wants to carry on in CAD for more functionality. The .lsp is an optional backup, not
+where new features go (updated by the user, 2026-10-23: e.g. section sheets matter in the app and the PDF, and
+later the DXF, not in the LISP). LISP stays as the bridge until PDF and DXF are proven. The geometry engine serves
+all of these.
 
 ## Working rules
 Improvements over v5.0 are welcome. When you see a function or behaviour that would work better than v5.0,
@@ -222,8 +224,11 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   viewport). Preview: `sectionPlanItems` (layer SECTION_PLAN, group 'sections', chip only while on) and
   `ui/preview/SheetsView.tsx` (Sheets button). .lsp (`export/lsp/sectionSheets.ts`, only while on): SL_APP_SECTIONS +
   c:ABSECTIONSHEETS (no length prompt; template Sheet tab needed; viewport picked only if the sheet has more than one;
-  sheets named AB-SEC-nn). SECTIONPAGES stays. Vertical: plain message instead of the settings. `ShowWhen.and` chains
-  conditions (section settings show only while sections are on).
+  sheets named AB-SEC-nn, horizontal layouts only). SECTIONPAGES stays. What is on each sheet (rulers, references,
+  title/legend panel, match lines, overview boxes) is `engine/sheets.ts` (`sheetPages`, paper shapes in inches; the
+  PDF export should print these). Vertical sheets run the length up the sheet (app only). `ShowWhen.and` chains
+  conditions (section settings show only while sections are on). Past-the-seam values: a note with an optional
+  "Write as" button, not a warning (`wrapNote`). Preview divider: `ui/preview/PreviewSplitter.tsx`.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -501,3 +506,15 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   .lsp only while on (fingerprints unchanged with sections off). NOZZLEWRAP, OBJECTWRAP and SECTIONPAGES stay as the
   backup. phase2-notes changes 19-20. New npm scripts fingerprints:check / write, wrap:report, sections:report.
   Compat v5.0 unchanged. Not yet checked in DraftSight/AutoCAD.
+- 2026-10-23 – Web app Phase 3f-2 click-through follow-up (feature/wrap-sections, user): a value past the seam is fine
+  as typed: no warning any more, a green note on the row says where it is drawn, with an optional "Write as" button
+  (`wrapNote` returns text + actions). Wrapped nozzle labels: split about in half (center within a quarter radius of the
+  edge) always on a leader; a partial split keeps the label inside the larger part when it fits; leaders start on the
+  drawn part (REF2's app .lsp changed again: N5-N9 at X = 0 now have leaders; fingerprint refreshed for REF2 only).
+  Draggable divider between the step page and the preview (`ui/preview/PreviewSplitter.tsx`, arrow keys too, width
+  remembered). Sheets view: white paper with print colors, SECTIONPAGES' rulers, reference labels and title/legend panel
+  from new `engine/sheets.ts` (`sheetPages`, paper shapes in inches, for the PDF later); opens full size. Vertical
+  section sheets in the app (length up the sheet, circumference across; `sheetViewport` / `sheetScale` / `paperAlong`
+  take the orientation); the .lsp writes ABSECTIONSHEETS for horizontal layouts only. Readable size already follows the
+  Drawing step's scan label size (test added). End goal updated by the user: full in-app building and export (PDF,
+  then DXF); the .lsp is an optional backup.

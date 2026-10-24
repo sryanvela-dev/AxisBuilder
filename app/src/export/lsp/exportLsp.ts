@@ -230,8 +230,9 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const C = v5 ? null : circumference(p)
   const wraps = !v5 && anythingWraps(p, scans, C)
   if (wraps) writeWrapLibrary(w)
-  // Change 20: section sheets planned in the app (only while Make section sheets is on).
-  const plan = v5 ? null : activeSectionPlan(p)
+  // Change 20: section sheets planned in the app (only while Make section sheets is on). CAD builds the
+  // horizontal sheets only (as SECTIONPAGES); vertical sheets are the app's (preview now, PDF in Phase 4).
+  const plan = v5 || orientation === 'Vertical' ? null : activeSectionPlan(p)
   if (plan && plan.sections.length > 0) writeSectionSheets(w, plan)
   const sizes = v5 ? new Map() : textSizeRules(s) // change 15: text sizes (only when one is changed)
   if (sizes.size > 0) {

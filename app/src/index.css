@@ -1214,13 +1214,33 @@ table.grid.photos select {
 }
 
 .preview {
+  position: relative;
   display: flex;
   flex-direction: column;
-  width: 42%;
-  min-width: 360px;
+  width: var(--preview-w, 42%);
+  min-width: 320px;
   max-width: 900px;
   border-left: 1px solid var(--line);
   background: var(--surface);
+}
+
+/* Drag (or arrow keys) to make the step page or the preview wider; the width is remembered. */
+.preview-splitter {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.preview-splitter:hover,
+.preview-splitter:focus-visible {
+  background: var(--accent);
+  opacity: 0.5;
+  outline: none;
 }
 
 .preview-closed {
@@ -1405,7 +1425,12 @@ tr.row-selected > td:first-child {
 
 /* Drawing step: the preview takes most of the width, settings on the left. */
 .wide-preview .preview:not(.preview-closed):not(.preview-full) {
-  width: 58%;
+  width: var(--preview-w, 58%);
+  max-width: none;
+}
+
+/* A width the user dragged: no cap. */
+.work.preview-sized .preview:not(.preview-closed):not(.preview-full) {
   max-width: none;
 }
 
@@ -1662,49 +1687,37 @@ table.text-styles tbody th {
   padding: 6px 10px;
 }
 
+/* A printed sheet: white paper and print colors in light and dark mode (CAD color 7 prints black). */
 svg.drawing.sheet {
   flex: 1;
   min-height: 0;
   cursor: default;
+  --draw-7: #111111;
+  --draw-1: #d00000;
+  --draw-2: #a88a00;
+  --draw-3: #008a2e;
+  --draw-4: #00879a;
+  --draw-5: #0033cc;
+  --draw-6: #b000b0;
 }
 
 svg.sheet .sheet-paper {
-  fill: var(--page-bg);
-  stroke: var(--line);
+  fill: #ffffff;
+  stroke: #9aa5b1;
   stroke-width: 0.02;
-}
-
-svg.sheet .sheet-area {
-  fill: none;
-  stroke: var(--line);
-  stroke-width: 0.01;
-  stroke-dasharray: 0.08 0.06;
 }
 
 svg.sheet .sheet-viewport {
   fill: none;
-  stroke: var(--muted);
-  stroke-width: 0.015;
+  stroke: #111111;
+  stroke-width: 0.012;
 }
 
-svg.sheet .sheet-box rect {
+svg.sheet .sheet-paper-space line,
+svg.sheet .sheet-paper-space rect {
   fill: none;
-  stroke: var(--draw-3);
-  stroke-width: 0.02;
-}
-
-svg.sheet .sheet-match line {
-  stroke: var(--draw-1);
-  stroke-width: 0.02;
-  stroke-dasharray: 0.1 0.05;
-}
-
-svg.sheet .sheet-match text {
-  fill: var(--draw-1);
-}
-
-svg.sheet .sheet-panel {
-  fill: var(--muted);
+  stroke: var(--c, #111111);
+  stroke-width: 0.008;
 }
 
 .sheets-note {
