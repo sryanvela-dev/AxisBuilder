@@ -1682,9 +1682,23 @@ table.text-styles tbody th {
 
 .sheets-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 6px 10px;
+  padding: 4px 10px;
+}
+
+.sheets-bar .sheets-zoom {
+  margin: 0 0 0 auto;
+  gap: 4px;
+}
+
+.sheets-bar .sheets-note {
+  margin: 0;
+}
+
+svg.drawing.sheet:active {
+  cursor: grabbing;
 }
 
 /* A printed sheet: white paper and print colors in light and dark mode (CAD color 7 prints black). */

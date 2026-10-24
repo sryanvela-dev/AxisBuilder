@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openProject } from '../src/data/projectFile.ts'
 import { drawnScans } from '../src/engine/layout.ts'
+import { shellNozzleLabels } from '../src/engine/labels.ts'
 import { circumference, isWrapped, nozzlePieces, objectPieces, scanPieces } from '../src/engine/wrap.ts'
 
 const golden = join(dirname(fileURLToPath(import.meta.url)), '..', 'test', 'golden')
@@ -23,11 +24,15 @@ for (const job of readdirSync(golden, { withFileTypes: true }).filter((d) => d.i
     const pieces = objectPieces(o, C)
     if (isWrapped(pieces) || pieces[0].x0 !== o.x) lines.push(`object ${o.id}: X ${r(o.x)} + ${r(o.circWidth)} -> ${pieces.map((pc) => `${r(pc.x0)}..${r(pc.x1)}`).join(' and ')}`)
   }
-  for (const n of p.shellNozzles) {
-    if (!n.include || n.x === null || n.y === null || n.diameter === null) continue
+  const labels = shellNozzleLabels(p, drawnScans(p))
+  p.shellNozzles.forEach((n, index) => {
+    if (!n.include || n.x === null || n.y === null || n.diameter === null) return
     const pieces = nozzlePieces(n, C)
-    if (pieces.some((pc) => pc.arc !== null || pc.cx !== n.x)) lines.push(`nozzle ${n.id}: X ${r(n.x)}, diameter ${r(n.diameter)} -> ${pieces.length} piece(s)`)
-  }
+    if (!pieces.some((pc) => pc.arc !== null || pc.cx !== n.x)) return
+    const l = labels.get(index)
+    const label = !l ? '' : l.leader ? `, label on a leader at X ${r(l.tx)}, Y ${r(l.ty)}` : `, label inside at X ${r(l.tx)}`
+    lines.push(`nozzle ${n.id}: X ${r(n.x)}, diameter ${r(n.diameter)} -> ${pieces.length} piece(s)${label}`)
+  })
   console.log(`${job} (circumference ${C === null ? '?' : r(C)}): ${lines.length ? '' : 'nothing wraps'}`)
   for (const l of lines) console.log(`  ${l}`)
 }

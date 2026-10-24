@@ -118,6 +118,18 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const pen = new PaperPen()
   const sc = vp.scale
   const mult = plan.rulerTextScale
+  const lines = titleLines(p, false)
+  const refs = drawnReferenceLabels(p) !== null ? sectionReferenceLabels(p) : []
+  // App layout (user, 2026-10-23): the title/legend panel sits just right of the drawing (past the reference
+  // labels on horizontal sheets) and the two are centred on the sheet together. SECTIONPAGES keeps the panel at
+  // 86.5% of the width, which leaves a gap when the section is short. Text widths are estimated (0.62 x height).
+  const refsW = vertical ? 0 : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => t.length)) * 1.8 * sc * mult * 0.62
+  const panelW = Math.max(1.45 * u, Math.max(0, ...lines.map((t) => t.length)) * 0.09 * u * 0.62)
+  const gapToPanel = refsW + 0.3 * u
+  const leftRoom = (s.rulerOffset + 10 + 8 * Math.max(0, mult - 1) + 5.5) * sc + 0.4 * u // the X ruler, its label and arrow
+  const groupW = vp.w + gapToPanel + panelW
+  if (leftRoom + groupW <= LETTER_AREA.w) vp.left = leftRoom + (LETTER_AREA.w - leftRoom - groupW) / 2
+  const infoXApp = Math.min(LETTER_AREA.w - panelW, vp.left + vp.w + gapToPanel)
   const tick = 3 * sc
   const numH = 1.8 * sc * mult
   const labelH = 2.5 * sc * mult
@@ -187,8 +199,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   }
 
   // Reference labels (SL_PaperSectionReferences): at 0, 1/4, 1/2, 3/4 and all the way round.
-  if (drawnReferenceLabels(p) !== null) {
-    const refs = sectionReferenceLabels(p)
+  if (refs.length) {
     const gap = 1.5 * sc
     const h = 1.8 * sc * mult
     refs.forEach((txt, i) => {
@@ -206,9 +217,8 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   }
 
   // Title and legend panel (SL_PaperSectionInfo).
-  const infoX = LETTER_AREA.w * 0.865
+  const infoX = infoXApp
   const infoTop = vertical ? LETTER_AREA.h * 0.6 : vp.bottom + 2.55 * u
-  const lines = titleLines(p, false)
   let y = infoTop
   pen.text(infoX, y, 0.12 * u, 0, lines[0], 'REPORT_TITLE', 'ML')
   y -= 0.19 * u

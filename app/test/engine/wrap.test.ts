@@ -89,6 +89,8 @@ describe('nozzle circles', () => {
     expect(l.leader).not.toBeNull()
     expect(l.leader![0]).toBeGreaterThanOrEqual(0)
     expect(l.tx).toBeGreaterThan(3)
+    // One number, on one leader (the other half has none).
+    expect(buildDrawing(p).items.find((i) => i.key === 'shellNozzles:0')!.shapes.filter((s) => s.t === 'text')).toHaveLength(1)
   })
   it('a partial split keeps the label inside the larger part when it fits', () => {
     const p = job([], (q) => ({ ...q, shellNozzles: [{ ...q.shellNozzles[0], id: 'N1', x: 6, y: 100, diameter: 20, labelMode: 'AUTO' }] }))

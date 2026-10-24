@@ -90,25 +90,26 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     const inX = wrapped ? (v0 + v1) / 2 : x
     const arcs = wrapped ? { arcs: pieces } : {}
     let label: NozzleLabel = { x, y, r, txt, th, tx: inX, ty: y, leader: null, ...arcs }
-    if (txt !== '' && outside) {
+    /** SL_CircleSmart's eight spots around the circle centered at cx; across the seam only leaders from the drawn part (a0..a1). */
+    const placeOutside = (cx: number, a0: number, a1: number): { tx: number; ty: number; leader: [number, number, number, number] } => {
       const ld = s.nozzleLeaderLength
       const candidates: [number, number, number, number][] = [
-        [x + r + ld + tw / 2, y, x + r, y],
-        [x + r + ld + tw / 2, y + r + ld, x + r, y + r],
-        [x + r + ld + tw / 2, y - r - ld, x + r, y - r],
-        [x - r - ld - tw / 2, y, x - r, y],
-        [x - r - ld - tw / 2, y + r + ld, x - r, y + r],
-        [x - r - ld - tw / 2, y - r - ld, x - r, y - r],
-        [x, y + r + ld + tw / 2, x, y + r],
-        [x, y - r - ld - tw / 2, x, y - r],
+        [cx + r + ld + tw / 2, y, cx + r, y],
+        [cx + r + ld + tw / 2, y + r + ld, cx + r, y + r],
+        [cx + r + ld + tw / 2, y - r - ld, cx + r, y - r],
+        [cx - r - ld - tw / 2, y, cx - r, y],
+        [cx - r - ld - tw / 2, y + r + ld, cx - r, y + r],
+        [cx - r - ld - tw / 2, y - r - ld, cx - r, y - r],
+        [cx, y + r + ld + tw / 2, cx, y + r],
+        [cx, y - r - ld - tw / 2, cx, y - r],
       ]
       const clear = (bb: Box) => !(bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L) && !avoid.some((a) => overlap(bb, a))
-      // Across the seam, the leader starts on the part of the circle that is drawn here.
-      const usable = wrapped ? candidates.filter((c) => c[2] >= v0 - 1e-6 && c[2] <= v1 + 1e-6) : candidates
+      const usable = wrapped ? candidates.filter((c) => c[2] >= a0 - 1e-6 && c[2] <= a1 + 1e-6) : candidates
       const found = usable.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? usable[0] ?? candidates[0]
-      label = { x, y, r, txt, th, tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]], ...arcs }
       avoid.push(textBox(found[0], found[1], tw, sh, lr))
+      return { tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]] }
     }
+    if (txt !== '' && outside) label = { x, y, r, txt, th, ...placeOutside(x, v0, v1), ...arcs }
     out.set(index, label)
     for (const pc of pieces) avoid.push(arcBox(pc))
   })

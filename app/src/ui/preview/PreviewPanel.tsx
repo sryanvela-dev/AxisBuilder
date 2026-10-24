@@ -166,7 +166,7 @@ export function PreviewPanel() {
         )}
         {vesselMissing && <p className="preview-note">Enter the shell length and circumference to see the whole drawing.</p>}
       </div>
-      <details className="preview-diff">
+      <details className="preview-diff" hidden={showSheets}>
         <summary className="muted">Drag to move, wheel to zoom, click an item to go to its row. Where it can differ from CAD</summary>
         <ul className="paste-list">
           {PREVIEW_DIFFERENCES.map((t) => (

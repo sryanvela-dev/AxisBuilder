@@ -518,3 +518,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   take the orientation); the .lsp writes ABSECTIONSHEETS for horizontal layouts only. Readable size already follows the
   Drawing step's scan label size (test added). End goal updated by the user: full in-app building and export (PDF,
   then DXF); the .lsp is an optional backup.
+- 2026-10-23 – Sheets view follow-up (feature/wrap-sections, user): sheets zoom and pan (wheel, drag, +/-, Fit); the
+  title/legend panel sits just right of the drawing (past the reference labels) and the two are centred on the sheet
+  (app layout in `engine/sheets.ts`; ABSECTIONSHEETS in CAD keeps SECTIONPAGES' panel at 86.5%). A nozzle split in half
+  keeps one number on one leader (user ruling, a second label was tried and removed). `wrap:report` shows nozzle label
+  placement. No .lsp change (fingerprints unchanged).

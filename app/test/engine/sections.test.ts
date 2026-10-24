@@ -106,6 +106,20 @@ describe('what is on a sheet (engine/sheets.ts)', () => {
     expect(yRuler).toMatchObject({ y1: pg.vp.bottom - off, y2: pg.vp.bottom - off })
   })
 
+  it('the title and legend panel sits just right of the drawing, and the two are centred on the sheet', () => {
+    // A short section (manual 0-60) leaves a narrow viewport: the panel follows it instead of staying at the far right.
+    const p = golden('REF1', { sectionSplit: 'Manual', sectionRanges: '0-60', sectionOverview: false })
+    const pg = sheetPages(p, plan(p))[0]
+    const legend = pg.shapes.find((s) => s.t === 'text' && s.text === 'LEGEND') as { x: number }
+    const right = pg.vp.left + pg.vp.w
+    expect(legend.x).toBeGreaterThan(right)
+    expect(legend.x - right).toBeLessThan(2)
+    expect(legend.x).toBeLessThan(10 * 0.865)
+    // Left of the viewport and right of the panel are about the same.
+    const panelRight = legend.x + 1.45
+    expect(Math.abs(pg.vp.left - (10 - panelRight))).toBeLessThan(1.5)
+  })
+
   it('Vertical sheets get the same parts, turned', () => {
     const pages = sheetPages(golden('REF3'), plan(golden('REF3')))
     const t = pages[pages.length - 1].shapes.filter((s) => s.t === 'text').map((s) => (s as { text: string }).text)
