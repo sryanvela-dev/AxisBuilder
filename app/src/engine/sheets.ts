@@ -120,7 +120,6 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const vp = sheetViewport(ve - vs, C, o)
   const u = LETTER_AREA.h / 7.5 // SECTIONPAGES' paper unit
   const pen = new PaperPen()
-  const sc = vp.scale
   const mult = plan.rulerTextScale
   const lines = titleLines(p, false)
   const refs = drawnReferenceLabels(p) !== null ? sectionReferenceLabels(p) : []
@@ -128,30 +127,48 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   // labels on horizontal sheets) and the two are centred on the sheet together. SECTIONPAGES keeps the panel at
   // 86.5% of the width, which leaves a gap when the section is short. Text widths are measured with the font the
   // PDF prints with (engine/textMetrics.ts).
-  const refsW = vertical ? 0 : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => capTextWidth(t, 1.8 * sc * mult)))
   const panelW = Math.max(1.45 * u, ...lines.map((t, i) => capTextWidth(t, (i === 0 ? 0.12 : 0.09) * u)))
-  const gapToPanel = refsW + 0.5 * u
-  // Rulers (app layout, 2026-10-24): numbers, axis label and arrow are stacked outward from the ruler by their
-  // measured sizes with a clear gap between each, so wide numbers and long labels don't run into each other.
-  const tick = 3 * sc
-  const numH = 1.8 * sc * mult
-  const labelH = 2.5 * sc * mult
-  const gap = Math.max(1.5 * sc, 0.04 * u)
-  const head = s.arrowHeadSize * sc
   /** Half the room a text takes across its baseline (capital height plus a little for descenders). */
   const textHalf = (h: number) => 0.8 * h
   const sideTicks = vertical ? ticks(vs, ve, s.rulerSpacing) : ticks(0, C, s.rulerSpacing)
-  const sideNumW = Math.max(0, ...sideTicks.map((pos) => capTextWidth(inch(pos), numH)))
-  /** From the side ruler outward: its numbers' right edge, the axis label's center, the arrow. */
-  const sideLabel = tick + gap + sideNumW + gap + textHalf(labelH)
-  const sideArrow = sideLabel + textHalf(labelH) + gap + 0.55 * head
-  /** From the bottom ruler down: its numbers' center, the axis label's center, the arrow. */
-  const bottomNum = tick + gap + numH / 2
-  const bottomLabel = bottomNum + textHalf(numH) + gap + textHalf(labelH)
-  const bottomArrow = bottomLabel + textHalf(labelH) + gap + 0.55 * head
-  const leftRoom = s.rulerOffset * sc + sideArrow + 0.55 * head + 0.3 * u // the side ruler, its label and arrow
+  // Everything that grows with the drawing's scale: the rulers, the reference labels and the gap to the panel.
+  // Rulers (app layout, 2026-10-24): numbers, axis label and arrow are stacked outward from the ruler by their
+  // measured sizes with a clear gap between each, so wide numbers and long labels don't run into each other.
+  const roomAt = (sc: number) => {
+    const refsW = vertical ? 0 : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => capTextWidth(t, 1.8 * sc * mult)))
+    const tick = 3 * sc
+    const numH = 1.8 * sc * mult
+    const labelH = 2.5 * sc * mult
+    const gap = Math.max(1.5 * sc, 0.04 * u)
+    const head = s.arrowHeadSize * sc
+    const sideNumW = Math.max(0, ...sideTicks.map((pos) => capTextWidth(inch(pos), numH)))
+    /** From the side ruler outward: its numbers' right edge, the axis label's center, the arrow. */
+    const sideLabel = tick + gap + sideNumW + gap + textHalf(labelH)
+    const sideArrow = sideLabel + textHalf(labelH) + gap + 0.55 * head
+    /** From the bottom ruler down: its numbers' center, the axis label's center, the arrow. */
+    const bottomNum = tick + gap + numH / 2
+    const bottomLabel = bottomNum + textHalf(numH) + gap + textHalf(labelH)
+    const bottomArrow = bottomLabel + textHalf(labelH) + gap + 0.55 * head
+    const leftRoom = s.rulerOffset * sc + sideArrow + 0.55 * head + 0.3 * u // the side ruler, its label and arrow
+    // Panel gap (user, 2026-10-24): in step with the drawing's size, 0.25 in on a short section up to 0.5 in.
+    const gapToPanel = refsW + Math.min(0.5, Math.max(0.25, 0.06 * vp.w)) * u
+    return { tick, numH, labelH, gap, head, sideLabel, sideArrow, bottomNum, bottomLabel, bottomArrow, leftRoom, gapToPanel }
+  }
+  let room = roomAt(vp.scale)
+  // A drawing too wide for the sheet with its panel (a long overview) is drawn smaller, so the panel keeps its room
+  // instead of being pushed onto the drawing.
+  for (let i = 0; i < 4 && room.leftRoom + vp.w + room.gapToPanel + panelW > LETTER_AREA.w + 1e-9; i++) {
+    const k = Math.max(0.1, (LETTER_AREA.w - room.leftRoom - room.gapToPanel - panelW) / vp.w)
+    vp.bottom += (vp.h * (1 - k)) / 2
+    vp.w *= k
+    vp.h *= k
+    vp.scale *= k
+    room = roomAt(vp.scale)
+  }
+  const sc = vp.scale
+  const { tick, numH, labelH, gap, head, sideLabel, sideArrow, bottomNum, bottomLabel, bottomArrow, leftRoom, gapToPanel } = room
   const groupW = vp.w + gapToPanel + panelW
-  if (leftRoom + groupW <= LETTER_AREA.w) vp.left = leftRoom + (LETTER_AREA.w - leftRoom - groupW) / 2
+  if (leftRoom + groupW <= LETTER_AREA.w + 1e-9) vp.left = leftRoom + (LETTER_AREA.w - leftRoom - groupW) / 2
   const infoXApp = Math.min(LETTER_AREA.w - panelW, vp.left + vp.w + gapToPanel)
   const labels = axisLabels(p)
   /** A side-ruler number, its right edge a gap past the tick. */
@@ -268,14 +285,17 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   y -= 0.38 * u
   const boxW = 0.3 * u
   const boxH = 0.16 * u
+  // The keys stacked one above the other, as in the drawing's own legend (app layout, user 2026-10-24;
+  // SECTIONPAGES puts them side by side).
   if (s.autHatchEnabled) {
     pen.rect(infoX, y, boxW, boxH, 'REPORT_LEGEND_AUT_BOX')
     pen.hatch(infoX, y, boxW, boxH, 0.055 * u, 'REPORT_LEGEND_AUT')
     pen.text(infoX + 0.38 * u, y + boxH / 2, 0.085 * u, 0, 'AUT', 'REPORT_LEGEND', 'ML')
+    y -= boxH + 0.08 * u
   }
-  pen.rect(infoX + 0.72 * u, y, boxW, boxH, 'REPORT_LEGEND_MUT_BOX')
-  pen.hatch(infoX + 0.72 * u, y, boxW, boxH, 0.055 * u, 'REPORT_LEGEND_MUT')
-  pen.text(infoX + 1.1 * u, y + boxH / 2, 0.085 * u, 0, 'MUT', 'REPORT_LEGEND', 'ML')
+  pen.rect(infoX, y, boxW, boxH, 'REPORT_LEGEND_MUT_BOX')
+  pen.hatch(infoX, y, boxW, boxH, 0.055 * u, 'REPORT_LEGEND_MUT')
+  pen.text(infoX + 0.38 * u, y + boxH / 2, 0.085 * u, 0, 'MUT', 'REPORT_LEGEND', 'ML')
   y -= 0.27 * u
   const counted = countedScans(p, drawnScans(p), false)
   const coverage = coveragePercent(p, counted)

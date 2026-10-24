@@ -24,6 +24,21 @@ it('keeps every sheet on the paper', () => {
   expect(out).toEqual([])
 })
 
+it('keeps the title and legend panel clear of the drawing and its reference labels', () => {
+  const out: string[] = []
+  for (const j of goldenJobs()) {
+    const p = withSections(j.project, true)
+    for (const m of sheetModels(p, buildDrawing(p), activeSectionPlan(p)).filter((x) => x.kind !== 'main')) {
+      const left = (x: (typeof m.sheet)[number]) => (x.t === 'text' ? Math.min(...textGeometry(x).corners.map((c) => c[0])) : x.t === 'rect' ? x.x : x.t === 'line' ? Math.min(x.x1, x.x2) : Infinity)
+      const right = (x: (typeof m.sheet)[number]) => (x.t === 'text' ? Math.max(...textGeometry(x).corners.map((c) => c[0])) : x.t === 'rect' ? x.x + x.w : x.t === 'line' ? Math.max(x.x1, x.x2) : -Infinity)
+      const panel = Math.min(...m.sheet.filter((x) => x.group === 'panel').map(left))
+      const drawn = Math.max(m.clip!.x + m.clip!.w, ...m.sheet.filter((x) => x.layer === 'REPORT_X_REFERENCE').map(right))
+      if (panel < drawn + 0.2) out.push(`${j.name} ${m.title}: panel at ${panel.toFixed(2)}, drawing to ${drawn.toFixed(2)}`)
+    }
+  }
+  expect(out).toEqual([])
+})
+
 it('keeps the ruler numbers, axis labels and arrows of section sheets apart', () => {
   const out: string[] = []
   type Box = [number, number, number, number]
