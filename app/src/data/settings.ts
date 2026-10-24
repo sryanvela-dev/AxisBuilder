@@ -82,6 +82,8 @@ export interface NumberDef extends BaseDef {
   type: 'number'
   /** A CAD color number (1-255), shown as a color picker. */
   color?: boolean
+  /** A CAD transparency (0 solid .. 90 faint), shown as a slider with a sample of the lines it applies to. */
+  transparency?: 'hatch' | 'centerline'
   /** null = not entered yet. Only allowed when `nullable` is set. */
   default: number | null
   nullable?: boolean
@@ -603,7 +605,8 @@ export const SETTINGS = {
   }),
   autHatchTransparency: num({
     excelLabel: 'AUT Hatch Transparency', excelSheet: PS, name: 'Hatch transparency',
-    description: 'Transparency of all hatch layers, 0 = solid, 90 = most transparent.',
+    description: 'How transparent (see-through) the scan hatch is, as in CAD: 0 = solid, 90 = faintest. Applies to all hatch layers (scans and the legend samples).',
+    transparency: 'hatch',
     units: '%', integer: true, min: 0, max: 90, default: 50, group: 'lineStyles', step: 'Drawing', level: 'Basic',
     v5: 'The v5.0 workbook has 70; the code fallback and sheet note say 50. The sheet label has a trailing space.',
   }),
@@ -640,7 +643,8 @@ export const SETTINGS = {
   }),
   centerlineTransparency: num({
     excelLabel: 'Centerline Transparency', excelSheet: PS, onSheet: false, name: 'Centerline transparency',
-    description: 'Transparency of the vessel centerline, 0 = solid, 90 = most transparent.',
+    description: 'How transparent (see-through) the vessel centerline is, as in CAD: 0 = solid, 90 = faintest.',
+    transparency: 'centerline',
     units: '%', integer: true, min: 0, max: 90, default: 50, group: 'lineStyles', step: 'Drawing', level: 'Advanced',
     v5: 'App only (user, 2026-10-23). v5.0 draws the centerline solid.',
   }),

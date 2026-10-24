@@ -136,6 +136,7 @@ type FieldProps = { field: GroupField; step: StepId; compact?: boolean }
 function SettingField(props: FieldProps) {
   const { def } = props.field
   if (def.type === 'number' && def.color) return <ColorSetting {...props} />
+  if (def.type === 'number' && def.transparency) return <TransparencySetting {...props} />
   return def.type === 'number' || def.type === 'text' ? <TypedSetting {...props} /> : <PickedSetting {...props} />
 }
 
@@ -312,6 +313,44 @@ function TypedSetting({ field, step, compact }: FieldProps) {
 }
 
 /** A CAD color number, picked from swatches. */
+/**
+ * A CAD transparency as a slider: Solid at 0, Faint at 90, the number shown, and a small sample of the hatch or
+ * centerline at that transparency. Dragging is one undo step (ends when the slider is let go or left).
+ */
+function TransparencySetting({ field, step, compact }: FieldProps) {
+  const id = useId()
+  const app = useApp()
+  const { def } = field
+  const { value, store } = useSetting(field)
+  const v = typeof value === 'number' ? value : 0
+  const opacity = 1 - Math.min(90, Math.max(0, v)) / 100
+  const end = () => app.dispatch({ type: 'endEditGroup' })
+  const sample =
+    def.type === 'number' && def.transparency === 'centerline' ? (
+      <line x1="2" y1="11" x2="58" y2="11" className="tsample-line" style={{ opacity }} />
+    ) : (
+      <g style={{ opacity }}>
+        {Array.from({ length: 9 }, (_, i) => (
+          <line key={i} x1={i * 8 - 16} y1="22" x2={i * 8 + 6} y2="0" className="tsample-line" />
+        ))}
+      </g>
+    )
+  const input = (
+    <div className="transparency">
+      <span className="muted tlabel">Solid</span>
+      <input id={id} type="range" min={0} max={90} step={1} value={v} aria-describedby={`${id}-help`} aria-valuetext={`${v} (0 solid, 90 faint)`}
+        onChange={(e) => store(Number(e.target.value), draftKey(field.section, field.key))} onPointerUp={end} onKeyUp={end} onBlur={end} />
+      <span className="muted tlabel">Faint</span>
+      <output htmlFor={id} className="tvalue">{v}</output>
+      <svg className="tsample" viewBox="0 0 60 22" width="60" height="22" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="59" height="21" className="tsample-box" />
+        <svg x="1" y="1" width="58" height="20" viewBox="0 1 58 20" overflow="hidden">{sample}</svg>
+      </svg>
+    </div>
+  )
+  return <FieldFrame id={id} field={field} step={step} input={input} problem={null} note={null} compact={compact} />
+}
+
 function ColorSetting({ field, step, compact }: FieldProps) {
   const id = useId()
   const { value, store } = useSetting(field)

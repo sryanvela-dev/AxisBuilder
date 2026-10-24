@@ -1487,6 +1487,40 @@ tr.row-selected > td:first-child {
 }
 
 /* Text sizes and colors table (not a scroll box, so the color picker can open over it) */
+/* Transparency slider: Solid .. Faint, the number, and a small sample of the hatch or centerline. */
+.transparency {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.transparency input[type='range'] {
+  flex: 1;
+  min-width: 120px;
+}
+
+.transparency .tlabel {
+  font-size: 0.85em;
+}
+
+.transparency .tvalue {
+  min-width: 2ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tsample .tsample-box {
+  fill: var(--draw-bg);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.tsample .tsample-line {
+  stroke: var(--draw-5);
+  stroke-width: 1.5;
+}
+
 table.text-styles {
   border-collapse: collapse;
   width: 100%;
