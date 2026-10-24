@@ -34,6 +34,12 @@ export interface LibraryPatch {
 
 export const APP_LIBRARY_PATCHES: readonly LibraryPatch[] = [
   {
+    find: /^( {4})(\(SL_Text .+ 1\.8 \(SL_RulerTextRot[XY]\) \(SL_InchLabel pos\) layer\))$/,
+    replace: '$1(if (SL_RulerNumberFits pos length layer) $2)',
+    count: 9,
+    why: 'A tick number that would crowd the ruler\'s end number is left out; the end is always numbered (change 22).',
+  },
+  {
     find: / 2\.5 (\(SL_RulerTextRot[XY]\)) label layer\)$/,
     replace: ' 2.5 $1 label (SL_AxisLabelLayer layer))',
     count: 9,
@@ -117,6 +123,13 @@ export function writeAppLibrary(w: (line: string) => void): void {
   w(';; Ruler axis direction labels have their own layers (the numbers stay on X_RULER_TEXT / Y_RULER_TEXT).')
   w('(defun SL_AxisLabelLayer (layer)')
   w('  (cond ((= layer "X_AXIS") "X_AXIS_LABEL_TEXT") ((= layer "Y_AXIS") "Y_AXIS_LABEL_TEXT") (T layer))')
+  w(')')
+  w('')
+  w(';; A tick number that would crowd the ruler\'s end number is left out (its tick stays); the end is always numbered.')
+  w('(defun SL_RulerNumberFits (pos length layer / h d)')
+  w('  (setq h (if SL_TextHeight (SL_TextHeight (SL_TextLayer layer) 1.8) 1.8))')
+  w('  (setq d (- length pos))')
+  w('  (or (<= d 0.001) (>= d (* h (+ 1.0 (* 0.3 (+ (strlen (SL_InchLabel pos)) (strlen (SL_InchLabel length)))))))))')
   w(')')
   w('')
   writeTextResize(w)

@@ -103,8 +103,14 @@ describe.each(TEXT_TYPES)('$layer', (t) => {
     // The size block redefines SL_Text after the library's own (the last definition wins in LISP).
     expect(out.lastIndexOf('(defun SL_Text (')).toBeGreaterThan(out.indexOf('SL_TEXT_SIZES'))
     const after = textsOn(buildDrawing(p), t.layer).map((s) => s.h)
-    expect(after).toHaveLength(before.length)
-    after.forEach((h, i) => expect(h).toBeCloseTo(before[i] * 1.5, 6))
+    // Bigger ruler numbers can crowd the end number, so one before it may be left out (rulerNumberFits).
+    if (t.layer === 'X_RULER_TEXT' || t.layer === 'Y_RULER_TEXT') {
+      expect(after.length).toBeGreaterThanOrEqual(before.length - 2)
+      after.forEach((h) => expect(h).toBeCloseTo(before[0] * 1.5, 6)) // all ruler numbers are one height
+    } else {
+      expect(after).toHaveLength(before.length)
+      after.forEach((h, i) => expect(h).toBeCloseTo(before[i] * 1.5, 6))
+    }
     // Only this layer changes.
     for (const o of TEXT_TYPES.filter((x) => x.layer !== t.layer)) {
       expect(textsOn(buildDrawing(p), o.layer).map((s) => s.h)).toEqual(textsOn(base, o.layer).map((s) => s.h))

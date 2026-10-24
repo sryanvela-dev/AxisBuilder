@@ -233,9 +233,21 @@ function nozzleAt(pen: Pen, o: Orientation, l: NozzleLabel, layer: string, textL
   if (l.txt !== '') pen.text(l.tx, l.ty, l.th, readableRot(o), l.txt, textLayer)
 }
 
-/** SL_RulerX / SL_RulerY and their orientation variants (one function, axis and tick side from the call). */
-function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall) {
+/**
+ * A tick number that would crowd the ruler's end number is left out (its tick stays); the end is always numbered
+ * (app change 22, SL_RulerNumberFits in the .lsp): the gap must be at least the number height times
+ * 1 + 0.3 x (characters of both numbers). numberH = the ruler numbers' height after the Drawing step's size rule.
+ */
+export function rulerNumberFits(pos: number, length: number, numberH: number): boolean {
   const inch = (v: number) => `${Math.round(v)}"`
+  const d = length - pos
+  return d <= 0.001 || d >= numberH * (1 + 0.3 * (inch(pos).length + inch(length).length))
+}
+
+/** SL_RulerX / SL_RulerY and their orientation variants (one function, axis and tick side from the call). */
+function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall, numberH: number) {
+  const inch = (v: number) => `${Math.round(v)}"`
+  const numbered = (pos: number) => rulerNumberFits(pos, c.length, numberH)
   const arrLen = Math.max(14, c.label.length * 2.5 * 0.6)
   const mid = c.length / 2
   const sd = c.side
@@ -253,7 +265,7 @@ function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall) {
     pen.line(c.x0, c.y0, c.x0 + c.length, c.y0, c.layer)
     for (const pos of ticks) {
       pen.line(c.x0 + pos, c.y0, c.x0 + pos, c.y0 + sd * 3, c.layer)
-      pen.text(c.x0 + pos, c.y0 + sd * 5, 1.8, rot, inch(pos), c.layer)
+      if (numbered(pos)) pen.text(c.x0 + pos, c.y0 + sd * 5, 1.8, rot, inch(pos), c.layer)
     }
     pen.text(c.x0 + mid, c.y0 + sd * 10, 2.5, rot, c.label, 'X_AXIS_LABEL_TEXT')
     pen.arrow(c.x0 + mid - arrLen / 2, c.y0 + sd * 15.5, c.x0 + mid + arrLen / 2, c.y0 + sd * 15.5, arrowHead, c.layer)
@@ -262,7 +274,7 @@ function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall) {
     pen.line(c.x0, c.y0, c.x0, c.y0 + c.length, c.layer)
     for (const pos of ticks) {
       pen.line(c.x0, c.y0 + pos, c.x0 + sd * 3, c.y0 + pos, c.layer)
-      pen.text(c.x0 + sd * 5.5, c.y0 + pos, 1.8, rot, inch(pos), c.layer)
+      if (numbered(pos)) pen.text(c.x0 + sd * 5.5, c.y0 + pos, 1.8, rot, inch(pos), c.layer)
     }
     pen.text(c.x0 + sd * 11, c.y0 + mid, 2.5, rot, c.label, 'Y_AXIS_LABEL_TEXT')
     pen.arrow(c.x0 + sd * 16.5, c.y0 + mid - arrLen / 2, c.x0 + sd * 16.5, c.y0 + mid + arrLen / 2, arrowHead, c.layer)
@@ -454,7 +466,7 @@ export function buildDrawing(p: Project): Drawing {
       const labels = axisLabels(p)
       for (const c of rulerCalls({ ori, placement, rulerOffset: s.rulerOffset, vesselXLen: H, vesselYLen: L, spacing: s.rulerSpacing, xAxisLabel: labels.x, yAxisLabel: labels.y })) {
         const pen = new Pen()
-        ruler(pen, o, s.arrowHeadSize, c)
+        ruler(pen, o, s.arrowHeadSize, c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
         add(`ruler:${c.layer}`, null, pen, c.label)
       }
     }
