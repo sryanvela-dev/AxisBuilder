@@ -1406,8 +1406,9 @@ svg.drawing circle {
 }
 
 svg.drawing text {
-  font-family: Arial, 'Segoe UI', sans-serif;
-  dominant-baseline: central;
+  /* The font the sheets and the PDF print with (same widths as Arial); baseline placed by each text's dy. */
+  font-family: 'AxisBuilder Arimo', Arial, sans-serif;
+  dominant-baseline: alphabetic;
 }
 
 /* Each shape sets --c to its CAD color (engine/aci.ts aciCss). */
