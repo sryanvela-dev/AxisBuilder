@@ -29,7 +29,7 @@ export const SETTING_GROUPS = [
   { id: 'headsDrawing', step: 'Drawing', title: 'Head views', intro: 'How the head views are drawn. Which heads are shown, and their names, are on the Field data step.' },
   { id: 'showHide', step: 'Drawing', title: 'Show or hide', intro: 'What the drawing includes (the legend and title block are above). In CAD the AB... commands turn the same groups on and off.' },
   { id: 'lineStyles', step: 'Drawing', title: 'Lines: colors, weights and transparency', intro: 'Colors of the main drawing layers (standard CAD color numbers), their printed line weights (PDF and report images), and how transparent the hatch and centerline are.' },
-  { id: 'sections', step: 'Drawing', title: 'Section sheets', intro: 'Zoomed-in letter-size sheets of a long vessel, one per length of shell, that a client can read. Off unless you switch it on.' },
+  { id: 'sections', step: 'Drawing', title: 'Section sheets', intro: 'Zoomed-in sheets (on the paper chosen on the Export step) of a long vessel, one per length of shell, that a client can read. Off unless you switch it on.' },
   { id: 'exportSets', step: 'Export', title: 'What is exported', intro: 'Which layers the PDF and the report images show, and how the main sheet is turned.' },
   { id: 'pdf', step: 'Export', title: 'PDF', intro: 'How the PDF is made: the photo resolution and PDF layers.' },
   { id: 'reportImages', step: 'Export', title: 'Report images', intro: 'One JPEG per sheet for the inspection report, cropped tight to what is printed (as TightPDF did).' },
@@ -187,6 +187,7 @@ export const REPORT_CROPS = ['Everything printed', 'Drawing only'] as const
 /** What the PDF and the report images show: the preview's ticked layers, or the two report sets. */
 export const EXPORT_SETS = ['As the preview', 'Scans', 'Overlays', 'Both scans and overlays'] as const
 export const SHEET_ORIENTATIONS = ['Automatic', 'Landscape', 'Portrait'] as const
+export const PAPER_SIZES = ['Letter', '11x17 (Tabloid)', 'Legal', 'A4'] as const
 const SECTIONS_ON = { section: 'settings', key: 'makeSectionSheets', values: ['true'] } as const satisfies ShowWhen
 const sectionsWhen = (split: (typeof SECTION_SPLITS)[number]): ShowWhen => ({ ...SECTIONS_ON, and: { section: 'settings', key: 'sectionSplit', values: [split] } })
 
@@ -850,14 +851,19 @@ export const SETTINGS = {
       'The other chips (welds, nozzles, ...) follow the preview in every set.',
     default: 'As the preview', group: 'exportSets', step: 'Export', level: 'Basic',
   }),
+  paperSize: choice(PAPER_SIZES, {
+    excelLabel: 'Paper Size', excelSheet: PS, onSheet: false, name: 'Paper size',
+    description: 'Paper for every sheet (the main sheet, the overview and the section sheets): the Sheets view, the PDF and the report images. Section sheets split by readable size are planned for this paper. Letter is 8.5 x 11 in, 11x17 (Tabloid) 11 x 17 in, Legal 8.5 x 14 in, A4 210 x 297 mm.',
+    default: 'Letter', group: 'exportSets', step: 'Export', level: 'Basic',
+  }),
   mainSheetOrientation: choice(SHEET_ORIENTATIONS, {
     excelLabel: 'Main Sheet Orientation', excelSheet: PS, onSheet: false, name: 'Main sheet',
-    description: 'How the main sheet is turned on letter paper. Automatic: landscape when the drawing is wider than tall, portrait otherwise. Section sheets are always landscape.',
+    description: 'How the main sheet is turned on the paper. Automatic: landscape when the drawing is wider than tall, portrait otherwise. Section sheets are always landscape.',
     default: 'Automatic', group: 'exportSets', step: 'Export', level: 'Basic',
   }),
   pdfPhotoDpi: num({
     excelLabel: 'PDF Photo DPI', excelSheet: PS, onSheet: false, name: 'Photo resolution in the PDF',
-    description: 'Scan photos are put in the PDF at this many pixels per printed inch (never more than the photo has). 300 prints sharp on letter paper; 150 gives a smaller file.',
+    description: 'Scan photos are put in the PDF at this many pixels per printed inch (never more than the photo has). 300 prints sharp; 150 gives a smaller file.',
     units: 'dpi', integer: true, min: 72, max: 600, default: 300, group: 'pdf', step: 'Export', level: 'Basic',
   }),
   pdfLayers: yesNo({
@@ -895,7 +901,7 @@ export const SETTINGS = {
   // exactly these sheets (ABSECTIONSHEETS). Off by default: nothing about sections is drawn or written.
   makeSectionSheets: yesNo({
     excelLabel: 'Make Section Sheets', excelSheet: PS, onSheet: false, name: 'Make section sheets',
-    description: 'Plan zoomed-in letter-size sheets along the shell, shown in the preview and built in CAD by the ABSECTIONSHEETS command.',
+    description: 'Plan zoomed-in sheets along the shell (paper size on the Export step), shown in the preview and built in CAD by the ABSECTIONSHEETS command.',
     default: false, group: 'sections', step: 'Drawing', level: 'Basic', v5: 'App only. v5.0 asks for one section length in CAD (SECTIONPAGES).',
   }),
   sectionSplit: choice(SECTION_SPLITS, {
@@ -910,7 +916,7 @@ export const SETTINGS = {
   }),
   sectionMinLabel: num({
     excelLabel: 'Section Smallest Label', excelSheet: PS, onSheet: false, name: 'Smallest scan label on the sheet',
-    description: 'Height of the smallest scan label on the printed letter-size sheet. 0.08 in (about 6 pt) is the smallest most people read without effort.',
+    description: 'Height of the smallest scan label on the printed sheet. 0.08 in (about 6 pt) is the smallest most people read without effort.',
     units: 'in', greaterThan: 0, max: 1, default: 0.08, showWhen: sectionsWhen('Readable size'), group: 'sections', step: 'Drawing', level: 'Basic',
   }),
   sectionRanges: text({

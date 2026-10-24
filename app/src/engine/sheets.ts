@@ -20,7 +20,7 @@ import {
   sectionReferenceLabels,
   titleLines,
 } from './layout.ts'
-import { LETTER_AREA, paperAlong, sheetViewport, type Section, type SectionPlan } from './sections.ts'
+import { LETTER_AREA, paperAlong, sheetArea, sheetViewport, type Section, type SectionPlan } from './sections.ts'
 import { capTextWidth } from './textMetrics.ts'
 
 export type PaperShape =
@@ -117,8 +117,9 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const o = p.vessel.orientation
   const vertical = o === 'Vertical'
   const C = p.vessel.height!
-  const vp = sheetViewport(ve - vs, C, o)
-  const u = LETTER_AREA.h / 7.5 // SECTIONPAGES' paper unit
+  const area = sheetArea(p)
+  const vp = sheetViewport(ve - vs, C, o, area)
+  const u = LETTER_AREA.h / 7.5 // SECTIONPAGES' paper unit (1 in): the same text sizes on every paper
   const pen = new PaperPen()
   const mult = plan.rulerTextScale
   const lines = titleLines(p, false)
@@ -161,8 +162,8 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   let room = roomAt(vp.scale)
   // A drawing too wide for the sheet with its panel (a long overview) is drawn smaller, so the panel keeps its room
   // instead of being pushed onto the drawing.
-  for (let i = 0; i < 4 && room.leftRoom + vp.w + room.gapToPanel + panelW > LETTER_AREA.w + 1e-9; i++) {
-    const k = Math.max(0.1, (LETTER_AREA.w - room.leftRoom - room.gapToPanel - panelW) / vp.w)
+  for (let i = 0; i < 4 && room.leftRoom + vp.w + room.gapToPanel + panelW > area.w + 1e-9; i++) {
+    const k = Math.max(0.1, (area.w - room.leftRoom - room.gapToPanel - panelW) / vp.w)
     vp.bottom += (vp.h * (1 - k)) / 2
     vp.w *= k
     vp.h *= k
@@ -172,8 +173,8 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const sc = vp.scale
   const { tick, numH, labelH, gap, head, sideLabel, sideArrow, bottomNum, bottomLabel, bottomArrow, leftRoom, gapToPanel } = room
   const groupW = vp.w + gapToPanel + panelW
-  if (leftRoom + groupW <= LETTER_AREA.w + 1e-9) vp.left = leftRoom + (LETTER_AREA.w - leftRoom - groupW) / 2
-  const infoXApp = Math.min(LETTER_AREA.w - panelW, vp.left + vp.w + gapToPanel)
+  if (leftRoom + groupW <= area.w + 1e-9) vp.left = leftRoom + (area.w - leftRoom - groupW) / 2
+  const infoXApp = Math.min(area.w - panelW, vp.left + vp.w + gapToPanel)
   const labels = axisLabels(p)
   /** A side-ruler number, its right edge a gap past the tick. */
   const sideNumX = (rulerX: number, pos: number) => rulerX - tick - gap - capTextWidth(inch(pos), numH) / 2
@@ -275,7 +276,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
 
   // Title and legend panel (SL_PaperSectionInfo).
   const infoX = infoXApp
-  const infoTop = vertical ? LETTER_AREA.h * 0.6 : vp.bottom + 2.55 * u
+  const infoTop = vertical ? area.h * 0.6 : vp.bottom + 2.55 * u
   let y = infoTop
   pen.text(infoX, y, 0.12 * u, 0, lines[0], 'REPORT_TITLE', 'ML')
   y -= 0.19 * u
@@ -315,7 +316,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   }
 
   // Sheet title, above the viewport (Vertical: at the top of the sheet area, clear of the reference labels).
-  pen.text(vp.left + vp.w / 2, vertical ? LETTER_AREA.h - 0.15 * u : top + 0.22 * u, 0.18 * u, 0, title, 'REPORT_SHEET_TITLE')
+  pen.text(vp.left + vp.w / 2, vertical ? area.h - 0.15 * u : top + 0.22 * u, 0.18 * u, 0, title, 'REPORT_SHEET_TITLE')
 
   // Overview: a numbered box for each section. Sections: match lines.
   const across = (y0: number, y1: number, layer: string) => {

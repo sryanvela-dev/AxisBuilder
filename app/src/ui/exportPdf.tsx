@@ -90,7 +90,7 @@ export function ExportPdfPanel({ disabled }: { disabled: boolean }) {
         const bytes = await writePdf({ models: sheets, font: await loadFont(), photos: prepared.photos, layers: s.pdfLayers, title: `${jobTitle(job)} - AUT Coverage${run.suffix}` })
         await writeFile(root, { name: names[i], data: bytes })
         notes.push(
-          `${names[i]}: ${run.label === 'As the preview' ? 'the layers ticked on the preview' : run.label}; ${plural(sheets.length, 'page')}, letter size (${sheets.map(sheetName).join(', ')}), ` +
+          `${names[i]}: ${run.label === 'As the preview' ? 'the layers ticked on the preview' : run.label}; ${plural(sheets.length, 'page')}, ${s.paperSize} (${sheets.map(sheetName).join(', ')}), ` +
             `${mb(bytes.length)}${prepared.photos.size ? `, ${plural(prepared.photos.size, 'photo')} at up to ${s.pdfPhotoDpi} dpi of the printed size` : ''}.`,
         )
       }

@@ -13,7 +13,7 @@
 import type { Project } from '../data/schema.ts'
 import { LAYER_COLOR, TRANSPARENT_LAYERS, groupOfLayer, type Drawing, type LayerGroup, type Shape } from './drawing.ts'
 import { FONT_DESCENT, FONT_UNITS_PER_EM } from './fontMetrics.generated.ts'
-import { LETTER_AREA, type Section, type SectionPlan } from './sections.ts'
+import { paperOf, sheetArea, type Section, type SectionPlan } from './sections.ts'
 import { PANEL_LAYERS, PAPER_LAYER_COLOR, sheetPages, type PaperShape } from './sheets.ts'
 import { lineWeights } from './styles.ts'
 import { CAP, textWidth } from './textMetrics.ts'
@@ -69,8 +69,6 @@ export interface SheetModel {
   extents: { all: Box; drawingOnly: Box }
 }
 
-export const LANDSCAPE = { w: 11, h: 8.5 } as const
-export const PORTRAIT = { w: 8.5, h: 11 } as const
 /** Margin of the main sheet (and of the section sheets' template area). */
 export const MARGIN = 0.5
 
@@ -250,7 +248,8 @@ export function mainSheet(p: Project, d: Drawing, options: SheetOptions = {}): S
   const bw = Math.max(1e-6, b[2] - b[0])
   const bh = Math.max(1e-6, b[3] - b[1])
   const turn = p.settings.mainSheetOrientation
-  const paper = turn === 'Landscape' || (turn === 'Automatic' && bw >= bh) ? LANDSCAPE : PORTRAIT
+  const land = paperOf(p)
+  const paper = turn === 'Landscape' || (turn === 'Automatic' && bw >= bh) ? land : { w: land.h, h: land.w }
   const scale = Math.min((paper.w - 2 * MARGIN) / bw, (paper.h - 2 * MARGIN) / bh)
   const place = { scale, ox: (paper.w - bw * scale) / 2 - b[0] * scale, oy: (paper.h - bh * scale) / 2 - b[1] * scale }
   const m = { kind: 'main' as const, title: 'DRAWING', section: null, paper: { ...paper }, clip: null, scale, sheet: [], drawing: drawingPrims(d, styleOf, place, options.hidden ?? new Set(), null) }
@@ -262,9 +261,10 @@ export function sectionSheets(p: Project, d: Drawing, plan: SectionPlan, options
   const styleOf = styler(p, d)
   const o = p.vessel.orientation as Orientation
   const C = p.vessel.height!
-  const paper = LANDSCAPE
-  const ax = (paper.w - LETTER_AREA.w) / 2
-  const ay = (paper.h - LETTER_AREA.h) / 2
+  const paper = paperOf(p)
+  const area = sheetArea(p)
+  const ax = (paper.w - area.w) / 2
+  const ay = (paper.h - area.h) / 2
   return sheetPages(p, plan).map((page): SheetModel => {
     const { vp } = page
     const clip = { x: ax + vp.left, y: ay + vp.bottom, w: vp.w, h: vp.h }

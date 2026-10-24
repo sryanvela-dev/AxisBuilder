@@ -141,6 +141,23 @@ describe('export sets and the main sheet', () => {
     expect(same).toEqual([{ suffix: '', label: 'As the preview', hidden: new Set(['nozzles']) }])
   })
 
+  it('prints on the chosen paper and plans readable sections for it', async () => {
+    const sized = (paper: Project['settings']['paperSize']) => withSections({ ...p, settings: { ...p.settings, paperSize: paper, sectionSplit: 'Readable size' } }, true)
+    for (const [paper, w, h] of [['Letter', 11, 8.5], ['11x17 (Tabloid)', 17, 11], ['Legal', 14, 8.5], ['A4', 297 / 25.4, 210 / 25.4]] as const) {
+      const q = sized(paper)
+      const r = await jobPdf(q)
+      const doc = await PDFDocument.load(r.bytes)
+      for (const page of doc.getPages()) {
+        const s = page.getSize()
+        expect([s.width, s.height].sort((a, b) => a - b).map((v) => Math.round(v))).toEqual([h * 72, w * 72].map((v) => Math.round(v)))
+      }
+      for (const m of r.models) expect(Math.max(m.extents.all[2], m.extents.all[3]) <= Math.max(w, h) + 1e-6).toBe(true)
+    }
+    const letter = activeSectionPlan(sized('Letter'))!.sections.length
+    const tabloid = activeSectionPlan(sized('11x17 (Tabloid)'))!.sections.length
+    expect(tabloid).toBeLessThanOrEqual(letter)
+  }, 60000)
+
   it('turns the main sheet as set', () => {
     const turned = (o: Project['settings']['mainSheetOrientation']) => sheetModels({ ...p, settings: { ...p.settings, mainSheetOrientation: o } }, buildDrawing(p), null)[0].paper
     expect(turned('Automatic')).toEqual({ w: 11, h: 8.5 })

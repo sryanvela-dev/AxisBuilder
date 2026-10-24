@@ -11,6 +11,7 @@
 // sheet (rulers, references, title panel, match lines) is engine/sheets.ts.
 
 import { parseLength } from '../data/parse.ts'
+import type { PAPER_SIZES } from '../data/settings.ts'
 import type { Project } from '../data/schema.ts'
 import { fitTextHeight, type DrawingItem, type Shape } from './drawing.ts'
 import { readableRot, type Orientation } from './transform.ts'
@@ -18,7 +19,29 @@ import { drawnScans } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
 import { circumference, labelPieceIndex, scanPieces } from './wrap.ts'
 
-/** The template viewport the app assumes (inches): letter landscape, half-inch margins. */
+/** Paper sizes (inches, landscape) for setting "Paper size". */
+export const PAPER: Record<(typeof PAPER_SIZES)[number], { w: number; h: number }> = {
+  Letter: { w: 11, h: 8.5 },
+  '11x17 (Tabloid)': { w: 17, h: 11 },
+  Legal: { w: 14, h: 8.5 },
+  A4: { w: 297 / 25.4, h: 210 / 25.4 },
+}
+/** Margin around the sheet's template area (inches). */
+export const SHEET_MARGIN = 0.5
+export type SheetArea = { w: number; h: number }
+
+/** The job's paper, landscape (inches). */
+export function paperOf(p: Project): { w: number; h: number } {
+  return PAPER[p.settings.paperSize] ?? PAPER.Letter
+}
+
+/** The template viewport area the app assumes on the job's paper: landscape, half-inch margins. */
+export function sheetArea(p: Project): SheetArea {
+  const paper = paperOf(p)
+  return { w: paper.w - 2 * SHEET_MARGIN, h: paper.h - 2 * SHEET_MARGIN }
+}
+
+/** The template viewport on letter paper (inches): landscape, half-inch margins. */
 export const LETTER_AREA = { w: 10, h: 7.5 } as const
 /** SECTIONPAGES: the section's part of the viewport. */
 export const SECTION_SHARE = { w: 0.68, h: 0.92 } as const
@@ -81,10 +104,10 @@ export function scanLabels(p: Project): { id: string; h: number; y0: number; y1:
  * Where a sheet's viewport goes inside the template viewport area (paper inches from its bottom-left, as
  * SECTIONPAGES places it) for a view `viewLen` long of a shell `C` around.
  */
-export function sheetViewport(viewLen: number, C: number, orientation = 'Horizontal CW'): { left: number; bottom: number; w: number; h: number; scale: number } {
-  const W = LETTER_AREA.w
-  const H = LETTER_AREA.h
-  const scale = sheetScale(viewLen, C, orientation)
+export function sheetViewport(viewLen: number, C: number, orientation = 'Horizontal CW', area: SheetArea = LETTER_AREA): { left: number; bottom: number; w: number; h: number; scale: number } {
+  const W = area.w
+  const H = area.h
+  const scale = sheetScale(viewLen, C, orientation, area)
   const usableW = W * SECTION_SHARE.w
   const usableH = H * usableUp(orientation)
   // Horizontal: the length runs across the sheet; Vertical: up the sheet, the circumference across.
@@ -112,9 +135,9 @@ function usableUp(orientation: string): number {
 }
 
 /** SECTIONPAGES' scale for a sheet showing `viewLen` of a shell `C` around (Vertical: the length up the sheet). */
-export function sheetScale(viewLen: number, C: number, orientation = 'Horizontal CW'): number {
-  const across = LETTER_AREA.w * SECTION_SHARE.w
-  const up = LETTER_AREA.h * usableUp(orientation)
+export function sheetScale(viewLen: number, C: number, orientation = 'Horizontal CW', area: SheetArea = LETTER_AREA): number {
+  const across = area.w * SECTION_SHARE.w
+  const up = area.h * usableUp(orientation)
   return orientation === 'Vertical' ? Math.min(across / C, up / viewLen) : Math.min(across / viewLen, up / C)
 }
 
@@ -165,6 +188,7 @@ export function sectionPlan(p: Project): SectionPlan | NoPlan {
   if (!s.makeSectionSheets) return 'off'
   const o = p.vessel.orientation
   const vertical = o === 'Vertical'
+  const area = sheetArea(p)
   const L = p.vessel.length
   const C = circumference(p)
   if (L === null || !(L > 0) || C === null) return 'noSize'
@@ -193,10 +217,10 @@ export function sectionPlan(p: Project): SectionPlan | NoPlan {
         notes.push('No scan labels, so one section.')
       } else {
         const want = s.sectionMinLabel / hMin
-        const best = sheetScale(1e-9, C, o) // limited by the circumference only
+        const best = sheetScale(1e-9, C, o, area) // limited by the circumference only
         const scale = Math.min(want, best)
         // The length runs across a horizontal sheet and up a vertical one.
-        const sheetLen = (vertical ? LETTER_AREA.h * usableUp(o) : LETTER_AREA.w * SECTION_SHARE.w) / scale
+        const sheetLen = (vertical ? area.h * usableUp(o) : area.w * SECTION_SHARE.w) / scale
         const segLen = Math.max(1, sheetLen - 2 * ov)
         n = Math.max(1, Math.ceil(L / segLen - 1e-9))
         const each = `${n} section${n === 1 ? '' : 's'} of about ${r3(L / n)} in`
@@ -231,7 +255,7 @@ export function sectionPlan(p: Project): SectionPlan | NoPlan {
   const sections: Section[] = kept.map(([start, end], i) => {
     const viewStart = Math.max(0, start - ov)
     const viewEnd = Math.min(L, end + ov)
-    const scale = sheetScale(viewEnd - viewStart, C, o)
+    const scale = sheetScale(viewEnd - viewStart, C, o, area)
     const inIt = labels.filter((l) => l.y1 > viewStart && l.y0 < viewEnd)
     return {
       n: i + 1, start: r3(start), end: r3(end), viewStart: r3(viewStart), viewEnd: r3(viewEnd), scale,

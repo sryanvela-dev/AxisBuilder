@@ -1,4 +1,4 @@
-// The Sheets view of the preview: every printed sheet as it will print (letter, on white paper), one at a
+// The Sheets view of the preview: every printed sheet as it will print (on the chosen paper, white), one at a
 // time: the main sheet, then (with section sheets on) the overview and each section. Everything comes from
 // engine/sheetModel.ts, the same model the PDF and the report images draw, so what is checked here is what
 // prints. Photos are the preview's thumbnails; the PDF embeds them from the original photos.
@@ -120,7 +120,7 @@ export function SheetsView(props: { drawing: Drawing; plan: SectionPlan | null; 
           </button>
         </span>
         <span className="muted sheets-note" title="As the PDF prints it. In CAD the section sheets use your template sheet's viewport, so the scale there can differ a little.">
-          Letter, {page.paper.w > page.paper.h ? 'landscape' : 'portrait'}, scale 1:{fmt(1 / page.scale)}
+          {p.settings.paperSize}, {page.paper.w > page.paper.h ? 'landscape' : 'portrait'}, scale 1:{fmt(1 / page.scale)}
         </span>
       </div>
       <svg
