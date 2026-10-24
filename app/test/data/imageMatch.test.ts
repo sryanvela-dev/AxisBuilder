@@ -140,7 +140,7 @@ describe('matching a folder to scans', () => {
 describe('saving the chosen files', () => {
   const base = {
     ...createEmptyProject(),
-    scans: ['SCAN1', 'SCAN2', 'SCAN3'].map((id, i) => ({ id, xStart: i * 10, xStop: i * 10 + 10, yStart: 0, yStop: 10, include: true })),
+    scans: ['SCAN1', 'SCAN2', 'SCAN3'].map((id, i) => ({ id, xStart: i * 10, xStop: i * 10 + 10, yStart: 0, yStop: 10, include: true, noWrap: false, acrossSeam: false })),
     scanImages: [{ scanId: 'SCAN2', imageFile: 'old2.png', processedImage: 'S2_FIT_B12.png', include: false }],
   }
 

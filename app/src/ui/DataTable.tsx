@@ -3,7 +3,8 @@
 // Problems show under the row: values not stored, checks (errors and warnings) and import notes.
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { checksAt, type Check } from '../data/checks.ts'
+import { applyCheckAction, checksAt, type Check, type CheckAction } from '../data/checks.ts'
+import { wrapNote } from '../engine/wrapNotes.ts'
 import {
   TABLE_COLUMNS,
   columnName,
@@ -51,12 +52,15 @@ export function DataTable({ list, step, derived = [], afterEdit }: DataTableProp
   const { checks } = useJobChecks()
   const project = app.state.job!.history.present
   const items = itemsOf(project, list)
-  const cols = TABLE_COLUMNS[list]
   const meta = LIST_META[list]
   const body = useRef<HTMLTableSectionElement>(null)
   /** Row whose first box gets the cursor after the next render (a row just added). */
   const focusRow = useRef<number | null>(null)
   const [paste, setPaste] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const hasAdvanced = TABLE_COLUMNS[list].some((c) => c.advanced)
+  // Advanced columns (Don't wrap, Across the seam) only while "Show advanced columns" is ticked.
+  const cols = TABLE_COLUMNS[list].filter((c) => showAdvanced || !c.advanced)
   const listChecks = checks.filter((c) => c.place.kind === 'list' && c.place.list === list)
 
   useEffect(() => {
@@ -139,6 +143,7 @@ export function DataTable({ list, step, derived = [], afterEdit }: DataTableProp
                   index={index}
                   item={item}
                   count={items.length}
+                  cols={cols}
                   step={step}
                   derived={derived}
                   afterEdit={afterEdit}
@@ -170,6 +175,12 @@ export function DataTable({ list, step, derived = [], afterEdit }: DataTableProp
         <button type="button" className="btn" onClick={() => setPaste('')}>
           Paste from Excel...
         </button>
+        {hasAdvanced && (
+          <label className="switch">
+            <input type="checkbox" checked={showAdvanced} onChange={(e) => setShowAdvanced(e.target.checked)} />
+            Show advanced columns
+          </label>
+        )}
         {items.length > 0 && <span className="muted">Enter moves to the next box; Enter in the last box adds a row.</span>}
       </div>
       {paste !== null && <PasteDialog list={list} initialText={paste} onClose={() => setPaste(null)} />}
@@ -182,6 +193,7 @@ function Row(props: {
   index: number
   item: Item
   count: number
+  cols: ColumnSpec[]
   step: StepId
   derived: DerivedColumn[]
   afterEdit?: (prev: Project, next: Project) => Project
@@ -197,10 +209,20 @@ function Row(props: {
   const drafts = Object.entries(app.state.job!.drafts).filter(([k]) => k.startsWith(prefix))
   const notes = reportNotesFor(workbookImport, step, { kind: 'row', list, id: String(item.id) })
   const id = String(item.id)
-  const hasMessages = rowChecks.length + drafts.length + notes.length > 0
+  const project = app.state.job!.history.present
+  const wrap = wrapNote(project, list, index)
+  const across = list === 'scans' && item.acrossSeam === true && !item.noWrap
+  const hasMessages = rowChecks.length + drafts.length + notes.length > 0 || wrap !== null || across
   const { selected, select } = useSelection()
   const isSelected = selected?.list === list && selected.index === index
-  const cols = TABLE_COLUMNS[list]
+  const cols = props.cols
+  const fix = (a: CheckAction) => {
+    app.edit(`${a.label} (${id})`, (p) => {
+      const next = applyCheckAction(p, a)
+      return props.afterEdit ? props.afterEdit(p, next) : next
+    })
+    app.dispatch({ type: 'clearDrafts', prefix })
+  }
   return (
     <>
       <tr
@@ -247,8 +269,22 @@ function Row(props: {
             {rowChecks.map((c) => (
               <p key={c.text} className={`msg msg-${c.severity}`}>
                 {c.text} {c.fix}
+                {c.actions?.map((a) => (
+                  <button key={a.label} type="button" className="btn btn-small msg-action" onClick={() => fix(a)}>
+                    {a.label}
+                  </button>
+                ))}
               </p>
             ))}
+            {wrap && <p className="msg msg-note">{wrap}</p>}
+            {across && (
+              <p className="msg msg-note">
+                Marked as running across the seam (X start {String(item.xStart)} on past X = 0 to {String(item.xStop)}).
+                <button type="button" className="btn btn-small msg-action" onClick={() => fix({ label: 'Not across the seam', list, index, changes: { acrossSeam: false } })}>
+                  Not across the seam
+                </button>
+              </p>
+            )}
             {notes.map((e) => (
               <p key={`${e.cell}${e.message}`} className="msg msg-report">
                 From Excel ({e.sheet} {e.cell}): {REPORT_KIND_TEXT[e.kind]}. {e.message}

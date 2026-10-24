@@ -178,7 +178,7 @@ describe('a processing run', () => {
     expect(r.skipped.find((s) => s.scanId === 'SCAN 2')?.reason).toBe('SCAN_2_FIT.png was already there and kept.')
     expect(r.failed).toEqual([])
     expect(progress).toEqual([0, 1, 2])
-    expect(io.fit).toHaveBeenCalledWith(expect.any(Blob), 24, 48, 4096)
+    expect(io.fit).toHaveBeenCalledWith(expect.any(Blob), 24, 48, 4096, undefined)
   })
 
   it('a failure is listed with its reason and the run goes on', async () => {

@@ -10,6 +10,7 @@ const KIND_LABEL: Record<ReportKind | AutReportKind, string> = {
   skipped: 'Not imported',
   notFound: 'Not found',
   blocking: 'Stops import',
+  wrapped: 'Across the seam',
 }
 
 export function WorkbookReportTable({ entries }: { entries: ReportEntry[] }) {

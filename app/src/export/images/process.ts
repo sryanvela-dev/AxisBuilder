@@ -2,7 +2,9 @@
 // in the target folder, and the run itself. Reading photos, fitting them (a Web Worker in the app)
 // and writing files are passed in, so the rules are tested without a browser.
 
-import { processedImageNames, resolveImageFile } from '../../data/imageMatch.ts'
+import { pieceImageName, processedImageNames, resolveImageFile } from '../../data/imageMatch.ts'
+import { drawnScans } from '../../engine/layout.ts'
+import { circumference, isWrapped, scanPieces } from '../../engine/wrap.ts'
 import { idKey, type Project } from '../../data/schema.ts'
 import { MARKER_FILE, markerText, parseMarker, type JobMarker } from './marker.ts'
 
@@ -22,6 +24,11 @@ export interface PhotoJob {
   /** Scan size (inches): the processed image gets exactly this width:height. */
   scanW: number
   scanH: number
+  /**
+   * A scan across the circumference seam is split: each piece gets the part of the photo across its width
+   * (fractions of the photo width, from the scan's start), its own file (SCAN_5_FIT_A.png / _B.png) and scanW.
+   */
+  crop?: [number, number]
 }
 
 export interface Skipped {
@@ -40,6 +47,8 @@ export interface ProcessPlan {
  */
 export function planProcessing(project: Project, photoNames: readonly string[] | null): ProcessPlan {
   const outNames = processedImageNames(project.scans.map((s) => s.id))
+  const drawn = drawnScans(project)
+  const C = circumference(project)
   const links = new Map(project.scanImages.map((l) => [idKey(l.scanId), l]))
   const jobs: PhotoJob[] = []
   const skipped: Skipped[] = []
@@ -53,6 +62,19 @@ export function planProcessing(project: Project, photoNames: readonly string[] |
     if (!photoNames) return skip('The photo folder is not open.')
     const photo = resolveImageFile(link.imageFile, photoNames)
     if (!photo) return skip(`${link.imageFile} is not in the photo folder.`)
+    const pieces = scanPieces(drawn[scanIndex], C)
+    if (isWrapped(pieces)) {
+      pieces.forEach((pc, piece) => jobs.push({
+        scanId: s.id,
+        scanIndex,
+        photoName: photo,
+        outName: pieceImageName(outNames.get(s.id)!, piece),
+        scanW: pc.x1 - pc.x0,
+        scanH: Math.abs(s.yStop! - s.yStart!),
+        crop: [pc.from, pc.to],
+      }))
+      return
+    }
     jobs.push({
       scanId: s.id,
       scanIndex,
@@ -97,7 +119,8 @@ export interface FitResult {
 
 export interface ProcessIO {
   readPhoto: (name: string) => Promise<Blob>
-  fit: (photo: Blob, scanW: number, scanH: number, maxSide: number) => Promise<FitResult>
+  /** crop: only this part of the photo's width (fractions), for a piece of a scan across the seam. */
+  fit: (photo: Blob, scanW: number, scanH: number, maxSide: number, crop?: [number, number]) => Promise<FitResult>
   write: (name: string, data: Blob | string) => Promise<void>
 }
 
@@ -145,7 +168,7 @@ export async function runProcessing(o: RunOptions): Promise<RunSummary> {
     }
     let fitted: FitResult
     try {
-      fitted = await o.io.fit(photo, j.scanW, j.scanH, o.maxSide)
+      fitted = await o.io.fit(photo, j.scanW, j.scanH, o.maxSide, j.crop)
     } catch (err) {
       summary.failed.push({ scanId: j.scanId, reason: `${j.photoName} could not be opened as a picture (${message(err)}).` })
       continue

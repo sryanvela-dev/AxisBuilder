@@ -29,6 +29,7 @@ import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
 import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from './styles.ts'
+import { circumference, isWrapped, labelPieceIndex, objectPieces, scanPieces, type XPiece } from './wrap.ts'
 
 /** Where the preview may look different from the drawing in CAD. */
 export const PREVIEW_DIFFERENCES = [
@@ -44,9 +45,12 @@ export type Shape =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number; layer: string }
   | { t: 'rect'; x: number; y: number; w: number; h: number; layer: string }
   | { t: 'circle'; cx: number; cy: number; r: number; layer: string }
+  /** Arc from a0 to a1 degrees, counter-clockwise (a nozzle wrapped across the seam). */
+  | { t: 'arc'; cx: number; cy: number; r: number; a0: number; a1: number; layer: string }
   /** rot = the logical rotation passed to SL_Text (the drawing adds the orientation's rotation). */
   | { t: 'text'; x: number; y: number; h: number; rot: number; text: string; just: 'MC' | 'ML'; layer: string }
-  | { t: 'image'; x: number; y: number; w: number; h: number; scanId: string; layer: string }
+  /** from / to: the part of the photo shown (0..1 across its width; a scan wrapped across the seam). */
+  | { t: 'image'; x: number; y: number; w: number; h: number; scanId: string; layer: string; from?: number; to?: number }
 
 /** CAD visibility groups (the AB... toggle commands in the .lsp). Items in 'always' have no toggle. */
 export type LayerGroup = 'images' | 'scans' | 'hatch' | 'welds' | 'nozzles' | 'objects' | 'rulers' | 'heads' | 'info' | 'always'
@@ -133,6 +137,9 @@ class Pen {
   circle(cx: number, cy: number, r: number, layer: string) {
     this.shapes.push({ t: 'circle', cx, cy, r, layer })
   }
+  arc(cx: number, cy: number, r: number, a0: number, a1: number, layer: string) {
+    this.shapes.push({ t: 'arc', cx, cy, r, a0, a1, layer })
+  }
   text(x: number, y: number, h: number, rot: number, text: string, layer: string, just: 'MC' | 'ML' = 'MC') {
     this.shapes.push({ t: 'text', x, y, h, rot, text, just, layer: textLayer(layer) })
   }
@@ -195,9 +202,29 @@ function labelRect(pen: Pen, o: Orientation, x: number, y: number, w: number, h:
   pen.text(x + w / 2, y + h / 2, fitTextHeight(w, h, txt), labelRot(o, w, h), txt, outline)
 }
 
-/** SL_NozzleAt: circle, leader and label where engine/labels.ts placed them (leaders on their own layer). */
+/** SL_WrapPiece (app): the unlabelled piece of a scan or object wrapped across the seam. */
+function pieceRect(pen: Pen, x: number, y: number, w: number, h: number, outline: string, hatch: string, hatchOn: boolean, step: number) {
+  pen.rect(x, y, w, h, outline)
+  if (hatch !== '' && hatchOn) pen.hatch(x, y, w, h, step, hatch)
+}
+
+/** A scan or object in its pieces across the seam: the label on the larger piece (engine/wrap.ts). */
+function wrappedRect(pen: Pen, o: Orientation, pieces: XPiece[], y: number, h: number, txt: string, outline: string, hatch: string, hatchOn: boolean, step: number) {
+  const big = labelPieceIndex(pieces)
+  pieces.forEach((pc, i) => {
+    if (i === big) labelRect(pen, o, pc.x0, y, pc.x1 - pc.x0, h, txt, outline, hatch, hatchOn, step)
+    else pieceRect(pen, pc.x0, y, pc.x1 - pc.x0, h, outline, hatch, hatchOn, step)
+  })
+}
+
+/** SL_NozzleAt / SL_NozzleArcsAt: circle (or its arcs across the seam), leader and label where engine/labels.ts placed them. */
 function nozzleAt(pen: Pen, o: Orientation, l: NozzleLabel, layer: string, textLayer: string) {
-  pen.circle(l.x, l.y, l.r, layer)
+  if (l.arcs) {
+    for (const a of l.arcs) {
+      if (a.arc) pen.arc(a.cx, a.cy, a.r, a.arc[0], a.arc[1], layer)
+      else pen.circle(a.cx, a.cy, a.r, layer)
+    }
+  } else pen.circle(l.x, l.y, l.r, layer)
   if (l.leader) pen.line(l.leader[0], l.leader[1], l.leader[2], l.leader[3], layer === 'NOZZLES' ? 'NOZZLE_LEADERS' : 'HEAD_NOZZLE_LEADERS')
   if (l.txt !== '') pen.text(l.tx, l.ty, l.th, readableRot(o), l.txt, textLayer)
 }
@@ -333,15 +360,19 @@ export function buildDrawing(p: Project): Drawing {
     add('vessel', null, pen, `Shell: ${fmt(H)} in around x ${fmt(L)} in long`)
   }
 
-  // Scans (drawn as the .lsp does: reversed ones flipped while the data check is on)
+  // Scans (drawn as the .lsp does: reversed ones flipped while the data check is on; across the seam in pieces)
   const scans = drawnScans(p)
+  const C = circumference(p)
   scans.forEach((sc, index) => {
     if (!sc.include || !complete(sc.xStart, sc.xStop, sc.yStart, sc.yStop)) return
     const pen = new Pen()
     const w = sc.xStop! - sc.xStart!
     const h = sc.yStop! - sc.yStart!
-    labelRect(pen, o, sc.xStart!, sc.yStart!, w, h, sc.id, 'SCANS', 'AUT_HATCH', s.autHatchEnabled, step)
-    add(`scans:${index}`, { list: 'scans', index, id: sc.id }, pen, `${sc.id}: X ${fmt(sc.xStart!)} to ${fmt(sc.xStop!)}, Y ${fmt(sc.yStart!)} to ${fmt(sc.yStop!)} (${fmt(Math.abs(w))} x ${fmt(Math.abs(h))} in)`)
+    const pieces = scanPieces(sc, C)
+    if (isWrapped(pieces)) wrappedRect(pen, o, pieces, sc.yStart!, h, sc.id, 'SCANS', 'AUT_HATCH', s.autHatchEnabled, step)
+    else labelRect(pen, o, sc.xStart!, sc.yStart!, w, h, sc.id, 'SCANS', 'AUT_HATCH', s.autHatchEnabled, step)
+    const across = isWrapped(pieces) ? ', across the seam' : ''
+    add(`scans:${index}`, { list: 'scans', index, id: sc.id }, pen, `${sc.id}: X ${fmt(sc.xStart!)} to ${fmt(sc.xStop!)}, Y ${fmt(sc.yStart!)} to ${fmt(sc.yStop!)} (${fmt(Math.abs(w))} x ${fmt(Math.abs(h))} in${across})`)
   })
 
   // Scan images (their rectangles also keep nozzle labels away, as in CAD)
@@ -349,8 +380,8 @@ export function buildDrawing(p: Project): Drawing {
     for (const img of imageInserts(p, scans, false)) {
       const index = p.scans.findIndex((sc) => sc.id === img.scanId)
       const pen = new Pen()
-      pen.shapes.push({ t: 'image', x: img.x, y: img.y, w: img.w, h: img.h, scanId: img.scanId, layer: 'SCAN_IMAGES' })
-      add(`image:${index}`, { list: 'scans', index, id: img.scanId }, pen, `${img.scanId}: photo (${img.fileName})`)
+      pen.shapes.push({ t: 'image', x: img.x, y: img.y, w: img.w, h: img.h, scanId: img.scanId, layer: 'SCAN_IMAGES', ...(img.crop ? { from: img.crop[0], to: img.crop[1] } : {}) })
+      add(img.piece === undefined ? `image:${index}` : `image:${index}:${img.piece}`, { list: 'scans', index, id: img.scanId }, pen, `${img.scanId}: photo (${img.fileName})`)
     }
   }
 
@@ -359,8 +390,11 @@ export function buildDrawing(p: Project): Drawing {
     p.objects.forEach((ob, index) => {
       if (!ob.include || !complete(ob.x, ob.y, ob.circWidth, ob.length)) return
       const pen = new Pen()
-      labelRect(pen, o, ob.x!, ob.y!, ob.circWidth!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
-      add(`objects:${index}`, { list: 'objects', index, id: ob.id }, pen, `${ob.id}: X ${fmt(ob.x!)}, Y ${fmt(ob.y!)}, ${fmt(ob.circWidth!)} x ${fmt(ob.length!)} in`)
+      const pieces = objectPieces(ob, C)
+      if (isWrapped(pieces)) wrappedRect(pen, o, pieces, ob.y!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
+      else labelRect(pen, o, pieces[0].x0, ob.y!, ob.circWidth!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
+      const across = isWrapped(pieces) ? ', across the seam' : ''
+      add(`objects:${index}`, { list: 'objects', index, id: ob.id }, pen, `${ob.id}: X ${fmt(ob.x!)}, Y ${fmt(ob.y!)}, ${fmt(ob.circWidth!)} x ${fmt(ob.length!)} in${across}`)
     })
   }
 

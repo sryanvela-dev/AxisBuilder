@@ -54,6 +54,12 @@ export function processedImageNames(scanIds: readonly string[]): Map<string, str
   return out
 }
 
+/** Processed image of one piece of a scan wrapped across the seam: SCAN_5_FIT.png -> SCAN_5_FIT_A.png / _B.png. */
+export function pieceImageName(fileName: string, piece: number): string {
+  const letter = String.fromCharCode(65 + piece)
+  return /\.png$/i.test(fileName) ? fileName.replace(/\.png$/i, `_${letter}.png`) : `${fileName}_${letter}`
+}
+
 function splitName(fileName: string): { base: string; ext: string } {
   const dot = fileName.lastIndexOf('.')
   return dot > 0

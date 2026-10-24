@@ -23,8 +23,8 @@ describe('AUT CSV import', () => {
     const r = importAutCsv(csv)
     expect(r.ok).toBe(true)
     expect(r.scans).toEqual([
-      { id: 'SCAN1', xStart: 0, xStop: 30, yStart: 0, yStop: 24, include: true },
-      { id: 'SCAN 2', xStart: 30, xStop: 60, yStart: 24, yStop: 48, include: true },
+      { id: 'SCAN1', xStart: 0, xStop: 30, yStart: 0, yStop: 24, include: true, noWrap: false, acrossSeam: false },
+      { id: 'SCAN 2', xStart: 30, xStop: 60, yStart: 24, yStop: 48, include: true, noWrap: false, acrossSeam: false },
     ])
     expect(r.report).toEqual([])
     expect(r.summary).toEqual({ rowsRead: 2, imported: 2, calibrationRowsSkipped: 0 })
@@ -138,7 +138,7 @@ describe('AUT CSV import', () => {
   })
 
   it('replaces the scans of a project and clears the image links, like v5.0', () => {
-    const project = { ...createEmptyProject(), scans: [{ id: 'OLD', xStart: 0, xStop: 1, yStart: 0, yStop: 1, include: true }],
+    const project = { ...createEmptyProject(), scans: [{ id: 'OLD', xStart: 0, xStop: 1, yStart: 0, yStop: 1, include: true, noWrap: false, acrossSeam: false }],
       scanImages: [{ scanId: 'OLD', imageFile: 'S1.png', processedImage: '', include: true }] }
     const r = importAutCsv('File Name,X-Start,X-Stop,Y-Start,Y-Stop\nS1,0,10,0,10')
     const updated = replaceScans(project, r.scans)

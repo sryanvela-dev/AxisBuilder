@@ -2,7 +2,9 @@
 // scan uses (with the processed file name it gets).
 
 import { useState, type ChangeEvent } from 'react'
-import { processedImageNames } from '../data/imageMatch.ts'
+import { pieceImageName, processedImageNames } from '../data/imageMatch.ts'
+import { drawnScans } from '../engine/layout.ts'
+import { circumference, isWrapped, scanPieces } from '../engine/wrap.ts'
 import { PHOTO_STATE_TEXT, imageFiles, photoLink, photoState, setPhotoLink, type PhotoState } from '../data/photos.ts'
 import { useApp } from './appContext.ts'
 import { useJobChecks } from './checksContext.ts'
@@ -81,6 +83,8 @@ export function PhotoPanel({ photos }: { photos: RememberedFolder }) {
   const folder = photos.photoFolder
   const names = folder ? imageFiles(folder.names) : null
   const outNames = processedImageNames(p.scans.map((s) => s.id))
+  const drawn = drawnScans(p)
+  const C = circumference(p)
   const noneChosen = p.scanImages.every((l) => l.imageFile.trim() === '')
   const showMatch = !!folder && (matching || noneChosen)
   const counts = p.scans.reduce<Record<PhotoState, number>>(
@@ -170,7 +174,18 @@ export function PhotoPanel({ photos }: { photos: RememberedFolder }) {
                     <span className={`kind kind-${STATE_KIND[st.state]}`}>{PHOTO_STATE_TEXT[st.state]}</span>
                     {problem && <div className={`msg msg-${problem.severity}`}>{problem.fix}</div>}
                   </td>
-                  <td className="value">{st.state === 'scanOff' || st.state === 'photoOff' ? <span className="muted">none</span> : outNames.get(s.id)}</td>
+                  <td className="value">
+                    {st.state === 'scanOff' || st.state === 'photoOff' ? (
+                      <span className="muted">none</span>
+                    ) : isWrapped(scanPieces(drawn[index], C)) ? (
+                      // Across the seam: one image per piece, each the part of the photo for that piece.
+                      <span title="The scan runs across the seam: one image per piece">
+                        {pieceImageName(outNames.get(s.id)!, 0)}, {pieceImageName(outNames.get(s.id)!, 1)}
+                      </span>
+                    ) : (
+                      outNames.get(s.id)
+                    )}
+                  </td>
                   <td>
                     <input
                       type="checkbox"

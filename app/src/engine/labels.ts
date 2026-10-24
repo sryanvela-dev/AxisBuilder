@@ -10,6 +10,7 @@
 import type { Project, Scan } from '../data/schema.ts'
 import { clockPositionDegrees, imageInserts, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
+import { arcBox, circumference, nozzlePieces, type ArcPiece } from './wrap.ts'
 import { headVector, readableRot, type Orientation } from './transform.ts'
 
 export type Box = [number, number, number, number]
@@ -27,6 +28,11 @@ export interface NozzleLabel {
   ty: number
   /** Leader line from the circle to the label, or null when the label is inside. */
   leader: [number, number, number, number] | null
+  /**
+   * A nozzle across the circumference seam: its pieces (the main one first, then the overhang at the other
+   * edge), drawn instead of the whole circle. x, y is then the main piece's center (engine/wrap.ts).
+   */
+  arcs?: ArcPiece[]
 }
 
 /** SL_BBox: approximate text box. */
@@ -58,10 +64,15 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const L = p.vessel.length
   const lr = readableRot(o)
   const rules = textSizeRules(s)
+  const C = circumference(p)
   p.shellNozzles.forEach((n, index) => {
     if (!n.include || n.x === null || n.y === null || n.diameter === null) return
-    const { x, y, diameter: dia, id: txt } = n
+    const { y, diameter: dia, id: txt } = n
     const r = dia / 2
+    // Across the seam: the label goes with the main piece; every piece keeps other labels away.
+    const pieces = nozzlePieces(n, C)
+    const x = pieces[0].cx
+    const wrapped = pieces.length > 1 || pieces[0].arc !== null
     const mode = n.labelMode.toUpperCase() || 'AUTO'
     const th = Math.max(1.6, Math.min(2.4, dia * 0.22))
     const sh = sizedHeight(rules, 'SHELL_NOZZLE_TEXT', th)
@@ -69,7 +80,8 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < dia * 0.75
     let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK) || !s.smartNozzleLabels
     if (mode === 'INSIDE') outside = false
-    let label: NozzleLabel = { x, y, r, txt, th, tx: x, ty: y, leader: null }
+    const arcs = wrapped ? { arcs: pieces } : {}
+    let label: NozzleLabel = { x, y, r, txt, th, tx: x, ty: y, leader: null, ...arcs }
     if (txt !== '' && outside) {
       const ld = s.nozzleLeaderLength
       const candidates: [number, number, number, number][] = [
@@ -84,11 +96,11 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
       ]
       const clear = (bb: Box) => !(bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L) && !avoid.some((a) => overlap(bb, a))
       const found = candidates.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? candidates[0]
-      label = { x, y, r, txt, th, tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]] }
+      label = { x, y, r, txt, th, tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]], ...arcs }
       avoid.push(textBox(found[0], found[1], tw, sh, lr))
     }
     out.set(index, label)
-    avoid.push([x - r, y - r, x + r, y + r])
+    for (const pc of pieces) avoid.push(arcBox(pc))
   })
   return out
 }

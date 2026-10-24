@@ -176,12 +176,22 @@ const Item = memo(function Item(p: {
     <g className={cls} data-key={it.key}>
       <title>{it.item.info}</title>
       <g transform={p.matrix}>
-        {images.map((im) => {
+        {images.map((im, i) => {
           const url = p.thumbs.get(im.scanId)
-          return url ? (
-            <image key={im.scanId} href={url} width={Math.abs(im.w)} height={Math.abs(im.h)} preserveAspectRatio="none"
-              transform={`translate(${Math.min(im.x, im.x + im.w)} ${Math.max(im.y, im.y + im.h)}) scale(1 -1)`} />
-          ) : null
+          if (!url) return null
+          const w = Math.abs(im.w)
+          const h = Math.abs(im.h)
+          const at = `translate(${Math.min(im.x, im.x + im.w)} ${Math.max(im.y, im.y + im.h)}) scale(1 -1)`
+          if (!im.crop) return <image key={im.scanId} href={url} width={w} height={h} preserveAspectRatio="none" transform={at} />
+          // A piece of a scan across the seam: the whole photo at the whole scan's width, clipped to this piece.
+          const full = w / (im.crop[1] - im.crop[0])
+          return (
+            <g key={`${im.scanId}:${i}`} transform={at}>
+              <svg x={0} y={0} width={w} height={h} viewBox={`0 0 ${w} ${h}`} overflow="hidden">
+                <image href={url} x={-im.crop[0] * full} width={full} height={h} preserveAspectRatio="none" />
+              </svg>
+            </g>
+          )
         })}
         {paths.map((x) => (
           <path key={x.layer} d={x.d} style={x.opacity < 1 ? { ...colorStyle(x.color), opacity: x.opacity } : colorStyle(x.color)} />

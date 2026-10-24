@@ -27,6 +27,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Format 3 adds the Drawing step settings (text sizes and colors, layer colors, centerline
   // transparency). They all have defaults, so nothing needs converting.
   2: (data) => ({ ...data, schemaVersion: 3 }),
+  // Format 4 adds per-item wrapping across the circumference seam (noWrap on shell nozzles, objects and scans;
+  // acrossSeam on scans). All have defaults, so nothing needs converting.
+  3: (data) => ({ ...data, schemaVersion: 4 }),
 }
 
 export interface OpenOptions {
