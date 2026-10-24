@@ -28,8 +28,10 @@ export const SETTING_GROUPS = [
   { id: 'legendTitle', step: 'Drawing', title: 'Legend and title block', intro: 'The legend, the coverage figure and the title block.' },
   { id: 'headsDrawing', step: 'Drawing', title: 'Head views', intro: 'How the head views are drawn. Which heads are shown, and their names, are on the Field data step.' },
   { id: 'showHide', step: 'Drawing', title: 'Show or hide', intro: 'What the drawing includes (the legend and title block are above). In CAD the AB... commands turn the same groups on and off.' },
-  { id: 'lineStyles', step: 'Drawing', title: 'Line colors and transparency', intro: 'Colors of the main drawing layers (standard CAD color numbers) and how transparent the hatch and centerline are.' },
+  { id: 'lineStyles', step: 'Drawing', title: 'Lines: colors, weights and transparency', intro: 'Colors of the main drawing layers (standard CAD color numbers), their printed line weights (PDF and report images), and how transparent the hatch and centerline are.' },
   { id: 'sections', step: 'Drawing', title: 'Section sheets', intro: 'Zoomed-in letter-size sheets of a long vessel, one per length of shell, that a client can read. Off unless you switch it on.' },
+  { id: 'pdf', step: 'Export', title: 'PDF', intro: 'How the PDF is made: the photo resolution and PDF layers.' },
+  { id: 'reportImages', step: 'Export', title: 'Report images', intro: 'One JPEG per sheet for the inspection report, cropped tight to what is printed (as TightPDF did).' },
   { id: 'export', step: 'Export', title: 'CAD program and checks', intro: 'Which CAD program the drawing file is for, and the checks before export.' },
 ] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
 
@@ -180,6 +182,7 @@ const PS = 'Project Settings' as const
 export const TEXT_SIZE_MODES = ['Automatic', 'Scale', 'Fixed height'] as const
 
 export const SECTION_SPLITS = ['Number of sections', 'Readable size', 'Manual'] as const
+export const REPORT_CROPS = ['Everything printed', 'Drawing only'] as const
 const SECTIONS_ON = { section: 'settings', key: 'makeSectionSheets', values: ['true'] } as const satisfies ShowWhen
 const sectionsWhen = (split: (typeof SECTION_SPLITS)[number]): ShowWhen => ({ ...SECTIONS_ON, and: { section: 'settings', key: 'sectionSplit', values: [split] } })
 
@@ -262,17 +265,31 @@ function textStyle<K extends string>(key: K, name: string, color: number, base: 
   } as unknown as { [P in `${K}Size`]: ReturnType<typeof textSizeChoice> } & { [P in `${K}Scale` | `${K}Height` | `${K}Color`]: ReturnType<typeof plainNumber> }
 }
 
-function layerColor<K extends string>(key: K, name: string, color: number) {
+/**
+ * Color and printed line weight of one geometry layer. The weight is for the PDF, the report images and the
+ * Sheets view (Phase 4b); the .lsp leaves CAD's lineweights alone.
+ */
+function layerColor<K extends string>(key: K, name: string, color: number, weight: (typeof LINE_WEIGHTS)[number]) {
   return {
     [`${key}Color`]: num({
       excelSheet: PS, onSheet: false, group: 'lineStyles', step: 'Drawing', level: 'Basic', color: true,
       excelLabel: `${name} Color`, name: `${name}: color`, description: `CAD color of the ${name.toLowerCase()} layer.`,
       integer: true, min: 1, max: 255, default: color, v5: 'App only. v5.0 sets this layer color in SL_SetupLayers.',
     }),
-  } as unknown as { [P in `${K}Color`]: ReturnType<typeof plainNumber> }
+    [`${key}Weight`]: choice(LINE_WEIGHTS, {
+      excelSheet: PS, onSheet: false, group: 'lineStyles', step: 'Drawing', level: 'Basic',
+      excelLabel: `${name} Line Weight`, name: `${name}: line weight`, units: 'mm',
+      description: `Printed line weight of the ${name.toLowerCase()} (PDF and report images), in millimetres (standard pen sizes).`,
+      default: weight, v5: 'App only. v5.0 prints with CAD\'s own lineweights.',
+    }),
+  } as unknown as { [P in `${K}Color`]: ReturnType<typeof plainNumber> } & { [P in `${K}Weight`]: ReturnType<typeof weightChoice> }
 }
 
+/** Standard pen sizes (mm, ISO 128). */
+export const LINE_WEIGHTS = ['0.09', '0.13', '0.18', '0.25', '0.35', '0.50', '0.70'] as const
+
 // Only for the return types above.
+const weightChoice = () => choice(LINE_WEIGHTS, { excelLabel: '', excelSheet: PS, name: '', description: '', default: '0.25', step: 'Drawing', level: 'Basic' })
 const textSizeChoice = () => choice(TEXT_SIZE_MODES, { excelLabel: '', excelSheet: PS, name: '', description: '', default: 'Automatic', step: 'Drawing', level: 'Basic' })
 const plainNumber = () => num({ excelLabel: '', excelSheet: PS, name: '', description: '', default: 1, step: 'Drawing', level: 'Basic' })
 const DI = 'Drawing Information' as const
@@ -805,20 +822,58 @@ export const SETTINGS = {
   ...textStyle('legendText', 'Legend text', 7, 2),
   ...textStyle('titleBlockText', 'Title block text', 7, 1.8),
 
-  // LINE COLORS (app only): the main geometry layers.
-  ...layerColor('vessel', 'Vessel outline', 7),
-  ...layerColor('scanOutline', 'Scan outlines', 7),
-  ...layerColor('hatch', 'Scan hatch', 5),
-  ...layerColor('object', 'Objects', 6),
-  ...layerColor('shellNozzle', 'Shell nozzles', 7),
-  ...layerColor('circWeld', 'Circ welds', 7),
-  ...layerColor('longSeam', 'Long seams', 7),
-  ...layerColor('centerline', 'Centerline', 7),
-  ...layerColor('shellNozzleLeader', 'Shell nozzle leaders', 7),
-  ...layerColor('head', 'Head views', 7),
-  ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7),
-  ...layerColor('xRuler', 'X ruler', 1),
-  ...layerColor('yRuler', 'Y ruler', 5),
+  // LINE COLORS AND WEIGHTS (app only): the main geometry layers. Weights: outline heaviest, hatch and
+  // leaders lightest, as a CAD plot style would.
+  ...layerColor('vessel', 'Vessel outline', 7, '0.35'),
+  ...layerColor('scanOutline', 'Scan outlines', 7, '0.25'),
+  ...layerColor('hatch', 'Scan hatch', 5, '0.13'),
+  ...layerColor('object', 'Objects', 6, '0.25'),
+  ...layerColor('shellNozzle', 'Shell nozzles', 7, '0.25'),
+  ...layerColor('circWeld', 'Circ welds', 7, '0.25'),
+  ...layerColor('longSeam', 'Long seams', 7, '0.25'),
+  ...layerColor('centerline', 'Centerline', 7, '0.18'),
+  ...layerColor('shellNozzleLeader', 'Shell nozzle leaders', 7, '0.13'),
+  ...layerColor('head', 'Head views', 7, '0.25'),
+  ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7, '0.13'),
+  ...layerColor('xRuler', 'X ruler', 1, '0.18'),
+  ...layerColor('yRuler', 'Y ruler', 5, '0.18'),
+
+  // PDF AND REPORT IMAGES (app only, Phase 4b, Export step).
+  pdfPhotoDpi: num({
+    excelLabel: 'PDF Photo DPI', excelSheet: PS, onSheet: false, name: 'Photo resolution in the PDF',
+    description: 'Scan photos are put in the PDF at this many pixels per printed inch (never more than the photo has). 300 prints sharp on letter paper; 150 gives a smaller file.',
+    units: 'dpi', integer: true, min: 72, max: 600, default: 300, group: 'pdf', step: 'Export', level: 'Basic',
+  }),
+  pdfLayers: yesNo({
+    excelLabel: 'PDF Layers', excelSheet: PS, onSheet: false, name: 'PDF layers',
+    description: 'Put each part of the drawing (Scans, Photos, Hatch, Welds, Nozzles, ...) on its own PDF layer, so it can be switched on and off in Acrobat or Edge.',
+    default: true, group: 'pdf', step: 'Export', level: 'Basic',
+  }),
+  reportDpi: num({
+    excelLabel: 'Report Image DPI', excelSheet: PS, onSheet: false, name: 'Resolution',
+    description: 'Pixels per inch of the report images (TightPDF: 300). The DPI is written into each JPEG, so Word places it at its printed size.',
+    units: 'dpi', integer: true, min: 72, max: 600, default: 300, group: 'reportImages', step: 'Export', level: 'Basic',
+  }),
+  reportQuality: num({
+    excelLabel: 'Report Image Quality', excelSheet: PS, onSheet: false, name: 'JPEG quality',
+    description: 'JPEG quality from 50 to 100 (TightPDF: 95). Saved without color subsampling (4:4:4), so thin colored lines stay crisp.',
+    integer: true, min: 50, max: 100, default: 95, group: 'reportImages', step: 'Export', level: 'Basic',
+  }),
+  reportPadding: num({
+    excelLabel: 'Report Image Padding', excelSheet: PS, onSheet: false, name: 'Padding',
+    description: 'White border around what is printed, in pixels (TightPDF: 8).',
+    units: 'px', integer: true, min: 0, max: 100, default: 8, group: 'reportImages', step: 'Export', level: 'Basic',
+  }),
+  reportCrop: choice(REPORT_CROPS, {
+    excelLabel: 'Report Image Crop', excelSheet: PS, onSheet: false, name: 'Crop to',
+    description: 'Everything printed: tight around all of the sheet (as TightPDF does). Drawing only: leave out the title block and legend.',
+    default: 'Everything printed', group: 'reportImages', step: 'Export', level: 'Basic',
+  }),
+  reportName: text({
+    excelLabel: 'Report Image Name', excelSheet: PS, onSheet: false, name: 'File name',
+    description: 'Name of the images, without .jpg; one sheet gives "<name>.jpg", several "<name>_001.jpg", "<name>_002.jpg", ... Blank: the PDF\'s name.',
+    default: '', group: 'reportImages', step: 'Export', level: 'Basic',
+  }),
 
   // SECTION SHEETS (app only, Phase 3f-2): the plan is worked out by engine/sections.ts; the .lsp builds
   // exactly these sheets (ABSECTIONSHEETS). Off by default: nothing about sections is drawn or written.

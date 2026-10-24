@@ -54,3 +54,15 @@ export function panelScales(s: Settings): { legend: number; title: number } {
   const r3 = (n: number) => Math.round(n * 1000) / 1000
   return { legend: r3(sizedHeight(rules, 'LEGEND_TEXT', 2) / 2), title: r3(sizedHeight(rules, 'TITLE_BLOCK_TEXT', 1.8) / 1.8) }
 }
+
+/** Printed weight of the other layers (mm): legend and title block lines, head crosshairs, the paper rulers. */
+const OTHER_WEIGHT_MM = 0.18
+
+/**
+ * Printed line weights (inches) by CAD layer, for the PDF, the report images and the Sheets view: the Drawing
+ * step's weights for the main geometry layers, 0.18 mm for the rest.
+ */
+export function lineWeights(s: Settings): (layer: string) => number {
+  const byLayer = new Map<string, number>(LINE_LAYERS.map((l) => [l.layer, Number(setting(s, `${l.key}Weight`))]))
+  return (layer) => (byLayer.get(layer) ?? OTHER_WEIGHT_MM) / 25.4
+}

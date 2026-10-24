@@ -21,6 +21,7 @@ import {
   titleLines,
 } from './layout.ts'
 import { LETTER_AREA, paperAlong, sheetViewport, type Section, type SectionPlan } from './sections.ts'
+import { capTextWidth } from './textMetrics.ts'
 
 export type PaperShape =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number; layer: string }
@@ -28,9 +29,12 @@ export type PaperShape =
   /** rot in degrees counter-clockwise; MC = centered, ML = left end at x. */
   | { t: 'text'; x: number; y: number; h: number; rot: number; text: string; just: 'MC' | 'ML'; layer: string }
 
+/** The title and legend panel's layers (left out of a "drawing only" report image). */
+export const PANEL_LAYERS = new Set(['REPORT_TITLE', 'REPORT_LEGEND', 'REPORT_LEGEND_AUT', 'REPORT_LEGEND_MUT', 'REPORT_LEGEND_AUT_BOX', 'REPORT_LEGEND_MUT_BOX'])
+
 /** SECTIONPAGES' paper layer colors (CAD color numbers). */
 export const PAPER_LAYER_COLOR: Record<string, number> = {
-  REPORT_X_RULER: 1, REPORT_Y_RULER: 5, REPORT_X_REFERENCE: 1, REPORT_TITLE: 7, REPORT_LEGEND: 7,
+  REPORT_X_RULER: 1, REPORT_Y_RULER: 5, REPORT_X_REFERENCE: 1, REPORT_TITLE: 7, REPORT_SHEET_TITLE: 7, REPORT_LEGEND: 7,
   REPORT_LEGEND_AUT: 5, REPORT_LEGEND_MUT: 3, REPORT_LEGEND_AUT_BOX: 5, REPORT_LEGEND_MUT_BOX: 3,
   REPORT_VIEWPORT: 7, REPORT_MATCH_LINE: 1, REPORT_SECTION_BOX: 3,
 }
@@ -122,9 +126,10 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const refs = drawnReferenceLabels(p) !== null ? sectionReferenceLabels(p) : []
   // App layout (user, 2026-10-23): the title/legend panel sits just right of the drawing (past the reference
   // labels on horizontal sheets) and the two are centred on the sheet together. SECTIONPAGES keeps the panel at
-  // 86.5% of the width, which leaves a gap when the section is short. Text widths are estimated (0.62 x height).
-  const refsW = vertical ? 0 : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => t.length)) * 1.8 * sc * mult * 0.62
-  const panelW = Math.max(1.45 * u, Math.max(0, ...lines.map((t) => t.length)) * 0.09 * u * 0.62)
+  // 86.5% of the width, which leaves a gap when the section is short. Text widths are measured with the font the
+  // PDF prints with (engine/textMetrics.ts).
+  const refsW = vertical ? 0 : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => capTextWidth(t, 1.8 * sc * mult)))
+  const panelW = Math.max(1.45 * u, ...lines.map((t, i) => capTextWidth(t, (i === 0 ? 0.12 : 0.09) * u)))
   const gapToPanel = refsW + 0.3 * u
   const leftRoom = (s.rulerOffset + 10 + 8 * Math.max(0, mult - 1) + 5.5) * sc + 0.4 * u // the X ruler, its label and arrow
   const groupW = vp.w + gapToPanel + panelW
@@ -255,7 +260,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   }
 
   // Sheet title, above the viewport (Vertical: at the top of the sheet area, clear of the reference labels).
-  pen.text(vp.left + vp.w / 2, vertical ? LETTER_AREA.h - 0.15 * u : top + 0.22 * u, 0.18 * u, 0, title, 'REPORT_TITLE')
+  pen.text(vp.left + vp.w / 2, vertical ? LETTER_AREA.h - 0.15 * u : top + 0.22 * u, 0.18 * u, 0, title, 'REPORT_SHEET_TITLE')
 
   // Overview: a numbered box for each section. Sections: match lines.
   const across = (y0: number, y1: number, layer: string) => {

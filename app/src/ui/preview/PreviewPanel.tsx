@@ -55,12 +55,13 @@ export function PreviewPanel() {
   const project = useDeferredValue(job.history.present)
   // The section sheet plan is drawn only while section sheets are on (engine/sections.ts).
   const plan = useMemo(() => activeSectionPlan(project), [project])
+  const drawing = useMemo(() => buildDrawing(project), [project])
   const model = useMemo(() => {
-    const d = buildDrawing(project)
+    const d = drawing
     return buildRenderModel(plan ? { ...d, items: [...d.items, ...sectionPlanItems(project, plan)] } : d)
-  }, [project, plan])
+  }, [project, plan, drawing])
   const [sheets, setSheets] = useState(false)
-  const showSheets = sheets && plan !== null
+  const showSheets = sheets && project.vessel.length !== null && project.vessel.height !== null
   const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
 
@@ -121,13 +122,13 @@ export function PreviewPanel() {
           <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing" disabled={showSheets}>
             Fit
           </button>
-          {plan && (
+          {(
             <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => {
                 // The sheets open full size, so they are big enough to read; closing full size keeps them.
                 if (!showSheets) setFull(true)
                 setSheets(!showSheets)
               }} aria-pressed={showSheets}
-              title="Flip through the section sheets as they will print">
+              title="Flip through the sheets as they will print (the PDF)">
               {showSheets ? 'Drawing' : 'Sheets'}
             </button>
           )}
@@ -150,8 +151,8 @@ export function PreviewPanel() {
         ))}
       </div>
       <div className="preview-canvas">
-        {showSheets && plan ? (
-          <SheetsView model={model} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
+        {showSheets ? (
+          <SheetsView drawing={drawing} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
         ) : (
         <DrawingView
           ref={view}

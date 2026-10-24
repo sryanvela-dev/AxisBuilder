@@ -1780,6 +1780,23 @@ svg.sheet .sheet-paper-space rect {
   stroke-width: 0.008;
 }
 
+/* The sheet model (Sheets view): drawn with the PDF's font, sizes and print colors set on each element. */
+@font-face {
+  font-family: 'AxisBuilder Arimo';
+  src: url('./assets/fonts/Arimo-Regular.ttf') format('truetype');
+  font-display: block;
+}
+
+svg.sheet-model text {
+  font-family: 'AxisBuilder Arimo', Arial, sans-serif;
+  stroke: none;
+}
+
+svg.sheet-model path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .sheets-note {
   margin: 4px 10px;
   font-size: 0.8em;

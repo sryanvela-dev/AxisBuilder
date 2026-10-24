@@ -7,6 +7,7 @@ import { useEffect, useId, useState } from 'react'
 import { parseLength, parseNumber, type Parsed } from '../data/parse.ts'
 import type { Project } from '../data/schema.ts'
 import {
+  LINE_LAYERS,
   SETTINGS,
   SETTING_GROUPS,
   TEXT_TYPES,
@@ -104,6 +105,15 @@ export function SettingsGroup({ group, step }: { group: SettingGroupId; step: St
       )}
       {group === 'textStyles' ? (
         <TextStylesTable fields={all} values={values} step={step} />
+      ) : group === 'lineStyles' ? (
+        <>
+          <LineStylesTable fields={all} values={values} step={step} />
+          <div className="field-grid">
+            {shown.filter((f) => !/(Color|Weight)$/.test(f.key)).map((f) => (
+              <SettingField key={`${f.section}.${f.key}`} field={f} step={step} />
+            ))}
+          </div>
+        </>
       ) : (
         <div className="field-grid">
           {shown.map((f) => (
@@ -197,6 +207,59 @@ function TextStylesTable({ fields, values, step }: { fields: GroupField[]; value
         a title, keeps its proportion). A bigger legend or title block makes room for itself; TEXTRESIZE in CAD still works on every layer.
       </p>
     </div>
+  )
+}
+
+/** Line colors and printed weights: one row per drawing layer. */
+function LineStylesTable({ fields, values, step }: { fields: GroupField[]; values: SectionValues; step: StepId }) {
+  const app = useApp()
+  const byKey = new Map(fields.map((f) => [f.key, f]))
+  const defs = SETTINGS as Record<string, FieldDef>
+  const resetRow = (key: string, name: string) => {
+    const row = ['Color', 'Weight'].map((k) => byKey.get(`${key}${k}`)!)
+    app.edit(`Reset ${name}`, (p) => row.reduce((acc, f) => setValue(acc, f.section, f.key, f.def.default), p))
+    for (const f of row) app.dispatch({ type: 'setDraft', key: draftKey(f.section, f.key), draft: null })
+  }
+  return (
+    <table className="text-styles">
+      <thead>
+        <tr>
+          <th scope="col">Lines</th>
+          <th scope="col">Color</th>
+          <th scope="col">Printed weight (mm)</th>
+          <th scope="col"><span className="visually-hidden">Reset</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {LINE_LAYERS.map((l) => {
+          const name = defs[`${l.key}Color`].name.replace(/: color$/, '')
+          const changed = ['Color', 'Weight'].some((k) => {
+            const f = byKey.get(`${l.key}${k}`)!
+            return !Object.is(values[f.section][f.key], f.def.default)
+          })
+          return (
+            <tr key={l.key}>
+              <th scope="row">
+                {name}
+                <span className="muted layer-name">{l.layer}</span>
+              </th>
+              <td>
+                <SettingField field={byKey.get(`${l.key}Color`)!} step={step} compact />
+              </td>
+              <td>
+                <SettingField field={byKey.get(`${l.key}Weight`)!} step={step} compact />
+              </td>
+              <td>
+                <button type="button" className="btn btn-small" disabled={!changed} onClick={() => resetRow(l.key, name)}
+                  title={changed ? `Put ${name.toLowerCase()} back to the default color and weight` : 'Already at the default'} aria-label={`Reset ${name}`}>
+                  Reset
+                </button>
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
   )
 }
 
