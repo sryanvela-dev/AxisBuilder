@@ -51,6 +51,25 @@ drawing).
 2. **Overview and section sheets** (when "Make section sheets" is on): exactly the Sheets view's pages
    (SECTIONPAGES' layout from `engine/sheets.ts`), landscape, the drawing clipped to each viewport.
 
+**Paper size** ("Paper size" under What is exported): Letter (default, 8.5 x 11 in), 11x17 (Tabloid), Legal
+(8.5 x 14 in) or A4. Every sheet, the Sheets view, the PDF and the report images use it; the template area is the
+paper less half-inch margins (`engine/sections.ts` `paperOf`, `sheetArea`), and "Readable size" section planning
+fits the sections to it, so a bigger paper needs fewer sections. Text sizes stay the same in inches on every paper.
+Letter gives exactly the output from before the setting. The CAD drawing file's ABSECTIONSHEETS still expects a
+letter template Sheet in CAD.
+
+**Text placement**: CAD writes every centered label with `-TEXT J MC` (SL_Text: scan, object, nozzle, MUT, head
+nozzle, weld and ruler labels) and the title/notes with `ML` (SL_TextLeft). MC puts the middle of the capitals on the
+point: the text height is the capital height, the baseline half of it below the point, the text centred across it.
+The sheet model (`textGeometry`), the preview (`renderModel` `dy`, alphabetic baseline, the bundled font) and the
+canvas all place text this way (`test/engine/textCentering.test.ts`). Before, the preview and the Sheets view used the
+font's em box ("central" baseline), which sat a little low.
+
+**Ruler numbers** (app change 22, also in the .lsp): when the end of a ruler is not a whole number of ticks, a tick
+number that would crowd the end number is left out (its tick stays) and the end is always numbered: the gap must be
+at least the number height x (1 + 0.3 x characters of both numbers). Section sheets measure the numbers with the
+font instead and leave out any number that would touch its neighbour.
+
 ## The PDF
 
 - **Library: pdf-lib 1.17.1** (with @pdf-lib/fontkit 1.1.1). Pure JavaScript, runs in the browser with no server

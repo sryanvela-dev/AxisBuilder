@@ -575,3 +575,14 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   (on vertical sheets the last one sticks out half its width); legend keys stacked (AUT above MUT) like the
   drawing's legend. Test: the panel is clear of the drawing and its reference labels on every sheet.
   PDF and line weights in the preview confirmed working by the user. No .lsp change.
+- 2026-10-24 – Click-through fixes (feature/pdf-export, user): (1) "Paper size" on the Export step (Letter default,
+  11x17 (Tabloid), Legal, A4) for every sheet, the Sheets view, PDF and report images; readable-size sections are
+  planned for it (`paperOf`, `sheetArea`; sheetViewport / sheetScale take the area). (2) Labels centred like CAD's MC:
+  the preview and Sheets view used the em box ("central"); now the bundled font, capital-height size and an
+  alphabetic baseline half the height below the point (`renderModel` `dy`); test on every golden job. (3) Every step
+  and closing full size open the page at its top. (4) App change 22: a ruler tick number that crowds the end number is
+  left out, the end always kept, in the preview, sheets, PDF, report images and the app .lsp (`SL_RulerNumberFits`,
+  patch on all nine ruler functions); compat v5.0 unchanged; fingerprints refreshed (all jobs: library lines; drawing
+  loses 300" in REF1 and its variants, 336" in REF2, 456" in REF3 / REF4; sample unchanged). (5) Hatch and centerline
+  transparency as a Solid..Faint slider with the number and a live sample (`transparency` on NumberDef). No VBA or
+  workbook changes.
