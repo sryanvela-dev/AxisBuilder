@@ -32,7 +32,8 @@ import {
   ucaseTrim,
 } from '../../engine/layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
-import { writeAppLibrary } from './appLibrary.ts'
+import { patchLibraryLine, writeAppLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
+import { appLayerSetup, panelScales, textSizeRules } from '../../engine/styles.ts'
 import {
   PrintVisualRulers,
   WriteCommandsTail,
@@ -58,6 +59,9 @@ export const APP_CHANGES = [
   'Shell nozzle label positions are worked out by the app (same rules), so the preview and CAD match.',
   'Head nozzle labels placed outside move further out along their leader instead of overlapping.',
   'The vessel centerline is drawn with a transparency (setting, default 50).',
+  'Text sizes and layer colors can be set per text layer and for the main layers (Drawing step); defaults change nothing.',
+  'Ruler axis direction labels, reference labels and nozzle leaders have their own layers (TEXTRESIZE and the AB... toggles know them).',
+  'A bigger legend or title block is drawn bigger as a whole, and the head views and title block move up to make room.',
 ] as const
 
 export interface ExportOptions {
@@ -114,7 +118,7 @@ function nozzleAt(l: NozzleLabel, layer: string, textLayer: string): string {
 }
 
 /** PrintVesselReferenceLabels + PrintRefCardinalAlongVesselXAxis. */
-function printVesselReferenceLabels(w: (s: string) => void, p: Project) {
+function printVesselReferenceLabels(w: (s: string) => void, p: Project, v5: boolean) {
   const ref = referenceLabelLayout(p)
   if (!ref) return
   w('  ;; Vessel reference labels - v4.6.2 cardinal vessel X-axis references')
@@ -126,7 +130,7 @@ function printVesselReferenceLabels(w: (s: string) => void, p: Project) {
   for (let i = 0; i <= 4; i++) {
     if (ref.labels[i].trim() !== '') {
       w(`  (SL_Line ${posExpr[i]} ${baseY} ${posExpr[i]} ${yTick} "X_AXIS")`)
-      w(`  (SL_Text ${posExpr[i]} ${yText} ${LispNum(ref.textH)} (SL_RulerTextRotX) ${LispStr(ref.labels[i])} "X_AXIS")`)
+      w(`  (SL_Text ${posExpr[i]} ${yText} ${LispNum(ref.textH)} (SL_RulerTextRotX) ${LispStr(ref.labels[i])} ${v5 ? '"X_AXIS"' : '"REFERENCE_TEXT"'})`)
     }
   }
 }
@@ -172,7 +176,8 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const legendTotalScansText = `Total Scans: ${CStr(counted.length)}`
 
   const lib: LibraryContext = {
-    w,
+    // The app's drawing changes a few library lines (layer lists that must know the layers it adds).
+    w: v5 ? w : (line: string) => w(patchLibraryLine(line)),
     acad,
     hatchTransparency: Math.round(Math.min(90, Math.max(0, s.autHatchTransparency))),
     overlayImageFrame: s.showScanBordersOnOverlay ? 1 : 0,
@@ -191,6 +196,15 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   WriteLispHeader(lib)
   WriteOverlayLispFunctions(lib)
   if (!v5) writeAppLibrary(w) // changes 8-10
+  const sizes = v5 ? new Map() : textSizeRules(s) // change 15: text sizes (only when one is changed)
+  if (sizes.size > 0) {
+    writeTextSizes(w, [...sizes].map(([layer, r]) =>
+      r.mode === 'SCALE' ? `(list ${LispStr(layer)} "SCALE" ${LispNum(r.value)})` : `(list ${LispStr(layer)} "HEIGHT" ${LispNum(r.value)} ${r.base === null ? 'nil' : LispNum(r.base)})`))
+  }
+  // Change 18: a bigger legend or title block scales as a whole; the right panel makes room (engine/layout.ts).
+  const scales = v5 ? { legend: 1, title: 1 } : panelScales(s)
+  if (scales.legend !== 1) writeScaledLegend(w, LispNum(scales.legend))
+  if (scales.title !== 1) writeScaledTitleBlock(w, LispNum(scales.title))
 
   // Job settings
   w(`(setq SL_ORIENTATION ${LispStr(orientation)})`)
@@ -227,7 +241,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('')
 
   const headMode = s.headViewMode
-  const { headDia, panel } = panelOf(p)
+  const { headDia, panel } = panelOf(p, v5)
 
   // Drawing command setup
   if (acad) w('(defun c:SCANOVERLAY ( / *error* vesselXLen vesselYLen spacing oldOsmode oldCmdecho oldNomutt)')
@@ -251,6 +265,8 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   }
   w('  (setvar "OSMODE" 0)')
   w('  (SL_SetupLayers)')
+  // Changes 16 and 17: layer colors chosen in the app (only those that differ) and the layers the app adds.
+  if (!v5) for (const [layer, color] of appLayerSetup(s)) w(`  (SL_Layer ${LispStr(layer)} ${CStr(color)})`)
   if (!v5) w(`  (SL_SetLayerTransparencyTo "CENTERLINE" ${CStr(Math.round(Math.min(90, Math.max(0, s.centerlineTransparency))))})`) // change 11
   w('  (SL_SetupViewportLayers)')
   w('  (setvar "UCSICON" 0)')
@@ -353,7 +369,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // Reference labels
   w('')
   w('  ;; Optional vessel reference indicators on overlay')
-  printVesselReferenceLabels(w, p)
+  printVesselReferenceLabels(w, p, v5)
 
   // Head views
   if (headMode !== 'NONE') {

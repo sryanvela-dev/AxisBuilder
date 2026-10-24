@@ -28,12 +28,13 @@ import {
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.ts'
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
+import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from './styles.ts'
 
 /** Where the preview may look different from the drawing in CAD. */
 export const PREVIEW_DIFFERENCES = [
   'Text is drawn with the browser font; CAD uses its own font, so labels can be a little wider or narrower.',
   'Scan photos are shown as the original photos stretched to the scan, not the processed images.',
-  'Text sizes are the ones the drawing starts with; TEXTRESIZE in CAD changes them later.',
+  'Text sizes are the ones set on the Drawing step; TEXTRESIZE in CAD can change them later (not shown here).',
   'Section pages, viewports and the layout sheet are not shown.',
 ] as const
 
@@ -55,10 +56,10 @@ export const LAYER_GROUPS: { id: Exclude<LayerGroup, 'always'>; name: string; la
   { id: 'hatch', name: 'Hatch', layers: ['AUT_HATCH'] },
   { id: 'images', name: 'Images', layers: ['SCAN_IMAGES'] },
   { id: 'welds', name: 'Welds', layers: ['CIRC_WELDS', 'LONG_SEAMS', 'CIRC_WELD_TEXT', 'LONG_SEAM_TEXT'] },
-  { id: 'nozzles', name: 'Nozzles', layers: ['NOZZLES', 'SHELL_NOZZLE_TEXT'] },
+  { id: 'nozzles', name: 'Nozzles', layers: ['NOZZLES', 'NOZZLE_LEADERS', 'SHELL_NOZZLE_TEXT'] },
   { id: 'objects', name: 'Objects', layers: ['SUPPORTS', 'SUPPORT_TEXT'] },
-  { id: 'rulers', name: 'Rulers', layers: ['X_AXIS', 'Y_AXIS', 'X_RULER_TEXT', 'Y_RULER_TEXT'] },
-  { id: 'heads', name: 'Heads', layers: ['HEADS', 'HEAD_NOZZLE_TEXT', 'HEAD_MUT_TEXT', 'HEAD_TITLE_TEXT', 'HEAD_CLOCK_TEXT'] },
+  { id: 'rulers', name: 'Rulers', layers: ['X_AXIS', 'Y_AXIS', 'X_RULER_TEXT', 'Y_RULER_TEXT', 'X_AXIS_LABEL_TEXT', 'Y_AXIS_LABEL_TEXT', 'REFERENCE_TEXT'] },
+  { id: 'heads', name: 'Heads', layers: ['HEADS', 'HEAD_NOZZLE_LEADERS', 'HEAD_NOZZLE_TEXT', 'HEAD_MUT_TEXT', 'HEAD_TITLE_TEXT', 'HEAD_CLOCK_TEXT'] },
   {
     id: 'info', name: 'Legend and title',
     layers: ['LEGEND', 'LEGEND_SAMPLE', 'LEGEND_AUT_HATCH', 'LEGEND_MUT_HATCH', 'LEGEND_TEXT', 'TITLE_BLOCK', 'TITLE_BLOCK_TEXT'],
@@ -75,6 +76,8 @@ export function groupOfLayer(layer: string): LayerGroup {
 export const LAYER_COLOR: Record<string, number> = {
   AUT_HATCH: 5, SUPPORTS: 6, X_AXIS: 1, Y_AXIS: 5, LEGEND_AUT_HATCH: 5, LEGEND_MUT_HATCH: 3, MANUAL_UT_HATCH: 3,
   X_RULER_TEXT: 1, Y_RULER_TEXT: 5,
+  // Layers the app adds (same colors as the layer they came from).
+  X_AXIS_LABEL_TEXT: 1, Y_AXIS_LABEL_TEXT: 5, REFERENCE_TEXT: 1,
 }
 
 /** Layers whose lines take the hatch transparency (SL_SetLayerTransparency). */
@@ -102,6 +105,8 @@ export interface Drawing {
   hatchTransparency: number
   /** Centerline transparency, 0-90 % (app change). */
   centerlineTransparency: number
+  /** Layer colors chosen on the Drawing step that differ from LAYER_COLOR. */
+  layerColors: Record<string, number>
 }
 
 /** SL_TextLayer: geometry layer -> its text layer. */
@@ -190,10 +195,10 @@ function labelRect(pen: Pen, o: Orientation, x: number, y: number, w: number, h:
   pen.text(x + w / 2, y + h / 2, fitTextHeight(w, h, txt), labelRot(o, w, h), txt, outline)
 }
 
-/** SL_NozzleAt: circle, leader and label where engine/labels.ts placed them. */
+/** SL_NozzleAt: circle, leader and label where engine/labels.ts placed them (leaders on their own layer). */
 function nozzleAt(pen: Pen, o: Orientation, l: NozzleLabel, layer: string, textLayer: string) {
   pen.circle(l.x, l.y, l.r, layer)
-  if (l.leader) pen.line(l.leader[0], l.leader[1], l.leader[2], l.leader[3], layer)
+  if (l.leader) pen.line(l.leader[0], l.leader[1], l.leader[2], l.leader[3], layer === 'NOZZLES' ? 'NOZZLE_LEADERS' : 'HEAD_NOZZLE_LEADERS')
   if (l.txt !== '') pen.text(l.tx, l.ty, l.th, readableRot(o), l.txt, textLayer)
 }
 
@@ -219,7 +224,7 @@ function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall) {
       pen.line(c.x0 + pos, c.y0, c.x0 + pos, c.y0 + sd * 3, c.layer)
       pen.text(c.x0 + pos, c.y0 + sd * 5, 1.8, rot, inch(pos), c.layer)
     }
-    pen.text(c.x0 + mid, c.y0 + sd * 10, 2.5, rot, c.label, c.layer)
+    pen.text(c.x0 + mid, c.y0 + sd * 10, 2.5, rot, c.label, 'X_AXIS_LABEL_TEXT')
     pen.arrow(c.x0 + mid - arrLen / 2, c.y0 + sd * 15.5, c.x0 + mid + arrLen / 2, c.y0 + sd * 15.5, arrowHead, c.layer)
   } else {
     const rot = rulerTextRotY(o)
@@ -228,41 +233,46 @@ function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall) {
       pen.line(c.x0, c.y0 + pos, c.x0 + sd * 3, c.y0 + pos, c.layer)
       pen.text(c.x0 + sd * 5.5, c.y0 + pos, 1.8, rot, inch(pos), c.layer)
     }
-    pen.text(c.x0 + sd * 11, c.y0 + mid, 2.5, rot, c.label, c.layer)
+    pen.text(c.x0 + sd * 11, c.y0 + mid, 2.5, rot, c.label, 'Y_AXIS_LABEL_TEXT')
     pen.arrow(c.x0 + sd * 16.5, c.y0 + mid - arrLen / 2, c.x0 + sd * 16.5, c.y0 + mid + arrLen / 2, arrowHead, c.layer)
   }
 }
 
-/** SL_Legend */
-function legend(pen: Pen, o: Orientation, x: number, y: number, hatchOn: boolean, step: number, lines: { total: string; cov: string; orient: string; overlay: string }) {
-  const boxW = 12
-  const boxH = 7
+/** SL_Legend; k = the app's legend scale (every distance times k, as the app's SL_Legend). */
+function legend(pen: Pen, o: Orientation, x0: number, y0: number, k: number, hatchOn: boolean, step: number, lines: { total: string; cov: string; orient: string; overlay: string }) {
+  const boxW = 12 * k
+  const boxH = 7 * k
   const lr = readableRot(o)
+  // Offsets from the anchor, scaled: x + 6 is written X(6).
+  const X = (d: number) => x0 + d * k
+  const Y = (d: number) => y0 + d * k
+  const x = x0
+  const y = y0
   if (o === 'Vertical') {
-    pen.text(x + 6, y + 25, 2.3, lr, 'LEGEND', 'LEGEND')
+    pen.text(X(6), Y(25), 2.3, lr, 'LEGEND', 'LEGEND')
     if (hatchOn) {
-      pen.rect(x, y + 8, boxH, boxW, 'LEGEND_SAMPLE')
-      pen.hatch(x, y + 8, boxH, boxW, step, 'LEGEND_AUT_HATCH')
-      pen.text(x + 3.5, y + 5, 2, lr, 'AUT', 'LEGEND')
+      pen.rect(x, Y(8), boxH, boxW, 'LEGEND_SAMPLE')
+      pen.hatch(x, Y(8), boxH, boxW, step, 'LEGEND_AUT_HATCH')
+      pen.text(X(3.5), Y(5), 2, lr, 'AUT', 'LEGEND')
     }
-    pen.rect(x + 8, y + 8, boxH, boxW, 'LEGEND_SAMPLE')
-    pen.hatch(x + 8, y + 8, boxH, boxW, step, 'LEGEND_MUT_HATCH')
-    pen.text(x + 11.5, y + 5, 2, lr, 'MUT', 'LEGEND')
+    pen.rect(X(8), Y(8), boxH, boxW, 'LEGEND_SAMPLE')
+    pen.hatch(X(8), Y(8), boxH, boxW, step, 'LEGEND_MUT_HATCH')
+    pen.text(X(11.5), Y(5), 2, lr, 'MUT', 'LEGEND')
   } else {
-    if (o === 'Horizontal CCW') pen.text(x + 19, y + 9, 2.3, lr, 'LEGEND', 'LEGEND')
-    else pen.text(x - 5, y + 6, 2.3, lr, 'LEGEND', 'LEGEND')
+    if (o === 'Horizontal CCW') pen.text(X(19), Y(9), 2.3, lr, 'LEGEND', 'LEGEND')
+    else pen.text(X(-5), Y(6), 2.3, lr, 'LEGEND', 'LEGEND')
     pen.rect(x, y, boxW, boxH, 'LEGEND_SAMPLE')
     pen.hatch(x, y, boxW, boxH, step, 'LEGEND_MUT_HATCH')
-    pen.text(x + 15, y + 3.5, 2, lr, 'MUT', 'LEGEND')
+    pen.text(X(15), Y(3.5), 2, lr, 'MUT', 'LEGEND')
     if (hatchOn) {
-      pen.rect(x, y + 8, boxW, boxH, 'LEGEND_SAMPLE')
-      pen.hatch(x, y + 8, boxW, boxH, step, 'LEGEND_AUT_HATCH')
-      pen.text(x + 15, y + 11.5, 2, lr, 'AUT', 'LEGEND')
+      pen.rect(x, Y(8), boxW, boxH, 'LEGEND_SAMPLE')
+      pen.hatch(x, Y(8), boxW, boxH, step, 'LEGEND_AUT_HATCH')
+      pen.text(X(15), Y(11.5), 2, lr, 'AUT', 'LEGEND')
     }
   }
   const stack = [lines.total, lines.cov, lines.orient, lines.overlay]
   const at = (i: number): [number, number] =>
-    o === 'Horizontal CW' ? [x + 21.5 + 3.1 * i, y] : o === 'Horizontal CCW' ? [x - 6.5 - 3.1 * i, y + 15] : [x, y - 1.5 - 3.1 * i]
+    o === 'Horizontal CW' ? [X(21.5 + 3.1 * i), y] : o === 'Horizontal CCW' ? [X(-6.5 - 3.1 * i), Y(15)] : [x, Y(-1.5 - 3.1 * i)]
   stack.forEach((t, i) => {
     if (i === 1 && t.length === 0) return
     const [tx, ty] = at(i)
@@ -270,12 +280,13 @@ function legend(pen: Pen, o: Orientation, x: number, y: number, hatchOn: boolean
   })
 }
 
-/** SL_TitleBlock */
-function titleBlock(pen: Pen, o: Orientation, x: number, y: number, lines: string[]) {
+/** SL_TitleBlock; k = the app's title block scale (line spacing times k). */
+function titleBlock(pen: Pen, o: Orientation, x: number, y: number, k: number, lines: string[]) {
+  const step = 3.4 * k
   const lr = readableRot(o)
   lines.forEach((txt, i) => {
     if (txt === '') return
-    const [tx, ty] = o === 'Horizontal CW' ? [x + i * 3.4, y] : o === 'Horizontal CCW' ? [x - i * 3.4, y] : [x, y - i * 3.4]
+    const [tx, ty] = o === 'Horizontal CW' ? [x + i * step, y] : o === 'Horizontal CCW' ? [x - i * step, y] : [x, y - i * step]
     pen.text(tx, ty, i === 0 ? 2.4 : 1.8, lr, txt, 'TITLE_BLOCK', 'ML')
   })
 }
@@ -395,7 +406,7 @@ export function buildDrawing(p: Project): Drawing {
     })
   }
 
-  if (!sized) return { orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency }
+  if (!sized) return finish(p, o, items)
   const ori = o.toUpperCase()
 
   // Rulers
@@ -420,13 +431,14 @@ export function buildDrawing(p: Project): Drawing {
     REFERENCE_POSITIONS.forEach((f, i) => {
       if (ref.labels[i].trim() === '') return
       pen.line(H * f, base, H * f, base + sd * ref.tickLen, 'X_AXIS')
-      pen.text(H * f, base + sd * (ref.tickLen + ref.textGap), ref.textH, rulerTextRotX(o), ref.labels[i], 'X_AXIS')
+      pen.text(H * f, base + sd * (ref.tickLen + ref.textGap), ref.textH, rulerTextRotX(o), ref.labels[i], 'REFERENCE_TEXT')
     })
     add('referenceLabels', null, pen, `Reference labels: ${ref.labels.filter((l) => l.trim()).join(', ')}`)
   }
 
   // Head views
   const { headDia, panel } = panelOf(p)
+  const scales = panelScales(s)
   const mode = s.headViewMode
   if (mode !== 'NONE') {
     const center = (head: string): [number, number] => (head === 'HEAD 1' ? [panel.head1X, panel.head1Y] : [panel.head2X, panel.head2Y])
@@ -463,7 +475,7 @@ export function buildDrawing(p: Project): Drawing {
     const counted = countedScans(p, drawnScans(p), false)
     const coverage = coveragePercent(p, counted)
     const pen = new Pen()
-    legend(pen, o, panel.legendX, panel.legendY, s.autHatchEnabled, step, {
+    legend(pen, o, panel.legendX, panel.legendY, scales.legend, s.autHatchEnabled, step, {
       total: `Total Scans: ${counted.length}`,
       cov: coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`,
       orient: o === 'Vertical' ? 'Orientation: Vertical' : 'Orientation: Horizontal',
@@ -473,9 +485,22 @@ export function buildDrawing(p: Project): Drawing {
   }
   if (s.showTitleBlockOnOverlay) {
     const pen = new Pen()
-    titleBlock(pen, o, panel.titleX, panel.titleY, titleLines(p, false))
+    titleBlock(pen, o, panel.titleX, panel.titleY, scales.title, titleLines(p, false))
     add('titleBlock', null, pen, 'Title block')
   }
 
-  return { orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency }
+  return finish(p, o, items)
+}
+
+function finish(p: Project, o: Orientation, items: DrawingItem[]): Drawing {
+  const s = p.settings
+  // Text sizes from the Drawing step, applied the way SL_TextHeight does in the .lsp.
+  const rules = textSizeRules(s)
+  if (rules.size > 0) {
+    for (const it of items) for (const sh of it.shapes) if (sh.t === 'text') sh.h = sizedHeight(rules, sh.layer, sh.h)
+  }
+  return {
+    orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency,
+    layerColors: Object.fromEntries(appLayerSetup(s)),
+  }
 }

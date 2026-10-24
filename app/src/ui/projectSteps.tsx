@@ -1,4 +1,4 @@
-// The Project and Field data steps: settings forms (from settings.ts) and the field data tables.
+// The Project, Field data and Drawing steps: settings forms (from settings.ts) and the field data tables.
 
 import { FIELD_LISTS } from '../data/columns.ts'
 import { formatNumber } from '../data/parse.ts'
@@ -22,6 +22,25 @@ export function ProjectStep({ status }: StepProps) {
         <SettingsGroup key={g.id} group={g.id} step="project" />
       ))}
       <ImportReportPart step="project" />
+    </>
+  )
+}
+
+/** The Drawing step: how the drawing looks, with the preview beside it (wider on this step). */
+export function DrawingStep({ status }: StepProps) {
+  return (
+    <>
+      <StepIssues status={status} />
+      <nav className="list-nav" aria-label="Drawing settings">
+        {SETTING_GROUPS.filter((g) => g.step === 'Drawing').map((g) => (
+          <button key={g.id} type="button" className="list-chip" onClick={() => document.getElementById(`group-${g.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>
+            {g.title}
+          </button>
+        ))}
+      </nav>
+      {SETTING_GROUPS.filter((g) => g.step === 'Drawing').map((g) => (
+        <SettingsGroup key={g.id} group={g.id} step="drawing" />
+      ))}
     </>
   )
 }

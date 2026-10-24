@@ -24,6 +24,9 @@ export type Migration = (data: Record<string, unknown>) => Record<string, unknow
 export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Format 2 adds the job ID.
   1: (data) => ({ ...data, schemaVersion: 2, jobId: newJobId() }),
+  // Format 3 adds the Drawing step settings (text sizes and colors, layer colors, centerline
+  // transparency). They all have defaults, so nothing needs converting.
+  2: (data) => ({ ...data, schemaVersion: 3 }),
 }
 
 export interface OpenOptions {

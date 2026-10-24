@@ -37,7 +37,8 @@ approximation" in the code):
 - Text sizes fitted to scan and object boxes (SL_FitTextHeight): same formula.
 - Text is drawn with a browser font (Arial); CAD uses its own font, so text width differs a little.
 - Scan photos are the original photos stretched to the scan (thumbnails), not the processed images.
-- Text sizes are the starting ones; TEXTRESIZE in CAD and the legend reflow it does are not shown.
+- Text sizes and layer colors are the ones set on the Drawing step (same rules as the .lsp, see below);
+  TEXTRESIZE in CAD and the legend reflow it does are not shown.
 - Section pages, viewports and the layout sheet are not shown.
 
 ## App changes made after the preview (2026-10-23, approved)
@@ -50,8 +51,35 @@ approximation" in the code):
 
 All four are in the app's output only; compat 'v5.0' is unchanged (golden tests).
 
+## Text sizes and colors (Phase 3f-1)
+
+The Drawing step sets, per text layer (the 14 layers TEXTRESIZE knows), a size (Automatic, Scale or Fixed
+height) and a CAD color, and a color for the main line layers. `engine/styles.ts` turns the settings into
+rules per layer; only settings that differ from their defaults give a rule, so a job at its defaults draws
+exactly as before (`test/export/appOutput.test.ts`, fingerprints of the app .lsp).
+
+- Sizes: the .lsp writes `SL_TEXT_SIZES` and `SL_TextHeight` and redefines `SL_Text` / `SL_TextLeft` (every
+  text in the drawing goes through them) to pass the height through `SL_TextHeight`. Scale multiplies the
+  automatic height; Fixed height sets the layer's main text to the height and scales the rest of that layer
+  in proportion (the LEGEND heading stays bigger than the legend lines); layers whose height
+  varies (scan, object and nozzle labels) get the height for every text. The preview applies the same rule
+  to every text shape (`buildDrawing` -> `sizedHeight`). Nozzle label placement uses the sized height.
+- Colors: `(SL_Layer "LAYER" n)` lines right after `(SL_SetupLayers)` for changed layers only. The preview
+  draws each shape with its CAD color (`engine/aci.ts`; 1-7 use the theme's readable versions, 7 is black
+  or white). Check highlights still win.
+- Layers the app adds (approved follow-up): X_AXIS_LABEL_TEXT and Y_AXIS_LABEL_TEXT (ruler axis direction
+  labels), REFERENCE_TEXT (reference labels), NOZZLE_LEADERS and HEAD_NOZZLE_LEADERS, in the colors those texts and
+  lines had. Each text layer has its own row on the Drawing step. In the .lsp, `APP_LIBRARY_PATCHES` changes the
+  library lines that must know them (the 9 ruler label lines, the AB... toggles, TEXTRESIZE's legend reflow, which
+  moves the head leaders with the heads); TEXTRESIZE is redefined from `TEXTRESIZE_LAYERS` (17 text layers).
+- TEXTRESIZE still works on every text layer; its menu numbers moved (Legend 12, Title block 15, All 18).
+- A bigger legend or title block (size not Automatic) makes room: the whole legend scales from the panel's
+  bottom-left corner (boxes, hatch and text, as TEXTRESIZE does in CAD), the title block lines spread with the
+  text, and `computeRightPanelLayout` moves the head views and title block up. Same numbers in the preview and the
+  .lsp (scales rounded as the .lsp writes them).
+- Not done: a bigger head title or head nozzle text is not given more room; the legend and title splits (heading
+  vs lines) were left out because TEXTRESIZE's legend reflow in CAD finds the summary lines on LEGEND_TEXT.
+
 ## Planned (not built yet)
 
-The author wants, later: text size and color control in the app, more text on its own CAD layers so each
-kind can be sized and colored separately, and better-looking nozzle leaders. A proposal is in the
-Phase 3e summary; it will get its own phase.
+Better-looking nozzle leaders (they now have their own layers).

@@ -1,12 +1,15 @@
 // Settings forms built from settings.ts: one box per setting (plain name, units, description,
 // range or choices), in groups with "Show advanced" and "Reset to default". A setting that doesn't
-// apply right now (showWhen) is hidden but keeps its value.
+// apply right now (showWhen) is hidden but keeps its value. Text sizes and colors are a table, one row
+// per kind of text; CAD colors use the color picker.
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { parseLength, parseNumber, type Parsed } from '../data/parse.ts'
 import type { Project } from '../data/schema.ts'
 import {
+  SETTINGS,
   SETTING_GROUPS,
+  TEXT_TYPES,
   groupFields,
   isFieldShown,
   type FieldDef,
@@ -21,6 +24,8 @@ import { useApp } from './appContext.ts'
 import { REPORT_KIND_TEXT, reportNotesFor, settingChecks, useJobChecks } from './checksContext.ts'
 import { settingElementId } from './placeIds.ts'
 import { useEditBox } from './useEditBox.ts'
+import { ColorPicker } from './ColorPicker.tsx'
+import { REVEAL_EVENT, type RevealDetail } from './FindSetting.tsx'
 
 const sectionValues = (p: Project): SectionValues => ({ project: p.project, vessel: p.vessel, settings: p.settings })
 
@@ -38,6 +43,16 @@ export function SettingsGroup({ group, step }: { group: SettingGroupId; step: St
   const basic = applicable.filter((f) => f.def.level === 'Basic')
   const adv = applicable.filter((f) => f.def.level === 'Advanced')
   const shown = advanced ? [...basic, ...adv] : basic
+
+  // "Find a setting" picked an advanced one of this group: show the advanced settings.
+  useEffect(() => {
+    const reveal = (e: Event) => {
+      const { section, key } = (e as CustomEvent<RevealDetail>).detail
+      if (all.some((f) => f.section === section && f.key === key && f.def.level === 'Advanced')) setAdvanced(true)
+    }
+    window.addEventListener(REVEAL_EVENT, reveal)
+    return () => window.removeEventListener(REVEAL_EVENT, reveal)
+  }, [all])
 
   async function reset() {
     const changed = shown.filter((f) => !Object.is(values[f.section][f.key], f.def.default))
@@ -80,12 +95,23 @@ export function SettingsGroup({ group, step }: { group: SettingGroupId; step: St
           </button>
         </div>
       </div>
-      <div className="field-grid">
-        {shown.map((f) => (
-          <SettingField key={`${f.section}.${f.key}`} field={f} step={step} />
-        ))}
-      </div>
-      {all.length > applicable.length && (
+      {group === 'headsDrawing' && (
+        <p className="see-also">
+          <button type="button" className="link-btn" onClick={() => app.goToStep('fieldData')}>
+            Head views on or off and the head names: Field data step, Heads
+          </button>
+        </p>
+      )}
+      {group === 'textStyles' ? (
+        <TextStylesTable fields={all} values={values} step={step} />
+      ) : (
+        <div className="field-grid">
+          {shown.map((f) => (
+            <SettingField key={`${f.section}.${f.key}`} field={f} step={step} />
+          ))}
+        </div>
+      )}
+      {group !== 'textStyles' && all.length > applicable.length && (
         <p className="muted hidden-note">
           {all.length - applicable.length === 1 ? '1 setting is' : `${all.length - applicable.length} settings are`} hidden because{' '}
           {all.length - applicable.length === 1 ? 'it does' : 'they do'} not apply with the current choices (values are kept).
@@ -95,8 +121,83 @@ export function SettingsGroup({ group, step }: { group: SettingGroupId; step: St
   )
 }
 
-function SettingField({ field, step }: { field: GroupField; step: StepId }) {
-  return field.def.type === 'number' || field.def.type === 'text' ? <TypedSetting field={field} step={step} /> : <PickedSetting field={field} step={step} />
+type FieldProps = { field: GroupField; step: StepId; compact?: boolean }
+
+function SettingField(props: FieldProps) {
+  const { def } = props.field
+  if (def.type === 'number' && def.color) return <ColorSetting {...props} />
+  return def.type === 'number' || def.type === 'text' ? <TypedSetting {...props} /> : <PickedSetting {...props} />
+}
+
+/** Text sizes and colors: one row per text type (each its own CAD layer). */
+function TextStylesTable({ fields, values, step }: { fields: GroupField[]; values: SectionValues; step: StepId }) {
+  const app = useApp()
+  const byKey = new Map(fields.map((f) => [f.key, f]))
+  const defs = SETTINGS as Record<string, FieldDef>
+  // One row back to Automatic and its default color (one undo step); drafts typed in the row go too.
+  const resetRow = (key: string, name: string) => {
+    const row = ['Size', 'Scale', 'Height', 'Color'].map((k) => byKey.get(`${key}${k}`)!)
+    app.edit(`Reset ${name}`, (p) => row.reduce((acc, f) => setValue(acc, f.section, f.key, f.def.default), p))
+    for (const f of row) app.dispatch({ type: 'setDraft', key: draftKey(f.section, f.key), draft: null })
+  }
+  return (
+    <div>
+      <table className="text-styles">
+        <thead>
+          <tr>
+            <th scope="col">Text</th>
+            <th scope="col">Size</th>
+            <th scope="col">Scale or height</th>
+            <th scope="col">Color</th>
+            <th scope="col"><span className="visually-hidden">Reset</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {TEXT_TYPES.map((t) => {
+            const size = byKey.get(`${t.key}Size`)!
+            const mode = values.settings[`${t.key}Size` as keyof SectionValues['settings']]
+            const amount = mode === 'Scale' ? byKey.get(`${t.key}Scale`) : mode === 'Fixed height' ? byKey.get(`${t.key}Height`) : undefined
+            const name = defs[`${t.key}Size`].name.replace(/: size$/, '')
+            const changed = ['Size', 'Scale', 'Height', 'Color'].some((k) => {
+              const f = byKey.get(`${t.key}${k}`)!
+              return !Object.is(values[f.section][f.key], f.def.default)
+            })
+            return (
+              <tr key={t.key}>
+                <th scope="row">
+                  {name}
+                  <span className="muted layer-name">{t.layer}</span>
+                </th>
+                <td>
+                  <SettingField field={size} step={step} compact />
+                </td>
+                <td>
+                  {amount ? (
+                    <SettingField key={amount.key} field={amount} step={step} compact />
+                  ) : (
+                    <span className="muted">{t.base === null ? 'Sized to fit' : `${t.base} in`}</span>
+                  )}
+                </td>
+                <td>
+                  <SettingField field={byKey.get(`${t.key}Color`)!} step={step} compact />
+                </td>
+                <td>
+                  <button type="button" className="btn btn-small" disabled={!changed} onClick={() => resetRow(t.key, name)}
+                    title={changed ? `Put ${name.toLowerCase()} back to Automatic and the default color` : 'Already at the default'} aria-label={`Reset ${name}`}>
+                    Reset
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <p className="muted hidden-note">
+        Scale multiplies the automatic size. Fixed height sets the main text of that kind to the height (other text on the same layer, such as
+        a title, keeps its proportion). A bigger legend or title block makes room for itself; TEXTRESIZE in CAD still works on every layer.
+      </p>
+    </div>
+  )
 }
 
 function useSetting(field: GroupField) {
@@ -108,7 +209,7 @@ function useSetting(field: GroupField) {
 }
 
 /** A setting you type: text or a number (lengths accept fractions and feet and inches). */
-function TypedSetting({ field, step }: { field: GroupField; step: StepId }) {
+function TypedSetting({ field, step, compact }: FieldProps) {
   const id = useId()
   const { section, key, def } = field
   const { value, store } = useSetting(field)
@@ -144,11 +245,19 @@ function TypedSetting({ field, step }: { field: GroupField; step: StepId }) {
     ) : (
       <input {...common} type="text" inputMode={def.type === 'number' ? 'decimal' : undefined} autoComplete="off" />
     )
-  return <FieldFrame id={id} field={field} step={step} input={input} problem={box.problem} note={box.note} />
+  return <FieldFrame id={id} field={field} step={step} input={input} problem={box.problem} note={box.note} compact={compact} />
+}
+
+/** A CAD color number, picked from swatches. */
+function ColorSetting({ field, step, compact }: FieldProps) {
+  const id = useId()
+  const { value, store } = useSetting(field)
+  const input = <ColorPicker id={id} value={value as number} onChange={(n) => store(n)} label={field.def.name} describedBy={`${id}-help`} compact={compact} />
+  return <FieldFrame id={id} field={field} step={step} input={input} problem={null} note={null} compact={compact} />
 }
 
 /** A setting you pick: a list, a yes/no box or a date. Each change is one undo step. */
-function PickedSetting({ field, step }: { field: GroupField; step: StepId }) {
+function PickedSetting({ field, step, compact }: FieldProps) {
   const id = useId()
   const { def } = field
   const { value, store } = useSetting(field)
@@ -169,16 +278,34 @@ function PickedSetting({ field, step }: { field: GroupField; step: StepId }) {
   } else {
     input = <input id={id} type="date" value={String(value)} onChange={(e) => store(e.target.value)} aria-describedby={`${id}-help`} />
   }
-  return <FieldFrame id={id} field={field} step={step} input={input} problem={null} note={null} />
+  return <FieldFrame id={id} field={field} step={step} input={input} problem={null} note={null} compact={compact} />
 }
 
-function FieldFrame(props: { id: string; field: GroupField; step: StepId; input: React.JSX.Element; problem: string | null; note: string | null }) {
+function FieldFrame(props: { id: string; field: GroupField; step: StepId; input: React.JSX.Element; problem: string | null; note: string | null; compact?: boolean }) {
   const { checks, workbookImport } = useJobChecks()
   const { id, field, step, problem, note } = props
   const { section, key, def } = field
   const fieldChecks = settingChecks(checks, section, key)
   const notes = reportNotesFor(workbookImport, step, { kind: 'setting', section, key })
   const bad = problem !== null || fieldChecks.some((c) => c.severity === 'error')
+  if (props.compact) {
+    // In a table: the column says what it is; the name is read out and shown on hover.
+    return (
+      <div className={`cell-field${bad ? ' field-bad' : ''}`} id={settingElementId(section, key)} title={`${def.name}. ${def.description}${rangeHint(def)}`}>
+        <label htmlFor={id} className="visually-hidden">
+          {def.name}
+        </label>
+        <span className="cell-input">
+          {props.input}
+          {def.type === 'number' && def.units && !def.color ? <span className="muted">{def.units}</span> : null}
+        </span>
+        <div id={`${id}-help`} className="field-messages">
+          {problem && <p className="msg msg-error">Not stored: {problem}</p>}
+          {!problem && fieldChecks.map((c) => <p key={c.text} className={`msg msg-${c.severity}`}>{c.text}</p>)}
+        </div>
+      </div>
+    )
+  }
   return (
     <div className={`field${def.type === 'text' && def.multiline ? ' field-wide' : ''}${bad ? ' field-bad' : ''}`} id={settingElementId(section, key)}>
       <label htmlFor={id} className="field-label">

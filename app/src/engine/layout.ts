@@ -5,6 +5,7 @@
 import { defaultProcessedName, processedImageNames } from '../data/imageMatch.ts'
 import type { HeadMut, HeadNozzle, Project, Scan } from '../data/schema.ts'
 import { formatDate } from '../data/settings.ts'
+import { panelScales } from './styles.ts'
 
 export const ucaseTrim = (s: string) => s.trim().toUpperCase()
 
@@ -100,8 +101,12 @@ export interface Panel {
   titleY: number
 }
 
+/**
+ * ComputeRightPanelLayout. scales (app only, engine/styles.ts panelScales): a legend or title block drawn
+ * bigger takes that much more room, and what is above it moves up. 1 and 1 give v5.0's layout.
+ */
 export function computeRightPanelLayout(ori: string, placement: string, vesselHeight: number, vesselLength: number,
-  headDia: number, headMode: string): Panel {
+  headDia: number, headMode: string, scales: { legend: number; title: number } = { legend: 1, title: 1 }): Panel {
   // RightPanelExtraForRightRuler
   const extra = (ori === 'VERTICAL' || ori === 'HORIZONTAL CW') &&
     (placement === 'RIGHT' || placement === 'TOP + RIGHT' || placement === 'BOTTOM + RIGHT') ? 15 : 0
@@ -112,10 +117,11 @@ export function computeRightPanelLayout(ori: string, placement: string, vesselHe
   const r = headDia / 2
   const headGap = 14
   const legendClearance = 18
-  const titleBlockHeight = 6 * 3.4
+  const titleBlockHeight = 6 * 3.4 * scales.title
   const titleClearance = 16
   const legendVisualBottom = panelBottom
-  const legendVisualTop = legendVisualBottom + 36
+  const legendVisualTop = legendVisualBottom + 36 * scales.legend
+  const ls = scales.legend
 
   let h2VX = panelLeft + r
   let h2VY = legendVisualTop + legendClearance + r
@@ -149,14 +155,14 @@ export function computeRightPanelLayout(ori: string, placement: string, vesselHe
   let legendX: number
   let legendY: number
   if (ori === 'HORIZONTAL CW') {
-    legendX = -legendVisualBottom - 30.8
+    legendX = -legendVisualBottom - 30.8 * ls
     legendY = panelLeft
   } else if (ori === 'HORIZONTAL CCW') {
-    legendX = legendVisualBottom + 15.8
-    legendY = -(panelLeft + 15)
+    legendX = legendVisualBottom + 15.8 * ls
+    legendY = -(panelLeft + 15 * ls)
   } else {
     legendX = panelLeft
-    legendY = legendVisualBottom + 10.8
+    legendY = legendVisualBottom + 10.8 * ls
   }
   return {
     legendX,
@@ -170,10 +176,11 @@ export function computeRightPanelLayout(ori: string, placement: string, vesselHe
   }
 }
 
-/** Head view size and the right panel of a project (both need the vessel size). */
-export function panelOf(p: Project): { headDia: number; panel: Panel } {
+/** Head view size and the right panel of a project (both need the vessel size). v5 = v5.0's layout. */
+export function panelOf(p: Project, v5 = false): { headDia: number; panel: Panel } {
   const headDia = headViewDiameter(p.settings.headViewSize, p.vessel.height!)
-  const panel = computeRightPanelLayout(orientationKey(p), p.settings.rulerPlacement.toUpperCase().trim(), p.vessel.height!, p.vessel.length!, headDia, p.settings.headViewMode)
+  const panel = computeRightPanelLayout(orientationKey(p), p.settings.rulerPlacement.toUpperCase().trim(), p.vessel.height!, p.vessel.length!, headDia,
+    p.settings.headViewMode, v5 ? undefined : panelScales(p.settings))
   return { headDia, panel }
 }
 

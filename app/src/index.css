@@ -373,7 +373,7 @@ input[aria-invalid='true'] {
 
 .stepbar ol {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
   list-style: none;
   margin: 0;
@@ -385,8 +385,8 @@ input[aria-invalid='true'] {
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 50px;
-  padding: 4px 10px;
+  min-height: 46px;
+  padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: transparent;
@@ -1193,6 +1193,8 @@ table.grid.photos select {
   --draw-bg: #fbfcfd;
   --draw-7: #1f2933;
   --draw-1: #d62828;
+  --draw-2: #b8a000;
+  --draw-4: #0e9aa7;
   --draw-3: #2a9d4b;
   --draw-5: #1f5fbf;
   --draw-6: #b02ab0;
@@ -1203,6 +1205,8 @@ table.grid.photos select {
     --draw-bg: #0b1016;
     --draw-7: #e4e7eb;
     --draw-1: #ff6b6b;
+    --draw-2: #ffe14d;
+    --draw-4: #4fd6e0;
     --draw-3: #5fd38a;
     --draw-5: #6ea8ff;
     --draw-6: #e07ae0;
@@ -1339,16 +1343,10 @@ svg.drawing text {
   dominant-baseline: central;
 }
 
-svg.drawing .c7 { stroke: var(--draw-7); }
-svg.drawing .c1 { stroke: var(--draw-1); }
-svg.drawing .c3 { stroke: var(--draw-3); }
-svg.drawing .c5 { stroke: var(--draw-5); }
-svg.drawing .c6 { stroke: var(--draw-6); }
-svg.drawing .t7 { fill: var(--draw-7); }
-svg.drawing .t1 { fill: var(--draw-1); }
-svg.drawing .t3 { fill: var(--draw-3); }
-svg.drawing .t5 { fill: var(--draw-5); }
-svg.drawing .t6 { fill: var(--draw-6); }
+/* Each shape sets --c to its CAD color (engine/aci.ts aciCss). */
+svg.drawing path,
+svg.drawing circle { stroke: var(--c, var(--draw-7)); }
+svg.drawing text { fill: var(--c, var(--draw-7)); }
 
 svg.drawing .pickable {
   cursor: pointer;
@@ -1403,4 +1401,230 @@ tr.row-selected > td:first-child {
   .preview:not(.preview-full):not(.preview-closed) {
     min-width: 300px;
   }
+}
+
+/* Drawing step: the preview takes most of the width, settings on the left. */
+.wide-preview .preview:not(.preview-closed):not(.preview-full) {
+  width: 58%;
+  max-width: none;
+}
+
+.see-also {
+  margin: 0 0 8px;
+}
+
+/* Text sizes and colors table (not a scroll box, so the color picker can open over it) */
+table.text-styles {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table.text-styles th,
+table.text-styles td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+table.text-styles thead th {
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+table.text-styles tbody th {
+  font-weight: normal;
+}
+
+.layer-name {
+  display: block;
+  font-size: 0.75em;
+}
+
+/* Holds its visually hidden label, so the label stays inside the scrolling page. */
+.cell-field {
+  position: relative;
+}
+
+.cell-field .cell-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cell-field input[type='text'] {
+  width: 5.5em;
+}
+
+.cell-field select {
+  min-width: 8.5em;
+}
+
+.cell-field .field-messages .msg {
+  margin: 2px 0 0;
+  font-size: 0.85em;
+}
+
+/* CAD color picker */
+.color-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.color-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.swatch-small {
+  width: 14px;
+  height: 14px;
+  cursor: inherit;
+}
+
+/* 7 is black or white: shown half and half. */
+.swatch-7 {
+  background: linear-gradient(135deg, #ffffff 50%, #000000 50%);
+}
+
+.swatch-current {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.color-pop {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+  max-width: 480px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+}
+
+.color-pop-above {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.swatch-row,
+.swatch-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.swatch-grid {
+  flex-wrap: nowrap;
+  gap: 1px;
+}
+
+.swatch-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.swatch-grid .swatch {
+  width: 16px;
+  height: 14px;
+  border-radius: 1px;
+}
+
+.color-note {
+  margin: 0;
+  max-width: 400px;
+  font-size: 0.8em;
+}
+
+/* Find a setting (top bar) */
+.find-setting {
+  position: relative;
+  width: 240px;
+}
+
+.find-setting input {
+  width: 100%;
+}
+
+.find-results {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 380px;
+  max-height: 60vh;
+  overflow: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+}
+
+.find-results li {
+  display: grid;
+  gap: 1px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.find-results li .muted {
+  font-size: 0.8em;
+}
+
+.find-results li.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.find-results li.active .muted {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.find-results .find-none {
+  cursor: default;
+}
+
+/* The setting "Find a setting" jumped to */
+[data-found] {
+  position: relative;
+  border-radius: 4px;
+  outline: 3px solid var(--warn);
+  outline-offset: 3px;
+  animation: found-pulse 1s ease-out 2;
+}
+
+[data-found]:not([data-found=''])::after {
+  content: attr(data-found);
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--warn);
+}
+
+@keyframes found-pulse {
+  from { outline-color: transparent; }
+  to { outline-color: var(--warn); }
 }

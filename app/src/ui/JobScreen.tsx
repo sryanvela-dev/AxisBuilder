@@ -6,10 +6,11 @@ import { isDirty, jobTitle, type StepId } from '../state/session.ts'
 import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { ErrorBoundary } from './ErrorBoundary.tsx'
+import { FindSetting } from './FindSetting.tsx'
 import { copyText } from './errorDetails.ts'
 import { checkProject } from '../data/checks.ts'
 import { ChecksContext } from './checksContext.ts'
-import { FieldDataStep, ProjectStep } from './projectSteps.tsx'
+import { DrawingStep, FieldDataStep, ProjectStep } from './projectSteps.tsx'
 import { ImagesStep, ScansStep } from './scanSteps.tsx'
 import { ExportStep, ReviewStep } from './steps.tsx'
 import { FoldersContext } from './foldersContext.ts'
@@ -18,7 +19,7 @@ import { SelectionContext, type Selected } from './selectionContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
 
 /** Steps that show the drawing preview beside their page. */
-const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images']
+const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images', 'drawing']
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -28,6 +29,7 @@ const PAGES: Record<StepId, (props: { status: StepStatus }) => React.JSX.Element
   fieldData: FieldDataStep,
   scans: ScansStep,
   images: ImagesStep,
+  drawing: DrawingStep,
   review: ReviewStep,
   export: ExportStep,
 }
@@ -85,7 +87,7 @@ export function JobScreen() {
         </nav>
         <Banner statuses={statuses} />
         <Notices />
-        <div className={`work${PREVIEW_STEPS.includes(step) ? ' with-preview' : ''}`}>
+        <div className={`work${PREVIEW_STEPS.includes(step) ? ' with-preview' : ''}${step === 'drawing' ? ' wide-preview' : ''}`}>
           <main className="page">
             <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
               <header className="page-header">
@@ -133,6 +135,7 @@ function TopBar() {
           {dirty ? (job.file ? 'Unsaved changes' : 'Not saved yet') : `Saved${job.file ? ` in ${job.file.name}` : ''}`}
         </span>
       </span>
+      <FindSetting />
       <span className="topbar-actions">
         <button type="button" className="btn" onClick={app.undo} disabled={!app.canUndo} title={app.undoLabel ? `Undo: ${app.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}>
           Undo

@@ -5,6 +5,13 @@ inspection field data and AUT scan coordinates into an AutoLISP (.lsp) file. Loa
 in DraftSight or AutoCAD draws the AUT coverage layout for a pressure vessel or tank shell.
 The owner is an Integrity EPC inspection engineer who uses it in the field.
 
+## End goal
+The app is where everything is adjusted: the LISP's on-the-fly commands (TEXTRESIZE, NOZZLEWRAP, OBJECTWRAP,
+visibility toggles, SECTIONPAGES) become app settings shown live in the preview. The finished deliverable is a
+2D PDF exported straight from the app's own paper-space sheets, plus a DXF for further CAD edits. LISP stays as
+the bridge until PDF and DXF are proven; the CAD-side commands stay in the .lsp as a backup until their app
+versions are proven. The geometry engine serves all of these.
+
 ## Working rules
 Improvements over v5.0 are welcome. When you see a function or behaviour that would work better than v5.0,
 propose it. Don't change it silently. List proposals under "Suggested improvements" at the end of your summary:
@@ -122,7 +129,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
   `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
   in `app/src/data/projectFile.ts`. Format 2 (Phase 3d) adds `jobId` (random, stable per job; format 1 files get
-  one when opened). Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
+  one when opened). Format 3 (Phase 3f-1) only adds settings (text sizes and colors, line colors); older files open
+  with their defaults. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
   Preprocess Rotation) is kept in the file for the v5.0 output but not shown in the app.
@@ -130,7 +138,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`).
 - App shell (Phase 3b): start screen (new, open, import Excel with its report first, sample job, recent jobs, restore
   unsaved work) and the job screen: top bar (Undo/Redo/Save/Save as/Close), step bar Project -> Field data -> AUT
-  scans -> Images -> Review -> Export with done / needs attention / not started from `stepStatuses`
+  scans -> Images -> Drawing -> Review -> Export with done / needs attention / not started from `stepStatuses`
   (`app/src/state/steps.ts`), "Before export" banner, one "Next: ..." button. All state in `AppStoreProvider`
   (`app/src/ui/AppStore.tsx`, read with `useApp()`); every project change goes through `edit()` and can be undone
   (Ctrl+Z / Ctrl+Y; typing in one box is one step). Project file extension `.axb` (JSON; `.json` also opens).
@@ -169,6 +177,25 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   zoom, fit), panel beside the Project / Field data / AUT scans / Images steps (layer toggles = CAD AB... groups,
   photos, full size, click item -> row, row -> highlight via `selectionContext`, check colors). The photo and job
   folders now live in JobScreen (`foldersContext`), shared by the Images step and the preview.
+- Drawing step (Phase 3f-1, `DrawingStep` in `ui/projectSteps.tsx`): every drawing-look setting, in the groups Text
+  sizes and colors, Rulers and labels, Nozzle labels, Legend and title block, Head views (links to Field data for heads
+  on/off and names), Show or hide, Line colors and transparency; wide preview beside it. Text sizes and colors: one row
+  per text layer (`TEXT_TYPES` in settings.ts = v5.0's 14 TEXTRESIZE layers plus X_AXIS_LABEL_TEXT, Y_AXIS_LABEL_TEXT,
+  REFERENCE_TEXT, marked `appLayer`; settings `<key>Size` Automatic / Scale /
+  Fixed height, `<key>Scale`, `<key>Height`, `<key>Color`), line colors `LINE_LAYERS` (`<key>Color`; NOZZLE_LEADERS and
+  HEAD_NOZZLE_LEADERS are app layers). App layers: `APP_LIBRARY_PATCHES` / `patchLibraryLine` change the library lines
+  that list layers (ruler labels, AB... toggles, TEXTRESIZE reflow), `TEXTRESIZE_LAYERS` drives the app's TEXTRESIZE;
+  `appLayerSetup` writes the app layers after SL_SetupLayers. A legend or title block size other than Automatic scales
+  the block (`panelScales`, app SL_Legend / SL_TitleBlock) and `computeRightPanelLayout` makes room. CAD colors use
+  `ui/ColorPicker.tsx` (`color: true` on a number setting; screen colors in `engine/aci.ts`). `engine/styles.ts` gives
+  the size rules and changed colors; the .lsp (app mode only) writes `SL_TEXT_SIZES` + size-aware SL_Text/SL_TextLeft
+  and `(SL_Layer ...)` after `(SL_SetupLayers)`, only for non-default values; the preview applies the same rules.
+  Export step shows CAD program and checks. "Find a setting" in the job top bar (`ui/FindSetting.tsx`,
+  `data/settingsSearch.ts`): name, description and Excel labels (old ones too); jumps to the step and group, opens
+  "Show advanced", highlights the box, and for a setting hidden by another choice points at that choice.
+  `test/export/appOutput.test.ts` holds SHA-256 fingerprints of the app .lsp at default settings for every golden job
+  and the sample (`npx tsx scripts/app-output-fingerprints.ts` in `app/` regenerates them, only after an approved
+  output change).
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -415,3 +442,23 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   same rules as SL_CircleSmart; head labels also move out along their leader until clear), centerline transparency
   (new app-only setting, default 50). App output only: compat 'v5.0' unchanged, all 7 golden jobs byte for byte; the
   app-vs-v5.0 section test now also lists imageHelpers, drawSetup, nozzles, headNozzles. phase2-notes changes 11-14.
+- 2026-10-23 – Web app Phase 3f-1 (branch feature/drawing-step): Drawing step between Images and Review, "Find a setting"
+  search, text sizes and colors. Settings: new groups (textStyles, rulers, nozzleLabels, legendTitle, headsDrawing,
+  showHide, lineStyles on Drawing; export on Export), 67 app-only settings (14 text types x size/scale/height/color, 11
+  line-layer colors), six unused v5.0 settings hidden (Show Direction Labels, Arrow Length Mode, Arrow Length, Output
+  Command, Legend Enabled, Show Title Block); project file format 3. Exporter (app mode, only when a value is not its
+  default): `SL_TEXT_SIZES`, `SL_TextHeight`, size-aware SL_Text / SL_TextLeft, `(SL_Layer ...)` after SL_SetupLayers
+  (phase2-notes changes 15-16). New: engine/styles.ts, engine/aci.ts, ui/ColorPicker.tsx, ui/FindSetting.tsx,
+  data/settingsSearch.ts; preview draws CAD colors (CSS variable --c) and sized text; nozzle placement uses the sized
+  height. Tests: default app .lsp fingerprints unchanged (taken before the change), every text type's size and color in
+  the .lsp and the preview, line colors, search by new and old names, every shown setting placed. Step bar now 7 columns.
+  New .lsp not yet checked in DraftSight/AutoCAD. No VBA or workbook changes.
+- 2026-10-23 – Web app Phase 3f-1 follow-up (feature/drawing-step, approved by the user): the three suggested improvements.
+  New layers X_AXIS_LABEL_TEXT, Y_AXIS_LABEL_TEXT, REFERENCE_TEXT, NOZZLE_LEADERS, HEAD_NOZZLE_LEADERS (same colors as
+  before; own size/color rows on the Drawing step); library lines patched where written (`APP_LIBRARY_PATCHES`), app
+  TEXTRESIZE with 17 layers (menu numbers moved), AB... toggles and the legend reflow know the new layers. A bigger
+  legend or title block scales as a whole and the right panel moves the heads and title up (`panelScales`,
+  `computeRightPanelLayout` scales, app SL_Legend / SL_TitleBlock written only when a size changes). Reset button per
+  text row. Default app .lsp changes only by the layer splits (19 library/drawing lines plus new definitions; checked
+  by diff, fingerprints regenerated); compat v5.0 unchanged. phase2-notes changes 17-18. Legend/title text splits left
+  out (TEXTRESIZE's legend reflow needs the summary lines on LEGEND_TEXT). Not yet checked in DraftSight/AutoCAD.
