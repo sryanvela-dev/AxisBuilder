@@ -571,6 +571,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   New `npm run pdf:inspect`. No .lsp change (fingerprints unchanged).
 - 2026-10-24 – Section sheets follow-up (feature/pdf-export, user click-through): the overview's panel sat on the
   drawing (drawing + rulers + panel wider than the sheet): such a sheet's viewport is now drawn smaller so the panel
-  keeps its room; the gap to the panel follows the drawing's width (0.25-0.5 in); legend keys stacked (AUT above
-  MUT) like the drawing's legend. Test: the panel is clear of the drawing and its reference labels on every sheet.
+  keeps its room; the gap to the panel is a quarter inch on every sheet (user), measured past the reference labels
+  (on vertical sheets the last one sticks out half its width); legend keys stacked (AUT above MUT) like the
+  drawing's legend. Test: the panel is clear of the drawing and its reference labels on every sheet.
   PDF and line weights in the preview confirmed working by the user. No .lsp change.

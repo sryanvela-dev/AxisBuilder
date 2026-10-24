@@ -135,7 +135,11 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   // Rulers (app layout, 2026-10-24): numbers, axis label and arrow are stacked outward from the ruler by their
   // measured sizes with a clear gap between each, so wide numbers and long labels don't run into each other.
   const roomAt = (sc: number) => {
-    const refsW = vertical ? 0 : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => capTextWidth(t, 1.8 * sc * mult)))
+    // Horizontal: the reference labels sit right of the drawing. Vertical: along its top, the last one (all the way
+    // round) centred on the right edge, so half of it sticks out.
+    const refsW = vertical
+      ? (refs[4] ? capTextWidth(refs[4], 1.8 * sc * mult) / 2 : 0)
+      : 3 * sc + 1.5 * sc + Math.max(0, ...refs.map((t) => capTextWidth(t, 1.8 * sc * mult)))
     const tick = 3 * sc
     const numH = 1.8 * sc * mult
     const labelH = 2.5 * sc * mult
@@ -150,8 +154,8 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
     const bottomLabel = bottomNum + textHalf(numH) + gap + textHalf(labelH)
     const bottomArrow = bottomLabel + textHalf(labelH) + gap + 0.55 * head
     const leftRoom = s.rulerOffset * sc + sideArrow + 0.55 * head + 0.3 * u // the side ruler, its label and arrow
-    // Panel gap (user, 2026-10-24): in step with the drawing's size, 0.25 in on a short section up to 0.5 in.
-    const gapToPanel = refsW + Math.min(0.5, Math.max(0.25, 0.06 * vp.w)) * u
+    // Panel gap (user, 2026-10-24): a quarter inch past the drawing and its reference labels on every sheet.
+    const gapToPanel = refsW + 0.25 * u
     return { tick, numH, labelH, gap, head, sideLabel, sideArrow, bottomNum, bottomLabel, bottomArrow, leftRoom, gapToPanel }
   }
   let room = roomAt(vp.scale)

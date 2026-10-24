@@ -29,8 +29,7 @@ the same Bezier curves for all three. Text is measured with the bundled font (`e
 generated from the font by `npm run gen:font-metrics`). The section sheets use these widths for the panel, the
 reference labels and the rulers: each ruler's numbers, axis label and arrow are stacked outward by their measured
 sizes with a clear gap, a number that would touch the next is left out (its tick stays; the end of the ruler is
-always numbered). The panel sits past the drawing and its reference labels by a gap in step with the drawing's
-width (0.25 to 0.5 in); when the drawing, rulers and panel don't fit across the sheet (a long overview), the
+always numbered). The panel sits a quarter inch past the drawing and its reference labels on every sheet; when the drawing, rulers and panel don't fit across the sheet (a long overview), the
 drawing is drawn smaller so the panel keeps its room. The legend keys are stacked, AUT above MUT, as in the
 drawing's own legend (click-throughs: labels ran into the numbers and arrows, the legend sat on the overview's
 drawing).
