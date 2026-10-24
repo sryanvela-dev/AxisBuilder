@@ -32,6 +32,8 @@ import {
   ucaseTrim,
 } from '../../engine/layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
+import { writeSectionSheets } from './sectionSheets.ts'
+import { activeSectionPlan } from '../../engine/sections.ts'
 import { patchLibraryLine, writeAppLibrary, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
 import { circumference, isWrapped, labelPieceIndex, nozzlePieces, objectPieces, scanPieces, type XPiece } from '../../engine/wrap.ts'
 import { appLayerSetup, panelScales, textSizeRules } from '../../engine/styles.ts'
@@ -228,6 +230,9 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const C = v5 ? null : circumference(p)
   const wraps = !v5 && anythingWraps(p, scans, C)
   if (wraps) writeWrapLibrary(w)
+  // Change 20: section sheets planned in the app (only while Make section sheets is on).
+  const plan = v5 ? null : activeSectionPlan(p)
+  if (plan && plan.sections.length > 0) writeSectionSheets(w, plan)
   const sizes = v5 ? new Map() : textSizeRules(s) // change 15: text sizes (only when one is changed)
   if (sizes.size > 0) {
     writeTextSizes(w, [...sizes].map(([layer, r]) =>

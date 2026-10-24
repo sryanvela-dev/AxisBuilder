@@ -1628,3 +1628,86 @@ table.text-styles tbody th {
   from { outline-color: transparent; }
   to { outline-color: var(--warn); }
 }
+
+/* One-click fixes under a table row */
+.msg-action {
+  margin-left: 8px;
+}
+
+/* Section plan on the Drawing step */
+.section-plan {
+  margin: 0 0 16px;
+  padding: 8px 18px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.section-plan h3 {
+  margin: 4px 0 6px;
+}
+
+/* Sheets view of the preview (letter, landscape) */
+.sheets {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.sheets-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+svg.drawing.sheet {
+  flex: 1;
+  min-height: 0;
+  cursor: default;
+}
+
+svg.sheet .sheet-paper {
+  fill: var(--page-bg);
+  stroke: var(--line);
+  stroke-width: 0.02;
+}
+
+svg.sheet .sheet-area {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 0.01;
+  stroke-dasharray: 0.08 0.06;
+}
+
+svg.sheet .sheet-viewport {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 0.015;
+}
+
+svg.sheet .sheet-box rect {
+  fill: none;
+  stroke: var(--draw-3);
+  stroke-width: 0.02;
+}
+
+svg.sheet .sheet-match line {
+  stroke: var(--draw-1);
+  stroke-width: 0.02;
+  stroke-dasharray: 0.1 0.05;
+}
+
+svg.sheet .sheet-match text {
+  fill: var(--draw-1);
+}
+
+svg.sheet .sheet-panel {
+  fill: var(--muted);
+}
+
+.sheets-note {
+  margin: 4px 10px;
+  font-size: 0.8em;
+}

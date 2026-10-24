@@ -140,7 +140,7 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
       aria-label="Drawing preview"
     >
       {model.items.map((it) => (
-        <Item
+        <DrawingItemView
           key={it.key}
           it={it}
           matrix={`matrix(${a} ${b} ${c} ${d} 0 0)`}
@@ -155,7 +155,8 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
   )
 })
 
-const Item = memo(function Item(p: {
+/** One drawing item (also used by the Sheets view). */
+export const DrawingItemView = memo(function DrawingItemView(p: {
   it: RenderItem
   matrix: string
   hidden: ReadonlySet<LayerGroup>

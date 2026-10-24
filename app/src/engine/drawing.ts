@@ -53,7 +53,7 @@ export type Shape =
   | { t: 'image'; x: number; y: number; w: number; h: number; scanId: string; layer: string; from?: number; to?: number }
 
 /** CAD visibility groups (the AB... toggle commands in the .lsp). Items in 'always' have no toggle. */
-export type LayerGroup = 'images' | 'scans' | 'hatch' | 'welds' | 'nozzles' | 'objects' | 'rulers' | 'heads' | 'info' | 'always'
+export type LayerGroup = 'images' | 'scans' | 'hatch' | 'welds' | 'nozzles' | 'objects' | 'rulers' | 'heads' | 'info' | 'sections' | 'always'
 
 export const LAYER_GROUPS: { id: Exclude<LayerGroup, 'always'>; name: string; layers: string[] }[] = [
   { id: 'scans', name: 'Scans', layers: ['SCANS', 'SCAN_TEXT'] },
@@ -68,6 +68,8 @@ export const LAYER_GROUPS: { id: Exclude<LayerGroup, 'always'>; name: string; la
     id: 'info', name: 'Legend and title',
     layers: ['LEGEND', 'LEGEND_SAMPLE', 'LEGEND_AUT_HATCH', 'LEGEND_MUT_HATCH', 'LEGEND_TEXT', 'TITLE_BLOCK', 'TITLE_BLOCK_TEXT'],
   },
+  // Preview only (not a CAD layer): the section sheet plan, while section sheets are on (engine/sections.ts).
+  { id: 'sections', name: 'Sections', layers: ['SECTION_PLAN'] },
 ]
 
 const GROUP_OF = new Map(LAYER_GROUPS.flatMap((g) => g.layers.map((l) => [l, g.id] as const)))
@@ -82,6 +84,8 @@ export const LAYER_COLOR: Record<string, number> = {
   X_RULER_TEXT: 1, Y_RULER_TEXT: 5,
   // Layers the app adds (same colors as the layer they came from).
   X_AXIS_LABEL_TEXT: 1, Y_AXIS_LABEL_TEXT: 5, REFERENCE_TEXT: 1,
+  // Preview only: the section plan.
+  SECTION_PLAN: 3,
 }
 
 /** Layers whose lines take the hatch transparency (SL_SetLayerTransparency). */
@@ -184,7 +188,7 @@ class Pen {
 }
 
 /** SL_FitTextHeight */
-function fitTextHeight(w: number, h: number, txt: string): number {
+export function fitTextHeight(w: number, h: number, txt: string): number {
   const byShort = Math.min(w, h) * 0.22
   const byLong = (Math.max(w, h) * 0.78) / (Math.max(1, txt.length) * 0.85)
   return Math.max(0.45, Math.min(byShort, byLong))

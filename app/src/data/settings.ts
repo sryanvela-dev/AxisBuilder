@@ -29,10 +29,19 @@ export const SETTING_GROUPS = [
   { id: 'headsDrawing', step: 'Drawing', title: 'Head views', intro: 'How the head views are drawn. Which heads are shown, and their names, are on the Field data step.' },
   { id: 'showHide', step: 'Drawing', title: 'Show or hide', intro: 'What the drawing includes (the legend and title block are above). In CAD the AB... commands turn the same groups on and off.' },
   { id: 'lineStyles', step: 'Drawing', title: 'Line colors and transparency', intro: 'Colors of the main drawing layers (standard CAD color numbers) and how transparent the hatch and centerline are.' },
+  { id: 'sections', step: 'Drawing', title: 'Section sheets', intro: 'Zoomed-in letter-size sheets of a long vessel, one per length of shell, that a client can read. Off unless you switch it on.' },
   { id: 'export', step: 'Export', title: 'CAD program and checks', intro: 'Which CAD program the drawing file is for, and the checks before export.' },
 ] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
 
 export type SettingGroupId = (typeof SETTING_GROUPS)[number]['id']
+
+/** A setting is shown only while another value is one of `values` (and, with `and`, another condition too). */
+export interface ShowWhen {
+  section: 'project' | 'vessel' | 'settings'
+  key: string
+  values: readonly string[]
+  and?: ShowWhen
+}
 
 interface BaseDef {
   /** Label in column A of the v5.0 sheet (exact text, without trailing spaces). */
@@ -51,7 +60,7 @@ interface BaseDef {
   /** Not shown in the app: kept in the file only for the v5.0-compatible output (the app doesn't use it). */
   hidden?: boolean
   /** Shown only while another value is one of `values` (a hidden value is kept, not cleared). */
-  showWhen?: { section: 'project' | 'vessel' | 'settings'; key: string; values: readonly string[] }
+  showWhen?: ShowWhen
   level: Level
   /** How v5.0 actually uses it, when that is worth knowing (unused, other fallback, ...). */
   v5?: string
@@ -169,6 +178,10 @@ function date<D extends Omit<DateDef, 'type'>>(d: D) {
 const PS = 'Project Settings' as const
 
 export const TEXT_SIZE_MODES = ['Automatic', 'Scale', 'Fixed height'] as const
+
+export const SECTION_SPLITS = ['Number of sections', 'Readable size', 'Manual'] as const
+const SECTIONS_ON = { section: 'settings', key: 'makeSectionSheets', values: ['true'] } as const satisfies ShowWhen
+const sectionsWhen = (split: (typeof SECTION_SPLITS)[number]): ShowWhen => ({ ...SECTIONS_ON, and: { section: 'settings', key: 'sectionSplit', values: [split] } })
 
 /**
  * The text layers whose size and color the Drawing step sets (the same 14 TEXTRESIZE knows), with the
@@ -807,6 +820,70 @@ export const SETTINGS = {
   ...layerColor('xRuler', 'X ruler', 1),
   ...layerColor('yRuler', 'Y ruler', 5),
 
+  // SECTION SHEETS (app only, Phase 3f-2): the plan is worked out by engine/sections.ts; the .lsp builds
+  // exactly these sheets (ABSECTIONSHEETS). Off by default: nothing about sections is drawn or written.
+  makeSectionSheets: yesNo({
+    excelLabel: 'Make Section Sheets', excelSheet: PS, onSheet: false, name: 'Make section sheets',
+    description: 'Plan zoomed-in letter-size sheets along the shell, shown in the preview and built in CAD by the ABSECTIONSHEETS command.',
+    default: false, group: 'sections', step: 'Drawing', level: 'Basic', v5: 'App only. v5.0 asks for one section length in CAD (SECTIONPAGES).',
+  }),
+  sectionSplit: choice(SECTION_SPLITS, {
+    excelLabel: 'Section Split', excelSheet: PS, onSheet: false, name: 'How to split',
+    description: 'Number of sections: equal lengths. Readable size: as many as it takes for the smallest scan label to print at the size below. Manual: the ranges you type.',
+    default: 'Readable size', showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionCount: num({
+    excelLabel: 'Section Count', excelSheet: PS, onSheet: false, name: 'Number of sections',
+    description: 'How many equal sections the shell length is split into.',
+    integer: true, min: 1, max: 50, default: 4, showWhen: sectionsWhen('Number of sections'), group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionMinLabel: num({
+    excelLabel: 'Section Smallest Label', excelSheet: PS, onSheet: false, name: 'Smallest scan label on the sheet',
+    description: 'Height of the smallest scan label on the printed letter-size sheet. 0.08 in (about 6 pt) is the smallest most people read without effort.',
+    units: 'in', greaterThan: 0, max: 1, default: 0.08, showWhen: sectionsWhen('Readable size'), group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionRanges: text({
+    excelLabel: 'Section Ranges', excelSheet: PS, onSheet: false, name: 'Section ranges',
+    description: 'Start and end along the shell of each section, e.g. 0-180, 180-360, 360-480 (inches; lengths like 15\' 6" work too).',
+    default: '', showWhen: sectionsWhen('Manual'), group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionSnap: yesNo({
+    excelLabel: 'Section Snap', excelSheet: PS, onSheet: false, name: 'Snap boundaries to welds and gaps',
+    description: 'Move each boundary between sections to the nearest circ weld or gap between scans (within a quarter of a section), so no scan is cut in two.',
+    default: true, showWhen: { ...SECTIONS_ON, and: { section: 'settings', key: 'sectionSplit', values: ['Number of sections', 'Readable size'] } },
+    group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionOverlap: num({
+    excelLabel: 'Section Overlap', excelSheet: PS, onSheet: false, name: 'Overlap between sections',
+    description: 'How far each sheet shows past its boundary into the next section.',
+    units: 'in', min: 0, max: 120, default: 6, showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionMatchLines: yesNo({
+    excelLabel: 'Section Match Lines', excelSheet: PS, onSheet: false, name: 'Match lines',
+    description: 'A line at each boundary with "SEE SECTION n" for the sheet that carries on from there.',
+    default: true, showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionOverview: yesNo({
+    excelLabel: 'Section Overview', excelSheet: PS, onSheet: false, name: 'Overview sheet first',
+    description: 'A first sheet with the whole shell and a numbered box for each section.',
+    default: true, showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionSkipEmpty: yesNo({
+    excelLabel: 'Section Skip Empty', excelSheet: PS, onSheet: false, name: 'Skip sections with nothing on them',
+    description: 'Leave out sections with no scans, nozzles or MUT points; the others are numbered in order.',
+    default: true, showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionNumberInTitle: yesNo({
+    excelLabel: 'Section Number In Title', excelSheet: PS, onSheet: false, name: 'Show "Section n of N"',
+    description: 'Print "SECTION n OF N" at the top of each section sheet.',
+    default: true, showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Basic',
+  }),
+  sectionRulerTextScale: num({
+    excelLabel: 'Section Ruler Text Scale', excelSheet: PS, onSheet: false, name: 'Ruler text size on sheets',
+    description: 'Multiplier for the ruler text on the section sheets (SECTIONPAGES asks for this in CAD; 2 is its default).',
+    units: 'x', greaterThan: 0, max: 10, default: 2, showWhen: SECTIONS_ON, group: 'sections', step: 'Drawing', level: 'Advanced',
+  }),
+
   // Read by the VBA but not on the v5.0 sheet.
   showCoveragePercentage: yesNo({
     excelLabel: 'Show Coverage Percentage', excelSheet: PS, onSheet: false, name: 'Show coverage %',
@@ -858,7 +935,8 @@ export type SectionValues = Record<FieldSection, Record<string, unknown>>
 
 /** False when the field's showWhen condition is not met (the field doesn't apply right now). */
 export function isFieldShown(def: FieldDef, values: SectionValues): boolean {
-  if (!def.showWhen) return true
-  const v = values[def.showWhen.section][def.showWhen.key]
-  return def.showWhen.values.includes(String(v))
+  for (let w: ShowWhen | undefined = def.showWhen; w; w = w.and) {
+    if (!w.values.includes(String(values[w.section][w.key]))) return false
+  }
+  return true
 }
