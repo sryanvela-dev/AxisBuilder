@@ -63,6 +63,8 @@ export interface SheetModel {
   /** The drawing, then what is drawn on the sheet itself (rulers, references, panel, viewport frame). */
   drawing: Prim[]
   sheet: Prim[]
+  /** Draw with the softer screen shades instead of CAD's exact colors (Drawing step "Colors"). */
+  soft: boolean
   /** Paper inches per inch of shell. */
   scale: number
   /** Extents of everything printed, and without the title and legend (paper inches). */
@@ -241,6 +243,8 @@ function styler(p: Project, d: Drawing): (layer: string) => PrimStyle {
   })
 }
 
+const softColors = (p: Project) => p.settings.drawingColors === 'Softer for screens'
+
 /** The main sheet: the whole drawing, fitted inside the margins. */
 export function mainSheet(p: Project, d: Drawing, options: SheetOptions = {}): SheetModel {
   const styleOf = styler(p, d)
@@ -252,7 +256,7 @@ export function mainSheet(p: Project, d: Drawing, options: SheetOptions = {}): S
   const paper = turn === 'Landscape' || (turn === 'Automatic' && bw >= bh) ? land : { w: land.h, h: land.w }
   const scale = Math.min((paper.w - 2 * MARGIN) / bw, (paper.h - 2 * MARGIN) / bh)
   const place = { scale, ox: (paper.w - bw * scale) / 2 - b[0] * scale, oy: (paper.h - bh * scale) / 2 - b[1] * scale }
-  const m = { kind: 'main' as const, title: 'DRAWING', section: null, paper: { ...paper }, clip: null, scale, sheet: [], drawing: drawingPrims(d, styleOf, place, options.hidden ?? new Set(), null) }
+  const m = { kind: 'main' as const, title: 'DRAWING', section: null, paper: { ...paper }, clip: null, scale, sheet: [], soft: softColors(p), drawing: drawingPrims(d, styleOf, place, options.hidden ?? new Set(), null) }
   return { ...m, extents: extentsOf(m) }
 }
 
@@ -277,7 +281,7 @@ export function sectionSheets(p: Project, d: Drawing, plan: SectionPlan, options
     const sheet: Prim[] = page.shapes.map((s) => paperPrim(s, ax, ay, styleOf))
     sheet.push({ t: 'rect', ...clip, layer: 'REPORT_VIEWPORT', group: 'sheet', style: { color: 7, weight: 0.25 / 25.4, opacity: 1 } })
     const m = {
-      kind: page.section ? ('section' as const) : ('overview' as const), title: page.title, section: page.section, paper: { ...paper }, clip, scale: vp.scale,
+      kind: page.section ? ('section' as const) : ('overview' as const), title: page.title, section: page.section, paper: { ...paper }, clip, scale: vp.scale, soft: softColors(p),
       drawing: drawingPrims(d, styleOf, place, options.hidden ?? new Set(), cull), sheet,
     }
     return { ...m, extents: extentsOf(m) }

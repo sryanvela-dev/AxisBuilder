@@ -294,6 +294,8 @@ function layerColor<K extends string>(key: K, name: string, color: number, weigh
 
 /** Standard pen sizes (mm, ISO 128). */
 export const LINE_WEIGHTS = ['0.09', '0.13', '0.18', '0.25', '0.35', '0.50', '0.70'] as const
+/** Drawing step "Colors": CAD's own colors (default), or the softer shades the app used before. */
+export const COLOR_STYLES = ['Exact CAD colors', 'Softer for screens'] as const
 
 // Only for the return types above.
 const weightChoice = () => choice(LINE_WEIGHTS, { excelLabel: '', excelSheet: PS, name: '', description: '', default: '0.25', step: 'Drawing', level: 'Basic' })
@@ -603,6 +605,12 @@ export const SETTINGS = {
     units: 'degrees', default: 45, hidden: true, step: 'AUT scans', level: 'Advanced',
     v5: 'Written to the .lsp but not used; hatch is always 45 degrees. App: planned feature (to be designed).',
   }),
+  drawingColors: choice(COLOR_STYLES, {
+    excelLabel: 'Drawing Colors', excelSheet: PS, onSheet: false, name: 'Colors',
+    description: 'Exact CAD colors: the preview (on white), the Sheets view, the PDF and the report images use CAD\'s own colors (1 red 255,0,0; 5 blue 0,0,255; 7 black on white), as CAD prints them. Softer for screens: slightly darker red, blue, green, ... and the preview follows the app\'s light or dark theme. CAD itself always uses its own colors.',
+    default: 'Exact CAD colors', group: 'lineStyles', step: 'Drawing', level: 'Basic',
+    v5: 'App only. CAD draws with its own colors.',
+  }),
   autHatchTransparency: num({
     excelLabel: 'AUT Hatch Transparency', excelSheet: PS, name: 'Hatch transparency',
     description: 'How transparent (see-through) the scan hatch is, as in CAD: 0 = solid, 90 = faintest. Applies to all hatch layers (scans and the legend samples).',
@@ -840,12 +848,12 @@ export const SETTINGS = {
   ...layerColor('shellNozzle', 'Shell nozzles', 7, '0.25'),
   ...layerColor('circWeld', 'Circ welds', 7, '0.25'),
   ...layerColor('longSeam', 'Long seams', 7, '0.25'),
-  ...layerColor('centerline', 'Centerline', 7, '0.18'),
+  ...layerColor('centerline', 'Centerline', 7, '0.25'),
   ...layerColor('shellNozzleLeader', 'Shell nozzle leaders', 7, '0.13'),
   ...layerColor('head', 'Head views', 7, '0.25'),
   ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7, '0.13'),
-  ...layerColor('xRuler', 'X ruler', 1, '0.18'),
-  ...layerColor('yRuler', 'Y ruler', 5, '0.18'),
+  ...layerColor('xRuler', 'X ruler', 1, '0.25'),
+  ...layerColor('yRuler', 'Y ruler', 5, '0.25'),
 
   // PDF AND REPORT IMAGES (app only, Phase 4b, Export step).
   exportSet: choice(EXPORT_SETS, {

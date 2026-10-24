@@ -90,21 +90,22 @@ export function drawReportSheet(ctx: Ctx2D, m: SheetModel, frame: ReportFrame, c
     ctx.rect(m.clip.x, m.clip.y, m.clip.w, m.clip.h)
     ctx.clip()
   }
-  for (const s of drawSteps(m.drawing)) if (keep(s)) step(ctx, s, photos)
+  for (const s of drawSteps(m.drawing)) if (keep(s)) step(ctx, s, photos, m.soft, 1 / k)
   ctx.restore()
-  for (const s of drawSteps(m.sheet)) if (keep(s)) step(ctx, s, photos)
+  for (const s of drawSteps(m.sheet)) if (keep(s)) step(ctx, s, photos, m.soft, 1 / k)
 }
 
-const css = (n: number) => {
-  const [r, g, b] = printRgb(n)
+const css = (n: number, soft: boolean) => {
+  const [r, g, b] = printRgb(n, soft)
   return `rgb(${r}, ${g}, ${b})`
 }
 
-function step(ctx: Ctx2D, s: DrawStep, photos: ReadonlyMap<string, ReportPhoto>) {
+/** minW: one pixel, the thinnest line drawn (a hairline at a low DPI would fade out). */
+function step(ctx: Ctx2D, s: DrawStep, photos: ReadonlyMap<string, ReportPhoto>, soft: boolean, minW: number) {
   if (s.kind === 'path') {
     ctx.globalAlpha = s.style.opacity
-    ctx.strokeStyle = css(s.style.color)
-    ctx.lineWidth = s.style.weight
+    ctx.strokeStyle = css(s.style.color, soft)
+    ctx.lineWidth = Math.max(s.style.weight, minW)
     ctx.beginPath()
     for (const o of s.ops) {
       if (o[0] === 'M') ctx.moveTo(o[1], o[2])
@@ -123,7 +124,7 @@ function step(ctx: Ctx2D, s: DrawStep, photos: ReadonlyMap<string, ReportPhoto>)
     ctx.save()
     // Text is drawn y down: flip back about its baseline start, turned with the text.
     ctx.transform(Math.cos(rad), Math.sin(rad), Math.sin(rad), -Math.cos(rad), g.start[0], g.start[1])
-    ctx.fillStyle = css(p.style.color)
+    ctx.fillStyle = css(p.style.color, soft)
     // Canvas font sizes are CSS pixels; 1 unit here = 1 inch, so the size is set in a scaled-up unit.
     ctx.transform(1 / 100, 0, 0, 1 / 100, 0, 0)
     ctx.font = `${g.size * 100}px '${REPORT_FONT}'`

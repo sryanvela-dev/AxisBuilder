@@ -82,7 +82,7 @@ export async function writePdf(input: PdfInput): Promise<Uint8Array> {
 
   for (const m of input.models) {
     const page = doc.addPage([m.paper.w * PT, m.paper.h * PT])
-    const w = new PageWriter(doc, page, font, images, ocgs)
+    const w = new PageWriter(doc, page, font, images, ocgs, m.soft)
     // Paper inches from here on.
     page.pushOperators(pushGraphicsState(), concatTransformationMatrix(PT, 0, 0, PT, 0, 0), setLineCap(LineCapStyle.Round), setLineJoin(LineJoinStyle.Round))
     if (m.clip) page.pushOperators(pushGraphicsState(), rectangle(m.clip.x, m.clip.y, m.clip.w, m.clip.h), clip(), endPath())
@@ -105,8 +105,10 @@ class PageWriter {
   private font: PDFFont
   private images: ReadonlyMap<string, PDFImage>
   private ocgs: ReadonlyMap<string, PDFRef>
+  private soft: boolean
 
-  constructor(doc: PDFDocument, page: PDFPage, font: PDFFont, images: ReadonlyMap<string, PDFImage>, ocgs: ReadonlyMap<string, PDFRef>) {
+  constructor(doc: PDFDocument, page: PDFPage, font: PDFFont, images: ReadonlyMap<string, PDFImage>, ocgs: ReadonlyMap<string, PDFRef>, soft: boolean) {
+    this.soft = soft
     this.doc = doc
     this.page = page
     this.font = font
@@ -158,7 +160,7 @@ class PageWriter {
   }
 
   private path(s: DrawStep & { kind: 'path' }) {
-    const [r, g, b] = printRgb(s.style.color)
+    const [r, g, b] = printRgb(s.style.color, this.soft)
     const ops: PDFOperator[] = [pushGraphicsState(), setLineWidth(round(s.style.weight)), setStrokingRgbColor(r / 255, g / 255, b / 255)]
     if (s.style.opacity < 1) ops.push(setGraphicsState(this.opacity(s.style.opacity)))
     for (const o of s.ops) {
@@ -173,7 +175,7 @@ class PageWriter {
 
   private text(p: TextPrim) {
     const g = textGeometry(p)
-    const [r, gg, b] = printRgb(p.style.color)
+    const [r, gg, b] = printRgb(p.style.color, this.soft)
     this.page.drawText(p.text, { x: round(g.start[0]), y: round(g.start[1]), size: round(g.size), font: this.font, color: rgb(r / 255, gg / 255, b / 255), rotate: degrees(p.rot) })
   }
 

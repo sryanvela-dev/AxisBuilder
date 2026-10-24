@@ -35,22 +35,24 @@ export const ACI_NAMES: Record<number, string> = {
   1: 'Red', 2: 'Yellow', 3: 'Green', 4: 'Cyan', 5: 'Blue', 6: 'Magenta', 7: 'White / black', 8: 'Dark gray', 9: 'Light gray',
 }
 
-/**
- * Print colors (PDF, report images, the Sheets view): on white paper 7 prints black, and the named colors
- * are a shade darker than CAD's screen colors so thin lines and small text stay readable. Values 0..255.
- */
-const PRINT: Record<number, [number, number, number]> = {
-  1: [208, 0, 0], 2: [168, 138, 0], 3: [0, 138, 46], 4: [0, 135, 154], 5: [0, 51, 204], 6: [176, 0, 176], 7: [0, 0, 0],
+/** "Softer for screens": the named colors a shade darker than CAD's, so thin lines look less glaring. */
+const SOFT: Record<number, [number, number, number]> = {
+  1: [208, 0, 0], 2: [168, 138, 0], 3: [0, 138, 46], 4: [0, 135, 154], 5: [0, 51, 204], 6: [176, 0, 176],
 }
 
-export function printRgb(n: number): [number, number, number] {
-  if (PRINT[n]) return PRINT[n]
+/**
+ * Print colors (PDF, report images, the Sheets view): CAD's exact colors (1 = 255,0,0, 5 = 0,0,255, ...), with 7
+ * black on white paper as CAD plots it; soft = the softer shades for 1-6. Values 0..255.
+ */
+export function printRgb(n: number, soft = false): [number, number, number] {
+  if (n === 7) return [0, 0, 0]
+  if (soft && SOFT[n]) return SOFT[n]
   const h = aciHex(n)
   return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
 }
 
-export function printCss(n: number): string {
-  const [r, g, b] = printRgb(n)
+export function printCss(n: number, soft = false): string {
+  const [r, g, b] = printRgb(n, soft)
   return `rgb(${r} ${g} ${b})`
 }
 

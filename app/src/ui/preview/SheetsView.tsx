@@ -3,7 +3,7 @@
 // engine/sheetModel.ts, the same model the PDF and the report images draw, so what is checked here is what
 // prints. Photos are the preview's thumbnails; the PDF embeds them from the original photos.
 
-import { useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
 import type { Project } from '../../data/schema.ts'
 import { printCss } from '../../engine/aci.ts'
 import type { Drawing, LayerGroup } from '../../engine/drawing.ts'
@@ -21,10 +21,11 @@ function pathData(ops: readonly PathOp[], H: number): string {
     .join('')
 }
 
-function Step({ s, H, thumbs }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string> }) {
+/** minW = one screen pixel in paper inches (thin lines never drawn fainter than a pixel); soft = softer colors. */
+function Step({ s, H, thumbs, minW, soft }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string>; minW: number; soft: boolean }) {
   if (s.kind === 'path') {
     // Inline styles: the drawing view's CSS (theme colors, hairlines that keep their screen width) must not apply here.
-    return <path d={pathData(s.ops, H)} style={{ fill: 'none', stroke: printCss(s.style.color), strokeWidth: s.style.weight, strokeOpacity: s.style.opacity, vectorEffect: 'none' }} />
+    return <path d={pathData(s.ops, H)} style={{ fill: 'none', stroke: printCss(s.style.color, soft), strokeWidth: Math.max(s.style.weight, minW), strokeOpacity: s.style.opacity, vectorEffect: 'none' }} />
   }
   if (s.kind === 'text') {
     const p = s.prim
@@ -32,7 +33,7 @@ function Step({ s, H, thumbs }: { s: DrawStep; H: number; thumbs: ReadonlyMap<st
     const x = g.start[0]
     const y = H - g.start[1]
     return (
-      <text x={x} y={y} fontSize={g.size} style={{ fill: printCss(p.style.color) }} transform={p.rot ? `rotate(${-p.rot} ${x} ${y})` : undefined}>
+      <text x={x} y={y} fontSize={g.size} style={{ fill: printCss(p.style.color, soft) }} transform={p.rot ? `rotate(${-p.rot} ${x} ${y})` : undefined}>
         {p.text}
       </text>
     )
@@ -62,6 +63,16 @@ export function SheetsView(props: { drawing: Drawing; plan: SectionPlan | null; 
   const [zoomed, setBox] = useState<Box | null>(null)
   const box = zoomed ?? fullBox(page)
   const svg = useRef<SVGSVGElement>(null)
+  // The sheet's size on screen, for the one-pixel minimum line width.
+  const [screen, setScreen] = useState({ w: 800, h: 600 })
+  useEffect(() => {
+    const el = svg.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setScreen({ w: el.clientWidth || 800, h: el.clientHeight || 600 }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const minW = 1 / Math.min(screen.w / box.w, screen.h / box.h)
   const drag = useRef<{ x: number; y: number; box: Box } | null>(null)
   const go = (n: number) => {
     setI(n)
@@ -145,12 +156,12 @@ export function SheetsView(props: { drawing: Drawing; plan: SectionPlan | null; 
         )}
         <g clipPath={page.clip ? `url(#${clipId})` : undefined}>
           {drawSteps(page.drawing).map((s, k) => (
-            <Step key={k} s={s} H={H} thumbs={props.thumbs} />
+            <Step key={k} s={s} H={H} thumbs={props.thumbs} minW={minW} soft={page.soft} />
           ))}
         </g>
         <g>
           {drawSteps(page.sheet).map((s, k) => (
-            <Step key={k} s={s} H={H} thumbs={props.thumbs} />
+            <Step key={k} s={s} H={H} thumbs={props.thumbs} minW={minW} soft={page.soft} />
           ))}
         </g>
       </svg>
