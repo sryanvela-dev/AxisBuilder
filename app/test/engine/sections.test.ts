@@ -84,9 +84,11 @@ describe('what is on a sheet (engine/sheets.ts)', () => {
     const pages = sheetPages(golden('REF1'), plan(golden('REF1')))
     expect(pages.map((pg) => pg.title)).toEqual(['OVERVIEW', 'SECTION 1 OF 2', 'SECTION 2 OF 2'])
     const t = texts('REF1', 1)
-    // X ruler 0" .. 302" every 12 in, Y ruler from the sheet's start, the axis labels, references, title, legend.
+    // X ruler 0" .. 302" every 20 in, Y ruler from the sheet's start, the axis labels, references, title, legend.
     expect(t).toContain('0"')
-    expect(t).toContain('300"')
+    // 300" would touch the end number 302": its tick stays, its number is left out.
+    expect(t).not.toContain('300"')
+    expect(t).toContain('280"')
     expect(t).toContain('302"')
     expect(t).toContain('186"')
     expect(t).toContain('LEGEND')

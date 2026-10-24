@@ -52,7 +52,8 @@ const PT = 72
 export async function writePdf(input: PdfInput): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   doc.registerFontkit(fontkit)
-  const font = await doc.embedFont(input.font, { subset: true })
+  // The whole font: pdf-lib's subsetting dropped most letters in Edge (only a few glyphs survived).
+  const font = await doc.embedFont(input.font, { subset: false })
   const date = input.date ?? new Date()
   doc.setTitle(input.title)
   doc.setCreator('AxisBuilder')

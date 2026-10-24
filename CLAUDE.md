@@ -129,7 +129,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit), `fingerprints:check` /
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
-  `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job).
+  `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -559,3 +559,13 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   reference labels now measured with the font (a long title ran off the overview sheet). `tools/TightPDF/` keeps
   the old tool's script for the record. Not yet tried: printing on letter paper, Acrobat/Edge layers, real photos.
   No .lsp change (fingerprints unchanged). No VBA or workbook changes.
+- 2026-10-24 – Phase 4b click-through follow-up (feature/pdf-export, user): PDF text was missing most letters in Edge
+  (pdf-lib's font subset): the whole font is now embedded (+310 KB, test). Sheets view draws the print colors and line
+  weights (the drawing view's CSS overrode them). Section sheet rulers: numbers, axis label and arrow stacked by
+  measured size with gaps, a number touching the next left out (end kept), panel 0.5 in past the drawing (test: no
+  ruler text touches another or a line). PDF layers kept (Acrobat/Reader only; other viewers ignore them). New "What is
+  exported" group: Layers to export (As the preview / Scans / Overlays = photos + outlines + labels, no hatch / Both,
+  files "... - Scans" / "... - Overlays"; preview chips in `ui/preview/previewPrefs.ts`) and Main sheet (Automatic /
+  Landscape / Portrait). Approved suggestions: full size fills the window (Escape closes), "Open the PDF" after making
+  it, job screen loaded on its own (`App.tsx` lazy; first chunk 747 -> 389 KB; `Notices` moved to `ui/Notices.tsx`).
+  New `npm run pdf:inspect`. No .lsp change (fingerprints unchanged).

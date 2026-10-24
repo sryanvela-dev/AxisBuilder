@@ -23,7 +23,8 @@ function pathData(ops: readonly PathOp[], H: number): string {
 
 function Step({ s, H, thumbs }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string> }) {
   if (s.kind === 'path') {
-    return <path d={pathData(s.ops, H)} fill="none" stroke={printCss(s.style.color)} strokeWidth={s.style.weight} strokeOpacity={s.style.opacity < 1 ? s.style.opacity : undefined} />
+    // Inline styles: the drawing view's CSS (theme colors, hairlines that keep their screen width) must not apply here.
+    return <path d={pathData(s.ops, H)} style={{ fill: 'none', stroke: printCss(s.style.color), strokeWidth: s.style.weight, strokeOpacity: s.style.opacity, vectorEffect: 'none' }} />
   }
   if (s.kind === 'text') {
     const p = s.prim
@@ -31,7 +32,7 @@ function Step({ s, H, thumbs }: { s: DrawStep; H: number; thumbs: ReadonlyMap<st
     const x = g.start[0]
     const y = H - g.start[1]
     return (
-      <text x={x} y={y} fontSize={g.size} fill={printCss(p.style.color)} transform={p.rot ? `rotate(${-p.rot} ${x} ${y})` : undefined}>
+      <text x={x} y={y} fontSize={g.size} style={{ fill: printCss(p.style.color) }} transform={p.rot ? `rotate(${-p.rot} ${x} ${y})` : undefined}>
         {p.text}
       </text>
     )

@@ -249,7 +249,8 @@ export function mainSheet(p: Project, d: Drawing, options: SheetOptions = {}): S
   const b = drawingBox(d)
   const bw = Math.max(1e-6, b[2] - b[0])
   const bh = Math.max(1e-6, b[3] - b[1])
-  const paper = bw >= bh ? LANDSCAPE : PORTRAIT
+  const turn = p.settings.mainSheetOrientation
+  const paper = turn === 'Landscape' || (turn === 'Automatic' && bw >= bh) ? LANDSCAPE : PORTRAIT
   const scale = Math.min((paper.w - 2 * MARGIN) / bw, (paper.h - 2 * MARGIN) / bh)
   const place = { scale, ox: (paper.w - bw * scale) / 2 - b[0] * scale, oy: (paper.h - bh * scale) / 2 - b[1] * scale }
   const m = { kind: 'main' as const, title: 'DRAWING', section: null, paper: { ...paper }, clip: null, scale, sheet: [], drawing: drawingPrims(d, styleOf, place, options.hidden ?? new Set(), null) }

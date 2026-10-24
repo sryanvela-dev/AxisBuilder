@@ -30,6 +30,7 @@ export const SETTING_GROUPS = [
   { id: 'showHide', step: 'Drawing', title: 'Show or hide', intro: 'What the drawing includes (the legend and title block are above). In CAD the AB... commands turn the same groups on and off.' },
   { id: 'lineStyles', step: 'Drawing', title: 'Lines: colors, weights and transparency', intro: 'Colors of the main drawing layers (standard CAD color numbers), their printed line weights (PDF and report images), and how transparent the hatch and centerline are.' },
   { id: 'sections', step: 'Drawing', title: 'Section sheets', intro: 'Zoomed-in letter-size sheets of a long vessel, one per length of shell, that a client can read. Off unless you switch it on.' },
+  { id: 'exportSets', step: 'Export', title: 'What is exported', intro: 'Which layers the PDF and the report images show, and how the main sheet is turned.' },
   { id: 'pdf', step: 'Export', title: 'PDF', intro: 'How the PDF is made: the photo resolution and PDF layers.' },
   { id: 'reportImages', step: 'Export', title: 'Report images', intro: 'One JPEG per sheet for the inspection report, cropped tight to what is printed (as TightPDF did).' },
   { id: 'export', step: 'Export', title: 'CAD program and checks', intro: 'Which CAD program the drawing file is for, and the checks before export.' },
@@ -183,6 +184,9 @@ export const TEXT_SIZE_MODES = ['Automatic', 'Scale', 'Fixed height'] as const
 
 export const SECTION_SPLITS = ['Number of sections', 'Readable size', 'Manual'] as const
 export const REPORT_CROPS = ['Everything printed', 'Drawing only'] as const
+/** What the PDF and the report images show: the preview's ticked layers, or the two report sets. */
+export const EXPORT_SETS = ['As the preview', 'Scans', 'Overlays', 'Both scans and overlays'] as const
+export const SHEET_ORIENTATIONS = ['Automatic', 'Landscape', 'Portrait'] as const
 const SECTIONS_ON = { section: 'settings', key: 'makeSectionSheets', values: ['true'] } as const satisfies ShowWhen
 const sectionsWhen = (split: (typeof SECTION_SPLITS)[number]): ShowWhen => ({ ...SECTIONS_ON, and: { section: 'settings', key: 'sectionSplit', values: [split] } })
 
@@ -839,6 +843,18 @@ export const SETTINGS = {
   ...layerColor('yRuler', 'Y ruler', 5, '0.18'),
 
   // PDF AND REPORT IMAGES (app only, Phase 4b, Export step).
+  exportSet: choice(EXPORT_SETS, {
+    excelLabel: 'Export Set', excelSheet: PS, onSheet: false, name: 'Layers to export',
+    description: 'As the preview: what is ticked on the preview\'s layer chips. Scans: no photos (the AUT scan section of a report). ' +
+      'Overlays: the photos with the scan outlines and labels, no hatch. Both: one click makes the two sets, named "... - Scans" and "... - Overlays". ' +
+      'The other chips (welds, nozzles, ...) follow the preview in every set.',
+    default: 'As the preview', group: 'exportSets', step: 'Export', level: 'Basic',
+  }),
+  mainSheetOrientation: choice(SHEET_ORIENTATIONS, {
+    excelLabel: 'Main Sheet Orientation', excelSheet: PS, onSheet: false, name: 'Main sheet',
+    description: 'How the main sheet is turned on letter paper. Automatic: landscape when the drawing is wider than tall, portrait otherwise. Section sheets are always landscape.',
+    default: 'Automatic', group: 'exportSets', step: 'Export', level: 'Basic',
+  }),
   pdfPhotoDpi: num({
     excelLabel: 'PDF Photo DPI', excelSheet: PS, onSheet: false, name: 'Photo resolution in the PDF',
     description: 'Scan photos are put in the PDF at this many pixels per printed inch (never more than the photo has). 300 prints sharp on letter paper; 150 gives a smaller file.',
@@ -846,7 +862,7 @@ export const SETTINGS = {
   }),
   pdfLayers: yesNo({
     excelLabel: 'PDF Layers', excelSheet: PS, onSheet: false, name: 'PDF layers',
-    description: 'Put each part of the drawing (Scans, Photos, Hatch, Welds, Nozzles, ...) on its own PDF layer, so it can be switched on and off in Acrobat or Edge.',
+    description: 'Put each part of the drawing (Scans, Photos, Hatch, Welds, Nozzles, ...) on its own PDF layer, so it can be switched on and off in Adobe Acrobat or Reader (Layers panel). Other viewers such as Edge show everything and ignore the layers.',
     default: true, group: 'pdf', step: 'Export', level: 'Basic',
   }),
   reportDpi: num({
@@ -866,7 +882,7 @@ export const SETTINGS = {
   }),
   reportCrop: choice(REPORT_CROPS, {
     excelLabel: 'Report Image Crop', excelSheet: PS, onSheet: false, name: 'Crop to',
-    description: 'Everything printed: tight around all of the sheet (as TightPDF does). Drawing only: leave out the title block and legend.',
+    description: 'Everything printed: tight around all of the sheet (as TightPDF does). Drawing only: leave out the title block, legend and head views.',
     default: 'Everything printed', group: 'reportImages', step: 'Export', level: 'Basic',
   }),
   reportName: text({

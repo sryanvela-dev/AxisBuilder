@@ -7,7 +7,7 @@ import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, typ
 import { useApp } from './appContext.ts'
 import { ErrorBoundary } from './ErrorBoundary.tsx'
 import { FindSetting } from './FindSetting.tsx'
-import { copyText } from './errorDetails.ts'
+import { Notices } from './Notices.tsx'
 import { checkProject } from '../data/checks.ts'
 import { ChecksContext } from './checksContext.ts'
 import { DrawingStep, FieldDataStep, ProjectStep } from './projectSteps.tsx'
@@ -178,43 +178,6 @@ function Banner({ statuses }: { statuses: Record<StepId, StepStatus> }) {
           and {left.length - shown.length} more
         </button>
       )}
-    </div>
-  )
-}
-
-export function Notices() {
-  const app = useApp()
-  return (
-    <>
-      {app.notice && (
-        <div className={`toast toast-${app.notice.kind}`} role={app.notice.kind === 'error' ? 'alert' : 'status'}>
-          <span>{app.notice.text}</span>
-          <button type="button" className="btn btn-small" onClick={app.dismissNotice}>
-            OK
-          </button>
-        </div>
-      )}
-      {app.backgroundError && <BackgroundError details={app.backgroundError} onClose={app.dismissBackgroundError} />}
-    </>
-  )
-}
-
-function BackgroundError({ details, onClose }: { details: string; onClose: () => void }) {
-  return (
-    <div className="toast toast-error" role="alert">
-      <span>Something went wrong in the background. Your work is kept; you can carry on.</span>
-      <span className="button-row">
-        <button
-          type="button"
-          className="btn btn-small"
-          onClick={() => void copyText(details)}
-        >
-          Copy error details
-        </button>
-        <button type="button" className="btn btn-small" onClick={onClose}>
-          OK
-        </button>
-      </span>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 // photos), updated as you edit. Click an item to go to its row; the selected row's item is highlighted;
 // items with errors or warnings are marked in the check colors. Collapsible, with a full-size view.
 
-import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { LAYER_GROUPS, PREVIEW_DIFFERENCES, buildDrawing, type DrawingItem, type LayerGroup } from '../../engine/drawing.ts'
 import { STEP_OF_LIST } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
@@ -16,31 +16,7 @@ import { SheetsView } from './SheetsView.tsx'
 import { PreviewSplitter } from './PreviewSplitter.tsx'
 import { activeSectionPlan, sectionPlanItems } from '../../engine/sections.ts'
 import { usePhotoThumbs } from './usePhotoThumbs.ts'
-
-const STORE_KEY = 'axisbuilder:preview'
-
-interface PreviewPrefs {
-  open: boolean
-  hidden: LayerGroup[]
-}
-
-function loadPrefs(): PreviewPrefs {
-  try {
-    const p = JSON.parse(localStorage.getItem(STORE_KEY) ?? '') as PreviewPrefs
-    if (typeof p.open === 'boolean' && Array.isArray(p.hidden)) return p
-  } catch {
-    // no saved preferences
-  }
-  return { open: true, hidden: [] }
-}
-
-function savePrefs(p: PreviewPrefs) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(p))
-  } catch {
-    // storage blocked: the choice lasts until the page closes
-  }
-}
+import { setPreviewPrefs, usePreviewPrefs, type PreviewPrefs } from './previewPrefs.ts'
 
 export function PreviewPanel() {
   const app = useApp()
@@ -48,8 +24,17 @@ export function PreviewPanel() {
   const { checks } = useJobChecks()
   const { photos } = useJobFolders()
   const { selected, select } = useSelection()
-  const [prefs, setPrefs] = useState(loadPrefs)
+  const prefs = usePreviewPrefs()
   const [full, setFull] = useState(false)
+  // Full size fills the window; Escape closes it.
+  useEffect(() => {
+    if (!full) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('.dialog-backdrop')) setFull(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [full])
   const view = useRef<DrawingViewHandle>(null)
   // Typing stays smooth on big jobs: the drawing catches up right after the keystroke.
   const project = useDeferredValue(job.history.present)
@@ -76,8 +61,7 @@ export function PreviewPanel() {
   }, [checks])
 
   const update = (p: PreviewPrefs) => {
-    setPrefs(p)
-    savePrefs(p)
+    setPreviewPrefs(p)
   }
   const toggle = (g: LayerGroup) => update({ ...prefs, hidden: hidden.has(g) ? prefs.hidden.filter((x) => x !== g) : [...prefs.hidden, g] })
 

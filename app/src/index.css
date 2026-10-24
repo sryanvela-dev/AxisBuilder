@@ -1302,9 +1302,10 @@ table.grid.photos select {
 }
 
 .preview-full {
-  position: absolute;
+  /* The whole window (above the top bar and banners), so the drawing and the sheets get all the room. */
+  position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 8;
   width: auto;
   max-width: none;
   border-left: 0;

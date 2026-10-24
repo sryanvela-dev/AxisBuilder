@@ -8,6 +8,8 @@ import { FONT_FILE, renderFontMetrics } from '../../scripts/gen-font-metrics.ts'
 import { buildDrawing, type LayerGroup } from '../../src/engine/drawing.ts'
 import { activeSectionPlan } from '../../src/engine/sections.ts'
 import { drawSteps, photoNeeds, sheetModels, textGeometry, type SheetModel } from '../../src/engine/sheetModel.ts'
+import type { Project } from '../../src/data/schema.ts'
+import { exportRuns } from '../../src/export/exportSets.ts'
 import { reportImageNames } from '../../src/export/files.ts'
 import { printPhotoSize } from '../../src/export/pdf/photos.ts'
 import { pdfLayerName } from '../../src/export/pdf/writePdf.ts'
@@ -84,6 +86,14 @@ describe.each(jobs.flatMap((j) => [false, true].map((on) => ({ ...j, on }))))('P
 })
 
 describe('PDF options', () => {
+  it('embeds the whole font (a subset lost most letters in Edge)', async () => {
+    const r = await jobPdf(jobs[0].project)
+    const doc = await PDFDocument.load(r.bytes)
+    const sizes = [...doc.context.enumerateIndirectObjects()].flatMap(([, o]) =>
+      o instanceof PDFRawStream && o.dict.get(PDFName.of('Subtype')) !== PDFName.of('Image') ? [decodePDFRawStream(o).decode().length] : [])
+    expect(Math.max(...sizes)).toBe(FONT.length)
+  })
+
   it('writes no layers when PDF layers are off', async () => {
     const r = await jobPdf(jobs[0].project, 300, false)
     const doc = await PDFDocument.load(r.bytes)
@@ -101,6 +111,41 @@ describe('PDF options', () => {
     expect(pdfLayerName('panel')).toBe('Legend and title')
     expect(pdfLayerName('sheet')).toBeNull()
     expect(pdfLayerName('always')).toBeNull()
+  })
+})
+
+describe('export sets and the main sheet', () => {
+  const p = jobs.find((j) => j.name === 'REF1')!.project
+  const groups = (run: { hidden: ReadonlySet<LayerGroup> }) => {
+    const [m] = sheetModels(p, buildDrawing(p), null, { hidden: run.hidden })
+    return new Set(m.drawing.map((x) => x.group))
+  }
+
+  it('scans leave out the photos, overlays the hatch; the other preview chips still count', () => {
+    const [scans, overlays] = exportRuns('Both scans and overlays', ['welds', 'images', 'hatch', 'scans'])
+    expect(scans.suffix).toBe(' - Scans')
+    expect(overlays.suffix).toBe(' - Overlays')
+    const a = groups(scans)
+    expect(a.has('images')).toBe(false)
+    expect(a.has('hatch')).toBe(true)
+    expect(a.has('scans')).toBe(true)
+    expect(a.has('welds')).toBe(false)
+    const b = groups(overlays)
+    expect(b.has('images')).toBe(true)
+    expect(b.has('hatch')).toBe(false)
+    expect(b.has('scans')).toBe(true)
+    expect(b.has('welds')).toBe(false)
+    expect(exportRuns('Scans', []).map((r) => r.suffix)).toEqual([' - Scans'])
+    expect(exportRuns('Overlays', []).map((r) => r.suffix)).toEqual([' - Overlays'])
+    const same = exportRuns('As the preview', ['nozzles'])
+    expect(same).toEqual([{ suffix: '', label: 'As the preview', hidden: new Set(['nozzles']) }])
+  })
+
+  it('turns the main sheet as set', () => {
+    const turned = (o: Project['settings']['mainSheetOrientation']) => sheetModels({ ...p, settings: { ...p.settings, mainSheetOrientation: o } }, buildDrawing(p), null)[0].paper
+    expect(turned('Automatic')).toEqual({ w: 11, h: 8.5 })
+    expect(turned('Landscape')).toEqual({ w: 11, h: 8.5 })
+    expect(turned('Portrait')).toEqual({ w: 8.5, h: 11 })
   })
 })
 
