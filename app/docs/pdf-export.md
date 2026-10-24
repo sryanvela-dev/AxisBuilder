@@ -85,11 +85,14 @@ font instead and leave out any number that would touch its neighbour.
   as Arial, which the preview and the label sizing already measure with, so labels fit the same way in the PDF.
   Its plain sans-serif look is close to the TrueType prints from DraftSight/AutoCAD. Bundled with the app, so it
   works offline (the service worker now precaches .ttf files).
-- **Colors**: CAD color numbers with print colors (`aci.ts printRgb`): 7 prints black on white paper, the named
-  colors a shade darker than the screen colors so thin lines stay readable.
-- **Line weights**: per layer, set on the Drawing step (Lines: colors, weights and transparency). Defaults (mm):
-  vessel 0.35; scan outlines, objects, nozzles, welds, seams, heads 0.25; centerline and rulers 0.18; hatch and
-  leaders 0.13; everything else (legend, title block, crosshairs, paper rulers) 0.18.
+- **Colors**: CAD's exact colors (`aci.ts printRgb`: 1 = 255,0,0, 3 = 0,255,0, 5 = 0,0,255, ...), 7 black on white
+  paper, in the preview (drawn on white), the Sheets view, the PDF and the report images. Drawing step "Colors" =
+  Softer for screens keeps the earlier darker shades of 1-6 and lets the preview follow the light/dark theme.
+- **Line weights**: per layer, set on the Drawing step (Lines: colors, weights and transparency). Defaults (mm), as
+  CAD draws a v5.0 drawing (it sets no weights, so CAD uses its default 0.25): vessel 0.35; hatch, the legend hatch
+  samples and the leaders 0.13; every other layer 0.25. On screen no line is drawn thinner than one pixel (Sheets
+  view; report images at a low DPI); the drawing preview draws one-pixel lines; only the hatch and centerline
+  layers are see-through, by their transparency settings.
 - **Transparency**: hatch layers at the AUT hatch transparency, the centerline at the centerline transparency.
 - **Photos**: from the original photos in the photo folder, cut at the seam for scans wrapped across it (both
   pieces), stretched in one direction to the scan's exact shape (as the processed images), then scaled down to

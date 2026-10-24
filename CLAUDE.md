@@ -129,7 +129,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit), `fingerprints:check` /
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
-  `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF).
+  `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -586,3 +586,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   loses 300" in REF1 and its variants, 336" in REF2, 456" in REF3 / REF4; sample unchanged). (5) Hatch and centerline
   transparency as a Solid..Faint slider with the number and a live sample (`transparency` on NumberDef). No VBA or
   workbook changes.
+- 2026-10-24 – Click-through fixes 6-8 (feature/pdf-export, user): (6) line weight defaults as CAD draws v5.0
+  (0.25 mm): vessel 0.35, hatch / legend hatch samples / leaders 0.13, every other layer 0.25 (rulers and centerline
+  were 0.18); one-pixel minimum on screen (Sheets view) and in low-DPI report images. Jobs saved earlier keep their
+  saved weights until "Reset to default". (7) CAD's exact ACI colors by default in the preview (on white), Sheets view,
+  PDF and report images; Drawing step "Colors" = Softer for screens keeps the earlier shades (`printRgb(n, soft)`,
+  `SheetModel.soft`, `.preview-canvas.exact-colors`). (8) App change 23, nozzle labels (`engine/labels.ts`): inside
+  only when width and height fit; every drawn scan avoided (not only photos); crowded labels try longer leaders,
+  then are placed with a Review warning ("Label N4 overlaps scan 12", `crowdedLabels`). No golden job's labels move
+  (default and 2x nozzle text, `npm run labels:report`), so no fingerprint changed for 6-8. compat v5.0 unchanged.
