@@ -12,7 +12,8 @@ import { checkProject } from '../data/checks.ts'
 import { ChecksContext } from './checksContext.ts'
 import { DrawingStep, FieldDataStep, ProjectStep } from './projectSteps.tsx'
 import { ImagesStep, ScansStep } from './scanSteps.tsx'
-import { ExportStep, ReviewStep } from './steps.tsx'
+import { ReviewStep } from './steps.tsx'
+import { ExportStep } from './exportStep.tsx'
 import { FoldersContext } from './foldersContext.ts'
 import { PreviewPanel } from './preview/PreviewPanel.tsx'
 import { SelectionContext, type Selected } from './selectionContext.ts'
@@ -109,11 +110,7 @@ export function JobScreen() {
             <button type="button" className="btn btn-primary btn-large" onClick={() => app.goToStep(next)}>
               Next: {stepInfo(next).title}
             </button>
-          ) : (
-            <button type="button" className="btn btn-primary btn-large" disabled title="Comes in a later update">
-              Make CAD drawing (coming soon)
-            </button>
-          )}
+          ) : null}
         </footer>
       </div>
     </SelectionContext.Provider>

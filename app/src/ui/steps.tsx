@@ -1,75 +1,89 @@
-// Step pages for Review and Export (Project and Field data are in projectSteps.tsx, AUT scans and
-// Images in scanSteps.tsx).
+// Step page for Review (Project, Field data and Drawing are in projectSteps.tsx, AUT scans and Images in
+// scanSteps.tsx, Export in exportStep.tsx).
 
-import { STEP_IDS } from '../state/session.ts'
-import { stepInfo, type StepStatus } from '../state/steps.ts'
+import { reviewList, stepInfo, type ReviewGroup, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
+import { useGoToIssue } from './goToIssue.ts'
 import { WorkbookReportTable } from './reports.tsx'
-import { ComingSoon } from './stepParts.tsx'
-import { SettingsGroup } from './SettingsForm.tsx'
 
 type StepProps = { status: StepStatus }
+
+function Groups({ groups, kind }: { groups: ReviewGroup[]; kind: 'error' | 'warning' }) {
+  const goTo = useGoToIssue()
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.step} className="review-group">
+          <h3>{stepInfo(g.step).title}</h3>
+          <ul className="review-list">
+            {g.issues.map((i, n) => (
+              <li key={`${n}:${i.text}`}>
+                <span className={`kind ${kind === 'error' ? 'kind-invalid' : 'kind-review'}`}>{kind === 'error' ? 'Fix' : 'Check'}</span>
+                <span className="review-text">{i.text}</span>
+                <button type="button" className="btn btn-small" onClick={() => goTo(i)} title={i.check ? 'Go to the field or row' : `Go to ${stepInfo(i.step).title}`}>
+                  Go to
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  )
+}
 
 export function ReviewStep({ status }: StepProps) {
   const app = useApp()
   const wb = app.state.job!.workbookImport
+  const { errors, warnings } = reviewList(status)
+  const nErrors = errors.reduce((a, g) => a + g.issues.length, 0)
+  const nWarnings = warnings.reduce((a, g) => a + g.issues.length, 0)
   return (
     <>
-      {status.issues.length === 0 ? (
-        <p>{status.state === 'done' ? 'Nothing is open. The job is ready for export.' : 'Nothing entered yet. Start with the Project step.'}</p>
+      {status.state === 'notStarted' ? (
+        <p>Nothing entered yet. Start with the Project step.</p>
+      ) : nErrors + nWarnings === 0 ? (
+        <div className="notice notice-ready" role="status">
+          <p>
+            <strong>Ready to export.</strong> Nothing is open.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => app.goToStep('export')}>
+            Go to Export
+          </button>
+        </div>
       ) : (
-        STEP_IDS.filter((id) => id !== 'review' && id !== 'export').map((id) => {
-          const items = status.issues.filter((i) => i.step === id)
-          if (items.length === 0) return null
-          return (
-            <section key={id} className="review-group">
-              <div className="review-head">
-                <h2>{stepInfo(id).title}</h2>
-                <button type="button" className="btn" onClick={() => app.goToStep(id)}>
-                  Go to {stepInfo(id).title}
-                </button>
-              </div>
-              <ul>
-                {items.slice(0, 20).map((i) => (
-                  <li key={i.text}>
-                    {i.blocksExport ? <span className="kind kind-invalid">Fix</span> : <span className="kind kind-review">Check</span>} {i.text}
-                  </li>
-                ))}
-                {items.length > 20 && <li>...and {items.length - 20} more.</li>}
-              </ul>
+        <>
+          {nErrors > 0 ? (
+            <section aria-labelledby="review-errors">
+              <h2 id="review-errors">To fix before export ({nErrors})</h2>
+              <p className="muted">The PDF and the CAD drawing can't be made until these are fixed.</p>
+              <Groups groups={errors} kind="error" />
             </section>
-          )
-        })
+          ) : (
+            <div className="notice notice-ready" role="status">
+              <p>
+                <strong>Ready to export.</strong> Nothing blocks it; the points below are only worth a look.
+              </p>
+              <button type="button" className="btn btn-primary" onClick={() => app.goToStep('export')}>
+                Go to Export
+              </button>
+            </div>
+          )}
+          {nWarnings > 0 && (
+            <section aria-labelledby="review-warnings">
+              <h2 id="review-warnings">Worth checking ({nWarnings})</h2>
+              <p className="muted">These don't stop the export.</p>
+              <Groups groups={warnings} kind="warning" />
+            </section>
+          )}
+        </>
       )}
-      <ComingSoon>Checks on the drawing itself (scans outside the shell, overlapping items) come in a later update.</ComingSoon>
       {wb && (
         <details>
           <summary>Full import report from {wb.fileName} ({wb.report.length})</summary>
           <WorkbookReportTable entries={wb.report} />
         </details>
       )}
-    </>
-  )
-}
-
-export function ExportStep({ status }: StepProps) {
-  return (
-    <>
-      {status.issues.length > 0 ? (
-        <section className="issues">
-          <h2>Export is blocked until these are fixed ({status.issues.length})</h2>
-          <ul>
-            {status.issues.slice(0, 30).map((i) => (
-              <li key={i.text}>{i.text}</li>
-            ))}
-            {status.issues.length > 30 && <li>...and {status.issues.length - 30} more.</li>}
-          </ul>
-        </section>
-      ) : (
-        <p>Nothing blocks the export.</p>
-      )}
-      <SettingsGroup group="export" step="export" />
-      <ComingSoon>Making the CAD drawing file (DraftSight or AutoCAD) comes in a later update.</ComingSoon>
     </>
   )
 }
