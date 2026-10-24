@@ -26,11 +26,17 @@ export function PreviewPanel() {
   const { selected, select } = useSelection()
   const prefs = usePreviewPrefs()
   const [full, setFull] = useState(false)
+  /** Back from full size: the step page shows from its top. */
+  const closeFull = () => {
+    setFull(false)
+    document.querySelector('main.page')?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+  }
   // Full size fills the window; Escape closes it.
   useEffect(() => {
     if (!full) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !document.querySelector('.dialog-backdrop')) setFull(false)
+      if (e.key === 'Escape' && !document.querySelector('.dialog-backdrop')) closeFull()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -116,7 +122,7 @@ export function PreviewPanel() {
               {showSheets ? 'Drawing' : 'Sheets'}
             </button>
           )}
-          <button type="button" className="btn btn-small" onClick={() => setFull(!full)}>
+          <button type="button" className="btn btn-small" onClick={() => (full ? closeFull() : setFull(true))}>
             {full ? 'Close full size' : 'Full size'}
           </button>
           {!full && (

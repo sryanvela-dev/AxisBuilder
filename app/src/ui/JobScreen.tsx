@@ -1,7 +1,7 @@
 // The screen while a job is open: top bar (save, undo), step bar, "before export" banner, the
 // current step's page with the drawing preview beside it, and its main "Next" button.
 
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isDirty, jobTitle, type StepId } from '../state/session.ts'
 import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
@@ -49,6 +49,12 @@ export function JobScreen() {
   const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
   const [selected, setSelected] = useState<Selected | null>(null)
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected])
+  // Every step opens at its top (the page area would otherwise keep the last step's scroll position).
+  const page = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    page.current?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+  }, [step])
   return (
     <ChecksContext.Provider value={checks}>
     <FoldersContext.Provider value={folders}>
@@ -89,7 +95,7 @@ export function JobScreen() {
         <Banner statuses={statuses} />
         <Notices />
         <div className={`work${PREVIEW_STEPS.includes(step) ? ' with-preview' : ''}${step === 'drawing' ? ' wide-preview' : ''}`}>
-          <main className="page">
+          <main className="page" ref={page}>
             <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
               <header className="page-header">
                 <h1>{stepInfo(step).title}</h1>
