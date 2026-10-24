@@ -4,6 +4,7 @@ import { FIELD_LISTS } from '../data/columns.ts'
 import { formatNumber } from '../data/parse.ts'
 import { LIST_META } from '../data/schema.ts'
 import { SETTING_GROUPS, VESSEL_FIELDS } from '../data/settings.ts'
+import { sectionPlan } from '../engine/sections.ts'
 import type { StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { useJobChecks } from './checksContext.ts'
@@ -38,9 +39,74 @@ export function DrawingStep({ status }: StepProps) {
           </button>
         ))}
       </nav>
-      {SETTING_GROUPS.filter((g) => g.step === 'Drawing').map((g) => (
-        <SettingsGroup key={g.id} group={g.id} step="drawing" />
-      ))}
+      {SETTING_GROUPS.filter((g) => g.step === 'Drawing').map((g) =>
+        g.id === 'sections' ? <SectionSheets key={g.id} /> : <SettingsGroup key={g.id} group={g.id} step="drawing" />,
+      )}
+    </>
+  )
+}
+
+/** Section sheets: the settings and the plan they give (engine/sections.ts). */
+function SectionSheets() {
+  const app = useApp()
+  const p = app.state.job!.history.present
+  const vertical = p.vessel.orientation === 'Vertical'
+  const plan = sectionPlan(p)
+  return (
+    <>
+      <SettingsGroup group="sections" step="drawing" />
+      {typeof plan !== 'string' && (
+        <section className="section-plan" aria-label="Section plan">
+          <h3>
+            The plan: {plan.sections.length} section sheet{plan.sections.length === 1 ? '' : 's'}
+            {plan.overview ? ' after an overview sheet' : ''}
+          </h3>
+          {plan.problems.map((t) => (
+            <p key={t} className="msg msg-warning">
+              {t}
+            </p>
+          ))}
+          {plan.notes.map((t) => (
+            <p key={t} className="muted">
+              {t}
+            </p>
+          ))}
+          {plan.sections.length > 0 && (
+            <table className="report">
+              <thead>
+                <tr>
+                  <th>Section</th>
+                  <th>Along the shell</th>
+                  <th>Sheet shows</th>
+                  <th>Scale</th>
+                  <th>Smallest scan label</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.sections.map((s) => (
+                  <tr key={s.n}>
+                    <td>{s.n}</td>
+                    <td>
+                      {formatNumber(s.start)} to {formatNumber(s.end)} in
+                    </td>
+                    <td>
+                      {formatNumber(s.viewStart)} to {formatNumber(s.viewEnd)} in
+                    </td>
+                    <td>1:{formatNumber(Math.round(10 / s.scale) / 10)}</td>
+                    <td>{s.smallestLabel === null ? <span className="muted">no scans</span> : `${formatNumber(Math.round(s.smallestLabel * 1000) / 1000)} in`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="muted">
+            The preview's Sheets button shows each sheet as it prints.{' '}
+            {vertical
+              ? 'Vertical sheets (the length up the sheet) are made by the app; the CAD command builds horizontal layouts only, so for this job they come with the PDF export.'
+              : 'In CAD: after loading the drawing, switch to the letter-size Sheet tab and type ABSECTIONSHEETS.'}
+          </p>
+        </section>
+      )}
     </>
   )
 }

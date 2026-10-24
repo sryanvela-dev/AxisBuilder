@@ -46,7 +46,8 @@ export interface RenderItem {
   paths: RenderPath[]
   circles: { cx: number; cy: number; r: number; group: LayerGroup; color: number }[]
   texts: RenderText[]
-  images: { x: number; y: number; w: number; h: number; scanId: string }[]
+  /** crop: the part of the photo shown (fractions of its width) for a scan wrapped across the seam. */
+  images: { x: number; y: number; w: number; h: number; scanId: string; crop: [number, number] | null }[]
   /** Something to click: true for items with a row behind them. */
   selectable: boolean
 }
@@ -110,6 +111,16 @@ export function buildRenderModel(d: Drawing): RenderModel {
           grow(s.cx - s.r, s.cy - s.r)
           grow(s.cx + s.r, s.cy + s.r)
           break
+        case 'arc': {
+          // In logical axes, so the arc turns counter-clockwise like CAD's (SVG sweep 1 = increasing angle).
+          const rad = Math.PI / 180
+          const [x0, y0, x1, y1] = [s.cx + s.r * Math.cos(s.a0 * rad), s.cy + s.r * Math.sin(s.a0 * rad), s.cx + s.r * Math.cos(s.a1 * rad), s.cy + s.r * Math.sin(s.a1 * rad)]
+          const large = (((s.a1 - s.a0) % 360) + 360) % 360 > 180 ? 1 : 0
+          path(s.layer, `M${n(x0)} ${n(y0)}A${n(s.r)} ${n(s.r)} 0 ${large} 1 ${n(x1)} ${n(y1)}`)
+          grow(s.cx - s.r, s.cy - s.r)
+          grow(s.cx + s.r, s.cy + s.r)
+          break
+        }
         case 'text': {
           const [x, y] = toSvg(o, s.x, s.y)
           texts.push({
@@ -120,7 +131,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
           break
         }
         case 'image':
-          images.push({ x: s.x, y: s.y, w: s.w, h: s.h, scanId: s.scanId })
+          images.push({ x: s.x, y: s.y, w: s.w, h: s.h, scanId: s.scanId, crop: s.from !== undefined && s.to !== undefined ? [s.from, s.to] : null })
           grow(s.x, s.y)
           grow(s.x + s.w, s.y + s.h)
           break

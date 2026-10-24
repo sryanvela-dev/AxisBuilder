@@ -20,6 +20,17 @@ export interface FitSize {
   stretched: 'width' | 'height' | 'none'
 }
 
+/**
+ * The part of a photo (pixel columns) used for one piece of a scan across the circumference seam: crop =
+ * fractions of the width from the scan's start, null = the whole photo. At least 1 px wide.
+ */
+export function cropSource(photoW: number, crop: readonly [number, number] | null): { x: number; width: number } {
+  if (!crop) return { x: 0, width: photoW }
+  const x = Math.min(photoW - 1, Math.max(0, Math.round(photoW * crop[0])))
+  const end = Math.min(photoW, Math.max(x + 1, Math.round(photoW * crop[1])))
+  return { x, width: end - x }
+}
+
 /** The Excel version's size for a scan (inches): w x 40 by h x 40 px, at least 100 px each way. */
 export function excelSize(scanW: number, scanH: number): { width: number; height: number } {
   return {

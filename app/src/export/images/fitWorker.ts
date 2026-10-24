@@ -1,7 +1,9 @@
 // Web Worker: decodes one photo, stretches it to its processed size (fit.ts) and returns a PNG.
 // Runs off the main thread so the screen stays responsive while ~150 photos are processed.
+// For a piece of a scan across the circumference seam, only that part of the photo's width is used
+// (cropSource), and the piece gets its own exact shape.
 
-import { fitSize } from './fit.ts'
+import { cropSource, fitSize } from './fit.ts'
 
 export interface FitRequest {
   id: number
@@ -9,6 +11,8 @@ export interface FitRequest {
   scanW: number
   scanH: number
   maxSide: number
+  /** Part of the photo's width to use (fractions), or null for all of it. */
+  crop: [number, number] | null
 }
 
 export type FitResponse =
@@ -18,16 +22,17 @@ export type FitResponse =
 const scope = self as unknown as { onmessage: ((e: MessageEvent<FitRequest>) => void) | null; postMessage: (m: FitResponse) => void }
 
 scope.onmessage = async (e) => {
-  const { id, photo, scanW, scanH, maxSide } = e.data
+  const { id, photo, scanW, scanH, maxSide, crop } = e.data
   try {
     const bitmap = await createImageBitmap(photo)
-    const size = fitSize(bitmap.width, bitmap.height, scanW, scanH, maxSide)
+    const src = cropSource(bitmap.width, crop)
+    const size = fitSize(src.width, bitmap.height, scanW, scanH, maxSide)
     const canvas = new OffscreenCanvas(size.width, size.height)
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('no drawing surface')
     ctx.imageSmoothingEnabled = true
     ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(bitmap, 0, 0, size.width, size.height)
+    ctx.drawImage(bitmap, src.x, 0, src.width, bitmap.height, 0, 0, size.width, size.height)
     bitmap.close()
     const blob = await canvas.convertToBlob({ type: 'image/png' })
     scope.postMessage({ id, ok: true, blob, width: size.width, height: size.height, capped: size.capped, raised: size.raised })

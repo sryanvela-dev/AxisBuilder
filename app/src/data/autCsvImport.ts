@@ -6,7 +6,10 @@
 // - Duplicate scan names (ignoring case and outer spaces), a missing column, a short row, or a blank
 //   or non-numeric coordinate stop the import: nothing is imported, as in v5.0.
 // Unlike v5.0 there is no 150-scan limit, every problem is listed (not only the first), and a scan
-// with no width or height keeps its row with the stop value left blank.
+// with no width or height keeps its row with the stop value left blank. With the circumference given, a scan
+// past it is read across the circumference seam (X = 0 and X = circumference are the same line): one running
+// past the seam is kept as it is (the drawing wraps it), one wholly past the seam is moved back by one
+// circumference. Both are listed in the report, never as problems.
 
 import { CURRENT_SCHEMA_VERSION, idKey, type Project, type Scan } from './schema.ts'
 
@@ -17,6 +20,8 @@ export type AutReportKind =
   | 'skipped'
   /** The row was imported but a value could not be used and was left blank. */
   | 'invalid'
+  /** The scan runs across the circumference seam (or was wholly past it and was moved back). */
+  | 'wrapped'
 
 export interface AutReportEntry {
   /** CSV line number (1 = header row); null for problems with the whole file. */
@@ -132,7 +137,8 @@ const COLUMNS = [
 const NUMBER_RE = /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/
 
 /** Imports AUT ScanSheet CSV bytes or text. Never throws for bad input; check `ok` and `report`. */
-export function importAutCsv(input: ArrayBuffer | Uint8Array | string): AutImportResult {
+export function importAutCsv(input: ArrayBuffer | Uint8Array | string, options: { circumference?: number | null } = {}): AutImportResult {
+  const C = options.circumference ?? null
   const text = typeof input === 'string' ? input.replace(/^﻿/, '') : decodeCsv(input)
   const report: AutReportEntry[] = []
   const block = (row: number | null, column: string, value: string, message: string) =>
@@ -233,6 +239,22 @@ export function importAutCsv(input: ArrayBuffer | Uint8Array | string): AutImpor
         values[b] = null
       }
     }
+    // Across the circumference seam (only when the circumference is known).
+    if (C !== null && C > 0 && values.xStart !== null && values.xStop !== null) {
+      const lo = Math.min(values.xStart, values.xStop)
+      const hi = Math.max(values.xStart, values.xStop)
+      const shift = lo >= C ? -C : hi <= 0 ? C : 0
+      const was = `${values.xStart} to ${values.xStop}`
+      if (shift !== 0) {
+        values.xStart += shift
+        values.xStop += shift
+        report.push({ row: rec.line, column: 'X-Start', value: was, kind: 'wrapped',
+          message: `Scan ${name} is wholly past the circumference seam; read as ${values.xStart} to ${values.xStop}.` })
+      } else if (lo < 0 || hi > C) {
+        report.push({ row: rec.line, column: 'X-Stop', value: was, kind: 'wrapped',
+          message: `Scan ${name} runs across the circumference seam; it is drawn in two pieces.` })
+      }
+    }
     scans.push({
       id: name,
       xStart: values.xStart,
@@ -240,6 +262,8 @@ export function importAutCsv(input: ArrayBuffer | Uint8Array | string): AutImpor
       yStart: values.yStart,
       yStop: values.yStop,
       include: true,
+      noWrap: false,
+      acrossSeam: false,
     })
   }
 

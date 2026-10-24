@@ -2,10 +2,11 @@
 // drawing is made (moved here unchanged from export/lsp/exportLsp.ts). Each function names the VBA
 // routine it follows; v5.0 quirks are kept on purpose (app/docs/phase2-notes.md).
 
-import { defaultProcessedName, processedImageNames } from '../data/imageMatch.ts'
+import { defaultProcessedName, pieceImageName, processedImageNames } from '../data/imageMatch.ts'
 import type { HeadMut, HeadNozzle, Project, Scan } from '../data/schema.ts'
 import { formatDate } from '../data/settings.ts'
 import { panelScales } from './styles.ts'
+import { circumference, isWrapped, scanPieces, scanXRange } from './wrap.ts'
 
 export const ucaseTrim = (s: string) => s.trim().toUpperCase()
 
@@ -276,9 +277,18 @@ export function titleLines(p: Project, v5: boolean): string[] {
 
 // --- Scans, coverage and images ----------------------------------------------------------------------
 
-/** Validation (Enable Validation) flips reversed scan coordinates before drawing. */
-export function drawnScans(p: Project): Scan[] {
+/**
+ * Validation (Enable Validation) flips reversed scan coordinates before drawing. In the app, a reversed scan
+ * marked "across the seam" is not flipped: it runs from X start to X stop + circumference (engine/wrap.ts).
+ */
+export function drawnScans(p: Project, v5 = false): Scan[] {
+  const C = circumference(p)
   return p.scans.map((sc) => {
+    if (!v5 && sc.xStart !== null && sc.xStop !== null && sc.xStart > sc.xStop && sc.acrossSeam && !sc.noWrap && C !== null) {
+      const out = { ...sc, xStop: scanXRange(sc, C).b }
+      if (p.settings.enableValidation && out.yStart! > out.yStop!) [out.yStart, out.yStop] = [out.yStop, out.yStart]
+      return out
+    }
     if (!p.settings.enableValidation) return sc
     const out = { ...sc }
     if (out.xStart! > out.xStop!) [out.xStart, out.xStop] = [out.xStop, out.xStart]
@@ -305,6 +315,10 @@ export function coveragePercent(p: Project, counted: Scan[]): number | null {
 
 export interface ImageInsert {
   scanId: string
+  /** For a scan wrapped across the seam: which piece (0 = A, where it starts; 1 = B). */
+  piece?: number
+  /** For a piece: the part of the photo it shows, as fractions of the photo width. */
+  crop?: [number, number]
   /** Processed image file name. */
   fileName: string
   x: number
@@ -327,6 +341,15 @@ export function imageInserts(p: Project, scans: Scan[], v5: boolean): ImageInser
     if (imageInclude.get(sc.id.toUpperCase()) === false) continue
     if (!v5 && !sc.include) continue
     const row = scans.find((x) => x.id.toUpperCase() === sc.id.toUpperCase())! // FindScanRow: first match
+    // A scan across the seam gets one image per piece, each the part of the photo for that piece.
+    const pieces = v5 ? [] : scanPieces(row, circumference(p))
+    if (isWrapped(pieces)) {
+      pieces.forEach((pc, piece) => out.push({
+        scanId: sc.id, piece, crop: [pc.from, pc.to], fileName: pieceImageName(appNames.get(sc.id)!, piece),
+        x: pc.x0, y: row.yStart!, w: pc.x1 - pc.x0, h: row.yStop! - row.yStart!,
+      }))
+      continue
+    }
     out.push({
       scanId: sc.id,
       fileName: v5 ? defaultProcessedName(sc.id) : appNames.get(sc.id)!, // change 3

@@ -10,7 +10,7 @@
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 
-export const CURRENT_SCHEMA_VERSION = 3
+export const CURRENT_SCHEMA_VERSION = 4
 
 /** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
 export function newJobId(): string {
@@ -34,6 +34,8 @@ const thickness = z.number().gte(0)
 const nozzleMinT = z.union([thickness, z.literal('TOL')]).nullable().default(null)
 const mutMinT = thickness.nullable().default(null)
 const include = z.boolean().default(true)
+/** Don't wrap across the circumference seam (X = 0 and X = circumference are the same line); default: wrap. */
+const noWrap = z.boolean().default(false)
 const notes = z.string().default('')
 
 export const LABEL_MODES = ['AUTO', 'INSIDE', 'OUTSIDE'] as const
@@ -95,6 +97,7 @@ export const shellNozzleSchema = z.strictObject({
   notes,
   include,
   labelMode,
+  noWrap,
 })
 
 export const objectSchema = z.strictObject({
@@ -108,6 +111,7 @@ export const objectSchema = z.strictObject({
   length: positiveSize,
   include,
   notes,
+  noWrap,
 })
 
 export const shellMutSchema = z.strictObject({
@@ -155,6 +159,12 @@ export const scanSchema = z.strictObject({
   yStart: position,
   yStop: position,
   include,
+  noWrap,
+  /**
+   * For X start greater than X stop: true = the scan runs from X start across the circumference seam to
+   * X stop. False = reversed: the drawing swaps start and stop (as the Excel version does) and a check asks.
+   */
+  acrossSeam: z.boolean().default(false),
 })
 
 export const scanImageSchema = z.strictObject({
@@ -183,14 +193,14 @@ export const LIST_META = {
     name: 'Shell nozzles', idField: 'id',
     fields: {
       id: 'Nozzle name', diameter: 'Diameter', x: 'X position', y: 'Y position', minT: 'Min. T',
-      notes: 'Notes', include: 'Include', labelMode: 'Label mode',
+      notes: 'Notes', include: 'Include', labelMode: 'Label mode', noWrap: "Don't wrap",
     },
   },
   objects: {
     name: 'Objects', idField: 'id',
     fields: {
       id: 'Object ID', x: 'X position', y: 'Y position', circWidth: 'Circ. width', length: 'Length',
-      include: 'Include', notes: 'Notes',
+      include: 'Include', notes: 'Notes', noWrap: "Don't wrap",
     },
   },
   shellMut: {
@@ -215,7 +225,10 @@ export const LIST_META = {
   },
   scans: {
     name: 'AUT scans', idField: 'id',
-    fields: { id: 'Scan name', xStart: 'X start', xStop: 'X stop', yStart: 'Y start', yStop: 'Y stop', include: 'Include' },
+    fields: {
+      id: 'Scan name', xStart: 'X start', xStop: 'X stop', yStart: 'Y start', yStop: 'Y stop', include: 'Include',
+      noWrap: "Don't wrap", acrossSeam: 'Across the seam',
+    },
   },
   scanImages: {
     name: 'Scan images', idField: 'scanId',

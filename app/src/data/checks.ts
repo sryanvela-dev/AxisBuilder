@@ -9,6 +9,8 @@
 import { formatNumber } from './parse.ts'
 import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, type ListKey, type Project } from './schema.ts'
 import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
+import { drawnScans } from '../engine/layout.ts'
+import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
 
 export type Severity = 'error' | 'warning'
 
@@ -19,6 +21,14 @@ export type CheckPlace =
   /** The photo of a scan (Images step); index is the scan's row. */
   | { kind: 'photo'; index: number; scanId: string }
 
+/** A one-click fix shown with a check: the values to put in the row (one undo step). */
+export interface CheckAction {
+  label: string
+  list: ListKey
+  index: number
+  changes: Record<string, unknown>
+}
+
 export interface Check {
   severity: Severity
   place: CheckPlace
@@ -28,6 +38,15 @@ export interface Check {
   fix: string
   /** True for the checks the exporter itself refuses on (missing value, repeated name). */
   exportRule?: boolean
+  /** One-click fixes (e.g. "Read 305 as 3 past the seam"). */
+  actions?: CheckAction[]
+}
+
+/** The project with a check's one-click fix applied. */
+export function applyCheckAction(p: Project, a: CheckAction): Project {
+  const items = p[a.list] as Record<string, unknown>[]
+  if (!items[a.index]) return p
+  return { ...p, [a.list]: items.map((item, i) => (i === a.index ? { ...item, ...a.changes } : item)) } as Project
 }
 
 const fieldName = (list: ListKey, key: string) => (LIST_META[list].fields as Record<string, string>)[key]
@@ -156,16 +175,21 @@ export function checkProject(p: Project): Check[] {
     outside('longSeams', i, 'startY', s.startY, len, lenName)
     outside('longSeams', i, 'stopY', s.stopY, len, lenName)
   })
+  const C = circumference(p)
+  const wraps = (item: { noWrap: boolean }) => C !== null && !item.noWrap
   p.shellNozzles.forEach((n, i) => {
     if (!n.include) return
-    outside('shellNozzles', i, 'x', n.x, circ, circName)
+    // Wrapping: a position past the seam is fine as typed (the row shows a note, engine/wrapNotes.ts).
+    if (!wraps(n)) outside('shellNozzles', i, 'x', n.x, circ, circName)
     outside('shellNozzles', i, 'y', n.y, len, lenName)
   })
   p.objects.forEach((o, i) => {
     if (!o.include) return
-    outside('objects', i, 'x', o.x, circ, circName)
+    if (wraps(o)) {
+      if (o.circWidth !== null && o.circWidth >= C!) widerThanShell(out, 'objects', i, 'circWidth', o.circWidth, C!, circName)
+    } else outside('objects', i, 'x', o.x, circ, circName)
     outside('objects', i, 'y', o.y, len, lenName)
-    if (o.x !== null && o.circWidth !== null && circ !== null && o.x >= 0 && o.x <= circ && o.x + o.circWidth > circ) {
+    if (!wraps(o) && o.x !== null && o.circWidth !== null && circ !== null && o.x >= 0 && o.x <= circ && o.x + o.circWidth > circ) {
       out.push({
         severity: 'warning', place: { kind: 'row', list: 'objects', index: i, field: 'circWidth' },
         text: `It reaches ${inches(o.x + o.circWidth)} around, past the ${circName} (${inches(circ)}).`, fix: 'Check the X position and the width.',
@@ -206,12 +230,22 @@ export function checkProject(p: Project): Check[] {
 
 type Outside = (list: ListKey, index: number, field: string, value: number | null, limit: number | null, limitName: string) => void
 
-/** AUT scans, following v5.0: reversed start/stop, outside the shell, overlaps (Overlap Detection). */
+function widerThanShell(out: Check[], list: ListKey, index: number, field: string, width: number, C: number, circName: string) {
+  out.push({
+    severity: 'warning', place: { kind: 'row', list, index, field },
+    text: `It is ${inches(width)} wide, as wide as the ${circName} (${inches(C)}) or wider, so it can't be wrapped across the seam.`,
+    fix: 'Check the positions.',
+  })
+}
+
+/** AUT scans, following v5.0: reversed start/stop, outside the shell, overlaps (Overlap Detection); plus the seam. */
 function checkScans(p: Project, out: Check[], outside: Outside, lenName: string, circName: string) {
   const flips = p.settings.enableValidation
   const checkName = SETTINGS.enableValidation.name
+  const C = circumference(p)
   p.scans.forEach((s, index) => {
     if (!s.include) return
+    const wraps = C !== null && !s.noWrap
     for (const [a, b, axis] of [['xStart', 'xStop', 'X'], ['yStart', 'yStop', 'Y']] as const) {
       const start = s[a]
       const stop = s[b]
@@ -224,6 +258,20 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
         continue
       }
       if (start === null || stop === null || start <= stop) continue
+      if (axis === 'X' && wraps) {
+        // Reversed, or across the seam? Don't guess: ask, and draw it as the Excel version does meanwhile.
+        if (s.acrossSeam) continue
+        out.push({
+          severity: 'warning', place: { kind: 'row', list: 'scans', index, field: a },
+          text: `X start (${inches(start)}) is more than X stop (${inches(stop)}).`,
+          fix: `Either start and stop are swapped, or the scan runs across the seam (from ${inches(start)} on to ${inches(stop)} past X = 0). ${flips ? 'Until you choose, the drawing swaps them.' : `"${checkName}" is off, so until you choose the drawing uses them as typed.`}`,
+          actions: [
+            { label: 'Swap start and stop', list: 'scans', index, changes: { xStart: stop, xStop: start } },
+            { label: 'Runs across the seam', list: 'scans', index, changes: { acrossSeam: true } },
+          ],
+        })
+        continue
+      }
       out.push({
         severity: 'warning', place: { kind: 'row', list: 'scans', index, field: a },
         text: `${axis} start (${inches(start)}) is more than ${axis} stop (${inches(stop)}).`,
@@ -232,27 +280,40 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
           : `"${checkName}" is off, so the drawing uses them as typed and the photo can land in the wrong place. Swap them.`,
       })
     }
+    if (wraps && s.xStart !== null && s.xStop !== null) {
+      // Past the seam is fine as typed (drawn in pieces, or where it lands: the row shows a note).
+      const { a, b } = scanXRange(s, C)
+      if (Math.abs(b - a) >= C!) widerThanShell(out, 'scans', index, 'xStop', Math.abs(b - a), C!, circName)
+    }
     for (const [f, limit, name] of [['xStart', p.vessel.height, circName], ['xStop', p.vessel.height, circName], ['yStart', p.vessel.length, lenName], ['yStop', p.vessel.length, lenName]] as const) {
+      if (wraps && (f === 'xStart' || f === 'xStop')) continue
       outside('scans', index, f, s[f], limit, name)
     }
   })
 
   const mode = p.settings.overlapDetection
   if (mode === 'OFF') return
+  // Each scan as drawn: in pieces when it runs across the seam, so overlaps across the seam count too.
+  const drawn = drawnScans(p)
   const rects = p.scans
     .map((s, index) => ({ s, index }))
     .filter(({ s }) => s.include && s.xStart !== null && s.xStop !== null && s.yStart !== null && s.yStop !== null)
-    .map(({ s, index }) => ({
-      id: s.id, index,
-      x0: Math.min(s.xStart!, s.xStop!), x1: Math.max(s.xStart!, s.xStop!),
-      y0: Math.min(s.yStart!, s.yStop!), y1: Math.max(s.yStart!, s.yStop!),
-    }))
+    .map(({ s, index }) => {
+      const d = drawn[index]
+      const pieces = d.xStart! <= d.xStop! ? scanPieces(d, C) : [{ x0: d.xStop!, x1: d.xStart!, from: 0, to: 1 }]
+      return {
+        id: s.id, index,
+        xs: pieces.map((pc) => [Math.min(pc.x0, pc.x1), Math.max(pc.x0, pc.x1)] as const),
+        y0: Math.min(s.yStart!, s.yStop!), y1: Math.max(s.yStart!, s.yStop!),
+      }
+    })
   const setting = SETTINGS.overlapDetection.name
   for (let j = 1; j < rects.length; j++) {
     for (let i = 0; i < j; i++) {
       const a = rects[i]
       const b = rects[j]
-      const w = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)
+      let w = 0
+      for (const [a0, a1] of a.xs) for (const [b0, b1] of b.xs) w += Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
       const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0)
       if (w <= 0 || h <= 0) continue
       out.push({

@@ -80,6 +80,29 @@ exactly as before (`test/export/appOutput.test.ts`, fingerprints of the app .lsp
 - Not done: a bigger head title or head nozzle text is not given more room; the legend and title splits (heading
   vs lines) were left out because TEXTRESIZE's legend reflow in CAD finds the summary lines on LEGEND_TEXT.
 
+## Wrapping across the seam (Phase 3f-2)
+
+X = 0 and X = circumference are the same line on the vessel. The preview draws every shell nozzle, object and scan
+that crosses it in pieces, exactly as the .lsp does (`engine/wrap.ts`): a rectangle as two pieces with the ID on the
+larger one (both scan pieces hatched), a nozzle as its arc inside plus the overhanging arc at the other edge (arc
+shapes, drawn counter-clockwise in logical axes). A wrapped scan's photo is shown in two parts, each the part of the
+photo for its piece (the same split as the processed _A / _B images). Hover text says "across the seam".
+
+## Section sheets (Phase 3f-2)
+
+While "Make section sheets" is on (Drawing step), the preview draws the plan (layer SECTION_PLAN, toggle "Sections"):
+each section across the whole circumference with its number, and dashes where the sheet's overlap ends. The Sheets
+button opens full size and flips through the sheets as they print (`ui/preview/SheetsView.tsx`): white paper, print
+colors (7 prints black), letter landscape, the template viewport area assumed to be 10 x 7.5 in. Everything on a sheet
+is `engine/sheets.ts` (`sheetPages`): the viewport placed as SECTIONPAGES does (68% of the width, the information panel
+on the right), SECTIONPAGES' paper rulers, reference labels and title/legend panel, "SECTION n OF N", match lines
+"MATCH LINE - SEE SECTION n", and on the overview a numbered box per section. Vertical layouts get vertical sheets (the
+length up the sheet, the circumference across; app only, CAD builds horizontal sheets). In CAD the real template
+viewport sets the scale, so it can differ a little from the preview.
+
+The divider on the preview's left edge (`PreviewSplitter.tsx`) makes the page or the preview wider (drag, or arrow
+keys); the width is remembered in the browser.
+
 ## Planned (not built yet)
 
 Better-looking nozzle leaders (they now have their own layers).

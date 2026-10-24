@@ -28,11 +28,16 @@ export function FindSetting() {
     // A setting that doesn't apply with the current choices: show the one that switches it on.
     let target = { section: hit.section as string, key: hit.key }
     let note: string | null = null
-    const when = hit.def.showWhen
-    if (when && !isFieldShown(hit.def, values)) {
-      const ctl = fieldDef(when.section, when.key)
-      target = { section: when.section, key: when.key }
-      note = `"${hit.def.name}" shows when ${ctl?.name ?? when.key} is ${when.values.join(' or ')}.`
+    if (!isFieldShown(hit.def, values)) {
+      // The first condition that is not met (a setting can depend on two, e.g. section sheets on and the split).
+      let when = hit.def.showWhen
+      while (when && when.values.includes(String((values[when.section] as Record<string, unknown>)[when.key]))) when = when.and
+      if (when) {
+        const ctl = fieldDef(when.section, when.key)
+        const shown = when.values.map((v) => (v === 'true' ? 'on' : v === 'false' ? 'off' : v)).join(' or ')
+        target = { section: when.section, key: when.key }
+        note = `"${hit.def.name}" shows when ${ctl?.name ?? when.key} is ${shown}.`
+      }
     }
     app.goToStep(STEP_OF_APP_STEP[hit.def.step])
     window.setTimeout(() => {

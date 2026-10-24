@@ -34,6 +34,15 @@ function calls(lsp: string, fn: string): string[][] {
     .map((l) => [...l.trim().slice(fn.length + 2, -1).matchAll(/"(?:[^"\\]|\\.)*"|\S+/g)].map((m) => m[0]))
 }
 
+/** Calls of any of the functions, in file order, with the function name first. */
+function callsOf(lsp: string, fns: string[]): string[][] {
+  return lsp
+    .split('\r\n')
+    .map((l) => fns.find((fn) => l.startsWith(`  (${fn} `)) && l)
+    .filter((l): l is string => typeof l === 'string')
+    .map((l) => [...l.trim().slice(1, -1).matchAll(/"(?:[^"\\]|\\.)*"|\S+/g)].map((m) => m[0]))
+}
+
 const N = (n: number) => LispNum(n)
 const shapes = (d: Drawing, prefix: string, t: Shape['t']) => d.items.filter((i) => i.key.startsWith(prefix)).flatMap((i) => i.shapes.filter((s) => s.t === t))
 
@@ -43,24 +52,31 @@ describe.each(jobs)('engine against the exported .lsp: %s', (job) => {
   const d = buildDrawing(p)
 
   it('scan and object rectangles', () => {
-    const lspScans = calls(lsp, 'SL_LabelRect').filter((c) => c[5] === '"SCANS"')
+    // Pieces across the seam: the labelled piece is SL_LabelRect, the other SL_WrapPiece (same order).
+    const rectCalls = (layer: string) => callsOf(lsp, ['SL_LabelRect', 'SL_WrapPiece']).filter((c) => c.includes(layer)).map((c) => c.slice(1, 5))
     const rects = shapes(d, 'scans:', 'rect') as Extract<Shape, { t: 'rect' }>[]
-    expect(rects.map((r) => [N(r.x), N(r.y), N(r.w), N(r.h)])).toEqual(lspScans.map((c) => c.slice(0, 4)))
-    const lspObjects = calls(lsp, 'SL_LabelRect').filter((c) => c[5] === '"SUPPORTS"')
-    expect((shapes(d, 'objects:', 'rect') as Extract<Shape, { t: 'rect' }>[]).map((r) => [N(r.x), N(r.y), N(r.w), N(r.h)])).toEqual(lspObjects.map((c) => c.slice(0, 4)))
+    expect(rects.map((r) => [N(r.x), N(r.y), N(r.w), N(r.h)])).toEqual(rectCalls('"SCANS"'))
+    expect((shapes(d, 'objects:', 'rect') as Extract<Shape, { t: 'rect' }>[]).map((r) => [N(r.x), N(r.y), N(r.w), N(r.h)])).toEqual(rectCalls('"SUPPORTS"'))
   })
 
   it('images, nozzles, MUT and welds', () => {
     const imgs = shapes(d, 'image:', 'image') as Extract<Shape, { t: 'image' }>[]
     expect(imgs.map((i) => [N(i.x), N(i.y), N(i.w), N(i.h)])).toEqual(calls(lsp, 'SL_InsertFitImage').map((c) => c.slice(0, 4)))
     // Nozzle circles and labels: the app writes the positions, so the preview matches them exactly.
+    // A nozzle across the seam is its arcs (SL_NozzleArcsAt); the main piece comes first.
     const nozzles = (prefix: string) =>
       d.items.filter((i) => i.key.startsWith(prefix)).map((i) => {
-        const c = i.shapes.find((s) => s.t === 'circle') as Extract<Shape, { t: 'circle' }>
+        const c = i.shapes.find((s) => s.t === 'circle' || s.t === 'arc') as Extract<Shape, { t: 'circle' }>
         const t = i.shapes.find((s) => s.t === 'text') as Extract<Shape, { t: 'text' }> | undefined
         return [N(c.cx), N(c.cy), N(c.r), ...(t ? [N(t.x), N(t.y)] : [])]
       })
-    const at = calls(lsp, 'SL_NozzleAt')
+    const at = callsOf(lsp, ['SL_NozzleAt', 'SL_NozzleArcsAt']).map((c) => {
+      if (c[0] === 'SL_NozzleAt') return c.slice(1)
+      // (SL_NozzleArcsAt (list (list cx cy r ...) ...) txt th tx ty leader layer textLayer)
+      const end = c.findIndex((t) => t.startsWith('"'))
+      const main = c.slice(3, 6)
+      return [...main.map((t) => t.replace(/\)+$/, '')), c[end], c[end + 1], c[end + 2], c[end + 3], ...c.slice(end + 4)]
+    })
     const pick = (layer: string) => at.filter((c) => c[c.length - 2] === layer).map((c) => (c[3] === '""' ? c.slice(0, 3) : [...c.slice(0, 3), c[5], c[6]]))
     expect(nozzles('shellNozzles:')).toEqual(pick('"NOZZLES"'))
     expect(nozzles('headNozzles:')).toEqual(pick('"HEADS"'))
@@ -148,8 +164,8 @@ describe('items for the preview', () => {
     const big: Project = {
       ...p,
       vessel: { ...p.vessel, length: 1500, height: 600 },
-      scans: Array.from({ length: 150 }, (_, i) => ({ id: `S${i + 1}`, xStart: (i % 25) * 24, xStop: (i % 25) * 24 + 24, yStart: Math.floor(i / 25) * 48, yStop: Math.floor(i / 25) * 48 + 48, include: true })),
-      shellNozzles: Array.from({ length: 60 }, (_, i) => ({ id: `N${i + 1}`, diameter: 4 + (i % 5), x: 10 + (i % 10) * 55, y: 400 + Math.floor(i / 10) * 150, minT: null, notes: '', include: true, labelMode: 'AUTO' as const })),
+      scans: Array.from({ length: 150 }, (_, i) => ({ id: `S${i + 1}`, xStart: (i % 25) * 24, xStop: (i % 25) * 24 + 24, yStart: Math.floor(i / 25) * 48, yStop: Math.floor(i / 25) * 48 + 48, include: true, noWrap: false, acrossSeam: false })),
+      shellNozzles: Array.from({ length: 60 }, (_, i) => ({ id: `N${i + 1}`, diameter: 4 + (i % 5), x: 10 + (i % 10) * 55, y: 400 + Math.floor(i / 10) * 150, minT: null, notes: '', include: true, labelMode: 'AUTO' as const, noWrap: false })),
     }
     const t = performance.now()
     const d = buildDrawing(big)

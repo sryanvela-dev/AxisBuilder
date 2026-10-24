@@ -12,7 +12,7 @@
 // worksheet cell, the matching project field is used (see app/docs/phase2-notes.md for the mapping
 // decisions). v5.0 quirks are kept on purpose and listed there too.
 
-import type { Project } from '../../data/schema.ts'
+import type { Project, Scan } from '../../data/schema.ts'
 import { findDuplicateIds, findMissingData } from '../../data/schema.ts'
 import {
   REFERENCE_POSITIONS,
@@ -32,7 +32,10 @@ import {
   ucaseTrim,
 } from '../../engine/layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
-import { patchLibraryLine, writeAppLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
+import { writeSectionSheets } from './sectionSheets.ts'
+import { activeSectionPlan } from '../../engine/sections.ts'
+import { patchLibraryLine, writeAppLibrary, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
+import { circumference, isWrapped, labelPieceIndex, nozzlePieces, objectPieces, scanPieces, type XPiece } from '../../engine/wrap.ts'
 import { appLayerSetup, panelScales, textSizeRules } from '../../engine/styles.ts'
 import {
   PrintVisualRulers,
@@ -114,6 +117,11 @@ function combinePath(folder: string, file: string): string {
 /** One SL_NozzleAt call (app output): circle, label and leader where engine/labels.ts placed them. */
 function nozzleAt(l: NozzleLabel, layer: string, textLayer: string): string {
   const leader = l.leader ? `(list ${l.leader.map(LispNum).join(' ')})` : 'nil'
+  if (l.arcs) {
+    // Change 19: across the seam, the circle's pieces (arcs) instead of the whole circle.
+    const pieces = l.arcs.map((a) => `(list ${[a.cx, a.cy, a.r, ...(a.arc ?? [])].map(LispNum).join(' ')})`).join(' ')
+    return `(SL_NozzleArcsAt (list ${pieces}) ${LispStr(l.txt)} ${LispNum(l.th)} ${LispNum(l.tx)} ${LispNum(l.ty)} ${leader} ${LispStr(layer)} ${LispStr(textLayer)})`
+  }
   return `(SL_NozzleAt ${LispNum(l.x)} ${LispNum(l.y)} ${LispNum(l.r)} ${LispStr(l.txt)} ${LispNum(l.th)} ${LispNum(l.tx)} ${LispNum(l.ty)} ${leader} ${LispStr(layer)} ${LispStr(textLayer)})`
 }
 
@@ -133,6 +141,28 @@ function printVesselReferenceLabels(w: (s: string) => void, p: Project, v5: bool
       w(`  (SL_Text ${posExpr[i]} ${yText} ${LispNum(ref.textH)} (SL_RulerTextRotX) ${LispStr(ref.labels[i])} ${v5 ? '"X_AXIS"' : '"REFERENCE_TEXT"'})`)
     }
   }
+}
+
+/**
+ * A scan or object in its pieces across the seam (change 19): the ID on the larger piece (SL_LabelRect), the
+ * other piece as SL_WrapPiece. avoid = also write SL_AddAvoidRect (objects, as before).
+ */
+function writePieces(w: (s: string) => void, pieces: XPiece[], y: string, h: string, id: string, layers: string, avoid: boolean) {
+  const big = labelPieceIndex(pieces)
+  pieces.forEach((pc, i) => {
+    const box = `${LispNum(pc.x0)} ${y} ${LispNum(pc.x1 - pc.x0)} ${h}`
+    w(i === big ? `  (SL_LabelRect ${box} ${LispStr(id)} ${layers})` : `  (SL_WrapPiece ${box} ${layers})`)
+    if (avoid) w(`  (SL_AddAvoidRect ${box})`)
+  })
+}
+
+/** True when a scan, object or shell nozzle the drawing includes crosses (or was typed past) the seam. */
+function anythingWraps(p: Project, scans: Scan[], C: number | null): boolean {
+  if (C === null) return false
+  const s = p.settings
+  if (scans.some((sc) => sc.include && isWrapped(scanPieces(sc, C)))) return true
+  if (s.showSupportsOnOverlay && p.objects.some((o) => o.include && o.x !== null && o.circWidth !== null && (isWrapped(objectPieces(o, C)) || objectPieces(o, C)[0].x0 !== o.x))) return true
+  return s.showNozzlesOnOverlay && p.shellNozzles.some((n) => n.include && n.x !== null && n.y !== null && n.diameter !== null && nozzlePieces(n, C).some((pc) => pc.arc !== null || pc.cx !== n.x))
 }
 
 // --- Exporter --------------------------------------------------------------------------------------
@@ -169,7 +199,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   }
 
   // Scans as drawn (reversed ones flipped), coverage and scan count (engine/layout.ts).
-  const scans = drawnScans(p)
+  const scans = drawnScans(p, v5)
   const counted = countedScans(p, scans, v5)
   const coverage = coveragePercent(p, counted)
   const coverageText = coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`
@@ -196,6 +226,14 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   WriteLispHeader(lib)
   WriteOverlayLispFunctions(lib)
   if (!v5) writeAppLibrary(w) // changes 8-10
+  // Change 19: helpers for items across the circumference seam, only when something wraps.
+  const C = v5 ? null : circumference(p)
+  const wraps = !v5 && anythingWraps(p, scans, C)
+  if (wraps) writeWrapLibrary(w)
+  // Change 20: section sheets planned in the app (only while Make section sheets is on). CAD builds the
+  // horizontal sheets only (as SECTIONPAGES); vertical sheets are the app's (preview now, PDF in Phase 4).
+  const plan = v5 || orientation === 'Vertical' ? null : activeSectionPlan(p)
+  if (plan && plan.sections.length > 0) writeSectionSheets(w, plan)
   const sizes = v5 ? new Map() : textSizeRules(s) // change 15: text sizes (only when one is changed)
   if (sizes.size > 0) {
     writeTextSizes(w, [...sizes].map(([layer, r]) =>
@@ -291,6 +329,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('  ;; Layout scan geometry is generated with the images so the drawing only needs to be built once.')
   for (const sc of scans) {
     if (!sc.include) continue
+    const pieces = wraps ? scanPieces(sc, C) : []
+    if (isWrapped(pieces)) {
+      writePieces(w, pieces, LispNum(sc.yStart!), LispNum(sc.yStop! - sc.yStart!), sc.id, '"SCANS" "AUT_HATCH"', false)
+      continue
+    }
     w(`  (SL_LabelRect ${LispNum(sc.xStart!)} ${LispNum(sc.yStart!)} ${LispNum(sc.xStop! - sc.xStart!)} ${LispNum(sc.yStop! - sc.yStart!)} ${LispStr(sc.id)} "SCANS" "AUT_HATCH")`)
   }
 
@@ -314,6 +357,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
     w('  ;; Supports / structures')
     for (const o of p.objects) {
       if (!o.include) continue
+      const pieces = wraps ? objectPieces(o, C) : []
+      if (isWrapped(pieces) || (pieces.length === 1 && pieces[0].x0 !== o.x)) {
+        writePieces(w, pieces, LispNum(o.y!), LispNum(o.length!), o.id, '"SUPPORTS" ""', true)
+        continue
+      }
       const box = `${LispNum(o.x!)} ${LispNum(o.y!)} ${LispNum(o.circWidth!)} ${LispNum(o.length!)}`
       w(`  (SL_LabelRect ${box} ${LispStr(o.id)} "SUPPORTS" "")`)
       w(`  (SL_AddAvoidRect ${box})`)

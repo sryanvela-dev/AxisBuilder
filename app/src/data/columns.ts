@@ -17,6 +17,7 @@ import {
   shellNozzleSchema,
   type ListKey,
   type Project,
+  type Scan,
 } from './schema.ts'
 import {
   parseClock,
@@ -41,12 +42,15 @@ export interface ColumnSpec {
   key: string
   kind: ColumnKind
   units?: string
+  /** Shown only with "Show advanced columns" (e.g. Don't wrap). */
+  advanced?: boolean
 }
 
 const c = (key: string, kind: ColumnKind): ColumnSpec => {
   const units = kind === 'length' || kind === 'thickness' || kind === 'nozzleMinT' ? 'in' : kind === 'percent' ? '%' : undefined
   return units ? { key, kind, units } : { key, kind }
 }
+const advanced = (spec: ColumnSpec): ColumnSpec => ({ ...spec, advanced: true })
 
 /** Table columns per list, in the order shown (the order of the v5.0 sheets). */
 export const TABLE_COLUMNS: Record<TableListKey, ColumnSpec[]> = {
@@ -54,11 +58,11 @@ export const TABLE_COLUMNS: Record<TableListKey, ColumnSpec[]> = {
   longSeams: [c('id', 'id'), c('x', 'length'), c('startY', 'length'), c('stopY', 'length'), c('include', 'yesNo'), c('showLabel', 'yesNo')],
   shellNozzles: [
     c('id', 'id'), c('diameter', 'length'), c('x', 'length'), c('y', 'length'), c('minT', 'nozzleMinT'),
-    c('notes', 'text'), c('include', 'yesNo'), c('labelMode', 'labelMode'),
+    c('notes', 'text'), c('include', 'yesNo'), c('labelMode', 'labelMode'), advanced(c('noWrap', 'yesNo')),
   ],
   objects: [
     c('id', 'id'), c('x', 'length'), c('y', 'length'), c('circWidth', 'length'), c('length', 'length'),
-    c('include', 'yesNo'), c('notes', 'text'),
+    c('include', 'yesNo'), c('notes', 'text'), advanced(c('noWrap', 'yesNo')),
   ],
   shellMut: [c('id', 'id'), c('x', 'length'), c('y', 'length'), c('minT', 'thickness'), c('notes', 'text')],
   headNozzles: [
@@ -70,7 +74,10 @@ export const TABLE_COLUMNS: Record<TableListKey, ColumnSpec[]> = {
     c('head', 'head'), c('id', 'id'), c('clock', 'clock'), c('radiusPosition', 'radius'), c('customRadiusPercent', 'percent'),
     c('minT', 'thickness'), c('labelMode', 'labelMode'), c('include', 'yesNo'), c('notes', 'text'),
   ],
-  scans: [c('id', 'id'), c('xStart', 'length'), c('xStop', 'length'), c('yStart', 'length'), c('yStop', 'length'), c('include', 'yesNo')],
+  scans: [
+    c('id', 'id'), c('xStart', 'length'), c('xStop', 'length'), c('yStart', 'length'), c('yStop', 'length'), c('include', 'yesNo'),
+    advanced(c('noWrap', 'yesNo')), advanced(c('acrossSeam', 'yesNo')),
+  ],
 }
 
 export const ITEM_SCHEMAS: Record<TableListKey, z.ZodType> = {
@@ -225,21 +232,24 @@ export function syncScanImages(prev: Project, next: Project): Project {
   return links.length === next.scanImages.length && links.every((l, i) => l === next.scanImages[i]) ? next : { ...next, scanImages: links }
 }
 
-/** Scans with a start larger than its stop (in X or Y). */
+/** X start larger than X stop, on a scan not marked as running across the seam. */
+const reversedX = (s: Scan) => s.xStart !== null && s.xStop !== null && s.xStart > s.xStop && !s.acrossSeam
+
+/** Scans with a start larger than its stop (in X or Y); a scan across the seam doesn't count for X. */
 export function reversedScans(p: Project): string[] {
   return p.scans
-    .filter((s) => (s.xStart !== null && s.xStop !== null && s.xStart > s.xStop) || (s.yStart !== null && s.yStop !== null && s.yStart > s.yStop))
+    .filter((s) => reversedX(s) || (s.yStart !== null && s.yStop !== null && s.yStart > s.yStop))
     .map((s) => s.id)
 }
 
-/** Swaps every reversed start/stop so each start is the smaller value. */
+/** Swaps every reversed start/stop so each start is the smaller value (not X of scans across the seam). */
 export function swapReversedScans(p: Project): Project {
   if (reversedScans(p).length === 0) return p
   return {
     ...p,
     scans: p.scans.map((s) => {
       let out = s
-      if (s.xStart !== null && s.xStop !== null && s.xStart > s.xStop) out = { ...out, xStart: s.xStop, xStop: s.xStart }
+      if (reversedX(s)) out = { ...out, xStart: s.xStop, xStop: s.xStart }
       if (s.yStart !== null && s.yStop !== null && s.yStart > s.yStop) out = { ...out, yStart: s.yStop, yStop: s.yStart }
       return out
     }),

@@ -63,7 +63,7 @@ describe('current layout (40 nozzle rows)', () => {
     expect(p.shellNozzles[2]).toMatchObject({ include: false, labelMode: 'OUTSIDE', minT: 0.25 })
     expect(p.shellNozzles[3]).toMatchObject({ diameter: null, labelMode: 'AUTO' })
     expect(p.shellNozzles[4].y).toBe(80) // highlighted but valid: kept
-    expect(p.objects[0]).toEqual({ id: 'SADDLE 1', x: 140, y: 30, circWidth: 40, length: 12, include: true, notes: 'Support' })
+    expect(p.objects[0]).toEqual({ id: 'SADDLE 1', x: 140, y: 30, circWidth: 40, length: 12, include: true, notes: 'Support', noWrap: false })
     expect(p.objects[1].include).toBe(true) // "MAYBE" read as blank
     expect(p.shellMut.map((m) => [m.id, m.minT])).toEqual([['M1', 0.512], ['M2', null], ['M3', null]])
   })
@@ -88,10 +88,10 @@ describe('current layout (40 nozzle rows)', () => {
 
   it('reads scan inputs only and links scan images', () => {
     expect(p.scans).toEqual([
-      { id: 'SCAN1', xStart: 0, xStop: 30, yStart: 0, yStop: 24, include: true },
-      { id: 'SCAN2', xStart: 60, xStop: 30, yStart: 24, yStop: 48, include: false },
-      { id: 'SCAN3', xStart: 10, xStop: null, yStart: 0, yStop: 5, include: true },
-      { id: 'scan1 (2)', xStart: 90, xStop: 120, yStart: 0, yStop: 24, include: true },
+      { id: 'SCAN1', xStart: 0, xStop: 30, yStart: 0, yStop: 24, include: true, noWrap: false, acrossSeam: false },
+      { id: 'SCAN2', xStart: 60, xStop: 30, yStart: 24, yStop: 48, include: false, noWrap: false, acrossSeam: false },
+      { id: 'SCAN3', xStart: 10, xStop: null, yStart: 0, yStop: 5, include: true, noWrap: false, acrossSeam: false },
+      { id: 'scan1 (2)', xStart: 90, xStop: 120, yStart: 0, yStop: 24, include: true, noWrap: false, acrossSeam: false },
     ])
     expect(p.scanImages).toEqual([
       { scanId: 'SCAN1', imageFile: 'S1.png', processedImage: '', include: true },

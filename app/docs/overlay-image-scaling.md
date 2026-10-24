@@ -95,6 +95,17 @@ at 3000. 4096 stays the default; 3000 or 2048 save a little memory if CAD feels 
   or out of date (photo or scan size changed since it was made) into the same job folder. Images that are up to
   date are left as they are. The same safety rules apply (marker file, ask before replacing, stop on another job).
 
+### Scans across the circumference seam (Phase 3f-2)
+
+A scan that runs across X = 0 / X = circumference is drawn as two pieces, one at each edge (`engine/wrap.ts`). Its
+photo is split the same way: the photo's width is cut in proportion to the two pieces (piece A is where the scan
+starts, from its X start up to the seam; piece B carries on from X = 0), and each part becomes its own processed
+image, `SCAN_5_FIT_A.png` and `SCAN_5_FIT_B.png` (`pieceImageName`). Each part gets its piece's exact width:height
+and the same rules as a whole scan (keep the photo's detail, size cap, never smaller than v5.0's 40 px per inch of
+the piece). The .lsp inserts both, each at its piece's position and width, with the same SL_InsertFitImage call.
+In the worker: `cropSource` picks the pixel columns, then `fitSize` sizes the part. Example: 290 to 310 on a 302 in
+shell, a 2000 px wide photo: A = columns 0-1199 for 12 in, B = columns 1200-1999 for 8 in.
+
 ## Verification before it replaces the v5.0 way
 
 - Automatic test: every processed image has exactly its scan's width:height (to the pixel). Done:

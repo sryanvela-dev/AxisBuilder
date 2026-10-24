@@ -5,6 +5,8 @@ import { useState, type DragEvent } from 'react'
 import { importAutCsv, replaceScans } from '../data/autCsvImport.ts'
 import { reversedScans, swapReversedScans, syncScanImages } from '../data/columns.ts'
 import { formatNumber } from '../data/parse.ts'
+import type { Scan } from '../data/schema.ts'
+import { circumference, scanXRange } from '../engine/wrap.ts'
 import { pickWithInput } from '../state/projectFiles.ts'
 import type { StepStatus } from '../state/steps.ts'
 import { plural } from '../state/steps.ts'
@@ -20,8 +22,17 @@ import { useJobFolders } from './foldersContext.ts'
 type StepProps = { status: StepStatus }
 
 const size = (a: number | null, b: number | null) => (a === null || b === null ? '–' : formatNumber(Math.abs(b - a)))
-const SCAN_SIZES: DerivedColumn[] = [
-  { title: 'Width (in)', value: (s) => size(s.xStart as number | null, s.xStop as number | null) },
+/** Width and height columns; a scan marked across the seam runs from X start on past X = 0 to X stop. */
+const scanSizes = (C: number | null): DerivedColumn[] => [
+  {
+    title: 'Width (in)',
+    value: (s) => {
+      const sc = s as unknown as Scan
+      if (sc.xStart === null || sc.xStop === null) return size(sc.xStart, sc.xStop)
+      const { a, b } = scanXRange(sc, C)
+      return size(a, b)
+    },
+  },
   { title: 'Height (in)', value: (s) => size(s.yStart as number | null, s.yStop as number | null) },
 ]
 
@@ -43,7 +54,7 @@ export function ScansStep({ status }: StepProps) {
       })
       return
     }
-    const result = importAutCsv(await file.arrayBuffer())
+    const result = importAutCsv(await file.arrayBuffer(), { circumference: p.vessel.height })
     app.dispatch({ type: 'setAutImport', fileName: file.name, result })
     if (!result.ok) return
     if (p.scans.length > 0) {
@@ -134,7 +145,7 @@ export function ScansStep({ status }: StepProps) {
             </button>
           </div>
         )}
-        <DataTable list="scans" step="scans" derived={SCAN_SIZES} afterEdit={syncScanImages} />
+        <DataTable list="scans" step="scans" derived={scanSizes(circumference(p))} afterEdit={syncScanImages} />
       </section>
       <SettingsGroup group="scans" step="scans" />
       <ImportReportPart step="scans" />

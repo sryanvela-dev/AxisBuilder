@@ -345,3 +345,40 @@ function writeTextResize(w: (line: string) => void): void {
   w(')')
   w('')
 }
+
+/**
+ * Items across the circumference seam (change 19): the unlabelled piece of a scan or object, and a nozzle
+ * drawn as its arcs (one inside each edge). Written only when something wraps. NOZZLEWRAP only splits whole
+ * circles centered on an edge and OBJECTWRAP only rectangles that cross an edge, so neither changes what
+ * the app drew; both stay for drawings changed by hand.
+ */
+export function writeWrapLibrary(w: (line: string) => void): void {
+  w(';; Items across the circumference seam (X = 0 and X = circumference are the same line), drawn in pieces by the app.')
+  w('(defun SL_WrapPiece (x y w h outlineLayer hatchLayer)')
+  w('  (SL_Rect x y w h outlineLayer)')
+  w('  (if (and (/= hatchLayer "") (= SL_HATCH_ENABLED "YES"))')
+  w('    (SL_HatchRect x y w h hatchLayer)')
+  w('  )')
+  w(')')
+  w('')
+  w(';; Arc from a0 to a1 degrees (counter-clockwise, logical axes), turned with the drawing.')
+  w('(defun SL_ArcAt (cx cy r a0 a1 layer / c)')
+  w('  (setq c (list (SL_tf_x cx cy) (SL_tf_y cx cy) 0.0))')
+  w('  (entmakex (list (cons 0 "ARC") (cons 8 layer) (cons 10 c) (cons 40 r)')
+  w('    (cons 50 (* pi (/ (SL_rot a0) 180.0))) (cons 51 (* pi (/ (SL_rot a1) 180.0)))))')
+  w(')')
+  w('')
+  w(';; A nozzle across the seam: pieces = list of (cx cy r a0 a1) arcs or (cx cy r) whole circles; label as SL_NozzleAt.')
+  w('(defun SL_NozzleArcsAt (pieces txt th tx ty leader layer textLayer)')
+  w('  (SL_SetLayer layer)')
+  w('  (foreach pc pieces')
+  w('    (if (= (length pc) 5)')
+  w('      (SL_ArcAt (nth 0 pc) (nth 1 pc) (nth 2 pc) (nth 3 pc) (nth 4 pc) layer)')
+  w('      (command "CIRCLE" (SL_pt (SL_tf_x (nth 0 pc) (nth 1 pc)) (SL_tf_y (nth 0 pc) (nth 1 pc))) (rtos (nth 2 pc) 2 3))')
+  w('    )')
+  w('  )')
+  w('  (if leader (SL_Line (nth 0 leader) (nth 1 leader) (nth 2 leader) (nth 3 leader) (SL_LeaderLayer layer)))')
+  w('  (if (/= txt "") (SL_Text tx ty th (SL_ReadableRot) txt textLayer))')
+  w(')')
+  w('')
+}

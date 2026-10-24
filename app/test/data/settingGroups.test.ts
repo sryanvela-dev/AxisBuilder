@@ -5,6 +5,7 @@ import { reportTargets } from '../../src/data/reportTargets.ts'
 import { createEmptyProject } from '../../src/data/projectFile.ts'
 import { FIELD_TABLES, SETTING_GROUPS, groupFields, isFieldShown, type FieldDef, type SectionValues } from '../../src/data/settings.ts'
 import { importWorkbook } from '../../src/data/xlsmImport.ts'
+import { sampleProject } from '../../src/ui/sampleJob.ts'
 
 const allFields = FIELD_TABLES.flatMap((t) => Object.entries(t.fields as Record<string, FieldDef>).map(([key, def]) => ({ section: t.section, key, def })))
 
@@ -39,13 +40,29 @@ describe('setting groups', () => {
     expect(groupFields('heads').map((f) => `${f.section}.${f.key}`)).toEqual(['settings.headViewMode', 'settings.head1Label', 'settings.head2Label'])
   })
 
-  it('a showWhen condition names a real choice setting and one of its choices', () => {
+  it('a showWhen condition names a real choice (or yes/no) setting and one of its values', () => {
     for (const f of allFields.filter((x) => x.def.showWhen)) {
-      const w = f.def.showWhen!
-      const target = allFields.find((x) => x.section === w.section && x.key === w.key)?.def
-      expect(target?.type, `${f.key} -> ${w.key}`).toBe('choice')
-      for (const v of w.values) expect(target!.type === 'choice' && (target!.choices as readonly string[]).includes(v), `${f.key}: ${v}`).toBe(true)
+      for (let w = f.def.showWhen; w; w = w.and) {
+        const target = allFields.find((x) => x.section === w!.section && x.key === w!.key)?.def
+        expect(['choice', 'yesNo'], `${f.key} -> ${w.key}`).toContain(target?.type)
+        const values = target!.type === 'choice' ? (target!.choices as readonly string[]) : ['true', 'false']
+        for (const v of w.values) expect(values, `${f.key}: ${v}`).toContain(v)
+      }
     }
+  })
+
+  it('section settings show only while section sheets are on', () => {
+    const p = sampleProject()
+    const values = (s: Partial<typeof p.settings>) => ({ project: p.project, vessel: p.vessel, settings: { ...p.settings, ...s } })
+    const shown = (s: Partial<typeof p.settings>) => groupFields('sections').filter((f) => isFieldShown(f.def, values(s))).map((f) => f.key)
+    expect(shown({})).toEqual(['makeSectionSheets'])
+    expect(shown({ makeSectionSheets: true })).toEqual([
+      'makeSectionSheets', 'sectionSplit', 'sectionMinLabel', 'sectionSnap', 'sectionOverlap', 'sectionMatchLines', 'sectionOverview',
+      'sectionSkipEmpty', 'sectionNumberInTitle', 'sectionRulerTextScale',
+    ])
+    expect(shown({ makeSectionSheets: true, sectionSplit: 'Manual' })).toContain('sectionRanges')
+    expect(shown({ makeSectionSheets: true, sectionSplit: 'Manual' })).not.toContain('sectionSnap')
+    expect(shown({ makeSectionSheets: true, sectionSplit: 'Number of sections' })).toContain('sectionCount')
   })
 })
 

@@ -30,7 +30,7 @@ describe('app changes 2026-10-23', () => {
     // Right of the circle: x + r + leader (4) + half the text width.
     expect(n2.tx).toBeCloseTo(20 + 2 + 4 + (2 * 1.6 * 0.6) / 2)
     // Put an object right of N2: the label moves to the next free spot (upper right).
-    const blocked: Project = { ...p, objects: [{ id: 'B', x: 22, y: 146, circWidth: 10, length: 8, include: true, notes: '' }] }
+    const blocked: Project = { ...p, objects: [{ id: 'B', x: 22, y: 146, circWidth: 10, length: 8, include: true, notes: '', noWrap: false }] }
     const moved = shellNozzleLabels(blocked, drawnScans(blocked)).get(1)!
     expect([moved.tx, moved.ty]).toEqual([n2.tx, 150 + 2 + 4])
   })

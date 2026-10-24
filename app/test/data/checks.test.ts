@@ -84,11 +84,23 @@ describe('checks', () => {
       shellMut: [{ ...p.shellMut[0], y: 300 }],
     })
     expect(errors(cs)).toEqual([])
+    // X past the seam is fine as typed (the row shows a note, wrapNotes.test); the object across the seam too.
     expect(warnings(cs).map((c) => c.text)).toEqual([
       'Y position (250 in) is past the shell length (240 in).',
+      'Y position (300 in) is past the shell length (240 in).',
+    ])
+  })
+
+  it("items with Don't wrap keep the Excel version's outside-the-shell checks", () => {
+    const p = sampleProject()
+    const cs = checkFields({
+      ...p,
+      shellNozzles: [{ ...p.shellNozzles[0], x: -2, noWrap: true }],
+      objects: [{ ...p.objects[0], x: 150, circWidth: 60, noWrap: true }],
+    })
+    expect(warnings(cs).map((c) => c.text)).toEqual([
       'X position (-2 in) is below 0, outside the shell.',
       'It reaches 210 in around, past the circumference (188.5 in).',
-      'Y position (300 in) is past the shell length (240 in).',
     ])
   })
 

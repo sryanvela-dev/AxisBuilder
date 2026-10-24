@@ -326,7 +326,7 @@ describe('migration hook', () => {
   it('format 1 files get a job ID; a format 2 file keeps its own', () => {
     const v1 = expectOk(openProject(JSON.stringify({ schemaVersion: 1, project: { projectName: 'Old' } })))
     expect(v1.migratedFrom).toBe(1)
-    expect(v1.project.schemaVersion).toBe(3)
+    expect(v1.project.schemaVersion).toBe(4)
     expect(v1.project.jobId).toMatch(/^[0-9a-f-]{36}$/)
     expect(v1.project.project.projectName).toBe('Old')
     const again = expectOk(openProject(saveProject(v1.project)))

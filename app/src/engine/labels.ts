@@ -10,6 +10,7 @@
 import type { Project, Scan } from '../data/schema.ts'
 import { clockPositionDegrees, imageInserts, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
+import { arcBox, circumference, nozzlePieces, type ArcPiece } from './wrap.ts'
 import { headVector, readableRot, type Orientation } from './transform.ts'
 
 export type Box = [number, number, number, number]
@@ -27,6 +28,11 @@ export interface NozzleLabel {
   ty: number
   /** Leader line from the circle to the label, or null when the label is inside. */
   leader: [number, number, number, number] | null
+  /**
+   * A nozzle across the circumference seam: its pieces (the main one first, then the overhang at the other
+   * edge), drawn instead of the whole circle. x, y is then the main piece's center (engine/wrap.ts).
+   */
+  arcs?: ArcPiece[]
 }
 
 /** SL_BBox: approximate text box. */
@@ -58,37 +64,54 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const L = p.vessel.length
   const lr = readableRot(o)
   const rules = textSizeRules(s)
+  const C = circumference(p)
   p.shellNozzles.forEach((n, index) => {
     if (!n.include || n.x === null || n.y === null || n.diameter === null) return
-    const { x, y, diameter: dia, id: txt } = n
+    const { y, diameter: dia, id: txt } = n
     const r = dia / 2
+    // Across the seam: the label goes with the main piece; every piece keeps other labels away.
+    const pieces = nozzlePieces(n, C)
+    const x = pieces[0].cx
+    const wrapped = pieces.length > 1 || pieces[0].arc !== null
     const mode = n.labelMode.toUpperCase() || 'AUTO'
     const th = Math.max(1.6, Math.min(2.4, dia * 0.22))
     const sh = sizedHeight(rules, 'SHELL_NOZZLE_TEXT', th)
     const tw = Math.max(1, txt.length) * sh * 0.6
-    const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < dia * 0.75
+    // Across the seam (user rule, 2026-10-23): split about in half (center within a quarter radius of the edge)
+    // always gets a leader; a partial split keeps the label inside the larger part when it fits there.
+    const v0 = Math.max(0, x - r)
+    const v1 = C === null ? x + r : Math.min(C, x + r)
+    const halfSplit = wrapped && C !== null && Math.min(x, C - x) < r * 0.25
+    const room = wrapped ? v1 - v0 : dia
+    const insideOK = dia >= s.minNozzleInsideLabelDiameter && tw < room * 0.75
     let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK) || !s.smartNozzleLabels
     if (mode === 'INSIDE') outside = false
-    let label: NozzleLabel = { x, y, r, txt, th, tx: x, ty: y, leader: null }
-    if (txt !== '' && outside) {
+    if (halfSplit) outside = true
+    const inX = wrapped ? (v0 + v1) / 2 : x
+    const arcs = wrapped ? { arcs: pieces } : {}
+    let label: NozzleLabel = { x, y, r, txt, th, tx: inX, ty: y, leader: null, ...arcs }
+    /** SL_CircleSmart's eight spots around the circle centered at cx; across the seam only leaders from the drawn part (a0..a1). */
+    const placeOutside = (cx: number, a0: number, a1: number): { tx: number; ty: number; leader: [number, number, number, number] } => {
       const ld = s.nozzleLeaderLength
       const candidates: [number, number, number, number][] = [
-        [x + r + ld + tw / 2, y, x + r, y],
-        [x + r + ld + tw / 2, y + r + ld, x + r, y + r],
-        [x + r + ld + tw / 2, y - r - ld, x + r, y - r],
-        [x - r - ld - tw / 2, y, x - r, y],
-        [x - r - ld - tw / 2, y + r + ld, x - r, y + r],
-        [x - r - ld - tw / 2, y - r - ld, x - r, y - r],
-        [x, y + r + ld + tw / 2, x, y + r],
-        [x, y - r - ld - tw / 2, x, y - r],
+        [cx + r + ld + tw / 2, y, cx + r, y],
+        [cx + r + ld + tw / 2, y + r + ld, cx + r, y + r],
+        [cx + r + ld + tw / 2, y - r - ld, cx + r, y - r],
+        [cx - r - ld - tw / 2, y, cx - r, y],
+        [cx - r - ld - tw / 2, y + r + ld, cx - r, y + r],
+        [cx - r - ld - tw / 2, y - r - ld, cx - r, y - r],
+        [cx, y + r + ld + tw / 2, cx, y + r],
+        [cx, y - r - ld - tw / 2, cx, y - r],
       ]
       const clear = (bb: Box) => !(bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L) && !avoid.some((a) => overlap(bb, a))
-      const found = candidates.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? candidates[0]
-      label = { x, y, r, txt, th, tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]] }
+      const usable = wrapped ? candidates.filter((c) => c[2] >= a0 - 1e-6 && c[2] <= a1 + 1e-6) : candidates
+      const found = usable.find((c) => clear(textBox(c[0], c[1], tw, sh, lr))) ?? usable[0] ?? candidates[0]
       avoid.push(textBox(found[0], found[1], tw, sh, lr))
+      return { tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]] }
     }
+    if (txt !== '' && outside) label = { x, y, r, txt, th, ...placeOutside(x, v0, v1), ...arcs }
     out.set(index, label)
-    avoid.push([x - r, y - r, x + r, y + r])
+    for (const pc of pieces) avoid.push(arcBox(pc))
   })
   return out
 }

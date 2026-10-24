@@ -4,7 +4,7 @@ import type { FitResult } from './process.ts'
 import type { FitRequest, FitResponse } from './fitWorker.ts'
 
 export interface Fitter {
-  fit: (photo: Blob, scanW: number, scanH: number, maxSide: number) => Promise<FitResult>
+  fit: (photo: Blob, scanW: number, scanH: number, maxSide: number, crop?: [number, number]) => Promise<FitResult>
   close: () => void
 }
 
@@ -24,11 +24,11 @@ export function createFitter(): Fitter {
     waiting.clear()
   }
   return {
-    fit: (photo, scanW, scanH, maxSide) =>
+    fit: (photo, scanW, scanH, maxSide, crop) =>
       new Promise((resolve, reject) => {
         const id = next++
         waiting.set(id, { resolve, reject })
-        const req: FitRequest = { id, photo, scanW, scanH, maxSide }
+        const req: FitRequest = { id, photo, scanW, scanH, maxSide, crop: crop ?? null }
         worker.postMessage(req)
       }),
     close: () => worker.terminate(),

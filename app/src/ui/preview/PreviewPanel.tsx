@@ -12,6 +12,9 @@ import { jumpTo } from '../placeIds.ts'
 import { itemKey, useSelection } from '../selectionContext.ts'
 import { DrawingView, type DrawingViewHandle, type Highlight } from './DrawingView.tsx'
 import { buildRenderModel } from './renderModel.ts'
+import { SheetsView } from './SheetsView.tsx'
+import { PreviewSplitter } from './PreviewSplitter.tsx'
+import { activeSectionPlan, sectionPlanItems } from '../../engine/sections.ts'
 import { usePhotoThumbs } from './usePhotoThumbs.ts'
 
 const STORE_KEY = 'axisbuilder:preview'
@@ -50,7 +53,14 @@ export function PreviewPanel() {
   const view = useRef<DrawingViewHandle>(null)
   // Typing stays smooth on big jobs: the drawing catches up right after the keystroke.
   const project = useDeferredValue(job.history.present)
-  const model = useMemo(() => buildRenderModel(buildDrawing(project)), [project])
+  // The section sheet plan is drawn only while section sheets are on (engine/sections.ts).
+  const plan = useMemo(() => activeSectionPlan(project), [project])
+  const model = useMemo(() => {
+    const d = buildDrawing(project)
+    return buildRenderModel(plan ? { ...d, items: [...d.items, ...sectionPlanItems(project, plan)] } : d)
+  }, [project, plan])
+  const [sheets, setSheets] = useState(false)
+  const showSheets = sheets && plan !== null
   const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
 
@@ -97,6 +107,7 @@ export function PreviewPanel() {
   const vesselMissing = project.vessel.length === null || project.vessel.height === null
   return (
     <aside className={`preview${full ? ' preview-full' : ''}`} aria-label="Drawing preview">
+      {!full && <PreviewSplitter />}
       <div className="preview-head">
         <strong>Drawing preview</strong>
         <span className="muted">{project.vessel.orientation}</span>
@@ -107,9 +118,19 @@ export function PreviewPanel() {
           <button type="button" className="icon-btn" onClick={() => view.current?.zoom(1 / 1.4)} aria-label="Zoom out" title="Zoom out">
             −
           </button>
-          <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing">
+          <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing" disabled={showSheets}>
             Fit
           </button>
+          {plan && (
+            <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => {
+                // The sheets open full size, so they are big enough to read; closing full size keeps them.
+                if (!showSheets) setFull(true)
+                setSheets(!showSheets)
+              }} aria-pressed={showSheets}
+              title="Flip through the section sheets as they will print">
+              {showSheets ? 'Drawing' : 'Sheets'}
+            </button>
+          )}
           <button type="button" className="btn btn-small" onClick={() => setFull(!full)}>
             {full ? 'Close full size' : 'Full size'}
           </button>
@@ -121,7 +142,7 @@ export function PreviewPanel() {
         </span>
       </div>
       <div className="layer-toggles" role="group" aria-label="Layers">
-        {LAYER_GROUPS.map((g) => (
+        {LAYER_GROUPS.filter((g) => g.id !== 'sections' || plan).map((g) => (
           <label key={g.id} className={`layer-chip${hidden.has(g.id) ? ' off' : ''}`}>
             <input type="checkbox" checked={!hidden.has(g.id)} onChange={() => toggle(g.id)} />
             {g.id === 'images' ? 'Photos' : g.name}
@@ -129,6 +150,9 @@ export function PreviewPanel() {
         ))}
       </div>
       <div className="preview-canvas">
+        {showSheets && plan ? (
+          <SheetsView model={model} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
+        ) : (
         <DrawingView
           ref={view}
           model={model}
@@ -139,9 +163,10 @@ export function PreviewPanel() {
           onPick={pick}
           fitKey={`${job.id}|${project.vessel.orientation}|${vesselMissing}`}
         />
+        )}
         {vesselMissing && <p className="preview-note">Enter the shell length and circumference to see the whole drawing.</p>}
       </div>
-      <details className="preview-diff">
+      <details className="preview-diff" hidden={showSheets}>
         <summary className="muted">Drag to move, wheel to zoom, click an item to go to its row. Where it can differ from CAD</summary>
         <ul className="paste-list">
           {PREVIEW_DIFFERENCES.map((t) => (

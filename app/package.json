@@ -15,7 +15,11 @@
     "convert:refjobs": "node scripts/convert-reference-jobs.ts",
     "golden:make": "node scripts/make-golden.ts",
     "gen:lsp-library": "node scripts/gen-lsp-library.ts",
-    "imagepath:test": "node scripts/make-image-path-test.ts"
+    "imagepath:test": "node scripts/make-image-path-test.ts",
+    "fingerprints:check": "node scripts/app-output-fingerprints.ts --check",
+    "fingerprints:write": "node scripts/app-output-fingerprints.ts",
+    "wrap:report": "node scripts/wrap-report.ts",
+    "sections:report": "node scripts/sections-report.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

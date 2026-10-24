@@ -6,11 +6,13 @@ in DraftSight or AutoCAD draws the AUT coverage layout for a pressure vessel or 
 The owner is an Integrity EPC inspection engineer who uses it in the field.
 
 ## End goal
-The app is where everything is adjusted: the LISP's on-the-fly commands (TEXTRESIZE, NOZZLEWRAP, OBJECTWRAP,
-visibility toggles, SECTIONPAGES) become app settings shown live in the preview. The finished deliverable is a
-2D PDF exported straight from the app's own paper-space sheets, plus a DXF for further CAD edits. LISP stays as
-the bridge until PDF and DXF are proven; the CAD-side commands stay in the .lsp as a backup until their app
-versions are proven. The geometry engine serves all of these.
+The app is where everything is built, adjusted and exported: the LISP's on-the-fly commands (TEXTRESIZE,
+NOZZLEWRAP, OBJECTWRAP, visibility toggles, SECTIONPAGES) become app settings shown live in the preview. The
+finished deliverable is a 2D PDF exported straight from the app's own sheets (the drawing and its section sheets),
+plus a DXF for anyone who wants to carry on in CAD for more functionality. The .lsp is an optional backup, not
+where new features go (updated by the user, 2026-10-23: e.g. section sheets matter in the app and the PDF, and
+later the DXF, not in the LISP). LISP stays as the bridge until PDF and DXF are proven. The geometry engine serves
+all of these.
 
 ## Working rules
 Improvements over v5.0 are welcome. When you see a function or behaviour that would work better than v5.0,
@@ -123,14 +125,20 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `docs:settings` (regenerates `docs/settings-review.md`; a test fails when it is out of date), `fixtures:xlsm`
   (rebuilds the made-up test workbooks in `test/fixtures/xlsm/`), `gen:lsp-library` (regenerates
   `src/export/lsp/library.generated.ts` from `src/SLG_Utilities.bas`; a test fails when it is out of date),
-  `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit).
+  `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit), `fingerprints:check` /
+  `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
+  the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on).
+- Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
+  scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
+  npm scripts, not temporary scripts.
 - TypeScript projects: `tsconfig.app.json` (src, browser only), `tsconfig.test.json` (src + test, adds Node types),
   `tsconfig.node.json` (vite config and scripts).
 - Project file: JSON with `schemaVersion` (Zod schema in `app/src/data/schema.ts`). Every setting is defined once in
   `app/src/data/settings.ts`. A format change bumps `CURRENT_SCHEMA_VERSION` and adds a step to `MIGRATIONS`
   in `app/src/data/projectFile.ts`. Format 2 (Phase 3d) adds `jobId` (random, stable per job; format 1 files get
   one when opened). Format 3 (Phase 3f-1) only adds settings (text sizes and colors, line colors); older files open
-  with their defaults. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
+  with their defaults. Format 4 (Phase 3f-2) adds `noWrap` (shell nozzles, objects, scans) and `acrossSeam` (scans),
+  both false by default. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
   Preprocess Rotation) is kept in the file for the v5.0 output but not shown in the app.
@@ -194,8 +202,33 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `data/settingsSearch.ts`): name, description and Excel labels (old ones too); jumps to the step and group, opens
   "Show advanced", highlights the box, and for a setting hidden by another choice points at that choice.
   `test/export/appOutput.test.ts` holds SHA-256 fingerprints of the app .lsp at default settings for every golden job
-  and the sample (`npx tsx scripts/app-output-fingerprints.ts` in `app/` regenerates them, only after an approved
-  output change).
+  and the sample (`npm run fingerprints:check` lists which changed, `npm run fingerprints:write` saves them, only after
+  an approved output change).
+- Wrapping across the circumference seam (Phase 3f-2, `engine/wrap.ts`): X = 0 and X = circumference are the same line.
+  Every shell nozzle, object or scan crossing it is drawn in pieces automatically (`wrapSpan`, `circlePieces`,
+  `scanPieces`, `objectPieces`; nothing wraps along Y): rectangles as two pieces with the ID on the larger one
+  (`labelPieceIndex`, OBJECTWRAP's rule; both scan pieces hatched), nozzles as arcs (main piece first, label with it).
+  `drawnScans(p, v5)`: a reversed scan marked `acrossSeam` runs X start -> X stop + C. Checks (`data/checks.ts`): a value
+  typed past the seam -> warning with a one-click fix (`Check.actions`, `applyCheckAction`); reversed X -> "Swap start
+  and stop" / "Runs across the seam"; wider than the shell -> warning; overlaps compare the pieces; coverage counts a
+  wrapped scan once. Rows that wrap show a note (`engine/wrapNotes.ts`); "Don't wrap" / "Across the seam" are Advanced
+  columns (`ColumnSpec.advanced`, "Show advanced columns"). AUT CSV import takes the circumference (scan wholly past it
+  moved back, report kind 'wrapped'). Photos: one processed image per piece (`pieceImageName`: SCAN_5_FIT_A.png /
+  _B.png, `PhotoJob.crop`, `cropSource` in the worker, each piece its own exact shape and never below v5.0's size); the
+  .lsp inserts both. .lsp: SL_WrapPiece, SL_ArcAt, SL_NozzleArcsAt (`writeWrapLibrary`), written only when something
+  wraps. NOZZLEWRAP / OBJECTWRAP stay and find nothing to do on what the app drew (no whole circle centered on an edge,
+  no rectangle crossing one).
+- Section sheets (Phase 3f-2, `engine/sections.ts`, Drawing step group "Section sheets", off by default): `sectionPlan`
+  (split by number / readable size / manual ranges, snap to circ welds or gaps between scans, overlap, skip empty,
+  numbering, match lines), SECTIONPAGES' sheet geometry (`sheetViewport`, `paperX`; app assumes a 10 x 7.5 in letter
+  viewport). Preview: `sectionPlanItems` (layer SECTION_PLAN, group 'sections', chip only while on) and
+  `ui/preview/SheetsView.tsx` (Sheets button). .lsp (`export/lsp/sectionSheets.ts`, only while on): SL_APP_SECTIONS +
+  c:ABSECTIONSHEETS (no length prompt; template Sheet tab needed; viewport picked only if the sheet has more than one;
+  sheets named AB-SEC-nn, horizontal layouts only). SECTIONPAGES stays. What is on each sheet (rulers, references,
+  title/legend panel, match lines, overview boxes) is `engine/sheets.ts` (`sheetPages`, paper shapes in inches; the
+  PDF export should print these). Vertical sheets run the length up the sheet (app only). `ShowWhen.and` chains
+  conditions (section settings show only while sections are on). Past-the-seam values: a note with an optional
+  "Write as" button, not a warning (`wrapNote`). Preview divider: `ui/preview/PreviewSplitter.tsx`.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -462,3 +495,31 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   text row. Default app .lsp changes only by the layer splits (19 library/drawing lines plus new definitions; checked
   by diff, fingerprints regenerated); compat v5.0 unchanged. phase2-notes changes 17-18. Legend/title text splits left
   out (TEXTRESIZE's legend reflow needs the summary lines on LEGEND_TEXT). Not yet checked in DraftSight/AutoCAD.
+- 2026-10-23 – Web app Phase 3f-2 (branch feature/wrap-sections, user request): automatic wrapping across the
+  circumference seam and section sheets planned in the app. Wrapping: shell nozzles (arcs), objects and AUT scans
+  crossing X = 0 / X = circumference are drawn in pieces in the preview and the .lsp (ID on the larger piece, both
+  scan pieces hatched, photos split into _A / _B images); past-the-seam values and reversed X get checks with one-click
+  fixes; overlaps across the seam; coverage counts once; CSV import reads scans past the circumference across the seam;
+  per-item Don't wrap; project file format 4. Golden jobs whose app .lsp changed: REF2 (shell nozzles N5-N9 at X = 0),
+  REF3 and REF4 (MANWAY 437 + 38 on a 458 circumference); fingerprints refreshed for those three only. Section sheets:
+  new Drawing step group (off by default), engine/sections.ts plan, preview plan + Sheets view, ABSECTIONSHEETS in the
+  .lsp only while on (fingerprints unchanged with sections off). NOZZLEWRAP, OBJECTWRAP and SECTIONPAGES stay as the
+  backup. phase2-notes changes 19-20. New npm scripts fingerprints:check / write, wrap:report, sections:report.
+  Compat v5.0 unchanged. Not yet checked in DraftSight/AutoCAD.
+- 2026-10-23 – Web app Phase 3f-2 click-through follow-up (feature/wrap-sections, user): a value past the seam is fine
+  as typed: no warning any more, a green note on the row says where it is drawn, with an optional "Write as" button
+  (`wrapNote` returns text + actions). Wrapped nozzle labels: split about in half (center within a quarter radius of the
+  edge) always on a leader; a partial split keeps the label inside the larger part when it fits; leaders start on the
+  drawn part (REF2's app .lsp changed again: N5-N9 at X = 0 now have leaders; fingerprint refreshed for REF2 only).
+  Draggable divider between the step page and the preview (`ui/preview/PreviewSplitter.tsx`, arrow keys too, width
+  remembered). Sheets view: white paper with print colors, SECTIONPAGES' rulers, reference labels and title/legend panel
+  from new `engine/sheets.ts` (`sheetPages`, paper shapes in inches, for the PDF later); opens full size. Vertical
+  section sheets in the app (length up the sheet, circumference across; `sheetViewport` / `sheetScale` / `paperAlong`
+  take the orientation); the .lsp writes ABSECTIONSHEETS for horizontal layouts only. Readable size already follows the
+  Drawing step's scan label size (test added). End goal updated by the user: full in-app building and export (PDF,
+  then DXF); the .lsp is an optional backup.
+- 2026-10-23 – Sheets view follow-up (feature/wrap-sections, user): sheets zoom and pan (wheel, drag, +/-, Fit); the
+  title/legend panel sits just right of the drawing (past the reference labels) and the two are centred on the sheet
+  (app layout in `engine/sheets.ts`; ABSECTIONSHEETS in CAD keeps SECTIONPAGES' panel at 86.5%). A nozzle split in half
+  keeps one number on one leader (user ruling, a second label was tried and removed). `wrap:report` shows nozzle label
+  placement. No .lsp change (fingerprints unchanged).
