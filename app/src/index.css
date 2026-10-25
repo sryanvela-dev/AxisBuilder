@@ -1374,8 +1374,9 @@ table.grid.photos select {
   color: #e4e7eb;
 }
 
-/* The drawing preview is CAD's model space: black, in light and dark mode. Softer colors use the dark theme's shades. */
-.preview-canvas:not(.exact-colors) {
+/* The drawing preview is CAD's model space: black, in light and dark mode. Softer colors use the dark theme's shades. The Sheets view
+   (paper) keeps the app's own light or dark surround, so its buttons look right in both. */
+.preview-canvas:not(.exact-colors):not(.sheets) {
   --draw-bg: #0b1016;
   --draw-7: #e4e7eb;
   --draw-1: #ff6b6b;

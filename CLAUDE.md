@@ -654,3 +654,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   step page (`ui/scrollPage.ts`), not the whole screen; the Field data shortcuts use it too. (3) The drawing preview is black like
   CAD model space in light and dark mode (exact colors: 7 white; Softer for screens: the dark shades); the Sheets view stays
   white paper. Fingerprints refreshed.
+- 2026-10-25 – Fixes (feature/leaders-arrows, user): the Sheets view keeps the app's own light / dark surround (only the drawing view is black), so
+  its Previous / Next / Fit buttons look right in light mode; the step shortcuts land with the group title just below the sticky
+  shortcut bar (`scrollPageTo` subtracts the bar's height). No .lsp change.

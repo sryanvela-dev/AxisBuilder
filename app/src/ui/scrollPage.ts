@@ -5,6 +5,9 @@
 export function scrollPageTo(el: HTMLElement | null) {
   const page = document.querySelector<HTMLElement>('main.page')
   if (!el || !page) return
-  const top = el.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop - 8
+  // The shortcut bar sticks to the top of the page, so the title has to land just below it.
+  const nav = page.querySelector<HTMLElement>('.list-nav')
+  const covered = nav ? nav.getBoundingClientRect().height : 0
+  const top = el.getBoundingClientRect().top - page.getBoundingClientRect().top + page.scrollTop - covered - 8
   page.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
 }
