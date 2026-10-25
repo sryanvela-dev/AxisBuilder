@@ -632,3 +632,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   shape is drawn with LINE / CIRCLE commands and one line "AxisBuilder: an arrowhead was drawn with lines (<reason>)" is printed,
   so the drawing always completes. `SL_ArrowHead` / `SL_LeaderPart` are the guarded names (the entity code is `...Make`).
   Fingerprints refreshed. The printed reason tells what DraftSight objects to.
+- 2026-10-25 – Follow-up (feature/leaders-arrows, user): DraftSight drew the arrowheads hollow (the guard's line fallback) and the
+  Command Window scrolls the reason away, so the first refusal now shows a message box with CAD's error text (`SL_FallbackNote`,
+  once per load). Fingerprints refreshed. Waiting for that text to make the solid fill work in DraftSight.
