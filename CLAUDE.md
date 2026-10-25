@@ -741,3 +741,4 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Label warnings (feature/mut-areas, user): label overlaps and moves by hand that could not be used (`Check.label`)
   show under their row and on Review only, not in the list at the top of the step, the step bar count or the Before export
   banner (`stepIssues` leaves them out; `stepStatuses` adds them to Review). Never blocking, as before.
+- 2026-10-25 – Phase 5c .lsp (MUT areas, app change 28) tested in DraftSight by the user: works. Not yet run in AutoCAD.
