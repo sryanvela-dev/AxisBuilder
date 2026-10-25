@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Project } from '../../src/data/schema.ts'
 import { buildDrawing, type Shape } from '../../src/engine/drawing.ts'
-import { headNozzleLabels, labelWidth, shellNozzleLabels, textBox, type NozzleLabel } from '../../src/engine/labels.ts'
+import { headNozzleLabels, shellNozzleLabels, textBox, type NozzleLabel } from '../../src/engine/labels.ts'
 import { drawnScans, panelOf } from '../../src/engine/layout.ts'
 import {
   CURVE_STEPS, LEADER_GAP, arrowheadParts, dotPolygon, elbowSpot, leaderParts, leaderStyle, pathHitsBox, pathsCross, type Box, type Pt,
@@ -34,7 +34,7 @@ const vis = (o: Orientation, q: Pt): Pt => toVisual(o, q[0], q[1])
 
 /** Label text width as labels.ts estimates it (characters x 0.6 x height), for the sample's nozzle text sizes. */
 function textWidth(l: NozzleLabel, h: number) {
-  return labelWidth(l.txt, h)
+  return Math.max(1, l.txt.length) * h * 0.6
 }
 
 describe('leader shapes', () => {
@@ -303,32 +303,11 @@ describe('direction arrow length', () => {
   })
 })
 
-describe('labels keep off everything else on the shell', () => {
-  const alone = () => {
-    const p0 = job({ leaderShape: 'Elbow', generateOverlayDrawing: false }, 'Vertical')
-    const n = (i: number, x: number, y: number, include: boolean) => ({ ...p0.shellNozzles[i], x, y, diameter: 4, labelMode: 'OUTSIDE' as const, include })
-    return { p0, n }
-  }
-  it('a label never lands on a nozzle that comes later in the list', () => {
-    const { p0, n } = alone()
-    const base: Project = { ...p0, scans: [], objects: [], shellMut: [], shellNozzles: [n(0, 50, 100, true), n(1, 300, 300, false)] }
-    const first = shellNozzleLabels(base, drawnScans(base)).get(0)!
-    // Put the second nozzle exactly where the first one's label went.
-    const both: Project = { ...base, shellNozzles: [n(0, 50, 100, true), n(1, first.tx, first.ty, true)] }
-    const l = shellNozzleLabels(both, drawnScans(both)).get(0)!
-    const body: Box = [first.tx - 2, first.ty - 2, first.tx + 2, first.ty + 2]
-    const tb = textBox(l.tx, l.ty, textWidth(l, l.th), l.th, readableRot('Vertical'))
-    expect(!(tb[2] <= body[0] || tb[0] >= body[2] || tb[3] <= body[1] || tb[1] >= body[3])).toBe(false)
-    expect(pathHitsBox(l.leader!, body)).toBe(false)
-    expect(l.crowded).toBeUndefined()
-  })
-  it('a label keeps off shell MUT text', () => {
-    const { p0, n } = alone()
-    const base: Project = { ...p0, scans: [], objects: [], shellMut: [], shellNozzles: [n(0, 50, 100, true), n(1, 300, 300, false)] }
-    const first = shellNozzleLabels(base, drawnScans(base)).get(0)!
-    const blocked: Project = { ...base, shellMut: [{ id: 'MUT1', x: first.tx, y: first.ty, minT: null, notes: '' }] }
-    const l = shellNozzleLabels(blocked, drawnScans(blocked)).get(0)!
-    expect([l.tx, l.ty]).not.toEqual([first.tx, first.ty])
-    expect(l.crowded).toBeUndefined()
+describe('the app .lsp functions DraftSight must know', () => {
+  it('the leader and arrow code uses no mapcar, lambda or distance (DraftSight stopped with "No function" on them)', () => {
+    const app = exportLsp(job(), OPTIONS)
+    const mine = app.slice(app.indexOf('(defun SL_PolyMake'), app.indexOf('(defun SL_LeaderLayer'))
+    expect(mine.length).toBeGreaterThan(500)
+    for (const word of ['mapcar', 'lambda', 'distance']) expect(mine).not.toContain(word)
   })
 })

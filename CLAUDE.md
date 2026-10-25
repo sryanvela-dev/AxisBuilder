@@ -616,11 +616,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   <this job's own name>" when the folder's marker had another job ID but the same job name (the Excel file imported again gives
   a new ID). `checkTargetFolder` now takes the job name: the same name = the same job's folder (the replace question still asks
   about images already there); a different name still stops. Test added.
-- 2026-10-25 – Fixes (feature/leaders-arrows, user): (1) DraftSight stopped with "SCANLAYOUT stopped: Error: No function." on the new
+- 2026-10-25 – Fix (feature/leaders-arrows, user): DraftSight stopped with "SCANLAYOUT stopped: Error: No function." on the Phase 5a
   .lsp: the leader polyline writer used `mapcar` with a quoted lambda and the solid triangle used `distance`; both replaced by
-  plain `foreach` / `sqrt` (`SL_PolyLine`, `SL_ArrowSolid`). Still not run in DraftSight by me: please re-test. (2) Nozzle labels
-  landed on other nozzles and other text: every nozzle body is now avoided from the start (before, only nozzles earlier in the
-  list were), shell MUT text and weld / long seam labels are avoided too, and label boxes use the bundled font's real width
-  (`labelWidth`, +3%; v5.0's 0.6 x height per character was about 30% too narrow). App change 26 (output only): all app
-  fingerprints refreshed; at default text REF1 and its variants (18 of 18 outside labels shift a little as the wider boxes
-  move the spots, N1 now reports "overlaps SCAN 3 / 4"), REF2 (11), REF3 and REF4 (1). compat v5.0 unchanged.
+  plain `foreach` / `sqrt` (`SL_PolyLine`, `SL_ArrowSolid`); test added. App fingerprints refreshed (library lines only). Not run
+  in DraftSight by me: please re-test. Nozzle label placement fixes (all nozzles avoided up front, MUT / weld text, real text
+  width) tried and backed out at the user's request; placement becomes manually adjustable in the next change.

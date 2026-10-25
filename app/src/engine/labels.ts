@@ -15,7 +15,6 @@ import type { Project, Scan } from '../data/schema.ts'
 import { clockPositionDegrees, drawnScans, imageInserts, panelOf, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
 import { arcBox, circumference, nozzlePieces, scanPieces, type ArcPiece } from './wrap.ts'
-import { capTextWidth } from './textMetrics.ts'
 import { headVector, readableRot, toLogical, toVisual, type Orientation } from './transform.ts'
 import {
   LEADER_GAP, curvedSpot, elbowSpot, leaderStyle, pathHitsBox, pathsCross, straightSpot, type LeaderStyle, type Pt, type Spot,
@@ -45,14 +44,6 @@ export interface NozzleLabel {
   crowded?: string
 }
 
-/**
- * Width of a label's text box: measured with the bundled font (the preview, PDF and report images draw with it), plus a
- * tenth. v5.0 guessed 0.6 of the height per character, which is narrower than real text, so labels crowded their neighbours.
- */
-export function labelWidth(txt: string, h: number): number {
-  return Math.max(h, capTextWidth(txt, h) * 1.03)
-}
-
 /** SL_BBox: approximate text box. */
 export function textBox(cx: number, cy: number, tw: number, th: number, rot: number): Box {
   const [hw, hh] = Math.abs(rot) === 90 ? [th / 2, tw / 2] : [tw / 2, th / 2]
@@ -70,8 +61,8 @@ const ELBOW_DIRECTIONS: Pt[] = [45, -45, 135, -135, 0, 180, 90, -90].map((deg) =
  * for with the leader as well; only when none is clear is the label alone kept clear (as before leaders had shapes),
  * and the Review warning is about the label.
  */
-function firstHit(sp: Spot, bb: Box, avoid: readonly Box[], names: readonly string[], segs: readonly Pt[][], leader: boolean, skip: readonly Box[] = []): string | null {
-  const i = avoid.findIndex((a) => !skip.includes(a) && (overlap(bb, a) || (leader && pathHitsBox(sp.path, a))))
+function firstHit(sp: Spot, bb: Box, avoid: readonly Box[], names: readonly string[], segs: readonly Pt[][], leader: boolean, skip?: Box): string | null {
+  const i = avoid.findIndex((a) => a !== skip && (overlap(bb, a) || (leader && pathHitsBox(sp.path, a))))
   if (i >= 0) return names[i]
   return leader && segs.some((q) => pathHitsBox(q, bb) || pathsCross(q, sp.path)) ? 'another leader' : null
 }
@@ -136,33 +127,6 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const lr = readableRot(o)
   const rules = textSizeRules(s)
   const C = circumference(p)
-  // Other text on the shell keeps its place too: shell MUT points and weld / long seam labels (as the drawing writes them).
-  const textBoxOf = (cx: number, cy: number, txt: string, h: number, rot: number) => textBox(cx, cy, labelWidth(txt, h), h, rot)
-  for (const m of p.shellMut) {
-    if (m.x === null || m.y === null || m.id === '') continue
-    keep(textBoxOf(m.x, m.y, m.id, sizedHeight(rules, 'SHELL_MUT_TEXT', 1.5), lr), `MUT ${m.id}`)
-  }
-  if (s.showWeldsOnOverlay && s.showWeldLabels) {
-    for (const cw of p.circWelds) {
-      if (cw.include && cw.showLabel && cw.id && cw.y !== null) keep(textBoxOf(H - 3, cw.y, cw.id, sizedHeight(rules, 'CIRC_WELD_TEXT', 2), 0), `weld ${cw.id}`)
-    }
-    for (const ls of p.longSeams) {
-      if (!ls.include || !ls.showLabel || !ls.id || ls.x === null) continue
-      const y1 = ls.startY === null || ls.startY < 0 ? 0 : ls.startY
-      const y2 = ls.stopY === null || ls.stopY < 0 ? L : ls.stopY
-      let labelY = y1 + 6
-      if (labelY > y2 - 2) labelY = y1 + (y2 - y1) / 2
-      keep(textBoxOf(ls.x, labelY, ls.id, sizedHeight(rules, 'LONG_SEAM_TEXT', 2), o === 'Horizontal CCW' ? -90 : 90), `seam ${ls.id}`)
-    }
-  }
-  // Every nozzle's body, before any label is placed, so a label never lands on a nozzle that comes later in the list.
-  const ownBoxes = new Map<number, Box[]>()
-  p.shellNozzles.forEach((n, index) => {
-    if (!n.include || n.x === null || n.y === null || n.diameter === null) return
-    const boxes = nozzlePieces(n, C).map(arcBox)
-    ownBoxes.set(index, boxes)
-    for (const b of boxes) keep(b, `nozzle ${n.id || index + 1}`)
-  })
   p.shellNozzles.forEach((n, index) => {
     if (!n.include || n.x === null || n.y === null || n.diameter === null) return
     const { y, diameter: dia, id: txt } = n
@@ -174,7 +138,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     const mode = n.labelMode.toUpperCase() || 'AUTO'
     const th = Math.max(1.6, Math.min(2.4, dia * 0.22))
     const sh = sizedHeight(rules, 'SHELL_NOZZLE_TEXT', th)
-    const tw = labelWidth(txt, sh)
+    const tw = Math.max(1, txt.length) * sh * 0.6
     // Across the seam (user rule, 2026-10-23): split about in half (center within a quarter radius of the edge)
     // always gets a leader; a partial split keeps the label inside the larger part when it fits there.
     const v0 = Math.max(0, x - r)
@@ -201,7 +165,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
       const offShell = (bb: Box) => bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L
       const clear = (leader: boolean) => (sp: Spot) => {
         const bb = textBox(sp.tx, sp.ty, tw, sh, lr)
-        return !offShell(bb) && firstHit(sp, bb, avoid, names, segs, leader, ownBoxes.get(index)) === null
+        return !offShell(bb) && firstHit(sp, bb, avoid, names, segs, leader) === null
       }
       // The eight spots at the set leader length; when none is clear (label and whole leader), the leader is made
       // longer a few times (app change 23); then the same for the label alone; then the label is placed where it
@@ -211,7 +175,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
       let crowded: string | undefined
       if (!found) {
         found = spots(s.nozzleLeaderLength)[0]
-        crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false, ownBoxes.get(index)) ?? 'the edge of the shell'
+        crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false) ?? 'the edge of the shell'
       }
       keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`)
       segs.push(found.path)
@@ -219,6 +183,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     }
     if (txt !== '' && outside) label = { x, y, r, txt, th, ...placeOutside(x, v0, v1), ...arcs }
     out.set(index, label)
+    for (const pc of pieces) keep(arcBox(pc), `nozzle ${txt || index + 1}`)
   })
   return out
 }
@@ -257,7 +222,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const [dx, dy] = headVector(o, clockPositionDegrees(m.clock))
     const f = r * radiusFactor(m)
     const mh = sizedHeight(rules, 'HEAD_MUT_TEXT', 1.5)
-    avoid.push(textBox(cx + f * dx, cy + f * dy, labelWidth(m.id, mh), mh, lr))
+    avoid.push(textBox(cx + f * dx, cy + f * dy, m.id.length * mh * 0.6, mh, lr))
     names.push(`MUT ${m.id}`)
   }
   const bodies = shown.map(({ n }) => {
@@ -276,7 +241,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const txt = n.id
     const th = Math.max(1.4, Math.min(2.2, dia * 0.22))
     const sh = sizedHeight(rules, 'HEAD_NOZZLE_TEXT', th)
-    const tw = labelWidth(txt, sh)
+    const tw = Math.max(1, txt.length) * sh * 0.6
     const m = n.labelMode.toUpperCase() || 'AUTO'
     // Width and height must both fit (app change 23; v5.0 checked the width only).
     const insideOK = dia >= s.minNozzleInsideLabelDiameter + 2 && txt.length * sh * 0.55 < dia * 0.65 && sh < dia * 0.65
@@ -308,7 +273,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     for (const withLeader of [true, false]) {
       for (let i = 0; i <= 6 && k > 6; i++) {
         const sp = spotAt(i)
-        if (firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, withLeader, [own]) === null) k = i
+        if (firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, withLeader, own) === null) k = i
       }
     }
     // Still crowded at the longest leader: placed at the first spot, with a Review warning (app change 23).
@@ -316,7 +281,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     if (k > 6) {
       k = 0
       const sp = spotAt(0)
-      crowded = firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, false, [own]) ?? undefined
+      crowded = firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, false, own) ?? undefined
     }
     const sp = spotAt(k)
     const label: NozzleLabel = { x, y, r: nozR, txt, th, tx: sp.tx, ty: sp.ty, leader: sp.path, ...(crowded ? { crowded } : {}) }
