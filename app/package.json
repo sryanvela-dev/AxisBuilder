@@ -23,7 +23,11 @@
     "gen:font-metrics": "node scripts/gen-font-metrics.ts",
     "pdf:report": "node scripts/pdf-report.ts",
     "pdf:inspect": "node scripts/pdf-inspect.ts",
-    "labels:report": "node scripts/labels-report.ts"
+    "labels:report": "node scripts/labels-report.ts",
+    "dxf:check": "node scripts/dxf-fingerprints.ts --check",
+    "dxf:write": "node scripts/dxf-fingerprints.ts",
+    "dxf:report": "node scripts/dxf-report.ts",
+    "dxfpath:test": "node scripts/make-dxf-path-test.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

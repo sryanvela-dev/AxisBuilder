@@ -24,3 +24,8 @@ export function reportImageNames(baseName: string, count: number): string[] {
   const width = Math.max(3, String(count).length)
   return Array.from({ length: count }, (_, i) => `${base}_${String(i + 1).padStart(width, '0')}.jpg`)
 }
+
+/** "<job> - AUT Coverage.dxf" (Make DXF). */
+export function dxfFileName(jobName: string): string {
+  return `${exportBaseName(jobName)}.dxf`
+}
