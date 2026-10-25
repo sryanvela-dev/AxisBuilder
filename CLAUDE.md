@@ -140,7 +140,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   in `app/src/data/projectFile.ts`. Format 2 (Phase 3d) adds `jobId` (random, stable per job; format 1 files get
   one when opened). Format 3 (Phase 3f-1) only adds settings (text sizes and colors, line colors); older files open
   with their defaults. Format 4 (Phase 3f-2) adds `noWrap` (shell nozzles, objects, scans) and `acrossSeam` (scans),
-  both false by default. Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
+  both false by default. Format 5 (Phase 5b) adds `labelOverrides` (nozzle labels moved by hand); older files have none.
+  Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
   Preprocess Rotation) is kept in the file for the v5.0 output but not shown in the app.
@@ -250,6 +251,18 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   precaches .ttf. PDF photos: `export/pdf/photos.ts` (shape rule, capped at "Photo resolution in the PDF" of the largest
   printed size, embedded once); browser photo reading `ui/sheetPhotos.ts`. PDF layers named like the preview toggles.
   `npm run pdf:report` prints the PDF size per golden job (`-- --out <folder>` writes them; never into the repo).
+- Drawing mode and snapping (Phase 5b, `app/docs/preview.md` "Drawing mode"): "Move labels" in the preview. Shell and
+  head nozzle labels and their leader ends are dragged, nudged (arrows 0.5 in, Shift 6 in) and reset (right-click, status
+  line, "Moved ↺" chip by the row number, "Reset all moved labels" under Leaders and arrows). Moves are
+  `project.labelOverrides`, keyed by list + ID (`data/overrides.ts`; `syncLabelOverrides` after every edit follows renames
+  and deletes). Each holds the label offset from the nozzle center as the drawing reads, `'inside'`, and/or the leader end
+  angle. The engine applies them (`engine/labels.ts`: moved labels first, automatic ones avoid them, `moved` / `fallback` /
+  `crowded`; `leaders.ts leaderToLabel`; `labelDrag.ts`), so the preview, Sheets, PDF, report images, .lsp and later the
+  DXF all follow (`buildDrawing().labels`). Review warns about a moved label that overlaps or could not be used (Reset
+  position action, never blocking). Shared tools for 5c: `engine/snap.ts` (pure: `snapGeometry`, `findSnap`; endpoint,
+  intersection, center, perpendicular, align, on; Shift free, Ctrl ortho; visual frame), `ui/preview/drawingTool.ts` (tool
+  interface that `DrawingView` routes the pointer to; pan stays: empty-space drag, middle drag, Space+drag),
+  `SnapMarker.tsx`. One undo step per drop; a run of nudges on one label is one step.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -657,3 +670,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Fixes (feature/leaders-arrows, user): the Sheets view keeps the app's own light / dark surround (only the drawing view is black), so
   its Previous / Next / Fit buttons look right in light mode; the step shortcuts land with the group title just below the sticky
   shortcut bar (`scrollPageTo` subtracts the bar's height). No .lsp change.
+- 2026-10-25 – Web app Phase 5b (branch feature/drawing-mode, user request): drawing mode part 1, move labels and leader ends.
+  "Move labels" in the preview: hover, select (linked to the row), drag a shell or head nozzle label (inside when dropped
+  in the circle and it fits) or its leader end (stays on the circle and on the drawn part across the seam), Shift free,
+  Ctrl level / plumb, arrows nudge 0.5 in (Shift 6 in), Esc clears, right-click Reset position, "Moved ↺" chip on rows,
+  "Reset all moved labels" (asks first). Project file format 5 (`labelOverrides`, migration from 4). Engine: moved labels
+  placed first, automatic labels avoid them, Review warnings on actual positions ("(moved by hand)") and for moves that
+  can't be used (fall back to automatic). New shared snap engine `engine/snap.ts` and tool interface
+  `ui/preview/drawingTool.ts`. No overrides in the golden jobs: fingerprints and compat v5.0 unchanged. Not yet
+  click-tested by the user. No VBA or workbook changes.

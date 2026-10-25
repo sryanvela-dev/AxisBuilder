@@ -103,6 +103,53 @@ viewport sets the scale, so it can differ a little from the preview.
 The divider on the preview's left edge (`PreviewSplitter.tsx`) makes the page or the preview wider (drag, or arrow
 keys); the width is remembered in the browser.
 
+## Drawing mode: moving labels (Phase 5b)
+
+"Move labels" above the preview turns on drawing mode (a blue frame and a status line say so). Pan and zoom still work:
+the wheel zooms; a drag on empty space, a middle-button drag or Space+drag moves the view.
+
+- Hover outlines a nozzle label that can be moved (shell and head nozzles, including one across the seam). Click selects
+  it and its table row (`selectionContext`); Esc clears the selection (before Esc closes full size).
+- Drag the label anywhere: while you drag, a dashed ghost shows the label and its leader redrawn from the nozzle in the
+  current shape and arrowhead. Dropped inside the circle, it becomes an inside label (no leader) only when it fits there
+  (the same inside rule as automatic placement); otherwise it stays where it was dropped, with a leader.
+- The selected label has a round handle on its leader end: drag it around the circle (it stays on the circle; on a
+  nozzle across the seam, on the drawn part).
+- Arrow keys nudge the selected label 0.5 in; Shift+arrows 6 in (as the drawing reads). A run of nudges on one label is
+  one undo step; every drag is one undo step.
+- Reset: right-click the label (Reset position), the Reset position button in the status line, or the "Moved ↺" chip by
+  its row number. "Reset all moved labels" is under Leaders and arrows on the Drawing step (asks first).
+- Snapping: a dragged label lines up with the centers of other labels (same x or y); Shift = free, Ctrl = keep it level
+  or plumb with where it started. The leader end snaps to the circle; Ctrl holds it right, up, left or down. A green
+  marker shows the snap.
+
+How it is built:
+
+- Project file format 5: `labelOverrides` (`data/schema.ts`), each `{ list, id, label, tip }`, keyed by the item's list
+  and ID (not its row). `label` = the label center as an offset from the nozzle center (`{ dx, dy }`, inches as the drawing
+  reads, so a corrected nozzle X/Y moves the label with it), `'inside'`, or null (automatic). `tip` = the leader end as an
+  angle on the circle (degrees as the drawing reads, 0 = right, counter-clockwise) or null. `data/overrides.ts` sets and
+  resets them; `syncLabelOverrides` (run after every edit in `state/session.ts`) follows renames (a row whose old ID is
+  gone and whose new ID is new) and drops deleted items; sorting is never taken for a rename.
+- `engine/labels.ts`: labels moved by hand are placed first; automatic labels then keep clear of them and their
+  leaders. Each `NozzleLabel` says `moved`; a move that no longer makes sense falls back to automatic with `fallback` (off
+  the shell; in the shell or more than a head diameter from its head; no longer fits inside). A moved label is checked
+  against everything as finally placed (`crowded`). `nozzleLabelNotes` feeds the Review warnings ("Label N2 (moved by
+  hand) overlaps scan 3", "Label N2 was moved by hand, but it was off the shell, so it is placed automatically"), both
+  with a one-click Reset position; neither blocks export or saving.
+- `engine/leaders.ts` `leaderToLabel`: the leader to a label at a given spot (Straight; Elbow with its horizontal landing
+  into the near side of the label; Curved), the tip at the given angle or facing the label, held to the drawn arc.
+- `engine/labelDrag.ts`: what a drop or a nudge stores (`dropLabel`, `dropTip`, `nudgeLabel`, `NUDGE` / `NUDGE_BIG`).
+- `buildDrawing` returns `labels` (every nozzle label as placed, with its row) for the preview's tool and, later, the DXF.
+  The Sheets view, PDF, report images and the .lsp (`SL_NozzleAt`) already draw what the engine placed, so they all
+  follow the moves. With no moves the output is unchanged (fingerprints).
+- `engine/snap.ts`: the shared snap engine (pure). `snapGeometry(drawing)` reads the real lines, rectangles, circles and
+  arcs (hatch left out) as the drawing reads; `findSnap` picks endpoint > intersection > center > perpendicular (from where
+  the move started) > align > on a line or circle, within a tolerance; Shift = free, Ctrl = ortho.
+- UI: `ui/preview/drawingTool.ts` (the tool interface: hover, down, move, up, menu, overlay; `DrawingView` routes the
+  pointer to it and keeps pan and zoom), `labelTool.tsx` (the label tool), `SnapMarker.tsx` (one symbol per snap kind),
+  `MoveLabels.tsx` (the job side: undo steps, keys, status line, menu). MUT areas (5c) are meant to be another tool.
+
 ## Planned (not built yet)
 
-Better-looking nozzle leaders (they now have their own layers).
+Moving other labels (scan, object, weld and seam IDs and others; to be decided), MUT areas (5c).
