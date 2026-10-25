@@ -152,6 +152,65 @@ export function curvedSpot(o: Orientation, n: Pt, e: Pt, centre: Pt, tw: number,
   return { path: pts.map((q) => toL(o, q)), tx: centre[0], ty: centre[1] }
 }
 
+// --- Labels moved by hand (Phase 5b) -------------------------------------------------------------------
+
+/** A logical direction angle (degrees) as the drawing reads it: CW turns the drawing -90, CCW +90. */
+export function visualAngle(o: Orientation, logicalDeg: number): number {
+  return logicalDeg + (o === 'Vertical' ? 0 : o === 'Horizontal CCW' ? 90 : -90)
+}
+
+/**
+ * An angle (as the drawing reads) held to a drawn arc (logical degrees, counter-clockwise from a0 to a1); null arc =
+ * the whole circle. Outside the arc, the nearer end.
+ */
+export function clampToArc(o: Orientation, deg: number, arc: [number, number] | null): number {
+  if (!arc) return deg
+  const off = visualAngle(o, 0)
+  const a0 = arc[0] + off
+  const a1 = arc[1] + off
+  const t = (((deg - a0) % 360) + 360) % 360
+  if (t <= a1 - a0) return a0 + t
+  return t - (a1 - a0) < 360 - t ? a1 : a0
+}
+
+/** The point at `deg` (as the drawing reads) on the circle n, r, in logical coordinates. */
+export function pointOnCircle(o: Orientation, n: Pt, r: number, deg: number): Pt {
+  const nv = toV(o, n)
+  const a = (deg * Math.PI) / 180
+  return toL(o, [nv[0] + r * Math.cos(a), nv[1] + r * Math.sin(a)])
+}
+
+/** The angle (as the drawing reads, degrees) from the circle's center toward a logical point. */
+export function angleToward(o: Orientation, n: Pt, q: Pt): number {
+  const nv = toV(o, n)
+  const qv = toV(o, q)
+  return (Math.atan2(qv[1] - nv[1], qv[0] - nv[0]) * 180) / Math.PI
+}
+
+/**
+ * The leader to a label placed by hand at `centre` (logical) from the nozzle n, r, in the current leader shape. tip =
+ * where it leaves the circle (degrees as the drawing reads), or null to face the label (Elbow: its knee). arc = the
+ * drawn part of a nozzle across the seam: the tip stays on it.
+ */
+export function leaderToLabel(o: Orientation, style: LeaderStyle, n: Pt, r: number, tip: number | null, centre: Pt, tw: number, sh: number,
+  arc: [number, number] | null = null): Spot {
+  const nv = toV(o, n)
+  const cv = toV(o, centre)
+  const at = (toward: Pt) => clampToArc(o, tip ?? (Math.atan2(toward[1] - nv[1], toward[0] - nv[0]) * 180) / Math.PI, arc)
+  if (style.shape === 'Elbow') {
+    const side = cv[0] >= nv[0] ? 1 : -1
+    const l: Pt = [cv[0] - side * (tw / 2 + sh * LEADER_GAP), cv[1]]
+    const k: Pt = [l[0] - side * style.landing, l[1]]
+    // A knee inside the circle (a label close to it): one line from the circle to the label.
+    const kneeOut = Math.hypot(k[0] - nv[0], k[1] - nv[1]) > r
+    const e = toV(o, pointOnCircle(o, n, r, at(kneeOut ? k : l)))
+    const pts: Pt[] = kneeOut && Math.abs(e[1] - k[1]) > 1e-9 ? [e, k, l] : [e, l]
+    return { path: pts.map((q) => toL(o, q)), tx: centre[0], ty: centre[1] }
+  }
+  const e = pointOnCircle(o, n, r, at(cv))
+  return style.shape === 'Curved' ? curvedSpot(o, n, e, centre, tw, sh) : straightSpot(o, e, centre, tw, sh)
+}
+
 // --- Clearance -----------------------------------------------------------------------------------------
 
 /** Does the segment a-b pass through the inside of the box? (Touching an edge does not count.) */

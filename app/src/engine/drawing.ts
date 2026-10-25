@@ -9,7 +9,7 @@
 // browser font, so its exact width differs. See PREVIEW_DIFFERENCES.
 
 import { vbaFormatFixed } from '../export/lsp/vbaFormat.ts'
-import type { ListKey, Project } from '../data/schema.ts'
+import type { ListKey, MovableLabelList, Project } from '../data/schema.ts'
 import {
   REFERENCE_POSITIONS,
   axisLabels,
@@ -109,6 +109,15 @@ export interface DrawingItem {
   info: string
 }
 
+/** A nozzle label as placed, with the row it belongs to (DrawingItem key `<list>:<index>`). */
+export interface PlacedLabel {
+  key: string
+  list: MovableLabelList
+  index: number
+  id: string
+  label: NozzleLabel
+}
+
 export interface Drawing {
   orientation: Orientation
   items: DrawingItem[]
@@ -118,6 +127,8 @@ export interface Drawing {
   centerlineTransparency: number
   /** Layer colors chosen on the Drawing step that differ from LAYER_COLOR. */
   layerColors: Record<string, number>
+  /** Nozzle labels as placed (automatic or moved by hand), for moving them in the preview (Phase 5b) and the DXF later. */
+  labels: PlacedLabel[]
 }
 
 /** SL_TextLayer: geometry layer -> its text layer. */
@@ -370,6 +381,7 @@ export function buildDrawing(p: Project): Drawing {
   const L = p.vessel.length
   const H = p.vessel.height
   const items: DrawingItem[] = []
+  const placed: PlacedLabel[] = []
   const add = (key: string, source: ItemSource | null, pen: Pen, info: string) => {
     if (pen.shapes.length) items.push({ key, source, shapes: pen.shapes, info })
   }
@@ -432,6 +444,7 @@ export function buildDrawing(p: Project): Drawing {
       if (!l) return
       const pen = new Pen()
       nozzleAt(pen, o, l, 'NOZZLES', 'NOZZLES', leaders)
+      placed.push({ key: `shellNozzles:${index}`, list: 'shellNozzles', index, id: n.id, label: l })
       add(`shellNozzles:${index}`, { list: 'shellNozzles', index, id: n.id }, pen, `${n.id}: diameter ${fmt(n.diameter!)} in at X ${fmt(n.x!)}, Y ${fmt(n.y!)}${n.minT !== null ? `, min. T ${n.minT}` : ''}`)
     })
   }
@@ -466,7 +479,7 @@ export function buildDrawing(p: Project): Drawing {
     })
   }
 
-  if (!sized) return finish(p, o, items)
+  if (!sized) return finish(p, o, items, placed)
   const ori = o.toUpperCase()
 
   // Rulers
@@ -516,6 +529,7 @@ export function buildDrawing(p: Project): Drawing {
         if (!l) return
         const pen = new Pen()
         nozzleAt(pen, o, l, 'HEADS', 'HEAD_NOZZLE_TEXT', leaders)
+        placed.push({ key: `headNozzles:${index}`, list: 'headNozzles', index, id: n.id, label: l })
         add(`headNozzles:${index}`, { list: 'headNozzles', index, id: n.id }, pen, `${n.id} (${n.head}): diameter ${fmt(n.diameter!)} in at ${n.clock ?? '?'} o'clock`)
       })
     }
@@ -549,10 +563,10 @@ export function buildDrawing(p: Project): Drawing {
     add('titleBlock', null, pen, 'Title block')
   }
 
-  return finish(p, o, items)
+  return finish(p, o, items, placed)
 }
 
-function finish(p: Project, o: Orientation, items: DrawingItem[]): Drawing {
+function finish(p: Project, o: Orientation, items: DrawingItem[], labels: PlacedLabel[]): Drawing {
   const s = p.settings
   // Text sizes from the Drawing step, applied the way SL_TextHeight does in the .lsp.
   const rules = textSizeRules(s)
@@ -561,6 +575,6 @@ function finish(p: Project, o: Orientation, items: DrawingItem[]): Drawing {
   }
   return {
     orientation: o, items, hatchTransparency: s.autHatchTransparency, centerlineTransparency: s.centerlineTransparency,
-    layerColors: Object.fromEntries(appLayerSetup(s)),
+    layerColors: Object.fromEntries(appLayerSetup(s)), labels,
   }
 }

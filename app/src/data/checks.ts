@@ -11,7 +11,8 @@ import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, type ListKey, type Pr
 import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
 import { drawnScans } from '../engine/layout.ts'
 import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
-import { crowdedLabels } from '../engine/labels.ts'
+import { nozzleLabelNotes } from '../engine/labels.ts'
+import { isMovableList, resetOverride } from './overrides.ts'
 
 export type Severity = 'error' | 'warning'
 
@@ -28,6 +29,8 @@ export interface CheckAction {
   list: ListKey
   index: number
   changes: Record<string, unknown>
+  /** Also put the row's label back to automatic placement (a label moved by hand, data/overrides.ts). */
+  resetLabel?: boolean
 }
 
 export interface Check {
@@ -47,7 +50,8 @@ export interface Check {
 export function applyCheckAction(p: Project, a: CheckAction): Project {
   const items = p[a.list] as Record<string, unknown>[]
   if (!items[a.index]) return p
-  return { ...p, [a.list]: items.map((item, i) => (i === a.index ? { ...item, ...a.changes } : item)) } as Project
+  const next = { ...p, [a.list]: items.map((item, i) => (i === a.index ? { ...item, ...a.changes } : item)) } as Project
+  return a.resetLabel && isMovableList(a.list) ? resetOverride(next, a.list, String(items[a.index].id)) : next
 }
 
 const fieldName = (list: ListKey, key: string) => (LIST_META[list].fields as Record<string, string>)[key]
@@ -227,11 +231,26 @@ export function checkProject(p: Project): Check[] {
   }
 
   // Nozzle labels with no clear spot even with a longer leader (engine/labels.ts, app change 23).
-  for (const c of crowdedLabels(p)) {
+  // Labels moved by hand may overlap (it's the user's choice) but still get the warning, saying so.
+  const notes = nozzleLabelNotes(p)
+  const reset = (list: ListKey, index: number): CheckAction => ({ label: 'Reset position', list, index, changes: {}, resetLabel: true })
+  for (const c of notes.crowded) {
     out.push({
       severity: 'warning', place: { kind: 'row', list: c.list, index: c.index, field: 'labelMode' },
-      text: `Label ${c.id} overlaps ${c.overlaps}.`,
-      fix: 'Set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
+      text: c.moved ? `Label ${c.id} (moved by hand) overlaps ${c.overlaps}.` : `Label ${c.id} overlaps ${c.overlaps}.`,
+      fix: c.moved
+        ? 'Move it to a clear spot in the drawing preview (Move labels), or reset it to be placed automatically.'
+        : 'Set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
+      ...(c.moved ? { actions: [reset(c.list, c.index)] } : {}),
+    })
+  }
+  // A hand placement that no longer makes sense: the label is placed automatically; nothing is blocked.
+  for (const f of notes.fallbacks) {
+    out.push({
+      severity: 'warning', place: { kind: 'row', list: f.list, index: f.index, field: 'labelMode' },
+      text: `Label ${f.id} was moved by hand, but ${f.why}, so it is placed automatically.`,
+      fix: 'Move it again in the drawing preview (Move labels), or reset it to clear the old position.',
+      actions: [reset(f.list, f.index)],
     })
   }
 
