@@ -311,3 +311,35 @@ describe('the app .lsp functions DraftSight must know', () => {
     for (const word of ['mapcar', 'lambda', 'distance']) expect(mine).not.toContain(word)
   })
 })
+
+describe('the app .lsp is well formed', () => {
+  /** Parentheses outside strings and comments: a stray ")" makes CAD stop loading the file (the menu then runs the first, older definitions). */
+  function parenDepth(lsp: string): { end: number; lowest: number } {
+    let depth = 0
+    let lowest = 0
+    let inString = false
+    let inComment = false
+    for (let i = 0; i < lsp.length; i++) {
+      const c = lsp[i]
+      if (inComment) inComment = c !== '\n'
+      else if (inString) {
+        if (c === '\\') i++
+        else if (c === '"') inString = false
+      } else if (c === '"') inString = true
+      else if (c === ';') inComment = true
+      else if (c === '(') depth++
+      else if (c === ')') lowest = Math.min(lowest, --depth)
+    }
+    return { end: depth, lowest }
+  }
+  it('every golden job, the sample and every option set has balanced parentheses (v5.0 and app)', () => {
+    for (const { name, project } of goldenJobs()) {
+      for (const compat of [undefined, 'v5.0'] as const) {
+        expect(parenDepth(exportLsp(project, { ...OPTIONS, ...(compat ? { compat } : {}) })), `${name} ${compat ?? 'app'}`).toEqual({ end: 0, lowest: 0 })
+      }
+    }
+    for (const shape of ['Straight', 'Elbow', 'Curved']) for (const arrowheadStyle of ['Closed filled', 'Open', 'Dot', 'None']) {
+      expect(parenDepth(exportLsp(job({ leaderShape: shape, arrowheadStyle, makeSectionSheets: true }), OPTIONS))).toEqual({ end: 0, lowest: 0 })
+    }
+  })
+})

@@ -621,3 +621,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   plain `foreach` / `sqrt` (`SL_PolyLine`, `SL_ArrowSolid`); test added. App fingerprints refreshed (library lines only). Not run
   in DraftSight by me: please re-test. Nozzle label placement fixes (all nozzles avoided up front, MUT / weld text, real text
   width) tried and backed out at the user's request; placement becomes manually adjustable in the next change.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): the real cause of "SCANLAYOUT stopped: Error: No function." on the app .lsp: a stray ")"
+  in `SL_RulerNumberFits` (app change 22, written 2026-10-24, never loaded in CAD) ended the file early at load, so CAD kept the
+  library's first menu (option 1 = SCANLAYOUT, which the master file never defines) and never reached the real AXISBUILDER menu or
+  c:AXISDRAWING. The extra ")" is removed; new test: every golden job and every leader / arrowhead setting writes balanced
+  parentheses (app and v5.0). The earlier mapcar / distance change stays (harmless). Fingerprints refreshed. Please re-test in CAD.
