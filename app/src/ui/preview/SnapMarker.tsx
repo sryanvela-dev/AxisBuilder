@@ -23,6 +23,7 @@ export function SnapMarker({ snap, scale }: { snap: Snap; scale: number }) {
   const s = SIZE / scale
   const [x, y] = visualToSvg(snap.pt)
   const ref: Pt | null = snap.ref ? visualToSvg(snap.ref) : null
+  const ref2: Pt | null = snap.ref2 ? visualToSvg(snap.ref2) : null
   let mark
   switch (snap.kind) {
     case 'endpoint':
@@ -47,6 +48,7 @@ export function SnapMarker({ snap, scale }: { snap: Snap; scale: number }) {
     <g className="snap-marker">
       <title>{SNAP_NAMES[snap.kind]}</title>
       {ref && <line className="snap-guide" x1={ref[0]} y1={ref[1]} x2={x} y2={y} />}
+      {ref2 && <line className="snap-guide" x1={ref2[0]} y1={ref2[1]} x2={x} y2={y} />}
       {mark}
     </g>
   )

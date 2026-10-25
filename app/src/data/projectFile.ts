@@ -32,6 +32,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   3: (data) => ({ ...data, schemaVersion: 4 }),
   // Format 5 adds labels moved by hand in the drawing preview (labelOverrides); older files have none.
   4: (data) => ({ ...data, schemaVersion: 5 }),
+  // Format 6 adds MUT areas drawn in the preview (`area` on shell and head MUT rows); older files have none.
+  5: (data) => ({ ...data, schemaVersion: 6 }),
 }
 
 export interface OpenOptions {

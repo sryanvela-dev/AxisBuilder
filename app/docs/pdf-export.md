@@ -100,7 +100,8 @@ font instead and leave out any number that would touch its neighbour.
   the photo has (`export/pdf/photos.ts printPhotoSize`). Each photo is embedded once (JPEG, quality 0.9) and placed
   on every sheet that shows it. A photo that can't be read is left out and named in the summary.
 - **PDF layers** (setting "PDF layers", on by default): named like the preview's toggles: Scans, Hatch, Photos,
-  Welds, Nozzles, Objects, Rulers, Heads, Legend and title. All on when the PDF opens; Adobe Acrobat and Reader can
+  Welds, Nozzles, Objects, MUT areas (Phase 5c: the outline and hatch of MUT areas drawn in the app; only when the job has
+  one), Rulers, Heads, Legend and title. All on when the PDF opens; Adobe Acrobat and Reader can
   switch them off in their Layers panel. Edge, Chrome and most other viewers ignore them and show everything, so they
   change nothing for those readers. The sheet's own frame, titles and match lines are on no layer.
 - **What is exported** (Export step): "Layers to export" = As the preview (what is ticked on the preview's layer

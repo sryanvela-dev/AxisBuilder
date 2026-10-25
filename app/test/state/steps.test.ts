@@ -119,3 +119,19 @@ describe('step status', () => {
     expect(nextStep('export')).toBeNull()
   })
 })
+
+describe('label warnings', () => {
+  it('show under their row and on Review, not at the top of the step or in the step bar', async () => {
+    const { setOverride } = await import('../../src/data/overrides.ts')
+    const { checkProject, checksAt } = await import('../../src/data/checks.ts')
+    const p = setOverride(linked(), 'shellNozzles', 0, { label: { dx: -9999, dy: 0 } })
+    const label = checkProject(p).filter((c) => c.label)
+    expect(label.length).toBeGreaterThan(0)
+    expect(checksAt(checkProject(p), 'shellNozzles', 0).some((c) => c.label)).toBe(true)
+    const s = stepStatuses(jobOf(p))
+    const base = stepStatuses(jobOf(linked()))
+    expect(s.fieldData.issues.some((i) => i.check?.label)).toBe(false)
+    expect(s.fieldData.short).toBe(base.fieldData.short)
+    expect(s.review.issues.filter((i) => i.check?.label).map((i) => i.step)).toEqual(label.map(() => 'fieldData'))
+  })
+})

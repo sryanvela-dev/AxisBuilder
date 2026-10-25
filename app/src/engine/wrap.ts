@@ -5,6 +5,7 @@
 // compat 'v5.0' never wraps.
 
 import type { Project, Scan, ShellNozzle, ShellObject } from '../data/schema.ts'
+import { clipToBox, polygonArea, type Poly, type Pt } from './polygon.ts'
 
 /** Anything smaller than this (inches) does not count as crossing the seam. */
 export const WRAP_EPS = 1e-6
@@ -146,6 +147,25 @@ export function arcBox(p: ArcPiece): [number, number, number, number] {
   const xs = pts.map((q) => q[0])
   const ys = pts.map((q) => q[1])
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+}
+
+// --- MUT areas (Phase 5c) ---------------------------------------------------------------------------
+
+/**
+ * A shell area's outline as drawn: clipped to the shell, in pieces across the circumference seam (a corner past
+ * X = 0 or the circumference wraps round to the other edge, as scans do). Logical. An area that can't be placed
+ * (vessel size not known) is drawn as it is.
+ */
+export function shellAreaPieces(p: Project, pts: readonly Pt[]): Poly[] {
+  const C = circumference(p)
+  const L = p.vessel.length
+  if (C === null || L === null || !(L > 0)) return [pts.map((q) => [q[0], q[1]] as Pt)]
+  const out: Poly[] = []
+  for (const k of [0, -C, C]) {
+    const piece = clipToBox(pts.map((q): Pt => [q[0] + k, q[1]]), [0, 0, C, L])
+    if (piece.length >= 3 && polygonArea(piece) > 1e-6) out.push(piece)
+  }
+  return out
 }
 
 // --- Items typed past the seam -----------------------------------------------------------------------

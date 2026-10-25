@@ -5,13 +5,14 @@ import { resetAllOverrides } from '../data/overrides.ts'
 import { FIELD_LISTS } from '../data/columns.ts'
 import { scrollPageTo } from './scrollPage.ts'
 import { formatNumber } from '../data/parse.ts'
-import { LIST_META } from '../data/schema.ts'
+import { LIST_META, type ShellMut } from '../data/schema.ts'
 import { SETTING_GROUPS, VESSEL_FIELDS } from '../data/settings.ts'
 import { sectionPlan } from '../engine/sections.ts'
 import type { StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { useJobChecks } from './checksContext.ts'
 import { DataTable } from './DataTable.tsx'
+import { AreaCell } from './AreaCell.tsx'
 import { listElementId } from './placeIds.ts'
 import { SettingsGroup } from './SettingsForm.tsx'
 import { ImportReportPart, StepIssues } from './stepParts.tsx'
@@ -195,7 +196,7 @@ export function FieldDataStep({ status }: StepProps) {
             <h2 id={`list-title-${list}`}>
               {LIST_META[list].name} <span className="muted">({p[list].length})</span>
             </h2>
-            <DataTable list={list} step="fieldData" />
+            <DataTable list={list} step="fieldData" derived={list === 'shellMut' || list === 'headMut' ? [{ title: 'Area', value: (item, index) => <AreaCell list={list} index={index} item={item as unknown as ShellMut} /> }] : undefined} />
           </section>
         </div>
       ))}

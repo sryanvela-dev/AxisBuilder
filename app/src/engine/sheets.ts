@@ -22,6 +22,7 @@ import {
 } from './layout.ts'
 import { LETTER_AREA, paperAlong, sheetArea, sheetViewport, type Section, type SectionPlan } from './sections.ts'
 import { capTextWidth } from './textMetrics.ts'
+import { mutCoverageArea } from './mutAreas.ts'
 import { arrowheadParts, directionArrowLength, dotPolygon, type ArrowStyle, type Pt } from './leaders.ts'
 
 export type PaperShape =
@@ -309,7 +310,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   pen.text(infoX + 0.38 * u, y + boxH / 2, 0.085 * u, 0, 'MUT', 'REPORT_LEGEND', 'ML')
   y -= 0.27 * u
   const counted = countedScans(p, drawnScans(p), false)
-  const coverage = coveragePercent(p, counted)
+  const coverage = coveragePercent(p, counted, mutCoverageArea(p))
   for (const txt of [
     `Total Scans: ${counted.length}`,
     coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`,

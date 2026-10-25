@@ -95,7 +95,9 @@ describe('text types', () => {
     const s = fullSample().settings
     expect(textSizeRules(s).size).toBe(0)
     // Only the layers the app adds, in their colors.
-    expect(appLayerSetup(s)).toEqual([['NOZZLE_LEADERS', 7], ['HEAD_NOZZLE_LEADERS', 7], ['X_AXIS_LABEL_TEXT', 1], ['REFERENCE_TEXT', 1], ['Y_AXIS_LABEL_TEXT', 5]])
+    expect(appLayerSetup(s, false)).toEqual([['NOZZLE_LEADERS', 7], ['HEAD_NOZZLE_LEADERS', 7], ['X_AXIS_LABEL_TEXT', 1], ['REFERENCE_TEXT', 1], ['Y_AXIS_LABEL_TEXT', 5]])
+    // The MUT area outline layer only for a job with a MUT area.
+    expect(appLayerSetup(s, true)).toContainEqual(['MANUAL_UT', 7])
     expect(panelScales(s)).toEqual({ legend: 1, title: 1 })
     expect(lsp(fullSample())).not.toMatch(/SL_LEGEND_SCALE|SL_TITLE_SCALE/)
     expect(lsp(fullSample())).not.toContain('SL_TEXT_SIZES')

@@ -34,6 +34,8 @@ import {
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
 import { placeTextLabel, textLabelSpecs, type TextLabelSpec, type TextPlacement } from '../../engine/textLabels.ts'
 import { leaderParts, leaderStyle, type LeaderStyle, type Pt } from '../../engine/leaders.ts'
+import { areaTextLines, hasMutAreas, mutAreaLayouts, mutCoverageArea, type MutAreaLayout } from '../../engine/mutAreas.ts'
+import type { Orientation } from '../../engine/transform.ts'
 import { writeSectionSheets } from './sectionSheets.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
 import { patchLibraryLine, writeAppLibrary, writeImageFinder, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
@@ -67,6 +69,7 @@ export const APP_CHANGES = [
   'Text sizes and layer colors can be set per text layer and for the main layers (Drawing step); defaults change nothing.',
   'Ruler axis direction labels, reference labels and nozzle leaders have their own layers (TEXTRESIZE and the AB... toggles know them).',
   'A bigger legend or title block is drawn bigger as a whole, and the head views and title block move up to make room.',
+  'MUT areas drawn in the app are drawn as plain lines (outline and hatch) with their ID; the coverage % counts their hatched part (shell only).',
 ] as const
 
 export interface ExportOptions {
@@ -130,6 +133,28 @@ function leaderPartsLisp(path: Pt[] | null, ls: LeaderStyle): string {
     part.k === 'dot' ? `(list "D" ${pt(part.c)} ${LispNum(part.d)})` : `(list ${part.k === 'fill' ? '"F"' : '"L"'} ${part.pts.map(pt).join(' ')})`,
   )
   return `(list ${parts.join(' ')})`
+}
+
+/**
+ * A MUT area (app output, Phase 5c): its outline as plain lines on MANUAL_UT (solid) and its hatch on MANUAL_UT_HATCH
+ * (see-through; no CAD HATCH entity, so DraftSight and AutoCAD draw it alike), the ID (and Min. T) with SL_Text, and a leader when the ID sits outside. The
+ * lines are exactly the app's (engine/mutAreas.ts), written in groups so no line of the file gets long.
+ */
+function writeMutArea(w: (line: string) => void, a: MutAreaLayout, label: { sp: TextLabelSpec; tp: TextPlacement } | undefined, ls: LeaderStyle, o: Orientation) {
+  w(`  ;; MUT area ${a.id.replace(/[\r\n]/g, ' ')} (drawn in AxisBuilder)`)
+  const outline: [Pt, Pt][] = []
+  for (const pc of a.pieces) pc.forEach((q, i) => outline.push([q, pc[(i + 1) % pc.length]]))
+  for (const [segs, layer] of [[outline, 'MANUAL_UT'], [a.hatch, 'MANUAL_UT_HATCH']] as const) {
+    for (let i = 0; i < segs.length; i += 12) {
+      const group = segs.slice(i, i + 12).map(([q0, q1]) => `(${LispNum(q0[0])} ${LispNum(q0[1])} ${LispNum(q1[0])} ${LispNum(q1[1])})`).join(' ')
+      w(`  (foreach s '(${group}) (SL_Line (car s) (cadr s) (caddr s) (cadddr s) ${LispStr(layer)}))`)
+    }
+  }
+  if (!label) return
+  const lines = areaTextLines(o, a, [label.tp.x, label.tp.y])
+  w(`  (SL_Text ${LispNum(lines.id[0])} ${LispNum(lines.id[1])} ${LispNum(a.th)} (SL_ReadableRot) ${LispStr(a.id)} ${LispStr(label.sp.layer)})`)
+  if (a.sub !== null && lines.sub) w(`  (SL_Text ${LispNum(lines.sub[0])} ${LispNum(lines.sub[1])} ${LispNum(a.th)} (SL_ReadableRot) ${LispStr(a.sub)} ${LispStr(label.sp.layer)})`)
+  if (label.tp.leader) w(`  (foreach pc ${leaderPartsLisp(label.tp.leader, ls)} (SL_LeaderPart pc ${LispStr(label.sp.layer)}))`)
 }
 
 /** One SL_NozzleAt call (app output): circle, label and leader where engine/labels.ts placed them. */
@@ -219,7 +244,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // Scans as drawn (reversed ones flipped), coverage and scan count (engine/layout.ts).
   const scans = drawnScans(p, v5)
   const counted = countedScans(p, scans, v5)
-  const coverage = coveragePercent(p, counted)
+  const coverage = coveragePercent(p, counted, v5 ? 0 : mutCoverageArea(p))
   const coverageText = coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`
   const legendTotalScansText = `Total Scans: ${CStr(counted.length)}`
 
@@ -258,10 +283,15 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const leaders = leaderStyle(s)
   // Labels moved by hand (app only): weld, seam, object and MUT labels drawn where they were put (engine/textLabels.ts).
   const movedTexts = new Map<string, { sp: TextLabelSpec; tp: TextPlacement }>()
+  // MUT areas (app only, Phase 5c) and their labels, wherever they are placed.
+  const areas = new Map(v5 ? [] : mutAreaLayouts(p).map((a) => [`${a.list}:${a.index}`, a]))
+  const areaLabels = new Map<string, { sp: TextLabelSpec; tp: TextPlacement }>()
   if (!v5) {
     for (const sp of textLabelSpecs(p)) {
       const tp = placeTextLabel(p, sp)
-      if (tp.moved) movedTexts.set(`${sp.list}:${sp.index}`, { sp, tp })
+      const key = `${sp.list}:${sp.index}`
+      if (areas.has(key)) areaLabels.set(key, { sp, tp })
+      else if (tp.moved) movedTexts.set(key, { sp, tp })
     }
   }
   /** SL_Text for a moved label, and its leader (MUT point, object edge) on the given layer. */
@@ -343,7 +373,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('  (setvar "OSMODE" 0)')
   w('  (SL_SetupLayers)')
   // Changes 16 and 17: layer colors chosen in the app (only those that differ) and the layers the app adds.
-  if (!v5) for (const [layer, color] of appLayerSetup(s)) w(`  (SL_Layer ${LispStr(layer)} ${CStr(color)})`)
+  if (!v5) for (const [layer, color] of appLayerSetup(s, hasMutAreas(p))) w(`  (SL_Layer ${LispStr(layer)} ${CStr(color)})`)
   if (!v5) w(`  (SL_SetLayerTransparencyTo "CENTERLINE" ${CStr(Math.round(Math.min(90, Math.max(0, s.centerlineTransparency))))})`) // change 11
   w('  (SL_SetupViewportLayers)')
   w('  (setvar "UCSICON" 0)')
@@ -439,6 +469,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('')
   w('  ;; Shell MUT points - rows 91-110: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes')
   p.shellMut.forEach((m, index) => {
+    const area = areas.get(`shellMut:${index}`)
+    if (area) {
+      writeMutArea(w, area, areaLabels.get(`shellMut:${index}`), leaders, orientation as Orientation)
+      return
+    }
     const moved = movedTexts.get(`shellMut:${index}`)
     if (moved) movedText(moved, '(SL_ReadableRot)', 'SHELL_MUT_TEXT')
     else w(`  (SL_MUTPoint ${LispNum(m.x!)} ${LispNum(m.y!)} ${LispStr(m.id)})`)
@@ -505,8 +540,13 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
     // The v5.0 workbook always has the Head MUT section, so this block is always written.
     w('')
     w('  ;; Head MUT points - overlay right panel')
-    for (const m of p.headMut) {
+    for (const [index, m] of p.headMut.entries()) {
       if (!m.include || !shouldShowHead(headMode, m.head)) continue
+      const area = areas.get(`headMut:${index}`)
+      if (area) {
+        writeMutArea(w, area, areaLabels.get(`headMut:${index}`), leaders, orientation as Orientation)
+        continue
+      }
       const [cx, cy] = center(m.head)
       w(`  (SL_HeadMUT ${LispNum(cx)} ${LispNum(cy)} ${LispNum(headDia)} ${LispNum(clockPositionDegrees(m.clock))} ${LispNum(radiusFactor(m))} ${LispStr(m.id)} "MUT_TEXT")`)
     }

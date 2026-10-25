@@ -237,6 +237,9 @@ export const LINE_LAYERS = [
   { key: 'headNozzleLeader', layer: 'HEAD_NOZZLE_LEADERS', appLayer: true },
   { key: 'xRuler', layer: 'X_AXIS' },
   { key: 'yRuler', layer: 'Y_AXIS' },
+  // MUT area outlines (Phase 5c): solid, while the hatch on MANUAL_UT_HATCH stays see-through. Set up in the .lsp only
+  // when the job has a MUT area (onlyWithMutAreas), so other jobs' drawings don't change.
+  { key: 'mutOutline', layer: 'MANUAL_UT', appLayer: true, onlyWithMutAreas: true },
 ] as const
 
 /**
@@ -707,6 +710,12 @@ export const SETTINGS = {
     description: 'Draw the long-dash vessel centerline.',
     default: true, group: 'showHide', step: 'Drawing', level: 'Basic',
   }),
+  showMutMinT: yesNo({
+    excelLabel: 'Show Min T Under MUT ID', excelSheet: PS, onSheet: false, name: 'Show Min T under the MUT ID',
+    description: 'In each MUT area drawn in the preview, print the Min. T from its row under the MUT ID.',
+    default: false, group: 'showHide', step: 'Drawing', level: 'Basic',
+    v5: 'App only (Phase 5c, MUT areas).',
+  }),
   centerlineTransparency: num({
     excelLabel: 'Centerline Transparency', excelSheet: PS, onSheet: false, name: 'Centerline transparency',
     description: 'How transparent (see-through) the vessel centerline is, as in CAD: 0 = solid, 90 = faintest.',
@@ -912,6 +921,7 @@ export const SETTINGS = {
   ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7, '0.13'),
   ...layerColor('xRuler', 'X ruler', 1, '0.25'),
   ...layerColor('yRuler', 'Y ruler', 5, '0.25'),
+  ...layerColor('mutOutline', 'MUT area outlines', 7, '0.25'),
 
   // PDF AND REPORT IMAGES (app only, Phase 4b, Export step).
   exportSet: choice(EXPORT_SETS, {

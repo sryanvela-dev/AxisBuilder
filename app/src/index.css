@@ -2005,3 +2005,146 @@ svg.sheet-model path {
   margin: 4px 10px;
   font-size: 0.8em;
 }
+
+/* MUT areas tool (Phase 5c): the shape being drawn, the selected area's outline, its + handles. */
+svg.drawing .area-draft {
+  stroke: #ffd54f;
+  stroke-width: 2;
+}
+
+svg.drawing .area-close-guide {
+  stroke: #ffd54f;
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+svg.drawing .area-selected {
+  stroke-dasharray: 6 3;
+}
+
+svg.drawing .area-plus {
+  stroke: #4fc3f7;
+  stroke-width: 2;
+}
+
+.area-status .area-coords {
+  font-variant-numeric: tabular-nums;
+}
+
+.area-status .area-typed {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.area-status .area-typed input {
+  width: 9em;
+}
+
+.area-status .area-message {
+  margin: 0;
+}
+
+.area-cell {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* The status line keeps one height while the tool goes from step to step, so the drawing doesn't jump under the cursor. */
+.move-status.area-status {
+  gap: 4px 8px;
+  padding: 3px 10px;
+}
+
+.area-status .area-corners table {
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.area-status .area-corners td,
+.area-status .area-corners th {
+  padding: 1px 4px;
+  font-weight: normal;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.area-status .area-corners input {
+  width: 6em;
+}
+
+.area-status .area-corner-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.area-status .move-selection {
+  flex-wrap: wrap;
+}
+
+.area-status .area-corners {
+  flex-basis: 100%;
+  max-height: 11em;
+  overflow: auto;
+}
+
+.area-status .area-typed-box {
+  width: 7.5em;
+}
+
+.area-status .area-straight {
+  white-space: nowrap;
+}
+
+.area-help {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4em;
+  height: 1.4em;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: help;
+}
+
+/* The corner table floats over the drawing's top right corner, so the drawing keeps its room. */
+.area-corner-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  max-height: calc(100% - 16px);
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+  font-size: 0.8rem;
+}
+
+.area-corner-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.area-corner-panel td,
+.area-corner-panel th {
+  padding: 1px 4px;
+  font-weight: normal;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.area-corner-panel input {
+  width: 6em;
+}
+
+.area-corner-panel .area-corner-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}

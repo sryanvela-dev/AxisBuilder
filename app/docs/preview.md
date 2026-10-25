@@ -163,7 +163,84 @@ How it is built:
   pointer to it and keeps pan and zoom), `labelTool.tsx` (the label tool), `SnapMarker.tsx` (one symbol per snap kind),
   `MoveLabels.tsx` (the job side: undo steps, keys, status line, menu). MUT areas (5c) are meant to be another tool.
 
+## Drawing mode: MUT areas (Phase 5c)
+
+"MUT areas" above the preview is the second drawing-mode tool (Move labels is the first; one at a time). A status line
+under the layer chips says what to do at each step and keeps one height, so the drawing doesn't jump.
+
+- **Start**: select a MUT row (click its area in the drawing, or a row of the Shell MUT / Head MUT table) and use Draw area
+  or Pick inside in the status line, or use the buttons in the table's Area column (they open the preview on that row).
+  With no MUT row selected, "New: draw area" / "New: pick inside" make a new MUT row (next free ID) when the shape
+  closes: on the shell, or on a head when the first corner (or the picked point) is inside a head circle.
+- **Draw area**: click the corners. Click the first corner again, press Enter, right-click or "Close the area" to close
+  it (3 corners or more). Backspace takes the last corner away, Esc cancels. The status line shows the cursor's position
+  and the last corner (shell: X around and Y along, in inches; head: inches right / left and up / down from the head's
+  center), and "Next corner" takes typed values: `12.5, 30`, lengths as in the tables (`12 1/2, 2' 6"`), or `@5, 0` from
+  the last corner. On the shell a corner past the left or right edge (X below 0 or past the circumference) wraps round:
+  the area is drawn in two pieces at the two edges with one ID, as scans are.
+- **Snaps** (`areaGeometry` + the shape drawn so far, through `findSnap`): endpoint (scan and object corners, the shell's
+  corners, its own corners), intersection (a weld crossing a seam, a line crossing a nozzle), center (nozzles),
+  perpendicular (from the last corner to a line), on a line or circle. Shift = no snap; Ctrl = level or plumb with the last
+  corner. Lines are the real ones (welds whole, not their dashes): the shell's edges, circ welds, long seams, scan outlines,
+  objects, nozzle circles and other MUT areas; on a head, the head circle, its centerlines, head nozzles and other areas on
+  that head.
+- **Pick inside**: one click inside a space closed all round by those lines (like CAD's hatch pick point / BOUNDARY); the
+  app finds the smallest closed outline around the point (`pickInside`, `polygon.ts enclosingBoundary`: lines split where
+  they cross, loose ends trimmed, the face around the point walked). Something wholly inside (a nozzle, an object) is not
+  part of the outline; it is left unhatched as an island. Not closed: the status line says so and offers "Draw area
+  instead".
+- **Editing**: the selected row's area shows its corners and a + on each edge. Drag a corner (snaps as above, the area's
+  own outline left out); drag or click a + to add a corner there; click a corner and press Delete (or Backspace, or
+  right-click > Remove corner) to remove it (an area keeps 3); Delete with no corner selected, the status line's "Delete
+  area", right-click > Delete area or the ✕ in the Area column delete the area (the row stays, a MUT point again). "Draw
+  again" replaces it. Every action is one undo step (Ctrl+Z / Ctrl+Y). The ID label moves with Move labels like the other
+  labels (a `shellMut` / `headMut` label override). "Corners (n): type exact values" in the status line opens a table of
+  the selected area's corners (shell: X and Y; head: inches right and up from the head's center); a value typed there is
+  stored on Enter or when you leave the box (one undo step; `ui/preview/CornerBox.tsx`).
+- **Nozzle labels keep clear of areas**: automatic shell and head nozzle labels (and their leaders) avoid each MUT area's
+  box, as they avoid scans and objects, except a nozzle's own label when the nozzle sits in the area (`engine/labels.ts`
+  `areasAround`). A label that can't be kept clear gets the usual Review warning ("Label N4 overlaps MUT area M5").
+
+- **After the first click-test (user, 2026-10-25)**: the status line is one row (the full help is on its "?"), and
+  "Corners" opens the corner table floating over the drawing's top right, so the drawing keeps its room. Outlines default
+  to color 7, like the scan outlines. Corners also line up with any line end, corner or center in the drawing (same X or
+  Y, a dashed guide back to it; one point across and one up and down squares up with both; near a line it lands on the
+  line: `trackPoints`, `drawSnap` in `areaDraw.ts`, `Snap.ref2`). "Straight" (key O) keeps every corner level or plumb
+  with the last one until switched off, for drawing and for dragging corners (Ctrl still works for one corner). On a head,
+  an edge between two corners on the head edge follows the circle the shorter way (`headOutline`; a corner just inside
+  keeps it straight); Pick inside on a head keeps only a few corners along the edge (`compactRim`). Clicking an area with
+  the tool on also goes to its row (Field data), as clicking any item does with no tool.
+
+How it is built:
+
+- Project file format 6: `area` on shell MUT and head MUT rows (`data/schema.ts`): the corners in order, or null. Shell:
+  logical inches (X may run past the seam). Head: head radii from the head's center as the head view reads (u toward
+  3 o'clock, v toward 12), so an area stays on its head when the right panel moves or the head view changes size. Being on
+  the row, an area goes with its row through sorting, renames and deletes. Fewer than 3 corners, a crossing outline, a part
+  off the shell or outside the head: a Review warning (`mutAreaProblems`), never a refusal to save or export.
+- `data/mutAreaEdits.ts`: `setArea` (a blank shell X / Y gets the area's center; a head MUT with no clock gets the
+  center's clock and Custom radius %), `deleteArea`, `moveCorner`, `insertCorner`, `removeCorner`, `addMutWithArea`.
+- `engine/mutAreas.ts` (pure, cached per project version): `mutAreaLayouts(p)` gives each drawn area its outline pieces
+  (logical; shell: clipped to the shell and wrapped like scans), the ID's spot (the centroid when the label fits there,
+  else the most open spot where it fits, else beside the area with a leader into it; a move by hand applies), the hatch
+  lines (45 degrees, the scan hatch spacing, `polygon.ts hatchLines`) with islands left empty: scans, objects, nozzle
+  circles, nozzle labels and the area's own label; and `coverageArea`. The drawing draws a shell MUT row with an area
+  instead of its point marker (head MUT likewise): the outline solid on the app layer MANUAL_UT (color 3; its own color and
+  line weight on the Drawing step, "MUT area outlines"), the hatch see-through on MANUAL_UT_HATCH (its color, the hatch
+  transparency and weight), both in the "MUT areas" layer group, with the ID on SHELL_MUT_TEXT / HEAD_MUT_TEXT at their
+  size. The .lsp sets up MANUAL_UT only for a job with a MUT area (`appLayerSetup(s, hasMutAreas(p))`).
+  Setting "Show Min T under the MUT ID" (Drawing step, Show or hide; off by default) adds a second line.
+- Coverage: `coveragePercent(p, counted, mutCoverageArea(p))`: the hatched part of each shell area (the area on the shell
+  minus scans, objects and nozzles inside it; labels don't count against it) is added to the scanned area; scan-to-scan
+  overlaps stay gross as before; head areas never count; compat v5.0 passes nothing, so its figure is unchanged.
+- The preview, Sheets view, PDF, report images and the .lsp (app change 28) all read the same layouts; the DXF (7a) will
+  too.
+- UI: `ui/preview/MutAreas.tsx` (the tool, status line, menu), `ui/preview/areaDraw.ts` (pure: adding and removing corners,
+  closing, the snaps, typed points and their frames), `ui/areaToolContext.ts` (which tool the preview has and what the
+  MUT areas tool is doing, owned by the job screen so the table can start it), `ui/AreaCell.tsx` (the Area column: the
+  area's size in sq in, plus sq ft from 1 sq ft up; head areas "about", measured on a flat circle of the shell's diameter).
+
 ## Planned (not built yet)
 
-MUT areas (5c). Not movable (on purpose): scan IDs (centred in their scan), reference labels and the title / legend panel
-(the section sheets lay them out).
+Not movable (on purpose): scan IDs (centred in their scan), reference labels and the title / legend panel (the section
+sheets lay them out).

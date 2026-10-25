@@ -12,12 +12,17 @@ import { leaderStyle, leaderToLabel, type Pt } from './leaders.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
 import { readableRot, rotationOffset, toVisual, type Orientation } from './transform.ts'
 import { circumference, isWrapped, labelPieceIndex, objectPieces } from './wrap.ts'
+import { areaLabelSize, areaTextLayer, mutAreaLayouts } from './mutAreas.ts'
+import { pointInPolygon } from './polygon.ts'
 
 export type TextLabelList = Exclude<MovableLabelList, 'shellNozzles' | 'headNozzles'>
-export const TEXT_LABEL_LISTS: readonly TextLabelList[] = ['circWelds', 'longSeams', 'objects', 'shellMut']
+export const TEXT_LABEL_LISTS: readonly TextLabelList[] = ['circWelds', 'longSeams', 'objects', 'shellMut', 'headMut']
 
-/** What a moved label's leader goes to: a point (MUT) or a rectangle's edge (object, logical [x0, y0, x1, y1]). */
-export type LeaderTarget = { kind: 'point'; pt: Pt } | { kind: 'rect'; box: [number, number, number, number] }
+/**
+ * What a moved label's leader goes to: a point (MUT), a rectangle's edge (object, logical [x0, y0, x1, y1]), or a MUT
+ * area (the most open point inside it; no leader while the label is inside the area).
+ */
+export type LeaderTarget = { kind: 'point'; pt: Pt } | { kind: 'rect'; box: [number, number, number, number] } | { kind: 'area'; pts: Pt[]; pt: Pt }
 
 export interface TextLabelSpec {
   list: TextLabelList
@@ -32,6 +37,8 @@ export interface TextLabelSpec {
   /** The layer the text is drawn with (SL_Text's layer argument; SL_TextLayer maps it to the text layer). */
   layer: string
   target: LeaderTarget | null
+  /** A MUT area's label (engine/mutAreas.ts): its Min. T line, if shown, and whether it fits inside the area. */
+  area?: { sub: string | null; inside: boolean }
 }
 
 /** SL_FitTextHeight */
@@ -79,8 +86,17 @@ export function textLabelSpecs(p: Project): TextLabelSpec[] {
       })
     })
   }
+  // MUT areas (Phase 5c): the label at its spot in the area (or beside it), from engine/mutAreas.ts.
+  const areas = new Map(mutAreaLayouts(p).map((a) => [`${a.list}:${a.index}`, a]))
+  for (const a of areas.values()) {
+    if (a.id === '') continue
+    out.push({
+      list: a.list, index: a.index, id: a.id, txt: a.id, ax: a.auto[0], ay: a.auto[1], th: a.th, rot: readableRot(o), layer: areaTextLayer(a.list),
+      target: { kind: 'area', pts: a.pieces[a.labelPiece], pt: a.open }, area: { sub: a.sub, inside: a.inside },
+    })
+  }
   p.shellMut.forEach((m, index) => {
-    if (!complete(m.x, m.y) || m.id === '') return
+    if (areas.has(`shellMut:${index}`) || !complete(m.x, m.y) || m.id === '') return
     out.push({ list: 'shellMut', index, id: m.id, txt: m.id, ax: m.x!, ay: m.y!, th: 1.5, rot: readableRot(o), layer: 'SHELL_MUT_TEXT', target: { kind: 'point', pt: [m.x!, m.y!] } })
   })
   if (s.showWeldsOnOverlay && sized && s.showWeldLabels) {
@@ -116,6 +132,9 @@ export function textLeader(o: Orientation, p: Project, target: LeaderTarget | nu
     const pv = toVisual(o, target.pt[0], target.pt[1])
     if (Math.abs(pv[0] - cv[0]) <= w / 2 && Math.abs(pv[1] - cv[1]) <= h / 2) return null
     q = target.pt
+  } else if (target.kind === 'area') {
+    if (pointInPolygon(target.pts, centre)) return null
+    q = target.pt
   } else {
     const [x0, y0, x1, y1] = target.box
     if (centre[0] >= x0 && centre[0] <= x1 && centre[1] >= y0 && centre[1] <= y1) return null
@@ -140,14 +159,17 @@ export interface TextPlacement {
 export function placeTextLabel(p: Project, spec: TextLabelSpec): TextPlacement {
   const o = p.vessel.orientation as Orientation
   const sh = sizedHeight(textSizeRules(p.settings), textLayer(spec.layer), spec.th)
-  const [w, h] = textBoxSize(o, spec.txt, sh, spec.rot)
-  const auto: TextPlacement = { x: spec.ax, y: spec.ay, w, h, leader: null, moved: false }
+  const [w, h] = spec.area ? areaLabelSize(spec.txt, spec.area.sub, sh) : textBoxSize(o, spec.txt, sh, spec.rot)
+  // A MUT area's label that doesn't fit inside sits beside the area with a leader into it.
+  const autoLeader = spec.area && !spec.area.inside ? textLeader(o, p, spec.target, [spec.ax, spec.ay], w, h) : null
+  const auto: TextPlacement = { x: spec.ax, y: spec.ay, w, h, leader: autoLeader, moved: false }
   const ov = rowOverride(p, spec.list, spec.index)
   if (!ov || ov.label === null || ov.label === 'inside') return auto
   const [x, y] = offsetPoint(o, [spec.ax, spec.ay], ov.label)
   const H = p.vessel.height
   const L = p.vessel.length
-  if (H !== null && L !== null && (x < 0 || y < 0 || x > H || y > L)) return { ...auto, fallback: 'it was off the shell' }
+  // Head MUT area labels sit on the head views beside the shell, so only shell labels must stay on the shell.
+  if (spec.list !== 'headMut' && H !== null && L !== null && (x < 0 || y < 0 || x > H || y > L)) return { ...auto, fallback: 'it was off the shell' }
   return { x, y, w, h, leader: textLeader(o, p, spec.target, [x, y], w, h), moved: true }
 }
 

@@ -19,7 +19,7 @@ import type { LabelOverride, MovableLabelList, Project, Scan } from '../data/sch
 import { rowOverride } from '../data/overrides.ts'
 import { clockPositionDegrees, drawnScans, imageInserts, panelOf, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
-import { arcBox, circumference, nozzlePieces, scanPieces, type ArcPiece } from './wrap.ts'
+import { arcBox, circumference, nozzlePieces, scanPieces, shellAreaPieces, type ArcPiece } from './wrap.ts'
 import { headVector, readableRot, toLogical, toVisual, type Orientation } from './transform.ts'
 import {
   LEADER_GAP, curvedSpot, elbowSpot, leaderStyle, leaderToLabel, pathHitsBox, pathsCross, straightSpot, type LeaderStyle, type Pt, type Spot,
@@ -106,6 +106,10 @@ function spotsAround(o: Orientation, style: LeaderStyle, n: Pt, r: number, ld: n
 
 const overlap = (a: Box, b: Box) => !(a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3])
 const finite = (b: Box) => b.every((v) => Number.isFinite(v))
+const boxOfPts = (pts: readonly Pt[]): Box => [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))]
+/** The MUT area boxes a nozzle (any of its pieces' centers) sits in: its own label may stay in them. */
+const areasAround = (areas: readonly Box[], pieces: readonly { cx: number; cy: number }[]): Set<Box> =>
+  new Set(areas.filter((a) => pieces.some((pc) => pc.cx >= a[0] && pc.cx <= a[2] && pc.cy >= a[1] && pc.cy <= a[3])))
 
 /** A label center `d` (as the drawing reads) from the nozzle center n, in logical coordinates. */
 export function offsetPoint(o: Orientation, n: Pt, d: { dx: number; dy: number }): Pt {
@@ -197,6 +201,16 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
       if (ob.include && ob.x !== null && ob.y !== null && ob.circWidth !== null && ob.length !== null) keep([ob.x, ob.y, ob.x + ob.circWidth, ob.y + ob.length], `object ${ob.id}`)
     }
   }
+  // MUT areas drawn in the app (Phase 5c): automatic labels keep clear of them, except a nozzle's own label when the
+  // nozzle sits in the area (it may stay there; the hatch leaves it out).
+  const areaBoxes: Box[] = []
+  for (const m of p.shellMut) {
+    if (!m.area || m.area.length < 3) continue
+    for (const pc of shellAreaPieces(p, m.area)) {
+      const b = boxOfPts(pc)
+      if (finite(b)) areaBoxes.push(keep(b, `MUT area ${m.id}`))
+    }
+  }
   const H = p.vessel.height
   const L = p.vessel.length
   const lr = readableRot(o)
@@ -274,9 +288,10 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
         const usable = wrapped ? all.filter((sp) => sp.path[0][0] >= a0 - 1e-6 && sp.path[0][0] <= a1 + 1e-6) : all
         return usable.length ? usable : all
       }
+      const inAreas = areasAround(areaBoxes, pieces)
       const clear = (leader: boolean) => (sp: Spot) => {
         const bb = textBox(sp.tx, sp.ty, tw, sh, lr)
-        return !offShell(bb) && firstHit(sp, bb, avoid, names, segs, leader) === null
+        return !offShell(bb) && firstHit(sp, bb, avoid, names, segs, leader, inAreas) === null
       }
       // The eight spots at the set leader length; when none is clear (label and whole leader), the leader is made
       // longer a few times (app change 23); then the same for the label alone; then the label is placed where it
@@ -286,7 +301,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
       let crowded: string | undefined
       if (!found) {
         found = spots(s.nozzleLeaderLength)[0]
-        crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false) ?? 'the edge of the shell'
+        crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false, inAreas) ?? 'the edge of the shell'
       }
       ownBoxes.set(index, keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`))
       segs.push(found.path)
@@ -307,7 +322,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   // landed on.
   for (const [index, l] of out) {
     if (!l.leader || l.crowded || !ownBoxes.has(index)) continue
-    const own = new Set<Box>([ownBoxes.get(index)!, ...(nozzleBoxes.get(index) ?? [])])
+    const own = new Set<Box>([ownBoxes.get(index)!, ...(nozzleBoxes.get(index) ?? []), ...areasAround(areaBoxes, geoms.get(index)?.pieces ?? [])])
     const bb = textBox(l.tx, l.ty, l.tw, l.sh, lr)
     const hit = firstHit({ path: l.leader, tx: l.tx, ty: l.ty }, bb, avoid, names, segs, byHand.has(index), own, ownSegs.get(index))
     if (hit) out.set(index, { ...l, crowded: hit })
@@ -370,7 +385,8 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
   const avoid: Box[] = []
   const names: string[] = []
   for (const m of p.headMut) {
-    if (!m.include || !shouldShowHead(mode, m.head) || m.id === '') continue
+    // A MUT drawn as an area (Phase 5c) has its ID in the area, not at its clock point.
+    if (!m.include || !shouldShowHead(mode, m.head) || m.id === '' || (m.area && m.area.length >= 3)) continue
     const [cx, cy] = center(m.head)
     const [dx, dy] = headVector(o, clockPositionDegrees(m.clock))
     const f = r * radiusFactor(m)
@@ -387,6 +403,20 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
   const bodyBoxes: Box[] = bodies.map((b) => [b.x - b.nozR, b.y - b.nozR, b.x + b.nozR, b.y + b.nozR])
   avoid.push(...bodyBoxes)
   names.push(...shown.map(({ n, index }) => `head nozzle ${n.id || index + 1}`))
+  // MUT areas on the heads (Phase 5c, stored in head radii: u toward 3 o'clock, v toward 12), as on the shell.
+  const headAreaBoxes: Box[] = []
+  for (const m of p.headMut) {
+    if (!m.include || !shouldShowHead(mode, m.head) || !m.area || m.area.length < 3) continue
+    const [cx, cy] = center(m.head)
+    const e3 = headVector(o, 90)
+    const e12 = headVector(o, 0)
+    const b = boxOfPts(m.area.map(([u, v]): Pt => [cx + r * (u * e3[0] + v * e12[0]), cy + r * (u * e3[1] + v * e12[1])]))
+    if (!finite(b)) continue
+    headAreaBoxes.push(b)
+    avoid.push(b)
+    names.push(`MUT area ${m.id}`)
+  }
+  const headOwn = (i: number) => new Set<Box>([bodyBoxes[i], ...areasAround(headAreaBoxes, [{ cx: bodies[i].x, cy: bodies[i].y }])])
 
   const geoms = shown.map(({ n }, i): LabelGeom & { outside: boolean } => {
     const { x, y, nozR } = bodies[i]
@@ -452,7 +482,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     // Elbow: the angled segment runs along the clock direction, then the horizontal landing, label at its end.
     const ld = s.headNozzleLeaderLength
     const step = sh * 1.6
-    const own = bodyBoxes[i]
+    const own = headOwn(i)
     const dv = toVisual(o, dx, dy)
     const edge: Pt = [x + nozR * dx, y + nozR * dy]
     const spotAt = (k: number): Spot => {
@@ -493,7 +523,7 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const l = out.get(index)
     const hand = byHand.has(index)
     if (!l || l.crowded || !ownBoxes.has(index) || (!hand && !l.leader)) return
-    const own = new Set<Box>([ownBoxes.get(index)!, bodyBoxes[i]])
+    const own = new Set<Box>([ownBoxes.get(index)!, ...headOwn(i)])
     const bb = textBox(l.tx, l.ty, l.tw, l.sh, lr)
     const hit = firstHit({ path: l.leader ?? [], tx: l.tx, ty: l.ty }, bb, avoid, names, segs, hand && l.leader !== null, own, l.leader ?? undefined)
     if (hit) out.set(index, { ...l, crowded: hit })
