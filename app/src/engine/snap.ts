@@ -45,6 +45,8 @@ export interface Snap {
   kind: SnapKind | 'free' | null
   /** align: the point lined up with; perpendicular: the line's foot is pt itself. */
   ref?: Pt
+  /** align on both axes (squared up with two points): the second point lined up with. */
+  ref2?: Pt
 }
 
 const PRIORITY: SnapKind[] = ['endpoint', 'intersection', 'center', 'perpendicular', 'align', 'on']

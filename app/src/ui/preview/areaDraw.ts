@@ -5,7 +5,7 @@
 import { parseLength } from '../../data/parse.ts'
 import type { Project } from '../../data/schema.ts'
 import { headFrame, type AreaTarget } from '../../engine/mutAreas.ts'
-import { findSnap, type Snap, type SnapGeom } from '../../engine/snap.ts'
+import { findSnap, segmentIntersection, type Snap, type SnapGeom } from '../../engine/snap.ts'
 import { toLogical, toVisual, type Orientation } from '../../engine/transform.ts'
 import type { Mods } from './drawingTool.ts'
 
@@ -33,12 +33,64 @@ export function withShape(g: SnapGeom, pts: readonly Pt[]): SnapGeom {
 }
 
 /**
- * The next point for the cursor: snapped to an endpoint, intersection, center, perpendicular (from the last corner) or a
- * point on a line; Shift = the cursor as it is; Ctrl = held level or plumb with the last corner.
+ * Points a corner can line up with (tracking): every line end and corner of the job's lines, circle centers and the
+ * corners drawn so far, without repeats.
  */
-export function drawSnap(g: SnapGeom, pts: readonly Pt[], cursor: Pt, tol: number, mods: Mods): Snap {
-  const from = pts.length ? pts[pts.length - 1] : undefined
-  return findSnap(withShape(g, pts), cursor, tol, { free: mods.shift, ortho: mods.ctrl && from !== undefined, ...(from ? { from } : {}), kinds: ['endpoint', 'intersection', 'center', 'perpendicular', 'on'] })
+export function trackPoints(g: SnapGeom, pts: readonly Pt[]): Pt[] {
+  const seen = new Set<string>()
+  const out: Pt[] = []
+  const add = (q: Pt) => {
+    const k = `${Math.round(q[0] * 1000)},${Math.round(q[1] * 1000)}`
+    if (seen.has(k)) return
+    seen.add(k)
+    out.push(q)
+  }
+  for (const [a, b] of g.segs) {
+    add(a)
+    add(b)
+  }
+  for (const c of g.circles) add(c.c)
+  for (const q of pts) add(q)
+  return out
+}
+
+/**
+ * The next point for the cursor: snapped to an endpoint, intersection, center, perpendicular (from the last corner),
+ * lined up with a point anywhere in the drawing (same X or same Y; with one point on each axis at once, squared up with
+ * both), or a point on a line. Shift = the cursor as it is; Ctrl (or the Straight lock) = held level or plumb with the
+ * last corner. `from` overrides the point Ctrl measures from (a corner being dragged: where it started).
+ */
+export function drawSnap(g: SnapGeom, pts: readonly Pt[], cursor: Pt, tol: number, mods: Mods, track: readonly Pt[] = trackPoints(g, pts), from: Pt | undefined = pts.length ? pts[pts.length - 1] : undefined): Snap {
+  const ortho = mods.ctrl && from !== undefined
+  const s = findSnap(withShape(g, pts), cursor, tol, {
+    free: mods.shift, ortho, ...(from ? { from } : {}), align: track, kinds: ['endpoint', 'intersection', 'center', 'perpendicular', 'align', 'on'],
+  })
+  if (mods.shift || ortho || (s.kind !== null && s.kind !== 'align' && s.kind !== 'on')) return s
+  if (s.kind === 'align' && s.ref) {
+    // Lined up while near a line: where the tracking line meets that line, or else the line itself (a corner on a
+    // weld matters more than lining up).
+    const on = findSnap(withShape(g, pts), cursor, tol, { kinds: ['on'] })
+    if (on.kind === 'on') {
+      const vertical = Math.abs(s.pt[0] - s.ref[0]) < 1e-9
+      const far = 1e7
+      const track: [Pt, Pt] = vertical ? [[s.ref[0], -far], [s.ref[0], far]] : [[-far, s.ref[1]], [far, s.ref[1]]]
+      let best: Pt | null = null
+      for (const [a, b] of withShape(g, pts).segs) {
+        const x = segmentIntersection(track[0], track[1], a, b)
+        if (x && Math.hypot(x[0] - cursor[0], x[1] - cursor[1]) <= tol && (!best || Math.hypot(x[0] - cursor[0], x[1] - cursor[1]) < Math.hypot(best[0] - cursor[0], best[1] - cursor[1]))) best = x
+      }
+      return best ? { pt: best, kind: 'align', ref: s.ref } : on
+    }
+  }
+  // Squared up with two points: one lined up across, the other up and down.
+  let bx: Pt | null = null
+  let by: Pt | null = null
+  for (const q of track) {
+    if (Math.abs(q[0] - cursor[0]) <= tol && (!bx || Math.abs(q[0] - cursor[0]) < Math.abs(bx[0] - cursor[0]))) bx = q
+    if (Math.abs(q[1] - cursor[1]) <= tol && (!by || Math.abs(q[1] - cursor[1]) < Math.abs(by[1] - cursor[1]))) by = q
+  }
+  if (bx && by && bx !== by) return { pt: [bx[0], by[1]], kind: 'align', ref: bx, ref2: by }
+  return s
 }
 
 /**

@@ -7,16 +7,16 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { addMutWithArea, deleteArea, insertCorner, moveCorner, removeCorner, setArea } from '../../data/mutAreaEdits.ts'
 import type { HeadMut, Project, ShellMut } from '../../data/schema.ts'
 import {
-  areaFrame, areaGeometry, areaHit, drawableArea, formatAreaSize, mutAreaLayouts, mutAreaSize, pickInside, targetAt, targetOf,
+  areaFrame, areaGeometry, areaHit, compactRim, drawableArea, headOutline, formatAreaSize, mutAreaLayouts, mutAreaSize, pickInside, targetAt, targetOf,
   type AreaTarget, type MutList,
 } from '../../engine/mutAreas.ts'
 import { polygonArea } from '../../engine/polygon.ts'
-import { findSnap, type Snap, type SnapGeom } from '../../engine/snap.ts'
+import type { Snap, SnapGeom } from '../../engine/snap.ts'
 import type { Orientation } from '../../engine/transform.ts'
 import { useApp } from '../appContext.ts'
 import { IDLE, useAreaTool, type AreaPhase, type AreaRow, type AreaToolApi } from '../areaToolContext.ts'
 import { useSelection, type Selected } from '../selectionContext.ts'
-import { addPoint, drawSnap, parseTypedPoint, removeLast, typedFrame } from './areaDraw.ts'
+import { addPoint, drawSnap, parseTypedPoint, removeLast, trackPoints, typedFrame } from './areaDraw.ts'
 import { svgToVisual, visualToSvg, type DrawingTool, type ToolPointer } from './drawingTool.ts'
 import { previewPrefs, setPreviewPrefs } from './previewPrefs.ts'
 import { SnapMarker } from './SnapMarker.tsx'
@@ -44,6 +44,11 @@ const dist = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1])
 const rowOf = (p: Project, r: Row): ShellMut | HeadMut | undefined => (p[r.list] as (ShellMut | HeadMut)[])[r.index]
 const targetName = (t: AreaTarget) => (t.kind === 'shell' ? 'the shell' : t.head === 'HEAD 1' ? 'head 1' : 'head 2')
 const sameRow = (a: Row | null | undefined, b: Row | null | undefined) => !!a && !!b && a.list === b.list && a.index === b.index
+/** The drawn outline of a shape still open: up to its last corner (not the closing edge back to the first). */
+const openPart = (drawn: Pt[], last: Pt): Pt[] => {
+  for (let i = drawn.length - 1; i > 0; i--) if (dist(drawn[i], last) < 1e-2) return drawn.slice(0, i + 1)
+  return drawn
+}
 
 /**
  * Starts drawing (or picking) an area from anywhere (the Field data table's Draw area / Pick inside): the preview opens
@@ -57,7 +62,7 @@ export function startArea(api: AreaToolApi, select: (s: Selected | null) => void
   api.setPhase(mode === 'draw' ? { kind: 'draw', row, target, pts: [] } : { kind: 'pick', row })
 }
 
-export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool | null; status: ReactNode; menu: ReactNode } {
+export function useMutAreas(on: boolean, project: Project, goToRow: (row: Row, id: string) => void): { tool: DrawingTool | null; status: ReactNode; menu: ReactNode } {
   const app = useApp()
   const { selected, select } = useSelection()
   const api = useAreaTool()
@@ -83,6 +88,9 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
   const [menuAt, setMenuAt] = useState<{ x: number; y: number; row: Row; corner: number | null } | null>(null)
   const [typed, setTyped] = useState('')
   const [typedProblem, setTypedProblem] = useState<string | null>(null)
+  /** Straight: every corner level or plumb with the last one (as holding Ctrl), until switched off (the O key). */
+  const [straight, setStraight] = useState(false)
+  const [cornersOpen, setCornersOpen] = useState(false)
 
   const present = () => app.state.job!.history.present
   const selRow: Row | null = selected && isMutList(selected.list) && rowOf(project, selected as Row) ? (selected as Row) : null
@@ -126,7 +134,8 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
     const p = present()
     const frame = areaFrame(p, target)
     if (!frame || pts.length < 3) return
-    const stored = pts.map((q) => frame.toStored(q))
+    // On a head, corners along the head edge (Pick inside) become a few; the outline follows the circle between them.
+    const stored = target.kind === 'head' ? compactRim(pts.map((q) => frame.toStored(q))) : pts.map((q) => frame.toStored(q))
     if (row) {
       const id = rowOf(p, row)?.id ?? ''
       app.edit(`Draw the MUT area of ${id}`, (q) => setArea(q, row.list, row.index, stored))
@@ -190,6 +199,10 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
         return
       }
       if (inBox) return
+      if ((e.key === 'o' || e.key === 'O') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setStraight((v) => !v)
+        return
+      }
       if (ph.kind === 'draw') {
         if (e.key === 'Backspace') {
           e.preventDefault()
@@ -240,20 +253,29 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
 
   const drawTarget = (ph: Extract<AreaPhase, { kind: 'draw' }>, v: Pt): AreaTarget => ph.target ?? (ph.pts.length ? targetAt(project, ph.pts[0]) : targetAt(project, v))
 
+  const mods = (e: ToolPointer) => ({ shift: e.mods.shift, ctrl: e.mods.ctrl || straight })
+  /** Visual points as drawn on their target: on a head, edges between corners on the head edge follow the circle. */
+  const asDrawn = (pts: Pt[], target: AreaTarget | null): Pt[] => {
+    if (!target || target.kind !== 'head' || pts.length < 2) return pts
+    const frame = areaFrame(project, target)
+    return frame ? headOutline(pts.map((q) => frame.toStored(q))).map((q) => frame.toVisual(q)) : pts
+  }
   const snapFor = (e: ToolPointer): { snap: Snap; target: AreaTarget } | null => {
     const ph = cur()
     const v = svgToVisual(e.svg)
     const tol = SNAP_PX / e.scale
     if (ph.kind === 'draw') {
       const target = drawTarget(ph, v)
-      return { snap: drawSnap(geomFor(target), ph.pts, v, tol, e.mods), target }
+      return { snap: drawSnap(geomFor(target), ph.pts, v, tol, mods(e)), target }
     }
     const d = dragRef.current
     if (d) {
       const item = rowOf(project, d.row)
       if (!item) return null
       const target = targetOf(d.row.list, item)
-      return { snap: findSnap(geomFor(target), v, tol, { free: e.mods.shift, ortho: e.mods.ctrl, from: d.start, kinds: ['endpoint', 'intersection', 'center', 'perpendicular', 'on'] }), target }
+      const g = geomFor(target)
+      const others = (selPts ?? []).filter((_, i) => i !== d.corner)
+      return { snap: drawSnap(g, [], v, tol, mods(e), trackPoints(g, others), d.start), target }
     }
     return null
   }
@@ -292,6 +314,7 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
       if (hit) {
         setMessage(null)
         select(hit)
+        goToRow(hit, rowOf(project, hit)?.id ?? '')
         return true
       }
       return false
@@ -386,7 +409,12 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
       if (phase.kind === 'draw') {
         const pts = phase.pts
         const next = cursor?.snap.pt
-        if (pts.length) out.push(<polyline key="shape" className="area-draft" points={svgPts(next ? [...pts, next] : pts)} />)
+        const target = phase.target ?? (pts.length ? targetAt(project, pts[0]) : null)
+        if (pts.length) {
+          // The edges so far as they will be drawn (on a head, along the head edge where both ends are on it).
+          const drawn = asDrawn(next ? [...pts, next] : pts, target)
+          out.push(<polyline key="shape" className="area-draft" points={svgPts(openPart(drawn, next ?? pts[pts.length - 1]))} />)
+        }
         if (pts.length >= 2 && next) out.push(<line key="close" className="area-close-guide" x1={visualToSvg(next)[0]} y1={visualToSvg(next)[1]} x2={visualToSvg(pts[0])[0]} y2={visualToSvg(pts[0])[1]} />)
         pts.forEach((q, i) => {
           const [x, y] = visualToSvg(q)
@@ -397,7 +425,7 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
       }
       if (selPts && phase.kind === 'idle') {
         const pts = drag?.corner != null ? selPts.map((q, i) => (i === drag.corner ? drag.snap.pt : q)) : drag?.after != null ? [...selPts.slice(0, drag.after + 1), drag.snap.pt, ...selPts.slice(drag.after + 1)] : selPts
-        out.push(<polygon key="sel" className="move-selected area-selected" points={svgPts(pts)} />)
+        out.push(<polygon key="sel" className="move-selected area-selected" points={svgPts(asDrawn(pts, selTarget))} />)
         if (!drag) {
           selPts.forEach((a, i) => {
             const b = selPts[(i + 1) % selPts.length]
@@ -440,107 +468,96 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
     else setPhase({ ...phase, target: phase.target ?? target, pts: res.pts })
   }
   const rowName = (r: Row | null) => (r ? (rowOf(project, r)?.id ?? '') : '')
+  const help = (text: string) => (
+    <span className="area-help" tabIndex={0} title={text} aria-label={text}>
+      ?
+    </span>
+  )
+  const straightSwitch = (
+    <label className="switch area-straight" title="Every corner level or plumb with the last one (the same as holding Ctrl), until switched off. Key: O">
+      <input type="checkbox" checked={straight} onChange={(e) => setStraight(e.target.checked)} />
+      Straight
+    </label>
+  )
   let body: ReactNode
   const phaseItem = phase.kind !== 'idle' && phase.row ? rowOf(project, phase.row) : undefined
   if (phase.kind !== 'idle' && phase.row && phaseItem && !areaFrame(project, targetOf(phase.row.list, phaseItem))) {
     // A head MUT on a head that is not drawn: nothing to draw on yet.
     body = (
       <span>
-        <strong>{phaseItem.id}</strong> is on {'head' in phaseItem ? phaseItem.head : 'a head'}, which is not drawn, so its area can't be drawn yet. Show it with
-        Head views (Field data step, Heads).{' '}
+        <strong>{phaseItem.id}</strong> is on {'head' in phaseItem ? phaseItem.head : 'a head'}, which is not drawn: show it with Head views (Field data, Heads).{' '}
         <button type="button" className="btn btn-small" onClick={finish}>Cancel</button>
       </span>
     )
   } else if (phase.kind === 'draw') {
-    const who = phase.row ? `the MUT area of ${rowName(phase.row)}` : 'a new MUT area (on the shell, or on a head if the first corner is in one)'
+    const who = phase.row ? `Drawing ${rowName(phase.row)}` : 'New MUT area'
+    const n = phase.pts.length
     body = (
       <>
-        <span>
-          <strong>Drawing {who}:</strong> click the corners; click the first corner again, press Enter or right-click to close it. Backspace takes the last corner
-          away, Esc cancels. Corners snap to lines, corners and crossings; Shift = no snap, Ctrl = level or plumb with the last corner.
-          {typedTarget?.kind === 'shell' && ' A corner past the left or right edge of the shell wraps round to the other edge.'}
+        <strong>{who}</strong>
+        <span className="area-coords muted">
+          {cursor && tf ? `${tf.describe(tf.fromVisual(cursor.snap.pt))} in` : 'click the first corner'}
+          {n > 0 && ` · ${n} ${n === 1 ? 'corner' : 'corners'}`}
         </span>
-        <span className="area-coords">
-          {cursor && tf ? <>Cursor: {tf.describe(tf.fromVisual(cursor.snap.pt))} in</> : <span className="muted">Move over the drawing to see the cursor position.</span>}
-          {phase.pts.length > 0 && tf && <> · {phase.pts.length} {phase.pts.length === 1 ? 'corner' : 'corners'}, last {tf.describe(tf.fromVisual(phase.pts[phase.pts.length - 1]))} in</>}
-        </span>
-        <span className="area-typed">
-          <label>
-            Next corner (in):{' '}
-            <input type="text" value={typed} placeholder={typedTarget?.kind === 'head' ? 'right, up' : 'X, Y'} onChange={(e) => setTyped(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  addTyped()
-                }
-              }} aria-invalid={typedProblem ? true : undefined} title="Type X, Y in inches (or @dX, dY from the last corner), then Enter" />
-          </label>
-          <button type="button" className="btn btn-small" onClick={addTyped} disabled={typed.trim() === ''}>Add</button>
-          {phase.pts.length >= 3 && <button type="button" className="btn btn-small btn-primary" onClick={() => commit(phase.row, typedTarget ?? { kind: 'shell' }, phase.pts)}>Close the area</button>}
-          <button type="button" className="btn btn-small" onClick={finish}>Cancel</button>
-          {typedProblem && <span className="msg-error">{typedProblem}</span>}
-        </span>
+        <input type="text" className="area-typed-box" value={typed} placeholder={typedTarget?.kind === 'head' ? 'right, up' : 'X, Y'} onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              addTyped()
+            }
+          }} aria-label="Next corner, in inches" aria-invalid={typedProblem ? true : undefined}
+          title="Type the next corner in inches (X, Y; on a head right, up from the center), or @dX, dY from the last corner, then Enter" />
+        <button type="button" className="btn btn-small" onClick={addTyped} disabled={typed.trim() === ''}>Add</button>
+        {straightSwitch}
+        {n >= 3 && <button type="button" className="btn btn-small btn-primary" onClick={() => commit(phase.row, typedTarget ?? { kind: 'shell' }, phase.pts)}>Close</button>}
+        <button type="button" className="btn btn-small" onClick={finish}>Cancel</button>
+        {help(
+          'Click the corners. Click the first corner again, press Enter or right-click to close. Backspace takes the last corner away, Esc cancels. ' +
+          'Corners snap to line ends, crossings, centers and lines, and line up with points anywhere (dashed guides; one across and one up and down squares up with both). ' +
+          'Shift = no snap; Ctrl or Straight (O) = level or plumb with the last corner. On a head, an edge between two corners on the head edge follows the circle. ' +
+          'On the shell, a corner past the left or right edge wraps round to the other edge.',
+        )}
+        {typedProblem && <span className="msg-error">{typedProblem}</span>}
       </>
     )
   } else if (phase.kind === 'pick') {
     body = (
-      <span>
-        <strong>Pick inside{phase.row ? ` for ${rowName(phase.row)}` : ''}:</strong> click inside a space closed all round by lines (welds, seams, scan edges,
-        objects, the shell edge; on a head: the head circle, centerlines, nozzles). Esc cancels.{' '}
+      <>
+        <strong>Pick inside{phase.row ? ` for ${rowName(phase.row)}` : ''}:</strong>
+        <span className="muted">click inside a closed space</span>
         <button type="button" className="btn btn-small" onClick={finish}>Cancel</button>
-      </span>
+        {help('Click inside a space closed all round by lines: welds, seams, scan edges, objects, the shell edge; on a head the head circle, centerlines and nozzles. Esc cancels.')}
+      </>
     )
   } else if (selRow && selItem) {
     const size = mutAreaSize(project, selRow.list, selItem)
-    const where = selTarget ? targetName(selTarget) : ''
     body = (
-      <span className="move-selection">
+      <>
         <strong>{selItem.id}</strong>
-        <span className="muted">{selRow.list === 'shellMut' ? 'shell MUT' : `head MUT, ${(selItem as HeadMut).head}`}</span>
-        {size ? <span>Area {size.approx ? 'about ' : ''}{formatAreaSize(size.sqIn)}</span> : selItem.area ? <span className="moved-chip">Area not drawn (fewer than 3 corners)</span> : <span className="muted">no area yet</span>}
+        <span className="muted">{selRow.list === 'shellMut' ? 'shell' : (selItem as HeadMut).head.toLowerCase()}</span>
+        {size ? <span>{size.approx ? 'about ' : ''}{formatAreaSize(size.sqIn)}</span> : selItem.area ? <span className="moved-chip">not drawn (under 3 corners)</span> : <span className="muted">no area</span>}
         <button type="button" className="btn btn-small btn-primary" onClick={() => start('draw', selRow)}>{selItem.area ? 'Draw again' : 'Draw area'}</button>
         <button type="button" className="btn btn-small" onClick={() => start('pick', selRow)}>Pick inside</button>
         {selItem.area && <button type="button" className="btn btn-small" onClick={() => removeArea(selRow)}>Delete area</button>}
-        {drawableArea(selItem) && <span className="muted">Drag a corner to move it (on {where}); drag or click a + to add one; click a corner and press Delete to remove it.</span>}
         {selItem.area && selFrame && selTf && (
-          <details className="area-corners">
-            <summary>Corners ({selItem.area.length}): type exact values</summary>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>{selRow.list === 'shellMut' ? 'X (in)' : 'Right (in)'}</th>
-                  <th>{selRow.list === 'shellMut' ? 'Y (in)' : 'Up (in)'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selItem.area.map((q, i) => {
-                  const t = selTf.fromVisual(selFrame.toVisual(q))
-                  const store = (k: 0 | 1, value: number) => {
-                    const next: Pt = k === 0 ? [value, t[1]] : [t[0], value]
-                    app.edit(`Move a corner of the MUT area of ${selItem.id}`, (p) => moveCorner(p, selRow.list, selRow.index, i, selFrame.toStored(selTf.toVisual(next))))
-                  }
-                  return (
-                    <tr key={i} className={corner === i ? 'area-corner-selected' : undefined} onFocus={() => setCorner(i)}>
-                      <td>{i + 1}</td>
-                      <td><CornerBox value={t[0]} label={`Corner ${i + 1}, ${selRow.list === 'shellMut' ? 'X' : 'right'}`} store={(v) => store(0, v)} /></td>
-                      <td><CornerBox value={t[1]} label={`Corner ${i + 1}, ${selRow.list === 'shellMut' ? 'Y' : 'up'}`} store={(v) => store(1, v)} /></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </details>
+          <button type="button" className={`btn btn-small${cornersOpen ? ' btn-primary' : ''}`} aria-pressed={cornersOpen} onClick={() => setCornersOpen(!cornersOpen)}
+            title="A table of the corners, to type exact values">
+            Corners
+          </button>
         )}
-      </span>
+        {drawableArea(selItem) && straightSwitch}
+        {drawableArea(selItem) && help('Drag a corner to move it (it snaps and lines up as when drawing); drag or click a + to add one; click a corner and press Delete to remove it. Corners types exact values.')}
+      </>
     )
   } else {
     body = (
-      <span>
-        <strong>MUT areas:</strong> click an area to select it, select a MUT row in Field data, or start a new one:{' '}
-        <button type="button" className="btn btn-small btn-primary" onClick={() => start('draw', null)}>New: draw area</button>{' '}
+      <>
+        <strong>MUT areas:</strong>
+        <span className="muted">click an area, or</span>
+        <button type="button" className="btn btn-small btn-primary" onClick={() => start('draw', null)}>New: draw area</button>
         <button type="button" className="btn btn-small" onClick={() => start('pick', null)}>New: pick inside</button>
-      </span>
+        {help('Click an area to select it and go to its row. A new area becomes a new MUT row: on the shell, or on a head when its first corner is inside a head.')}
+      </>
     )
   }
   const status = (
@@ -556,8 +573,42 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
       )}
     </div>
   )
+  // The corner table floats over the drawing (top right), so the drawing keeps its room.
+  const cornerPanel = cornersOpen && phase.kind === 'idle' && selRow && selItem?.area && selFrame && selTf && (
+    <div className="area-corner-panel" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="area-corner-head">
+        <strong>{selItem.id} corners</strong>
+        <button type="button" className="icon-btn" aria-label="Close the corner table" onClick={() => setCornersOpen(false)}>✕</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{selRow.list === 'shellMut' ? 'X (in)' : 'Right (in)'}</th>
+            <th>{selRow.list === 'shellMut' ? 'Y (in)' : 'Up (in)'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {selItem.area.map((q, i) => {
+            const t = selTf.fromVisual(selFrame.toVisual(q))
+            const store = (k: 0 | 1, value: number) => {
+              const next: Pt = k === 0 ? [value, t[1]] : [t[0], value]
+              app.edit(`Move a corner of the MUT area of ${selItem.id}`, (p) => moveCorner(p, selRow.list, selRow.index, i, selFrame.toStored(selTf.toVisual(next))))
+            }
+            return (
+              <tr key={i} className={corner === i ? 'area-corner-selected' : undefined} onFocus={() => setCorner(i)}>
+                <td>{i + 1}</td>
+                <td><CornerBox value={t[0]} label={`Corner ${i + 1}, ${selRow.list === 'shellMut' ? 'X' : 'right'}`} store={(v) => store(0, v)} /></td>
+                <td><CornerBox value={t[1]} label={`Corner ${i + 1}, ${selRow.list === 'shellMut' ? 'Y' : 'up'}`} store={(v) => store(1, v)} /></td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
   const menuRow = menuAt ? rowOf(project, menuAt.row) : undefined
-  const menu = menuAt && menuRow && (
+  const rowMenu = menuAt && menuRow && (
     <div className="move-menu" role="menu" style={{ left: menuAt.x, top: menuAt.y }} onPointerDown={(e) => e.stopPropagation()}>
       <div className="move-menu-title">{menuRow.id}</div>
       {menuAt.corner !== null && (
@@ -582,6 +633,12 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
         Delete area
       </button>
     </div>
+  )
+  const menu = (
+    <>
+      {cornerPanel}
+      {rowMenu}
+    </>
   )
   return { tool, status, menu }
 }

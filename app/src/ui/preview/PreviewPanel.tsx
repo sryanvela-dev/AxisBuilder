@@ -3,7 +3,7 @@
 // items with errors or warnings are marked in the check colors. Collapsible, with a full-size view.
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { LAYER_GROUPS, PREVIEW_DIFFERENCES, buildDrawing, type DrawingItem, type LayerGroup } from '../../engine/drawing.ts'
+import { LAYER_GROUPS, PREVIEW_DIFFERENCES, buildDrawing, type DrawingItem, type ItemSource, type LayerGroup } from '../../engine/drawing.ts'
 import { STEP_OF_LIST } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
 import { useJobChecks } from '../checksContext.ts'
@@ -61,7 +61,20 @@ export function PreviewPanel() {
   const [sheets, setSheets] = useState(false)
   const showSheets = sheets && mode !== 'areas' && project.vessel.length !== null && project.vessel.height !== null
   const move = useMoveLabels(mode === 'labels' && !showSheets && prefs.open, project, drawing)
-  const areas = useMutAreas(mode === 'areas' && !showSheets && prefs.open, project)
+  /** Selects a row, opens its step and puts the cursor in it. */
+  const goTo = (src: ItemSource) => {
+    select({ list: src.list, index: src.index })
+    const target = job.step === 'images' && src.list === 'scans' ? 'images' : STEP_OF_LIST[src.list]
+    if (job.step !== target) app.goToStep(target)
+    setFull(false)
+    // After the step page has rendered, put the cursor in the row.
+    setTimeout(() => {
+      if (target === 'images') jumpTo({ kind: 'photo', index: src.index, scanId: src.id })
+      else jumpTo({ kind: 'row', list: src.list, index: src.index })
+    }, 60)
+  }
+  // Clicking a MUT area with the tool on goes to its row too, as clicking any item does with no tool.
+  const areas = useMutAreas(mode === 'areas' && !showSheets && prefs.open, project, (row, id) => goTo({ list: row.list, index: row.index, id }))
   const tool = move.tool ?? areas.tool
   const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
@@ -82,17 +95,9 @@ export function PreviewPanel() {
   const toggle = (g: LayerGroup) => update({ ...prefs, hidden: hidden.has(g) ? prefs.hidden.filter((x) => x !== g) : [...prefs.hidden, g] })
 
   function pick(item: DrawingItem) {
-    const src = item.source!
-    select({ list: src.list, index: src.index })
-    const target = job.step === 'images' && src.list === 'scans' ? 'images' : STEP_OF_LIST[src.list]
-    if (job.step !== target) app.goToStep(target)
-    setFull(false)
-    // After the step page has rendered, put the cursor in the row.
-    setTimeout(() => {
-      if (target === 'images') jumpTo({ kind: 'photo', index: src.index, scanId: src.id })
-      else jumpTo({ kind: 'row', list: src.list, index: src.index })
-    }, 60)
+    goTo(item.source!)
   }
+
 
   if (!prefs.open) {
     return (

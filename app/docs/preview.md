@@ -201,6 +201,16 @@ under the layer chips says what to do at each step and keeps one height, so the 
   box, as they avoid scans and objects, except a nozzle's own label when the nozzle sits in the area (`engine/labels.ts`
   `areasAround`). A label that can't be kept clear gets the usual Review warning ("Label N4 overlaps MUT area M5").
 
+- **After the first click-test (user, 2026-10-25)**: the status line is one row (the full help is on its "?"), and
+  "Corners" opens the corner table floating over the drawing's top right, so the drawing keeps its room. Outlines default
+  to color 7, like the scan outlines. Corners also line up with any line end, corner or center in the drawing (same X or
+  Y, a dashed guide back to it; one point across and one up and down squares up with both; near a line it lands on the
+  line: `trackPoints`, `drawSnap` in `areaDraw.ts`, `Snap.ref2`). "Straight" (key O) keeps every corner level or plumb
+  with the last one until switched off, for drawing and for dragging corners (Ctrl still works for one corner). On a head,
+  an edge between two corners on the head edge follows the circle the shorter way (`headOutline`; a corner just inside
+  keeps it straight); Pick inside on a head keeps only a few corners along the edge (`compactRim`). Clicking an area with
+  the tool on also goes to its row (Field data), as clicking any item does with no tool.
+
 How it is built:
 
 - Project file format 6: `area` on shell MUT and head MUT rows (`data/schema.ts`): the corners in order, or null. Shell:

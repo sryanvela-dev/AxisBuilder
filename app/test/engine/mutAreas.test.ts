@@ -8,7 +8,7 @@ import type { HeadMut, Project, ShellMut } from '../../src/data/schema.ts'
 import { buildDrawing } from '../../src/engine/drawing.ts'
 import { countedScans, coveragePercent, drawnScans } from '../../src/engine/layout.ts'
 import {
-  areaCenter, areaFrame, formatAreaSize, headFrame, mutAreaLayouts, mutAreaOf, mutAreaProblems, mutAreaSize, mutCoverageArea, pickInside, shellAreaPieces,
+  areaCenter, areaFrame, compactRim, formatAreaSize, headFrame, headOutline, mutAreaLayouts, mutAreaOf, mutAreaProblems, mutAreaSize, mutCoverageArea, pickInside, shellAreaPieces,
 } from '../../src/engine/mutAreas.ts'
 import {
   circlePolygon, clipToBox, enclosingBoundary, hatchLines, hatchedArea, labelSpot, pointInPolygon, polygonArea, rectPolygon, selfIntersects, type Pt,
@@ -107,7 +107,7 @@ describe('MUT areas on the shell', () => {
     const lines = item.shapes.filter((s) => s.layer === 'MANUAL_UT_HATCH')
     expect(lines.every((s) => s.t === 'line')).toBe(true)
     expect(lines.length).toBeGreaterThan(5)
-    expect(buildDrawing(p).layerColors.MANUAL_UT).toBe(3)
+    expect(buildDrawing(p).layerColors.MANUAL_UT).toBe(7)
     const text = item.shapes.find((s) => s.t === 'text')!
     expect(text).toMatchObject({ text: 'MUT3', x: 60, y: 50 })
     expect(item.info).toContain('400 sq in')
@@ -308,7 +308,7 @@ describe('the .lsp backup', () => {
     expect(app).toContain(';; MUT area H1 (drawn in AxisBuilder)')
     expect(app).toMatch(/\(foreach s '\(\(.*\)\) \(SL_Line \(car s\) \(cadr s\) \(caddr s\) \(cadddr s\) "MANUAL_UT_HATCH"\)\)/)
     expect(app).toContain('(cadddr s) "MANUAL_UT"))')
-    expect(app).toContain('(SL_Layer "MANUAL_UT" 3)')
+    expect(app).toContain('(SL_Layer "MANUAL_UT" 7)')
     expect(lsp(shell())).not.toContain('MANUAL_UT"')
     expect(app).toContain('"M1" "SHELL_MUT_TEXT")')
     expect(app).not.toMatch(/SL_MUTPoint [0-9.]+ [0-9.]+ "M1"/)
@@ -344,5 +344,29 @@ describe('automatic nozzle labels keep clear of MUT areas', () => {
       const li = buildDrawing(inside).labels.find((x) => x.key === 'shellNozzles:0')!.nozzle!
       expect(li.crowded ?? '').not.toContain('MUT area MI')
     }
+  })
+})
+
+describe('head areas along the head edge', () => {
+  it('an edge between two corners on the head edge follows the circle the shorter way; a corner inside keeps it straight', () => {
+    const quarter = headOutline([[0, 0], [1, 0], [0, 1]])
+    expect(quarter.length).toBeGreaterThan(20)
+    for (const q of quarter.slice(1)) expect(Math.hypot(q[0], q[1])).toBeCloseTo(1, 9)
+    // A quarter disc: pi / 4 (to the 3-degree steps).
+    expect(polygonArea(quarter)).toBeCloseTo(Math.PI / 4, 2)
+    expect(headOutline([[0, 0], [0.99, 0], [0, 1]])).toHaveLength(3)
+    // The size in the Area column follows the curve too.
+    const p = shell('Vertical', { headMut: [headMut('H', 'HEAD 1', [[0, 0], [1, 0], [0, 1]])] })
+    const R = 200 / Math.PI / 2
+    expect(mutAreaSize(p, 'headMut', p.headMut[0])!.sqIn).toBeCloseTo((Math.PI / 4) * R * R, 0)
+    expect(polygonArea(mutAreaOf(p, 'headMut', 0)!.pieces[0])).toBeGreaterThan(polygonArea([[0, 0], [1, 0], [0, 1]]) * 1.5 * (headFrame(p, 'HEAD 1')!.r ** 2))
+  })
+
+  it('a picked outline with many corners along the edge keeps a few, and is drawn the same', () => {
+    const many: [number, number][] = [[0, 0]]
+    for (let a = 0; a <= 180; a += 5) many.push([Math.cos((a * Math.PI) / 180), Math.sin((a * Math.PI) / 180)])
+    const few = compactRim(many)
+    expect(few.length).toBeLessThan(8)
+    expect(polygonArea(headOutline(few))).toBeCloseTo(Math.PI / 2, 2)
   })
 })

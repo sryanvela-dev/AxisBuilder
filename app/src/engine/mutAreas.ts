@@ -26,6 +26,61 @@ export type MutList = 'shellMut' | 'headMut'
 export type HeadName = 'HEAD 1' | 'HEAD 2'
 
 /** The row's area when it can be drawn (3 corners or more), else null. */
+/** How close to the head edge (in head radii) a corner must be to count as on it. */
+const RIM_TOL = 2e-3
+const onRim = (q: readonly number[]) => Math.abs(Math.hypot(q[0], q[1]) - 1) <= RIM_TOL
+
+/**
+ * A head area's outline as drawn (head radii): an edge between two corners that are both on the head edge follows the
+ * head circle (the shorter way round) instead of cutting across it, so a few clicks on the rim hug the head. A corner
+ * just inside the edge keeps a straight edge.
+ */
+export function headOutline(pts: readonly (readonly number[])[]): Pt[] {
+  const out: Pt[] = []
+  const step = (3 * Math.PI) / 180
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i]
+    const b = pts[(i + 1) % pts.length]
+    out.push([a[0], a[1]])
+    if (pts.length < 2 || !onRim(a) || !onRim(b)) continue
+    const ta = Math.atan2(a[1], a[0])
+    let d = Math.atan2(b[1], b[0]) - ta
+    while (d > Math.PI) d -= 2 * Math.PI
+    while (d < -Math.PI) d += 2 * Math.PI
+    const n = Math.ceil(Math.abs(d) / step)
+    for (let k = 1; k < n; k++) out.push([Math.cos(ta + (d * k) / n), Math.sin(ta + (d * k) / n)])
+  }
+  return out
+}
+
+/**
+ * The opposite for an outline found by Pick inside on a head: a run of corners along the head edge is kept as its two
+ * ends plus a corner at least every 90 degrees (so the shorter way round is the right way), and headOutline draws the
+ * circle between them again.
+ */
+export function compactRim(pts: readonly Pt[]): Pt[] {
+  const n = pts.length
+  if (n < 4 || pts.every((q) => onRim(q))) return [...pts]
+  const keep = pts.map((q, i) => !onRim(q) || !onRim(pts[(i + n - 1) % n]) || !onRim(pts[(i + 1) % n]))
+  // Within each run, keep a corner whenever the arc from the last kept one would pass 90 degrees.
+  const start = keep.indexOf(true)
+  let last = pts[start]
+  for (let k = 1; k <= n; k++) {
+    const i = (start + k) % n
+    if (keep[i]) {
+      last = pts[i]
+      continue
+    }
+    const next = pts[(i + 1) % n]
+    const ang = (p: Pt, q: Pt) => Math.abs(Math.atan2(p[0] * q[1] - p[1] * q[0], p[0] * q[0] + p[1] * q[1]))
+    if (ang(last, next) > Math.PI / 2) {
+      keep[i] = true
+      last = pts[i]
+    }
+  }
+  return pts.filter((_, i) => keep[i])
+}
+
 export function drawableArea(m: ShellMut | HeadMut): MutArea | null {
   return m.area && m.area.length >= 3 ? m.area : null
 }
@@ -315,7 +370,7 @@ function buildLayouts(p: Project): MutAreaLayout[] {
       if (!pts || !m.include) return
       const f = headFrame(p, m.head)
       if (!f) return
-      place('headMut', index, m, [pts.map((q) => headToLogical(f, q))], headIslands(p, m.head, headNoz), false)
+      place('headMut', index, m, [headOutline(pts).map((q) => headToLogical(f, q))], headIslands(p, m.head, headNoz), false)
     })
   }
   return out
@@ -362,7 +417,7 @@ export function mutAreaSize(p: Project, list: MutList, m: ShellMut | HeadMut): {
   const C = p.vessel.height
   if (C === null || !(C > 0)) return null
   const R = C / Math.PI / 2
-  return { sqIn: polygonArea(pts) * R * R, approx: true }
+  return { sqIn: polygonArea(headOutline(pts)) * R * R, approx: true }
 }
 
 /** "84 sq in", "1,230 sq in (8.5 sq ft)". */

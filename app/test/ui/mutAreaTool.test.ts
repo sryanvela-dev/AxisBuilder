@@ -201,3 +201,36 @@ describe('areas stay with their rows', () => {
     expect(present(s).shellMut[0].area).toEqual(square(0, 0, 10))
   })
 })
+
+describe('lining up with distant points', () => {
+  const o: Orientation = 'Vertical'
+  const p = lines(o)
+  const g = areaGeometry(p, { kind: 'shell' })
+
+  it('lines up with a point far away on one axis, with a guide back to it', () => {
+    // Same X as the scan's corner (20, 10), far above it, away from any line.
+    const s = drawSnap(g, [], [20.3, 90], 1, free)
+    expect(s).toMatchObject({ kind: 'align', pt: [20, 90], ref: [20, 10] })
+  })
+
+  it('squares up with two points at once (one across, one up and down)', () => {
+    // X of the scan corner (60, 30) and Y of the nozzle center (150, 90).
+    const s = drawSnap(g, [], [60.4, 90.3], 1, free)
+    expect(s.kind).toBe('align')
+    expect(s.pt).toEqual([60, 90])
+    expect(s.ref).toEqual([60, 10])
+    expect(s.ref2).toEqual([150, 90])
+  })
+
+  it('near a line, lining up lands on the line', () => {
+    // On the seam X = 100, lined up with the scan's top Y = 30.
+    const s = drawSnap(g, [], [100.4, 30.3], 1, free)
+    expect(s.pt[0]).toBeCloseTo(100, 9)
+    expect(s.pt[1]).toBeCloseTo(30, 9)
+  })
+
+  it('the Straight lock holds level or plumb like Ctrl', () => {
+    const s = drawSnap(g, [[170, 100]], [190, 103], 1, { shift: false, ctrl: true })
+    expect(s.pt[1]).toBeCloseTo(100, 9)
+  })
+})

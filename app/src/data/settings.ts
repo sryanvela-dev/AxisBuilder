@@ -921,7 +921,7 @@ export const SETTINGS = {
   ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7, '0.13'),
   ...layerColor('xRuler', 'X ruler', 1, '0.25'),
   ...layerColor('yRuler', 'Y ruler', 5, '0.25'),
-  ...layerColor('mutOutline', 'MUT area outlines', 3, '0.25'),
+  ...layerColor('mutOutline', 'MUT area outlines', 7, '0.25'),
 
   // PDF AND REPORT IMAGES (app only, Phase 4b, Export step).
   exportSet: choice(EXPORT_SETS, {

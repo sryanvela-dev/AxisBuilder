@@ -87,7 +87,7 @@ export function groupOfLayer(layer: string): LayerGroup {
 
 /** CAD layer colors (SL_SetupLayers): 7 = drawing color, 1 red, 3 green, 5 blue, 6 magenta. */
 export const LAYER_COLOR: Record<string, number> = {
-  AUT_HATCH: 5, SUPPORTS: 6, X_AXIS: 1, Y_AXIS: 5, LEGEND_AUT_HATCH: 5, LEGEND_MUT_HATCH: 3, MANUAL_UT_HATCH: 3, MANUAL_UT: 3,
+  AUT_HATCH: 5, SUPPORTS: 6, X_AXIS: 1, Y_AXIS: 5, LEGEND_AUT_HATCH: 5, LEGEND_MUT_HATCH: 3, MANUAL_UT_HATCH: 3, MANUAL_UT: 7,
   X_RULER_TEXT: 1, Y_RULER_TEXT: 5,
   // Layers the app adds (same colors as the layer they came from).
   X_AXIS_LABEL_TEXT: 1, Y_AXIS_LABEL_TEXT: 5, REFERENCE_TEXT: 1,

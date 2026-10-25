@@ -729,7 +729,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   on the west head), so its fingerprint was refreshed; the golden jobs' are unchanged; compat v5.0 unchanged. Not yet
   checked in DraftSight/AutoCAD. No VBA or workbook changes.
 - 2026-10-25 – Phase 5c follow-up (feature/mut-areas, user approved the decisions and the three suggestions): MUT area outlines
-  on a new solid app layer MANUAL_UT (settings "MUT area outlines" color 3 / weight 0.25; written to the .lsp only when a
+  on a new solid app layer MANUAL_UT (settings "MUT area outlines" color 7 since the click-test / weight 0.25; written to the .lsp only when a
   job has an area), the hatch stays on MANUAL_UT_HATCH; automatic shell and head nozzle labels keep clear of MUT areas
   (except a nozzle inside the area); a corner table (X / Y, or right / up on a head) in the MUT areas status line. Golden
   fingerprints unchanged; the sample's refreshed. No VBA or workbook changes.
+- 2026-10-25 – Phase 5c click-test fixes (feature/mut-areas, user): MUT areas status line is one row with a "?" for the help;
+  the corner table floats over the drawing; area outlines default to color 7 (as scan outlines); corners line up with any
+  point in the drawing (tracking guides, squaring up on both axes) and a "Straight" lock (key O) holds them level or plumb;
+  head area edges between two corners on the head edge follow the circle (`headOutline`, `compactRim` for Pick inside);
+  clicking an area with the tool on goes to its row. Golden fingerprints unchanged; the sample's refreshed.
