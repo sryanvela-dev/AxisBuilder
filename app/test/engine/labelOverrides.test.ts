@@ -156,6 +156,17 @@ describe('labels moved by hand', () => {
     expect(applyCheckAction(p, c.actions![0]).labelOverrides).toEqual([])
   })
 
+  it('an automatic label that a later nozzle lands on gets the crowded warning (actual positions)', () => {
+    const p = job('Vertical')
+    const l = shell(p).get(1)!
+    expect(l.crowded).toBeUndefined()
+    const q: Project = { ...p, shellNozzles: [...p.shellNozzles, { ...p.shellNozzles[0], id: 'NX', x: l.tx, y: l.ty, diameter: 6 }] }
+    const after = shell(q).get(1)!
+    expect([after.tx, after.ty]).toEqual([l.tx, l.ty])
+    expect(after.crowded).toBe('nozzle NX')
+    expect(checkProject(q).some((c) => c.text === 'Label N2 overlaps nozzle NX.')).toBe(true)
+  })
+
   it('a label put off the shell is placed automatically, with a warning that never blocks export', () => {
     const p = setOverride(job('Vertical'), 'shellNozzles', 1, { label: { dx: -500, dy: 0 } })
     const l = shell(p).get(1)!

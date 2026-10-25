@@ -242,6 +242,8 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const byHand = new Map<number, NozzleLabel>()
   const fallbacks = new Map<number, string>()
   const ownBoxes = new Map<number, Box>()
+  /** Each label's own leader as placed (a leader end moved by hand redraws it, so it is looked up by label). */
+  const ownSegs = new Map<number, Pt[]>()
   for (const [index, g] of geoms) {
     const ov = rowOverride(p, 'shellNozzles', index)
     const off = (c: Pt) => (c[0] < 0 || c[1] < 0 || c[0] > H || c[1] > L ? 'it was off the shell' : null)
@@ -255,6 +257,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     if (placed.leader) {
       ownBoxes.set(index, keep(textBox(placed.tx, placed.ty, g.tw, g.sh, lr), `the label of ${g.txt}`))
       segs.push(placed.leader)
+      ownSegs.set(index, placed.leader)
     }
   }
 
@@ -285,8 +288,9 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
         found = spots(s.nozzleLeaderLength)[0]
         crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false) ?? 'the edge of the shell'
       }
-      keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`)
+      ownBoxes.set(index, keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`))
       segs.push(found.path)
+      ownSegs.set(index, found.path)
       return { tx: found.tx, ty: found.ty, leader: found.path, ...(crowded ? { crowded } : {}) }
     }
     if (!byHand.has(index) && txt !== '' && outside) {
@@ -298,12 +302,14 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     nozzleBoxes.set(index, pieces.map((pc) => keep(arcBox(pc), `nozzle ${txt || index + 1}`)))
   }
 
-  // A label moved by hand is where it was put; the Review warning checks it against everything else as finally placed.
-  for (const [index, l] of byHand) {
-    if (!l.leader) continue
+  // The Review warning checks every outside label against everything as finally placed: a label moved by hand (label
+  // and leader) where it was put, and an automatic label (the label, as when it was placed) that a later nozzle or label
+  // landed on.
+  for (const [index, l] of out) {
+    if (!l.leader || l.crowded || !ownBoxes.has(index)) continue
     const own = new Set<Box>([ownBoxes.get(index)!, ...(nozzleBoxes.get(index) ?? [])])
     const bb = textBox(l.tx, l.ty, l.tw, l.sh, lr)
-    const hit = firstHit({ path: l.leader, tx: l.tx, ty: l.ty }, bb, avoid, names, segs, true, own, l.leader)
+    const hit = firstHit({ path: l.leader, tx: l.tx, ty: l.ty }, bb, avoid, names, segs, byHand.has(index), own, ownSegs.get(index))
     if (hit) out.set(index, { ...l, crowded: hit })
   }
   return out
@@ -474,19 +480,23 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     let label: NozzleLabel = { x, y, r: nozR, txt, th, tx: sp.tx, ty: sp.ty, leader: sp.path, ...common, ...(crowded ? { crowded } : {}) }
     label = withTip(o, style, label, rowOverride(p, 'headNozzles', index))
     set(label)
-    avoid.push(textBox(label.tx, label.ty, tw, sh, lr))
+    const bb = textBox(label.tx, label.ty, tw, sh, lr)
+    avoid.push(bb)
     names.push(`the label of ${txt}`)
+    ownBoxes.set(index, bb)
     segs.push(label.leader!)
   })
 
-  // A label moved by hand is where it was put; the Review warning checks it against everything as finally placed.
+  // The Review warning checks every label against everything as finally placed: a label moved by hand (label and
+  // leader) where it was put, an automatic outside label (the label) that a later label landed on.
   shown.forEach(({ index }, i) => {
-    const l = byHand.get(index)
-    if (!l) return
+    const l = out.get(index)
+    const hand = byHand.has(index)
+    if (!l || l.crowded || !ownBoxes.has(index) || (!hand && !l.leader)) return
     const own = new Set<Box>([ownBoxes.get(index)!, bodyBoxes[i]])
     const bb = textBox(l.tx, l.ty, l.tw, l.sh, lr)
-    const hit = firstHit({ path: l.leader ?? [], tx: l.tx, ty: l.ty }, bb, avoid, names, segs, l.leader !== null, own, l.leader ?? undefined)
-    if (hit) out.set(index, { ...out.get(index)!, crowded: hit })
+    const hit = firstHit({ path: l.leader ?? [], tx: l.tx, ty: l.ty }, bb, avoid, names, segs, hand && l.leader !== null, own, l.leader ?? undefined)
+    if (hit) out.set(index, { ...l, crowded: hit })
   })
   return out
 }
