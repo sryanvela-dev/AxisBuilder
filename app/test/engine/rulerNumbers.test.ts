@@ -39,12 +39,14 @@ describe('ruler end numbers', () => {
       }
     }
     // REF1 (302 around, every 20): 300" next to 302"; REF2 (339, every 12): 336"; REF3 / REF4 (458, every 12): 456".
+    // At the default 3 in ruler numbers (2026-10-25) also REF2 Y 672" next to 680" and the sample X 180" next to 189".
     const ref1 = ['ruler:X_AXIS: 1 left out, last 280", 302"']
     expect(dropped).toEqual({
       REF1: ref1, 'REF1-ACAD': ref1, 'REF1-CCW': ref1, 'REF1-OFF': ref1,
-      REF2: ['ruler:X_AXIS: 1 left out, last 324", 339"'],
+      REF2: ['ruler:Y_AXIS: 1 left out, last 660", 680"', 'ruler:X_AXIS: 1 left out, last 324", 339"'],
       REF3: ['ruler:X_AXIS: 1 left out, last 444", 458"'],
       REF4: ['ruler:X_AXIS: 1 left out, last 444", 458"'],
+      sample: ['ruler:X_AXIS: 1 left out, last 168", 189"'],
     })
   })
 })

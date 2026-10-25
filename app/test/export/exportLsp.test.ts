@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { openProject, type Project } from '../../src/data/index.ts'
 import { ExportBlockedError, clockPositionDegrees, exportLsp, exportProblems } from '../../src/export/lsp/exportLsp.ts'
 import { SECTION_NAMES, splitLsp, type SectionName } from '../golden/lspSections.ts'
+import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 // These cover branches REF1 (Horizontal CW, DraftSight) can't prove. The expected text follows the
 // v5.0 VBA; it is not yet confirmed by a real v5.0 run (see app/docs/phase2-notes.md).
@@ -64,7 +65,7 @@ describe('AutoCAD output (not yet proven by a REF job)', () => {
 
 describe('other orientations (not yet proven by a REF job)', () => {
   it('Vertical: rulers, reference labels and right panel', () => {
-    const out = exportText(ref1((p) => (p.vessel.orientation = 'Vertical')))
+    const out = exportText(ref1((p) => Object.assign(p.settings, AUTOMATIC_TEXT) && (p.vessel.orientation = 'Vertical')))
     expect(section(out, 'rulers')).toContain('  ;; Vertical/default visual BOTTOM + LEFT rulers\r\n  (SL_RulerX 0.0 (- 0.0 2.) vesselXLen spacing "X_AXIS"')
     expect(section(out, 'referenceLabels')).toContain('  (SL_Line 0.0 vesselYLen 0.0 (+ vesselYLen 2.) "X_AXIS")')
     // Panel left = circumference 302 + 12; legend anchor 10.8 above the vessel bottom.
@@ -73,7 +74,7 @@ describe('other orientations (not yet proven by a REF job)', () => {
   })
 
   it('Horizontal CCW: rulers and right panel', () => {
-    const out = exportText(ref1((p) => (p.vessel.orientation = 'Horizontal CCW')))
+    const out = exportText(ref1((p) => Object.assign(p.settings, AUTOMATIC_TEXT) && (p.vessel.orientation = 'Horizontal CCW')))
     expect(section(out, 'rulers')).toContain('  ;; Horizontal CCW visual BOTTOM + LEFT rulers\r\n  (SL_RulerY_CCW_Bottom (- 0.0 2.) 0.0 vesselYLen spacing "Y_AXIS"')
     expect(section(out, 'legend')).toContain('  (SL_Legend 15.8 -27.)')
   })
@@ -88,7 +89,7 @@ describe('other orientations (not yet proven by a REF job)', () => {
   })
 
   it('a right-side ruler moves the panel 15 in farther right (Vertical and CW)', () => {
-    const out = exportText(ref1((p) => (p.settings.rulerPlacement = 'Bottom + Right')))
+    const out = exportText(ref1((p) => Object.assign(p.settings, AUTOMATIC_TEXT) && (p.settings.rulerPlacement = 'Bottom + Right')))
     expect(section(out, 'legend')).toContain('  (SL_Legend 271.2 387.)')
   })
 })

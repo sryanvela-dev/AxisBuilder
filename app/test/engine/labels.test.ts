@@ -6,9 +6,10 @@ import { drawnScans, panelOf } from '../../src/engine/layout.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
+import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 /** v5.0's straight leaders (the default is Elbow) on a Vertical drawing: the spots these tests were written for (the app now places labels as the drawing reads). */
-const straight = (p: Project): Project => ({ ...p, vessel: { ...p.vessel, orientation: 'Vertical' }, settings: { ...p.settings, leaderShape: 'Straight' } })
+const straight = (p: Project): Project => ({ ...p, vessel: { ...p.vessel, orientation: 'Vertical' }, settings: { ...p.settings, ...AUTOMATIC_TEXT, leaderShape: 'Straight' } })
 
 const drawingBody = (lsp: string) => lsp.slice(lsp.indexOf('(defun c:SCANOVERLAY'), lsp.indexOf('AxisBuilder master drawing complete'))
 

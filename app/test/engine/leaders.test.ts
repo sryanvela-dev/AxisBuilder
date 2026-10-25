@@ -15,6 +15,7 @@ import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
 import { jobPdf, goldenJobs } from '../export/pdfJobs.ts'
 import { PDFArray, PDFDocument, PDFRawStream, PDFStream, decodePDFRawStream } from 'pdf-lib'
+import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 const ORIENTATIONS: Orientation[] = ['Vertical', 'Horizontal CW', 'Horizontal CCW']
 const OPTIONS = { processedImageFolder: 'X:\\img', generatedAt: new Date(2026, 0, 2, 3, 4, 5) }
@@ -26,7 +27,7 @@ function job(settings: Record<string, unknown> = {}, orientation: Orientation = 
     vessel: { ...p.vessel, orientation },
     shellNozzles: p.shellNozzles.map((n) => ({ ...n, labelMode: 'OUTSIDE' })),
     headNozzles: p.headNozzles.map((n) => ({ ...n, labelMode: 'OUTSIDE' })),
-    settings: { ...p.settings, ...settings } as Project['settings'],
+    settings: { ...p.settings, ...AUTOMATIC_TEXT, ...settings } as Project['settings'],
   }
 }
 
