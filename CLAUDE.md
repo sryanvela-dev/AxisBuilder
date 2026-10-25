@@ -191,8 +191,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - Drawing step (Phase 3f-1, `DrawingStep` in `ui/projectSteps.tsx`): every drawing-look setting, in the groups Text
   sizes and colors, Rulers and labels, Nozzle labels, Legend and title block, Head views (links to Field data for heads
   on/off and names), Show or hide, Line colors and transparency; wide preview beside it. Default text sizes (user,
-  2026-10-25, app change 26): Fixed height for objects 3, shell nozzle labels 4, shell and head MUT 3, ruler numbers 3,
-  axis direction labels 4, head titles 4, head nozzle labels 4, legend 3, title block 3 in; the rest Automatic (rule tests
+  2026-10-25, app change 26): Fixed height for shell nozzle labels 4, shell and head MUT 3, ruler numbers 3, axis direction
+  labels 4, reference labels 3, head titles 4, head nozzle labels 4, legend 3, title block 3 in; the rest Automatic (rule tests
   start from `test/automaticText.ts`). Text sizes and colors: one row
   per text layer (`TEXT_TYPES` in settings.ts = v5.0's 14 TEXTRESIZE layers plus X_AXIS_LABEL_TEXT, Y_AXIS_LABEL_TEXT,
   REFERENCE_TEXT, marked `appLayer`; settings `<key>Size` Automatic / Scale /
@@ -696,3 +696,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   shell MUT labels movable (app change 27, `engine/textLabels.ts`; MUT and object get a leader; the .lsp writes moved ones
   as SL_Text). (5) Review re-checks every automatic outside nozzle label at its final position (REF1: N13 overlaps N15).
   compat v5.0 unchanged. No VBA or workbook changes.
+- 2026-10-25 – Follow-up (feature/drawing-mode, user): object labels back to Automatic by default (sized to fit), reference
+  labels default to Fixed 3 in; every app fingerprint refreshed. Label overlap warnings now say the job can still be
+  exported that way.

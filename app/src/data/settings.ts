@@ -880,14 +880,14 @@ export const SETTINGS = {
 
   // TEXT SIZES AND COLORS (app only): one set per text layer, the same layers TEXTRESIZE knows.
   ...textStyle('scanText', 'Scan labels', 7, null),
-  ...textStyle('objectText', 'Object labels', 7, null, 3),
+  ...textStyle('objectText', 'Object labels', 7, null),
   ...textStyle('shellNozzleText', 'Shell nozzle labels', 7, null, 4),
   ...textStyle('shellMutText', 'Shell MUT labels', 7, 1.5, 3),
   ...textStyle('circWeldText', 'Circ weld labels', 7, 2),
   ...textStyle('longSeamText', 'Long seam labels', 7, 2),
   ...textStyle('xRulerText', 'X ruler numbers', 1, 1.8, 3),
   ...textStyle('xAxisLabelText', 'X axis direction label', 1, 2.5, 4),
-  ...textStyle('referenceText', 'Reference labels', 1, 1.5),
+  ...textStyle('referenceText', 'Reference labels', 1, 1.5, 3),
   ...textStyle('yRulerText', 'Y ruler numbers', 5, 1.8, 3),
   ...textStyle('yAxisLabelText', 'Y axis direction label', 5, 2.5, 4),
   ...textStyle('headTitleText', 'Head titles', 7, 2.3, 4),

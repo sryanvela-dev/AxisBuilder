@@ -85,7 +85,7 @@ describe('text types', () => {
     const d = sampleProject().settings as unknown as Record<string, unknown>
     const fixed = Object.fromEntries(TEXT_TYPES.filter((t) => d[`${t.key}Size`] === 'Fixed height').map((t) => [t.key, d[`${t.key}Height`]]))
     expect(fixed).toEqual({
-      objectText: 3, shellNozzleText: 4, shellMutText: 3, xRulerText: 3, xAxisLabelText: 4, yRulerText: 3, yAxisLabelText: 4,
+      shellNozzleText: 4, shellMutText: 3, xRulerText: 3, xAxisLabelText: 4, referenceText: 3, yRulerText: 3, yAxisLabelText: 4,
       headTitleText: 4, headNozzleText: 4, headMutText: 3, legendText: 3, titleBlockText: 3,
     })
     expect(TEXT_TYPES.filter((t) => !(t.key in fixed)).map((t) => d[`${t.key}Size`])).toEqual(Array(5).fill('Automatic'))

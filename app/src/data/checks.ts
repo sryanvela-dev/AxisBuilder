@@ -246,8 +246,8 @@ export function checkProject(p: Project): Check[] {
       severity: 'warning', place: { kind: 'row', list: c.list, index: c.index, field: 'labelMode' },
       text: c.moved ? `Label ${c.id} (moved by hand) overlaps ${c.overlaps}.` : `Label ${c.id} overlaps ${c.overlaps}.`,
       fix: c.moved
-        ? 'Move it to a clear spot in the drawing preview (Move labels), or reset it to be placed automatically.'
-        : 'Set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
+        ? 'It can still be exported this way. To clear it, move it to a clear spot in the drawing preview (Move labels), or reset it to be placed automatically.'
+        : 'It can still be exported this way. To clear it, move the label (Move labels in the drawing preview), set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
       ...(c.moved ? { actions: [reset(c.list, c.index)] } : {}),
     })
   }
