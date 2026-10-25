@@ -54,3 +54,19 @@ export function panelScales(s: Settings): { legend: number; title: number } {
   const r3 = (n: number) => Math.round(n * 1000) / 1000
   return { legend: r3(sizedHeight(rules, 'LEGEND_TEXT', 2) / 2), title: r3(sizedHeight(rules, 'TITLE_BLOCK_TEXT', 1.8) / 1.8) }
 }
+
+/** Printed weight of the other layers (mm): legend and title block lines, head crosshairs, the paper rulers. CAD's default 0.25. */
+const OTHER_WEIGHT_MM = 0.25
+/** Hatch lines outside the scans: the legend samples and the section sheets' legend. */
+const HATCH_SAMPLES = new Set(['LEGEND_AUT_HATCH', 'LEGEND_MUT_HATCH', 'MANUAL_UT_HATCH', 'REPORT_LEGEND_AUT', 'REPORT_LEGEND_MUT'])
+
+/**
+ * Printed line weights (inches) by CAD layer, for the PDF, the report images and the Sheets view: the Drawing
+ * step's weights for the main geometry layers (the legend and sheet hatch samples follow the scan hatch), CAD's
+ * default 0.25 mm for the rest.
+ */
+export function lineWeights(s: Settings): (layer: string) => number {
+  const byLayer = new Map<string, number>(LINE_LAYERS.map((l) => [l.layer, Number(setting(s, `${l.key}Weight`))]))
+  const hatch = byLayer.get('AUT_HATCH') ?? OTHER_WEIGHT_MM
+  return (layer) => (byLayer.get(layer) ?? (HATCH_SAMPLES.has(layer) ? hatch : OTHER_WEIGHT_MM)) / 25.4
+}

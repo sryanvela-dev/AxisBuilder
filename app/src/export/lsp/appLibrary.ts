@@ -34,6 +34,12 @@ export interface LibraryPatch {
 
 export const APP_LIBRARY_PATCHES: readonly LibraryPatch[] = [
   {
+    find: /^( {4})(\(SL_Text .+ 1\.8 \(SL_RulerTextRot[XY]\) \(SL_InchLabel pos\) layer\))$/,
+    replace: '$1(if (SL_RulerNumberFits pos length layer) $2)',
+    count: 9,
+    why: 'A tick number that would crowd the ruler\'s end number is left out; the end is always numbered (change 22).',
+  },
+  {
     find: / 2\.5 (\(SL_RulerTextRot[XY]\)) label layer\)$/,
     replace: ' 2.5 $1 label (SL_AxisLabelLayer layer))',
     count: 9,
@@ -117,6 +123,13 @@ export function writeAppLibrary(w: (line: string) => void): void {
   w(';; Ruler axis direction labels have their own layers (the numbers stay on X_RULER_TEXT / Y_RULER_TEXT).')
   w('(defun SL_AxisLabelLayer (layer)')
   w('  (cond ((= layer "X_AXIS") "X_AXIS_LABEL_TEXT") ((= layer "Y_AXIS") "Y_AXIS_LABEL_TEXT") (T layer))')
+  w(')')
+  w('')
+  w(';; A tick number that would crowd the ruler\'s end number is left out (its tick stays); the end is always numbered.')
+  w('(defun SL_RulerNumberFits (pos length layer / h d)')
+  w('  (setq h (if SL_TextHeight (SL_TextHeight (SL_TextLayer layer) 1.8) 1.8))')
+  w('  (setq d (- length pos))')
+  w('  (or (<= d 0.001) (>= d (* h (+ 1.0 (* 0.3 (+ (strlen (SL_InchLabel pos)) (strlen (SL_InchLabel length)))))))))')
   w(')')
   w('')
   writeTextResize(w)
@@ -342,6 +355,60 @@ function writeTextResize(w: (line: string) => void): void {
   w('    )')
   w('  )')
   w('  (princ)')
+  w(')')
+  w('')
+}
+
+/**
+ * Scan images without a full Windows path (change 21, decided after the Phase 3a CAD test): each image is
+ * looked for in <drawing folder>/<folder>, then on CAD's search path; failing both, the user picks any image
+ * in the folder once and the rest come from there. Only string functions, as the Phase 3a test kit (tested in
+ * DraftSight and AutoCAD). Written by the Export step's "Make CAD drawing".
+ */
+export function writeImageFinder(w: (line: string) => void, folder: string): void {
+  const f = folder.replace(/"/g, '')
+  w(';; Scan images are found next to the saved drawing (save the drawing in the job folder first), or picked once.')
+  w('(setq SL_APP_IMAGE_DIR nil SL_APP_IMAGE_ASKED nil)')
+  w('(defun SL_AppSlash (s / i c r)')
+  w('  (setq r "" i 1)')
+  w('  (while (<= i (strlen s))')
+  w('    (setq c (substr s i 1))')
+  w('    (setq r (strcat r (if (= c "\\\\") "/" c)))')
+  w('    (setq i (1+ i))')
+  w('  )')
+  w('  r')
+  w(')')
+  w('(defun SL_AppFolderOf (path / i p)')
+  w('  (setq path (SL_AppSlash path) i (strlen path))')
+  w('  (while (and (> i 0) (not p))')
+  w('    (if (= (substr path i 1) "/") (setq p i))')
+  w('    (setq i (1- i))')
+  w('  )')
+  w('  (if p (substr path 1 p) "")')
+  w(')')
+  w('(defun SL_AppImage (name / prefix p picked)')
+  w('  (setq prefix (getvar "DWGPREFIX"))')
+  w('  (cond')
+  w('    ((and SL_APP_IMAGE_DIR (setq p (findfile (strcat SL_APP_IMAGE_DIR name)))) p)')
+  w(`    ((and (= (type prefix) 'STR) (setq p (findfile (strcat (SL_AppSlash prefix) "${f}/" name))))`)
+  w('      (setq SL_APP_IMAGE_DIR (SL_AppFolderOf p))')
+  w('      p')
+  w('    )')
+  w(`    ((setq p (findfile (strcat "${f}/" name))) (setq SL_APP_IMAGE_DIR (SL_AppFolderOf p)) p)`)
+  w('    ((not SL_APP_IMAGE_ASKED)')
+  w('      (setq SL_APP_IMAGE_ASKED T)')
+  w(`      (princ "\\nThe scan images are not next to this drawing. Pick any image in the job's ${f} folder.")`)
+  w(`      (setq picked (getfiled "AxisBuilder: pick any image in ${f}" (if (= (type prefix) 'STR) prefix "") "png" 0))`)
+  w("      (if (= (type picked) 'STR)")
+  w('        (progn (setq SL_APP_IMAGE_DIR (SL_AppFolderOf picked)) (findfile (strcat SL_APP_IMAGE_DIR name)))')
+  w('      )')
+  w('    )')
+  w('    (T nil)')
+  w('  )')
+  w(')')
+  w('(defun SL_AppInsertImage (x y w h name / img)')
+  w('  (setq img (SL_AppImage name))')
+  w('  (if img (SL_InsertFitImage x y w h img) (princ (strcat "\\nScan image not found: " name)))')
   w(')')
   w('')
 }

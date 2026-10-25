@@ -1,18 +1,19 @@
 // The screen while a job is open: top bar (save, undo), step bar, "before export" banner, the
 // current step's page with the drawing preview beside it, and its main "Next" button.
 
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isDirty, jobTitle, type StepId } from '../state/session.ts'
 import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { ErrorBoundary } from './ErrorBoundary.tsx'
 import { FindSetting } from './FindSetting.tsx'
-import { copyText } from './errorDetails.ts'
+import { Notices } from './Notices.tsx'
 import { checkProject } from '../data/checks.ts'
 import { ChecksContext } from './checksContext.ts'
 import { DrawingStep, FieldDataStep, ProjectStep } from './projectSteps.tsx'
 import { ImagesStep, ScansStep } from './scanSteps.tsx'
-import { ExportStep, ReviewStep } from './steps.tsx'
+import { ReviewStep } from './steps.tsx'
+import { ExportStep } from './exportStep.tsx'
 import { FoldersContext } from './foldersContext.ts'
 import { PreviewPanel } from './preview/PreviewPanel.tsx'
 import { SelectionContext, type Selected } from './selectionContext.ts'
@@ -48,6 +49,12 @@ export function JobScreen() {
   const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
   const [selected, setSelected] = useState<Selected | null>(null)
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected])
+  // Every step opens at its top (the page area would otherwise keep the last step's scroll position).
+  const page = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    page.current?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+  }, [step])
   return (
     <ChecksContext.Provider value={checks}>
     <FoldersContext.Provider value={folders}>
@@ -88,7 +95,7 @@ export function JobScreen() {
         <Banner statuses={statuses} />
         <Notices />
         <div className={`work${PREVIEW_STEPS.includes(step) ? ' with-preview' : ''}${step === 'drawing' ? ' wide-preview' : ''}`}>
-          <main className="page">
+          <main className="page" ref={page}>
             <ErrorBoundary key={step} where={`${stepInfo(step).title} step`} onLeave={{ label: 'Go to the Review step', action: () => app.goToStep('review') }}>
               <header className="page-header">
                 <h1>{stepInfo(step).title}</h1>
@@ -109,11 +116,7 @@ export function JobScreen() {
             <button type="button" className="btn btn-primary btn-large" onClick={() => app.goToStep(next)}>
               Next: {stepInfo(next).title}
             </button>
-          ) : (
-            <button type="button" className="btn btn-primary btn-large" disabled title="Comes in a later update">
-              Make CAD drawing (coming soon)
-            </button>
-          )}
+          ) : null}
         </footer>
       </div>
     </SelectionContext.Provider>
@@ -181,43 +184,6 @@ function Banner({ statuses }: { statuses: Record<StepId, StepStatus> }) {
           and {left.length - shown.length} more
         </button>
       )}
-    </div>
-  )
-}
-
-export function Notices() {
-  const app = useApp()
-  return (
-    <>
-      {app.notice && (
-        <div className={`toast toast-${app.notice.kind}`} role={app.notice.kind === 'error' ? 'alert' : 'status'}>
-          <span>{app.notice.text}</span>
-          <button type="button" className="btn btn-small" onClick={app.dismissNotice}>
-            OK
-          </button>
-        </div>
-      )}
-      {app.backgroundError && <BackgroundError details={app.backgroundError} onClose={app.dismissBackgroundError} />}
-    </>
-  )
-}
-
-function BackgroundError({ details, onClose }: { details: string; onClose: () => void }) {
-  return (
-    <div className="toast toast-error" role="alert">
-      <span>Something went wrong in the background. Your work is kept; you can carry on.</span>
-      <span className="button-row">
-        <button
-          type="button"
-          className="btn btn-small"
-          onClick={() => void copyText(details)}
-        >
-          Copy error details
-        </button>
-        <button type="button" className="btn btn-small" onClick={onClose}>
-          OK
-        </button>
-      </span>
     </div>
   )
 }

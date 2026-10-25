@@ -7,6 +7,7 @@ import { useEffect, useId, useState } from 'react'
 import { parseLength, parseNumber, type Parsed } from '../data/parse.ts'
 import type { Project } from '../data/schema.ts'
 import {
+  LINE_LAYERS,
   SETTINGS,
   SETTING_GROUPS,
   TEXT_TYPES,
@@ -104,6 +105,15 @@ export function SettingsGroup({ group, step }: { group: SettingGroupId; step: St
       )}
       {group === 'textStyles' ? (
         <TextStylesTable fields={all} values={values} step={step} />
+      ) : group === 'lineStyles' ? (
+        <>
+          <LineStylesTable fields={all} values={values} step={step} />
+          <div className="field-grid">
+            {shown.filter((f) => !/(Color|Weight)$/.test(f.key)).map((f) => (
+              <SettingField key={`${f.section}.${f.key}`} field={f} step={step} />
+            ))}
+          </div>
+        </>
       ) : (
         <div className="field-grid">
           {shown.map((f) => (
@@ -126,6 +136,7 @@ type FieldProps = { field: GroupField; step: StepId; compact?: boolean }
 function SettingField(props: FieldProps) {
   const { def } = props.field
   if (def.type === 'number' && def.color) return <ColorSetting {...props} />
+  if (def.type === 'number' && def.transparency) return <TransparencySetting {...props} />
   return def.type === 'number' || def.type === 'text' ? <TypedSetting {...props} /> : <PickedSetting {...props} />
 }
 
@@ -200,6 +211,59 @@ function TextStylesTable({ fields, values, step }: { fields: GroupField[]; value
   )
 }
 
+/** Line colors and printed weights: one row per drawing layer. */
+function LineStylesTable({ fields, values, step }: { fields: GroupField[]; values: SectionValues; step: StepId }) {
+  const app = useApp()
+  const byKey = new Map(fields.map((f) => [f.key, f]))
+  const defs = SETTINGS as Record<string, FieldDef>
+  const resetRow = (key: string, name: string) => {
+    const row = ['Color', 'Weight'].map((k) => byKey.get(`${key}${k}`)!)
+    app.edit(`Reset ${name}`, (p) => row.reduce((acc, f) => setValue(acc, f.section, f.key, f.def.default), p))
+    for (const f of row) app.dispatch({ type: 'setDraft', key: draftKey(f.section, f.key), draft: null })
+  }
+  return (
+    <table className="text-styles">
+      <thead>
+        <tr>
+          <th scope="col">Lines</th>
+          <th scope="col">Color</th>
+          <th scope="col">Printed weight (mm)</th>
+          <th scope="col"><span className="visually-hidden">Reset</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {LINE_LAYERS.map((l) => {
+          const name = defs[`${l.key}Color`].name.replace(/: color$/, '')
+          const changed = ['Color', 'Weight'].some((k) => {
+            const f = byKey.get(`${l.key}${k}`)!
+            return !Object.is(values[f.section][f.key], f.def.default)
+          })
+          return (
+            <tr key={l.key}>
+              <th scope="row">
+                {name}
+                <span className="muted layer-name">{l.layer}</span>
+              </th>
+              <td>
+                <SettingField field={byKey.get(`${l.key}Color`)!} step={step} compact />
+              </td>
+              <td>
+                <SettingField field={byKey.get(`${l.key}Weight`)!} step={step} compact />
+              </td>
+              <td>
+                <button type="button" className="btn btn-small" disabled={!changed} onClick={() => resetRow(l.key, name)}
+                  title={changed ? `Put ${name.toLowerCase()} back to the default color and weight` : 'Already at the default'} aria-label={`Reset ${name}`}>
+                  Reset
+                </button>
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
 function useSetting(field: GroupField) {
   const app = useApp()
   const { section, key, def } = field
@@ -249,6 +313,44 @@ function TypedSetting({ field, step, compact }: FieldProps) {
 }
 
 /** A CAD color number, picked from swatches. */
+/**
+ * A CAD transparency as a slider: Solid at 0, Faint at 90, the number shown, and a small sample of the hatch or
+ * centerline at that transparency. Dragging is one undo step (ends when the slider is let go or left).
+ */
+function TransparencySetting({ field, step, compact }: FieldProps) {
+  const id = useId()
+  const app = useApp()
+  const { def } = field
+  const { value, store } = useSetting(field)
+  const v = typeof value === 'number' ? value : 0
+  const opacity = 1 - Math.min(90, Math.max(0, v)) / 100
+  const end = () => app.dispatch({ type: 'endEditGroup' })
+  const sample =
+    def.type === 'number' && def.transparency === 'centerline' ? (
+      <line x1="2" y1="11" x2="58" y2="11" className="tsample-line" style={{ opacity }} />
+    ) : (
+      <g style={{ opacity }}>
+        {Array.from({ length: 9 }, (_, i) => (
+          <line key={i} x1={i * 8 - 16} y1="22" x2={i * 8 + 6} y2="0" className="tsample-line" />
+        ))}
+      </g>
+    )
+  const input = (
+    <div className="transparency">
+      <span className="muted tlabel">Solid</span>
+      <input id={id} type="range" min={0} max={90} step={1} value={v} aria-describedby={`${id}-help`} aria-valuetext={`${v} (0 solid, 90 faint)`}
+        onChange={(e) => store(Number(e.target.value), draftKey(field.section, field.key))} onPointerUp={end} onKeyUp={end} onBlur={end} />
+      <span className="muted tlabel">Faint</span>
+      <output htmlFor={id} className="tvalue">{v}</output>
+      <svg className="tsample" viewBox="0 0 60 22" width="60" height="22" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="59" height="21" className="tsample-box" />
+        <svg x="1" y="1" width="58" height="20" viewBox="0 1 58 20" overflow="hidden">{sample}</svg>
+      </svg>
+    </div>
+  )
+  return <FieldFrame id={id} field={field} step={step} input={input} problem={null} note={null} compact={compact} />
+}
+
 function ColorSetting({ field, step, compact }: FieldProps) {
   const id = useId()
   const { value, store } = useSetting(field)

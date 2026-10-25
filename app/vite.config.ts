@@ -7,6 +7,8 @@ import pkg from './package.json' with { type: 'json' }
 export default defineConfig({
   // App version for error reports (ui/errorDetails.ts).
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  // The PDF writer (pdf-lib + fontkit, about 1.1 MB) is its own chunk, loaded only when a PDF is made.
+  build: { chunkSizeWarningLimit: 1200 },
   plugins: [
     react(),
     VitePWA({
@@ -31,7 +33,7 @@ export default defineConfig({
       },
       workbox: {
         // Precache the whole build so the app runs offline after the first visit.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,ttf}'],
         cleanupOutdatedCaches: true,
       },
     }),

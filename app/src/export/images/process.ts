@@ -87,6 +87,35 @@ export function planProcessing(project: Project, photoNames: readonly string[] |
   return { jobs, skipped }
 }
 
+/** Width and height of a PNG from its first 24 bytes (IHDR), or null when it isn't a PNG. */
+export function pngSize(bytes: Uint8Array): { width: number; height: number } | null {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+  if (bytes.length < 24 || sig.some((b, i) => bytes[i] !== b)) return null
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  return { width: v.getUint32(16), height: v.getUint32(20) }
+}
+
+/** What is known about a processed image already in the folder. */
+export interface ExistingImage {
+  lastModified: number
+  width: number
+  height: number
+}
+
+/**
+ * The jobs whose processed image is missing or out of date (decided by the user for "Make CAD drawing"):
+ * not there yet, older than its photo, or no longer the shape of its scan (more than a pixel off).
+ */
+export function staleJobs(plan: ProcessPlan, existing: ReadonlyMap<string, ExistingImage>, photoTimes: ReadonlyMap<string, number>): PhotoJob[] {
+  return plan.jobs.filter((j) => {
+    const e = existing.get(j.outName.toLowerCase())
+    if (!e) return true
+    const photo = photoTimes.get(j.photoName)
+    if (photo !== undefined && photo > e.lastModified) return true
+    return Math.abs(e.width - (e.height * j.scanW) / j.scanH) > 1
+  })
+}
+
 export type FolderCheck =
   /** The folder holds another job's processed images: stop. */
   | { kind: 'otherJob'; marker: JobMarker }

@@ -2,7 +2,7 @@
 // photos), updated as you edit. Click an item to go to its row; the selected row's item is highlighted;
 // items with errors or warnings are marked in the check colors. Collapsible, with a full-size view.
 
-import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { LAYER_GROUPS, PREVIEW_DIFFERENCES, buildDrawing, type DrawingItem, type LayerGroup } from '../../engine/drawing.ts'
 import { STEP_OF_LIST } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
@@ -16,31 +16,7 @@ import { SheetsView } from './SheetsView.tsx'
 import { PreviewSplitter } from './PreviewSplitter.tsx'
 import { activeSectionPlan, sectionPlanItems } from '../../engine/sections.ts'
 import { usePhotoThumbs } from './usePhotoThumbs.ts'
-
-const STORE_KEY = 'axisbuilder:preview'
-
-interface PreviewPrefs {
-  open: boolean
-  hidden: LayerGroup[]
-}
-
-function loadPrefs(): PreviewPrefs {
-  try {
-    const p = JSON.parse(localStorage.getItem(STORE_KEY) ?? '') as PreviewPrefs
-    if (typeof p.open === 'boolean' && Array.isArray(p.hidden)) return p
-  } catch {
-    // no saved preferences
-  }
-  return { open: true, hidden: [] }
-}
-
-function savePrefs(p: PreviewPrefs) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(p))
-  } catch {
-    // storage blocked: the choice lasts until the page closes
-  }
-}
+import { setPreviewPrefs, usePreviewPrefs, type PreviewPrefs } from './previewPrefs.ts'
 
 export function PreviewPanel() {
   const app = useApp()
@@ -48,19 +24,35 @@ export function PreviewPanel() {
   const { checks } = useJobChecks()
   const { photos } = useJobFolders()
   const { selected, select } = useSelection()
-  const [prefs, setPrefs] = useState(loadPrefs)
+  const prefs = usePreviewPrefs()
   const [full, setFull] = useState(false)
+  /** Back from full size: the step page shows from its top. */
+  const closeFull = () => {
+    setFull(false)
+    document.querySelector('main.page')?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+  }
+  // Full size fills the window; Escape closes it.
+  useEffect(() => {
+    if (!full) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('.dialog-backdrop')) closeFull()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [full])
   const view = useRef<DrawingViewHandle>(null)
   // Typing stays smooth on big jobs: the drawing catches up right after the keystroke.
   const project = useDeferredValue(job.history.present)
   // The section sheet plan is drawn only while section sheets are on (engine/sections.ts).
   const plan = useMemo(() => activeSectionPlan(project), [project])
+  const drawing = useMemo(() => buildDrawing(project), [project])
   const model = useMemo(() => {
-    const d = buildDrawing(project)
+    const d = drawing
     return buildRenderModel(plan ? { ...d, items: [...d.items, ...sectionPlanItems(project, plan)] } : d)
-  }, [project, plan])
+  }, [project, plan, drawing])
   const [sheets, setSheets] = useState(false)
-  const showSheets = sheets && plan !== null
+  const showSheets = sheets && project.vessel.length !== null && project.vessel.height !== null
   const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
 
@@ -75,8 +67,7 @@ export function PreviewPanel() {
   }, [checks])
 
   const update = (p: PreviewPrefs) => {
-    setPrefs(p)
-    savePrefs(p)
+    setPreviewPrefs(p)
   }
   const toggle = (g: LayerGroup) => update({ ...prefs, hidden: hidden.has(g) ? prefs.hidden.filter((x) => x !== g) : [...prefs.hidden, g] })
 
@@ -121,17 +112,17 @@ export function PreviewPanel() {
           <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing" disabled={showSheets}>
             Fit
           </button>
-          {plan && (
+          {(
             <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => {
                 // The sheets open full size, so they are big enough to read; closing full size keeps them.
                 if (!showSheets) setFull(true)
                 setSheets(!showSheets)
               }} aria-pressed={showSheets}
-              title="Flip through the section sheets as they will print">
+              title="Flip through the sheets as they will print (the PDF)">
               {showSheets ? 'Drawing' : 'Sheets'}
             </button>
           )}
-          <button type="button" className="btn btn-small" onClick={() => setFull(!full)}>
+          <button type="button" className="btn btn-small" onClick={() => (full ? closeFull() : setFull(true))}>
             {full ? 'Close full size' : 'Full size'}
           </button>
           {!full && (
@@ -149,9 +140,9 @@ export function PreviewPanel() {
           </label>
         ))}
       </div>
-      <div className="preview-canvas">
-        {showSheets && plan ? (
-          <SheetsView model={model} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
+      <div className={`preview-canvas${project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>
+        {showSheets ? (
+          <SheetsView drawing={drawing} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
         ) : (
         <DrawingView
           ref={view}

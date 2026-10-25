@@ -34,7 +34,7 @@ import {
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
 import { writeSectionSheets } from './sectionSheets.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
-import { patchLibraryLine, writeAppLibrary, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
+import { patchLibraryLine, writeAppLibrary, writeImageFinder, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
 import { circumference, isWrapped, labelPieceIndex, nozzlePieces, objectPieces, scanPieces, type XPiece } from '../../engine/wrap.ts'
 import { appLayerSetup, panelScales, textSizeRules } from '../../engine/styles.ts'
 import {
@@ -79,6 +79,12 @@ export interface ExportOptions {
   processedImageFolder?: string
   /** v5.0 uses the workbook's folder when Original Image Folder is blank (ThisWorkbook.Path). */
   workbookFolder?: string
+  /**
+   * App output only (change 21, the Phase 3a decision): no folder in the .lsp. Each image is looked for in
+   * <drawing folder>\<folder name>, then on CAD's search path, then the user picks one image once and the
+   * rest are taken from the same folder (SL_AppImage). Used by the Export step.
+   */
+  relativeImages?: { folderName: string }
 }
 
 /** The project can't be exported yet; `problems` lists what to fix, as sentences. */
@@ -230,6 +236,8 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const C = v5 ? null : circumference(p)
   const wraps = !v5 && anythingWraps(p, scans, C)
   if (wraps) writeWrapLibrary(w)
+  const relative = !v5 && options.relativeImages ? options.relativeImages : null
+  if (relative) writeImageFinder(w, relative.folderName)
   // Change 20: section sheets planned in the app (only while Make section sheets is on). CAD builds the
   // horizontal sheets only (as SECTIONPAGES); vertical sheets are the app's (preview now, PDF in Phase 4).
   const plan = v5 || orientation === 'Vertical' ? null : activeSectionPlan(p)
@@ -347,7 +355,9 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
     const ys = LispNum(img.y)
     const wd = LispNum(img.w)
     const ht = LispNum(img.h)
-    w(`  (SL_InsertFitImage ${xs} ${ys} ${wd} ${ht} ${LispStr(imgPath)})`)
+    // Change 21: the image is found next to the saved drawing (or picked once) instead of by a full path.
+    if (relative) w(`  (SL_AppInsertImage ${xs} ${ys} ${wd} ${ht} ${LispStr(img.fileName)})`)
+    else w(`  (SL_InsertFitImage ${xs} ${ys} ${wd} ${ht} ${LispStr(imgPath)})`)
     w(`  (SL_AddAvoidRect ${xs} ${ys} ${wd} ${ht})`)
   }
 

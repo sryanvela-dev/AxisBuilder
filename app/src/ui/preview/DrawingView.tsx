@@ -202,7 +202,7 @@ export const DrawingItemView = memo(function DrawingItemView(p: {
         ))}
       </g>
       {texts.map((t, i) => (
-        <text key={i} x={t.x} y={t.y} fontSize={t.size} textAnchor={t.anchor} transform={t.rotate ? `rotate(${t.rotate} ${t.x} ${t.y})` : undefined} style={colorStyle(t.color)}>
+        <text key={i} x={t.x} y={t.y} dy={t.dy} fontSize={t.size} textAnchor={t.anchor} transform={t.rotate ? `rotate(${t.rotate} ${t.x} ${t.y})` : undefined} style={colorStyle(t.color)}>
           {t.text}
         </text>
       ))}

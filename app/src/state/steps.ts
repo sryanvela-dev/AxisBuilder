@@ -22,7 +22,7 @@ export const STEPS: readonly StepInfo[] = [
   { id: 'images', title: 'Images', intro: 'A photo for each AUT scan.' },
   { id: 'drawing', title: 'Drawing', intro: 'How the drawing looks: text sizes and colors, rulers, legend, head views and what is shown.' },
   { id: 'review', title: 'Review', intro: 'Everything still open before the drawing can be made.' },
-  { id: 'export', title: 'Export', intro: 'Make the CAD drawing file.' },
+  { id: 'export', title: 'Export', intro: 'Make the PDF and the report images, or the CAD drawing file.' },
 ]
 
 export function stepInfo(id: StepId): StepInfo {
@@ -163,6 +163,21 @@ function imageStatus(p: Project, wb: WorkbookImport | null, checkIssues: Issue[]
   if (p.scans.length === 0) return { state: 'notStarted', short: 'Not started', issues: [] }
   // Missing photos come from the checks (data/checks.ts, v5.0's rule).
   return status(p.scanImages.length > 0, [...checkIssues, ...reportIssue(wb, 'images')])
+}
+
+export interface ReviewGroup {
+  step: StepId
+  issues: Issue[]
+}
+
+/**
+ * The Review step's list: what blocks export (errors and values not stored yet) first, then what is only
+ * worth checking (warnings), each grouped by step in step order.
+ */
+export function reviewList(review: StepStatus): { errors: ReviewGroup[]; warnings: ReviewGroup[] } {
+  const group = (issues: Issue[]) =>
+    STEP_IDS.map((step) => ({ step, issues: issues.filter((i) => i.step === step) })).filter((g) => g.issues.length > 0)
+  return { errors: group(review.issues.filter((i) => i.blocksExport)), warnings: group(review.issues.filter((i) => !i.blocksExport)) }
 }
 
 /** Short lines for the "before export" banner: what is left, grouped by step. Empty when ready. */

@@ -31,6 +31,7 @@ changes in the Change log.
   (ignored by OCR), page 3 = objects and nozzles, page 4 = heads.
 - `Head Clock.png` – head clock-position reference graphic.
 - `app/` – the new web app (in development). See "Web app (/app)" below.
+- `tools/TightPDF/tightpdf_final.py` – the old PDF-to-JPEG report tool, kept for the record (the app's report images replace it; never commit its .exe).
 
 ## Rules for editing src
 1. **Encoding: Windows-1252 (cp1252) with CRLF line endings.** The VBA editor imports .bas files
@@ -127,7 +128,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `src/export/lsp/library.generated.ts` from `src/SLG_Utilities.bas`; a test fails when it is out of date),
   `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit), `fingerprints:check` /
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
-  the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on).
+  the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
+  `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -229,6 +231,25 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   PDF export should print these). Vertical sheets run the length up the sheet (app only). `ShowWhen.and` chains
   conditions (section settings show only while sections are on). Past-the-seam values: a note with an optional
   "Write as" button, not a warning (`wrapNote`). Preview divider: `ui/preview/PreviewSplitter.tsx`.
+- Review and Export steps (Phase 4a): Review = `reviewList` (`state/steps.ts`, errors then warnings, grouped by step)
+  with a Go to per item (`ui/goToIssue.ts`), "Ready to export" when nothing is open. Export (`ui/exportStep.tsx`): job
+  folder, the PDF / report images panel (`ui/exportPdf.tsx`), "Make CAD drawing (.lsp)" as the backup (processes
+  missing or out-of-date processed images first: `staleJobs` in `export/images/process.ts`; writes
+  `<job> - AUT Coverage.lsp` in cp1252 with `lspBytes`, images found relative to the drawing: `relativeImages` option,
+  `writeImageFinder` / `SL_AppInsertImage` in `appLibrary.ts`; then shows the CAD steps), CAD program and checks
+  settings. Everything refuses while errors exist, asks before replacing (`ui/writeFiles.ts okToReplace`), and ends with
+  a summary. File names: `export/files.ts` (`exportBaseName`, `reportImageNames` as TightPDF).
+- PDF and report images (Phase 4b, `app/docs/pdf-export.md`): one sheet model per printed sheet
+  (`engine/sheetModel.ts`: main sheet = whole drawing fitted to letter, landscape or portrait by its shape; then the
+  overview and sections from `engine/sheets.ts`), primitives in paper inches with print color (`aci.ts printRgb`),
+  line weight (`styles.ts lineWeights`, per-layer `<key>Weight` settings on the Drawing step's lines table), opacity and
+  group. The Sheets view (`ui/preview/SheetsView.tsx`, now always available, main sheet first), the PDF
+  (`export/pdf/writePdf.ts`, pdf-lib + fontkit, lazy-loaded) and the report JPEGs (`export/report/reportImages.ts`,
+  canvas + jpeg-js 4:4:4, DPI in the JFIF header) all draw it. Bundled font `app/src/assets/fonts/Arimo-Regular.ttf`
+  (widths in `engine/fontMetrics.generated.ts`, `npm run gen:font-metrics`; `engine/textMetrics.ts`); the service worker
+  precaches .ttf. PDF photos: `export/pdf/photos.ts` (shape rule, capped at "Photo resolution in the PDF" of the largest
+  printed size, embedded once); browser photo reading `ui/sheetPhotos.ts`. PDF layers named like the preview toggles.
+  `npm run pdf:report` prints the PDF size per golden job (`-- --out <folder>` writes them; never into the repo).
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -523,3 +544,54 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   (app layout in `engine/sheets.ts`; ABSECTIONSHEETS in CAD keeps SECTIONPAGES' panel at 86.5%). A nozzle split in half
   keeps one number on one leader (user ruling, a second label was tried and removed). `wrap:report` shows nozzle label
   placement. No .lsp change (fingerprints unchanged).
+- 2026-10-24 – Web app Phase 4a (branch feature/pdf-export): Review step lists everything open (errors first, then
+  warnings, grouped by step, Go to each); "Ready to export". Export step: job folder, CAD program setting, "Make CAD
+  drawing (.lsp)" as the backup (processes missing or out-of-date images first, writes `<job> - AUT Coverage.lsp`, finds
+  images relative to the drawing (app change 21, app output only), shows the CAD steps); asks before replacing; plain
+  summary. compat 'v5.0' and the default-settings fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-24 – Web app Phase 4b (feature/pdf-export): PDF and report images straight from the app (`app/docs/pdf-export.md`).
+  One sheet model (`engine/sheetModel.ts`) for the Sheets view (now with the main sheet), the PDF (pdf-lib 1.17.1 +
+  fontkit, bundled Arimo font, vector paths, real text, print colors, line weights per layer, hatch/centerline
+  transparency, photos at up to 300 dpi of their printed size, PDF layers named like the CAD groups) and the report
+  JPEGs (replace TightPDF: one per sheet, cropped to the printed extents from the model, 300 DPI, quality 95, 4:4:4,
+  8 px padding, DPI in the file, TightPDF names). New settings: line weights (Drawing step), PDF photo resolution, PDF
+  layers, report image resolution, quality, padding, crop and file name (Export step). Section sheet panels and
+  reference labels now measured with the font (a long title ran off the overview sheet). `tools/TightPDF/` keeps
+  the old tool's script for the record. Not yet tried: printing on letter paper, Acrobat/Edge layers, real photos.
+  No .lsp change (fingerprints unchanged). No VBA or workbook changes.
+- 2026-10-24 – Phase 4b click-through follow-up (feature/pdf-export, user): PDF text was missing most letters in Edge
+  (pdf-lib's font subset): the whole font is now embedded (+310 KB, test). Sheets view draws the print colors and line
+  weights (the drawing view's CSS overrode them). Section sheet rulers: numbers, axis label and arrow stacked by
+  measured size with gaps, a number touching the next left out (end kept), panel 0.5 in past the drawing (test: no
+  ruler text touches another or a line). PDF layers kept (Acrobat/Reader only; other viewers ignore them). New "What is
+  exported" group: Layers to export (As the preview / Scans / Overlays = photos + outlines + labels, no hatch / Both,
+  files "... - Scans" / "... - Overlays"; preview chips in `ui/preview/previewPrefs.ts`) and Main sheet (Automatic /
+  Landscape / Portrait). Approved suggestions: full size fills the window (Escape closes), "Open the PDF" after making
+  it, job screen loaded on its own (`App.tsx` lazy; first chunk 747 -> 389 KB; `Notices` moved to `ui/Notices.tsx`).
+  New `npm run pdf:inspect`. No .lsp change (fingerprints unchanged).
+- 2026-10-24 – Section sheets follow-up (feature/pdf-export, user click-through): the overview's panel sat on the
+  drawing (drawing + rulers + panel wider than the sheet): such a sheet's viewport is now drawn smaller so the panel
+  keeps its room; the gap to the panel is a quarter inch on every sheet (user), measured past the reference labels
+  (on vertical sheets the last one sticks out half its width); legend keys stacked (AUT above MUT) like the
+  drawing's legend. Test: the panel is clear of the drawing and its reference labels on every sheet.
+  PDF and line weights in the preview confirmed working by the user. No .lsp change.
+- 2026-10-24 – Click-through fixes (feature/pdf-export, user): (1) "Paper size" on the Export step (Letter default,
+  11x17 (Tabloid), Legal, A4) for every sheet, the Sheets view, PDF and report images; readable-size sections are
+  planned for it (`paperOf`, `sheetArea`; sheetViewport / sheetScale take the area). (2) Labels centred like CAD's MC:
+  the preview and Sheets view used the em box ("central"); now the bundled font, capital-height size and an
+  alphabetic baseline half the height below the point (`renderModel` `dy`); test on every golden job. (3) Every step
+  and closing full size open the page at its top. (4) App change 22: a ruler tick number that crowds the end number is
+  left out, the end always kept, in the preview, sheets, PDF, report images and the app .lsp (`SL_RulerNumberFits`,
+  patch on all nine ruler functions); compat v5.0 unchanged; fingerprints refreshed (all jobs: library lines; drawing
+  loses 300" in REF1 and its variants, 336" in REF2, 456" in REF3 / REF4; sample unchanged). (5) Hatch and centerline
+  transparency as a Solid..Faint slider with the number and a live sample (`transparency` on NumberDef). No VBA or
+  workbook changes.
+- 2026-10-24 – Click-through fixes 6-8 (feature/pdf-export, user): (6) line weight defaults as CAD draws v5.0
+  (0.25 mm): vessel 0.35, hatch / legend hatch samples / leaders 0.13, every other layer 0.25 (rulers and centerline
+  were 0.18); one-pixel minimum on screen (Sheets view) and in low-DPI report images. Jobs saved earlier keep their
+  saved weights until "Reset to default". (7) CAD's exact ACI colors by default in the preview (on white), Sheets view,
+  PDF and report images; Drawing step "Colors" = Softer for screens keeps the earlier shades (`printRgb(n, soft)`,
+  `SheetModel.soft`, `.preview-canvas.exact-colors`). (8) App change 23, nozzle labels (`engine/labels.ts`): inside
+  only when width and height fit; every drawn scan avoided (not only photos); crowded labels try longer leaders,
+  then are placed with a Review warning ("Label N4 overlaps scan 12", `crowdedLabels`). No golden job's labels move
+  (default and 2x nozzle text, `npm run labels:report`), so no fingerprint changed for 6-8. compat v5.0 unchanged.

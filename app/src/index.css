@@ -729,6 +729,52 @@ td.num {
   background: var(--kind-invalid);
 }
 
+.notice-ready {
+  background: var(--surface);
+  border-color: var(--ok);
+}
+
+/* Review list: one row per open point, with its Go to button */
+.review-list {
+  margin: 4px 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.review-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.review-list .review-text {
+  flex: 1;
+}
+
+/* Export step cards */
+.export-card {
+  margin: 16px 0;
+  padding: 10px 18px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.export-card h2 {
+  margin: 4px 0 6px;
+}
+
+.export-backup {
+  border-style: dashed;
+}
+
+.cad-steps {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
 /* --- Dialog and error panel ----------------------------------------------------------------- */
 
 .dialog-backdrop {
@@ -1256,9 +1302,10 @@ table.grid.photos select {
 }
 
 .preview-full {
-  position: absolute;
+  /* The whole window (above the top bar and banners), so the drawing and the sheets get all the room. */
+  position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 8;
   width: auto;
   max-width: none;
   border-left: 0;
@@ -1314,6 +1361,19 @@ table.grid.photos select {
   background: var(--draw-bg);
 }
 
+/* Drawing step "Colors" = Exact CAD colors (default): CAD's own colors on white, 7 black, in light and dark mode. */
+.preview-canvas.exact-colors {
+  --draw-bg: #ffffff;
+  --draw-7: #000000;
+  --draw-1: #ff0000;
+  --draw-2: #ffff00;
+  --draw-3: #00ff00;
+  --draw-4: #00ffff;
+  --draw-5: #0000ff;
+  --draw-6: #ff00ff;
+  color: #1f2933;
+}
+
 .preview-note {
   position: absolute;
   left: 10px;
@@ -1359,8 +1419,9 @@ svg.drawing circle {
 }
 
 svg.drawing text {
-  font-family: Arial, 'Segoe UI', sans-serif;
-  dominant-baseline: central;
+  /* The font the sheets and the PDF print with (same widths as Arial); baseline placed by each text's dy. */
+  font-family: 'AxisBuilder Arimo', Arial, sans-serif;
+  dominant-baseline: alphabetic;
 }
 
 /* Each shape sets --c to its CAD color (engine/aci.ts aciCss). */
@@ -1439,6 +1500,40 @@ tr.row-selected > td:first-child {
 }
 
 /* Text sizes and colors table (not a scroll box, so the color picker can open over it) */
+/* Transparency slider: Solid .. Faint, the number, and a small sample of the hatch or centerline. */
+.transparency {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.transparency input[type='range'] {
+  flex: 1;
+  min-width: 120px;
+}
+
+.transparency .tlabel {
+  font-size: 0.85em;
+}
+
+.transparency .tvalue {
+  min-width: 2ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tsample .tsample-box {
+  fill: var(--draw-bg);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.tsample .tsample-line {
+  stroke: var(--draw-5);
+  stroke-width: 1.5;
+}
+
 table.text-styles {
   border-collapse: collapse;
   width: 100%;
@@ -1732,6 +1827,23 @@ svg.sheet .sheet-paper-space rect {
   fill: none;
   stroke: var(--c, #111111);
   stroke-width: 0.008;
+}
+
+/* The sheet model (Sheets view): drawn with the PDF's font, sizes and print colors set on each element. */
+@font-face {
+  font-family: 'AxisBuilder Arimo';
+  src: url('./assets/fonts/Arimo-Regular.ttf') format('truetype');
+  font-display: block;
+}
+
+svg.sheet-model text {
+  font-family: 'AxisBuilder Arimo', Arial, sans-serif;
+  stroke: none;
+}
+
+svg.sheet-model path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .sheets-note {

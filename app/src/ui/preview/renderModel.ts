@@ -3,6 +3,7 @@
 // the bounds for "fit to window". Pure, so it can be tested and memoized.
 
 import { LAYER_COLOR, TRANSPARENT_LAYERS, groupOfLayer, type Drawing, type DrawingItem, type LayerGroup } from '../../engine/drawing.ts'
+import { CAP } from '../../engine/textMetrics.ts'
 import { rotationOffset, toVisual, type Orientation } from '../../engine/transform.ts'
 
 /** SVG matrix(a b c d 0 0) mapping logical (x, y) to SVG (x right, y down) for the orientation. */
@@ -35,6 +36,8 @@ export interface RenderText {
   rotate: number
   size: number
   anchor: 'middle' | 'start'
+  /** Baseline offset below the point, along the turned text (half the capital height). */
+  dy: number
   text: string
   group: LayerGroup
   color: number
@@ -63,8 +66,12 @@ export interface RenderModel {
 
 const n = (v: number) => Math.round(v * 1000) / 1000
 
-/** CAD text height is the height of capital letters; a browser font's capitals are about 0.72 of its size. */
-const CAP_HEIGHT = 0.72
+/**
+ * CAD text height is the height of capital letters, and middle-center (MC, as SL_Text writes) puts the middle of
+ * the capitals on the point: the font size comes from the bundled font's capital height (engine/textMetrics.ts)
+ * and the baseline sits half the text height below the point (`dy`, along the turned text).
+ */
+const CAP_HEIGHT = CAP
 
 const opacityOf = (transparency: number) => 1 - Math.min(90, Math.max(0, transparency)) / 100
 
@@ -124,7 +131,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
         case 'text': {
           const [x, y] = toSvg(o, s.x, s.y)
           texts.push({
-            x, y, rotate: -(s.rot + rotationOffset(o)), size: s.h / CAP_HEIGHT, anchor: s.just === 'ML' ? 'start' : 'middle', text: s.text,
+            x, y, rotate: -(s.rot + rotationOffset(o)), size: s.h / CAP_HEIGHT, dy: s.h / 2, anchor: s.just === 'ML' ? 'start' : 'middle', text: s.text,
             group: groupOfLayer(s.layer), color: colorOf(s.layer),
           })
           grow(s.x, s.y)

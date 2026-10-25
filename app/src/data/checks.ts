@@ -11,6 +11,7 @@ import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, type ListKey, type Pr
 import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
 import { drawnScans } from '../engine/layout.ts'
 import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
+import { crowdedLabels } from '../engine/labels.ts'
 
 export type Severity = 'error' | 'warning'
 
@@ -222,6 +223,15 @@ export function checkProject(p: Project): Check[] {
       severity: 'warning', place: { kind: 'list', list },
       text: `${hidden.length === 1 ? '1 is' : `${hidden.length} are`} on ${heads}, but ${headView} is ${mode}, so ${hidden.length === 1 ? 'it is' : 'they are'} not drawn.`,
       fix: `Set ${headView} (in Heads, above) to show ${mode === 'NONE' ? 'the heads you need' : 'both heads'}, or ignore this if you don't need head views.`,
+    })
+  }
+
+  // Nozzle labels with no clear spot even with a longer leader (engine/labels.ts, app change 23).
+  for (const c of crowdedLabels(p)) {
+    out.push({
+      severity: 'warning', place: { kind: 'row', list: c.list, index: c.index, field: 'labelMode' },
+      text: `Label ${c.id} overlaps ${c.overlaps}.`,
+      fix: 'Set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
     })
   }
 
