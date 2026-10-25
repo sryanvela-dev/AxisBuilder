@@ -17,6 +17,7 @@ import { PreviewSplitter } from './PreviewSplitter.tsx'
 import { activeSectionPlan, sectionPlanItems } from '../../engine/sections.ts'
 import { usePhotoThumbs } from './usePhotoThumbs.ts'
 import { setPreviewPrefs, usePreviewPrefs, type PreviewPrefs } from './previewPrefs.ts'
+import { useMoveLabels } from './MoveLabels.tsx'
 
 export function PreviewPanel() {
   const app = useApp()
@@ -53,6 +54,9 @@ export function PreviewPanel() {
   }, [project, plan, drawing])
   const [sheets, setSheets] = useState(false)
   const showSheets = sheets && project.vessel.length !== null && project.vessel.height !== null
+  // Drawing mode: move nozzle labels and their leader ends (MoveLabels.tsx).
+  const [moving, setMoving] = useState(false)
+  const move = useMoveLabels(moving && !showSheets && prefs.open, project, drawing)
   const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
 
@@ -112,6 +116,10 @@ export function PreviewPanel() {
           <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing" disabled={showSheets}>
             Fit
           </button>
+          <button type="button" className={`btn btn-small${move.tool ? ' btn-primary' : ''}`} onClick={() => setMoving(!moving)} aria-pressed={!!move.tool}
+            disabled={showSheets} title="Move nozzle labels and their leader ends by dragging them">
+            Move labels
+          </button>
           {(
             <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => {
                 // The sheets open full size, so they are big enough to read; closing full size keeps them.
@@ -140,6 +148,7 @@ export function PreviewPanel() {
           </label>
         ))}
       </div>
+      {move.status}
       <div className={`preview-canvas${showSheets ? ' sheets' : project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>
         {showSheets ? (
           <SheetsView drawing={drawing} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
@@ -153,12 +162,18 @@ export function PreviewPanel() {
           thumbs={thumbs}
           onPick={pick}
           fitKey={`${job.id}|${project.vessel.orientation}|${vesselMissing}`}
+          tool={move.tool}
         />
         )}
+        {move.menu}
         {vesselMissing && <p className="preview-note">Enter the shell length and circumference to see the whole drawing.</p>}
       </div>
       <details className="preview-diff" hidden={showSheets}>
-        <summary className="muted">Drag to move, wheel to zoom, click an item to go to its row. Where it can differ from CAD</summary>
+        <summary className="muted">
+          {move.tool
+            ? 'Drag empty space, middle-drag or Space+drag to move the view, wheel to zoom. Where it can differ from CAD'
+            : 'Drag to move, wheel to zoom, click an item to go to its row. Where it can differ from CAD'}
+        </summary>
         <ul className="paste-list">
           {PREVIEW_DIFFERENCES.map((t) => (
             <li key={t}>{t}</li>

@@ -73,13 +73,13 @@ describe('step status', () => {
     const p = linked()
     const broken: Project = {
       ...p,
-      headNozzles: [...p.headNozzles, { ...p.headNozzles[0], id: 'N1' }], // N1 is also a shell nozzle
+      objects: [...p.objects, { ...p.objects[0] }], // the same object name twice
       scans: p.scans.map((s, i) => (i === 0 ? { ...s, yStop: null } : s)),
     }
     const s = stepStatuses(jobOf(broken))
     expect(s.project.state).toBe('done')
     expect(s.fieldData.state).toBe('attention')
-    expect(s.fieldData.issues[0].text).toContain('The name "N1" is also used in Shell nozzles, row 1.')
+    expect(s.fieldData.issues[0].text).toContain('The name "SADDLE A" is also used in row 1.')
     expect(s.scans.state).toBe('attention')
     expect(s.scans.issues[0].text).toBe('AUT scans, row 1 (SCAN 1): Y stop is blank. Enter the Y stop, or untick Include if it is not drawn.')
     expect(s.export.issues.length).toBe(2)

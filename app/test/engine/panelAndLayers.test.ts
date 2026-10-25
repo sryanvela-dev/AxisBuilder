@@ -9,6 +9,7 @@ import { toVisual, type Orientation } from '../../src/engine/transform.ts'
 import { APP_LIBRARY_PATCHES } from '../../src/export/lsp/appLibrary.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
+import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 const OPTIONS = { processedImageFolder: 'X:\\img', generatedAt: new Date(2026, 0, 2, 3, 4, 5) }
 const lsp = (p: Project) => exportLsp(p, OPTIONS)
@@ -21,7 +22,7 @@ function sample(settings: Record<string, unknown> = {}, orientation?: Orientatio
     vessel: { ...p.vessel, referenceLabelMode: 'Auto Cardinal', ...(orientation ? { orientation } : {}) },
     headNozzles: p.headNozzles.map((n) => ({ ...n, labelMode: 'OUTSIDE' })),
     shellNozzles: p.shellNozzles.map((n) => ({ ...n, labelMode: 'OUTSIDE' })),
-    settings: { ...p.settings, showVesselReferenceLabels: true, ...settings } as Project['settings'],
+    settings: { ...p.settings, ...AUTOMATIC_TEXT, showVesselReferenceLabels: true, ...settings } as Project['settings'],
   }
 }
 

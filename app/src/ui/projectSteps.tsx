@@ -1,5 +1,7 @@
 // The Project, Field data and Drawing steps: settings forms (from settings.ts) and the field data tables.
 
+import { Fragment } from 'react'
+import { resetAllOverrides } from '../data/overrides.ts'
 import { FIELD_LISTS } from '../data/columns.ts'
 import { scrollPageTo } from './scrollPage.ts'
 import { formatNumber } from '../data/parse.ts'
@@ -41,9 +43,50 @@ export function DrawingStep({ status }: StepProps) {
         ))}
       </nav>
       {SETTING_GROUPS.filter((g) => g.step === 'Drawing').map((g) =>
-        g.id === 'sections' ? <SectionSheets key={g.id} /> : <SettingsGroup key={g.id} group={g.id} step="drawing" />,
+        g.id === 'sections' ? (
+          <SectionSheets key={g.id} />
+        ) : g.id === 'leaders' ? (
+          <Fragment key={g.id}>
+            <SettingsGroup group={g.id} step="drawing" />
+            <MovedLabels />
+          </Fragment>
+        ) : (
+          <SettingsGroup key={g.id} group={g.id} step="drawing" />
+        ),
       )}
     </>
+  )
+}
+
+/** Labels moved by hand in the preview (Move labels): how many, and "Reset all moved labels" (asks first). */
+function MovedLabels() {
+  const app = useApp()
+  const count = app.state.job!.history.present.labelOverrides.length
+  async function resetAll() {
+    const answer = await app.ask({
+      title: 'Reset all moved labels?',
+      message: <p>{count === 1 ? 'The label you moved goes' : `All ${count} labels you moved go`} back to automatic placement. You can undo this.</p>,
+      buttons: [
+        { id: 'reset', label: 'Reset all', primary: true },
+        { id: 'cancel', label: 'Cancel' },
+      ],
+      cancelId: 'cancel',
+    })
+    if (answer === 'reset') app.edit('Reset all moved labels', resetAllOverrides)
+  }
+  return (
+    <section className="moved-labels" aria-label="Labels moved by hand">
+      <p className="muted">
+        {count === 0
+          ? 'To move a nozzle label or its leader end, click Move labels above the drawing preview and drag it.'
+          : `${count === 1 ? '1 nozzle label is' : `${count} nozzle labels are`} moved by hand (Move labels in the drawing preview). Changing the leader shape, arrowhead or text size keeps them where you put them.`}
+      </p>
+      {count > 0 && (
+        <button type="button" className="btn btn-small" onClick={resetAll}>
+          Reset all moved labels
+        </button>
+      )}
+    </section>
   )
 }
 

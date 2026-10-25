@@ -5,6 +5,7 @@
 // the import reports are not: undo never "unsaves" a file or jumps between screens.
 
 import type { AutImportResult } from '../data/autCsvImport.ts'
+import { syncLabelOverrides } from '../data/overrides.ts'
 import type { ReportTarget } from '../data/reportTargets.ts'
 import type { Project } from '../data/schema.ts'
 import type { ImportSummary, ReportEntry } from '../data/xlsmImport.ts'
@@ -130,7 +131,8 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
   if (!job) return state
   switch (action.type) {
     case 'edit': {
-      const next = action.update(job.history.present)
+      // Labels moved by hand follow renamed nozzles and go with deleted ones (data/overrides.ts).
+      const next = syncLabelOverrides(job.history.present, action.update(job.history.present))
       const history = record(job.history, next, { label: action.label, group: action.group })
       return history === job.history ? state : { job: { ...job, history } }
     }

@@ -11,6 +11,7 @@ import { TEXTRESIZE_LAYERS } from '../../src/export/lsp/appLibrary.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
+import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 /** The sample job with every kind of text drawn (weld labels, reference labels and the head 12 o'clock marker on). */
 function fullSample(settings: Record<string, unknown> = {}): Project {
@@ -20,7 +21,7 @@ function fullSample(settings: Record<string, unknown> = {}): Project {
     vessel: { ...p.vessel, referenceLabelMode: 'Auto Cardinal' },
     circWelds: p.circWelds.map((w) => ({ ...w, showLabel: true })),
     longSeams: p.longSeams.map((w) => ({ ...w, showLabel: true })),
-    settings: { ...p.settings, showWeldLabels: true, showHeadClockReferences: true, showVesselReferenceLabels: true, ...settings } as Project['settings'],
+    settings: { ...p.settings, ...AUTOMATIC_TEXT, showWeldLabels: true, showHeadClockReferences: true, showVesselReferenceLabels: true, ...settings } as Project['settings'],
   }
 }
 
@@ -80,7 +81,17 @@ describe('text types', () => {
     for (const t of TEXT_TYPES) expect(textsOn(d, t.layer).length, t.layer).toBeGreaterThan(0)
   })
 
-  it('defaults give no size rules, no color changes and no scaled legend or title block', () => {
+  it('the default sizes are the fixed heights chosen on 2026-10-25; everything else Automatic', () => {
+    const d = sampleProject().settings as unknown as Record<string, unknown>
+    const fixed = Object.fromEntries(TEXT_TYPES.filter((t) => d[`${t.key}Size`] === 'Fixed height').map((t) => [t.key, d[`${t.key}Height`]]))
+    expect(fixed).toEqual({
+      shellNozzleText: 4, shellMutText: 3, xRulerText: 3, xAxisLabelText: 4, referenceText: 3, yRulerText: 3, yAxisLabelText: 4,
+      headTitleText: 4, headNozzleText: 4, headMutText: 3, legendText: 3, titleBlockText: 3,
+    })
+    expect(TEXT_TYPES.filter((t) => !(t.key in fixed)).map((t) => d[`${t.key}Size`])).toEqual(Array(5).fill('Automatic'))
+  })
+
+  it('Automatic sizes give no size rules, no color changes and no scaled legend or title block', () => {
     const s = fullSample().settings
     expect(textSizeRules(s).size).toBe(0)
     // Only the layers the app adds, in their colors.

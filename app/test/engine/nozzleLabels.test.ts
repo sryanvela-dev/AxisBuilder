@@ -6,6 +6,7 @@ import type { Project } from '../../src/data/schema.ts'
 import { drawnScans } from '../../src/engine/layout.ts'
 import { crowdedLabels, shellNozzleLabels } from '../../src/engine/labels.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
+import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 /**
  * The sample job with one shell nozzle changed (index 1, N2) and the given extra settings. Straight leaders on a Vertical
@@ -16,7 +17,7 @@ function withNozzle(n: Partial<Project['shellNozzles'][number]>, settings: Parti
   return {
     ...p, ...(scans ? { scans } : {}),
     vessel: { ...p.vessel, orientation: 'Vertical' },
-    settings: { ...p.settings, leaderShape: 'Straight', ...settings },
+    settings: { ...p.settings, ...AUTOMATIC_TEXT, leaderShape: 'Straight', ...settings },
     shellNozzles: p.shellNozzles.map((x, i) => (i === 1 ? { ...x, ...n } : x)),
   }
 }

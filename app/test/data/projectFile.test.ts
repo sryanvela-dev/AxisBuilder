@@ -286,20 +286,18 @@ describe('duplicate IDs', () => {
       p.shellMut.push({ id: 'M1', x: 1, y: 1 })
       p.scanImages.push({ scanId: 'SCAN1' })
     })
-    expect(dups).toHaveLength(4)
+    // A repeated nozzle name is allowed (a Review warning only), so 3, not 4.
+    expect(dups).toHaveLength(3)
     expect(dups[0]).toBe('Circ welds, item 2 (CW1): Weld ID "CW1" is also used by item 1; rename one before export.')
   })
 
-  it('treats shell and head nozzles as one vessel: names never repeat', () => {
+  it('nozzle names may repeat (user, 2026-10-25): they never block export', () => {
     expect(
       duplicatesAfter((p) => {
         p.headNozzles.push({ head: 'HEAD 2', id: 'n1', diameter: 2, clock: '6' })
         p.headNozzles.push({ head: 'HEAD 1', id: 'N3', diameter: 2, clock: '6' })
       }),
-    ).toEqual([
-      'Head nozzles, item 3 (n1): Nozzle "n1" is also used by Shell nozzles, item 1; rename one before export.',
-      'Head nozzles, item 4 (N3): Nozzle "N3" is also used by item 2; rename one before export.',
-    ])
+    ).toEqual([])
   })
 
   it('treats shell and head MUT as one vessel: IDs never repeat', () => {
@@ -326,7 +324,7 @@ describe('migration hook', () => {
   it('format 1 files get a job ID; a format 2 file keeps its own', () => {
     const v1 = expectOk(openProject(JSON.stringify({ schemaVersion: 1, project: { projectName: 'Old' } })))
     expect(v1.migratedFrom).toBe(1)
-    expect(v1.project.schemaVersion).toBe(4)
+    expect(v1.project.schemaVersion).toBe(5)
     expect(v1.project.jobId).toMatch(/^[0-9a-f-]{36}$/)
     expect(v1.project.project.projectName).toBe('Old')
     const again = expectOk(openProject(saveProject(v1.project)))

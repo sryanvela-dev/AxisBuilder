@@ -7,11 +7,13 @@
 // refusal), so the step bar and the export never disagree; a test keeps the two in step.
 
 import { formatNumber } from './parse.ts'
-import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, type ListKey, type Project } from './schema.ts'
+import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, repeatsAllowed, type ListKey, type Project } from './schema.ts'
 import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
 import { drawnScans } from '../engine/layout.ts'
 import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
-import { crowdedLabels } from '../engine/labels.ts'
+import { nozzleLabelNotes } from '../engine/labels.ts'
+import { textLabelFallbacks } from '../engine/textLabels.ts'
+import { isMovableList, resetOverride } from './overrides.ts'
 
 export type Severity = 'error' | 'warning'
 
@@ -28,6 +30,8 @@ export interface CheckAction {
   list: ListKey
   index: number
   changes: Record<string, unknown>
+  /** Also put the row's label back to automatic placement (a label moved by hand, data/overrides.ts). */
+  resetLabel?: boolean
 }
 
 export interface Check {
@@ -47,7 +51,8 @@ export interface Check {
 export function applyCheckAction(p: Project, a: CheckAction): Project {
   const items = p[a.list] as Record<string, unknown>[]
   if (!items[a.index]) return p
-  return { ...p, [a.list]: items.map((item, i) => (i === a.index ? { ...item, ...a.changes } : item)) } as Project
+  const next = { ...p, [a.list]: items.map((item, i) => (i === a.index ? { ...item, ...a.changes } : item)) } as Project
+  return a.resetLabel && isMovableList(a.list) ? resetOverride(next, a.list, a.index) : next
 }
 
 const fieldName = (list: ListKey, key: string) => (LIST_META[list].fields as Record<string, string>)[key]
@@ -124,8 +129,9 @@ export function checkProject(p: Project): Check[] {
     })
   }
 
-  // Repeated names (as findDuplicateIds: the later one is flagged)
+  // Repeated names (as findDuplicateIds: the later one is flagged). Nozzle names may repeat: a warning only.
   for (const lists of ID_GROUPS) {
+    const allowed = repeatsAllowed(lists)
     const first = new Map<string, { list: ListKey; index: number }>()
     for (const list of lists) {
       const meta = LIST_META[list]
@@ -137,10 +143,15 @@ export function checkProject(p: Project): Check[] {
           return
         }
         const where = earlier.list === list ? `row ${earlier.index + 1}` : `${LIST_META[earlier.list].name}, row ${earlier.index + 1}`
-        out.push({
-          severity: 'error', exportRule: true, place: { kind: 'row', list, index, field: meta.idField },
-          text: `The name "${id}" is also used in ${where}.`, fix: 'Give each one its own name (names are compared ignoring capitals).',
-        })
+        out.push(allowed
+          ? {
+              severity: 'warning', place: { kind: 'row', list, index, field: meta.idField },
+              text: `The name "${id}" is also used in ${where}.`, fix: 'Both are drawn with this name. If they are different nozzles, give each its own name.',
+            }
+          : {
+              severity: 'error', exportRule: true, place: { kind: 'row', list, index, field: meta.idField },
+              text: `The name "${id}" is also used in ${where}.`, fix: 'Give each one its own name (names are compared ignoring capitals).',
+            })
       })
     }
   }
@@ -227,11 +238,26 @@ export function checkProject(p: Project): Check[] {
   }
 
   // Nozzle labels with no clear spot even with a longer leader (engine/labels.ts, app change 23).
-  for (const c of crowdedLabels(p)) {
+  // Labels moved by hand may overlap (it's the user's choice) but still get the warning, saying so.
+  const notes = nozzleLabelNotes(p)
+  const reset = (list: ListKey, index: number): CheckAction => ({ label: 'Reset position', list, index, changes: {}, resetLabel: true })
+  for (const c of notes.crowded) {
     out.push({
       severity: 'warning', place: { kind: 'row', list: c.list, index: c.index, field: 'labelMode' },
-      text: `Label ${c.id} overlaps ${c.overlaps}.`,
-      fix: 'Set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
+      text: c.moved ? `Label ${c.id} (moved by hand) overlaps ${c.overlaps}.` : `Label ${c.id} overlaps ${c.overlaps}.`,
+      fix: c.moved
+        ? 'It can still be exported this way. To clear it, move it to a clear spot in the drawing preview (Move labels), or reset it to be placed automatically.'
+        : 'It can still be exported this way. To clear it, move the label (Move labels in the drawing preview), set Label mode to Inside or Outside, make the nozzle text smaller (Drawing step, Text sizes), or make the nozzle leader longer (Drawing step, Nozzle labels).',
+      ...(c.moved ? { actions: [reset(c.list, c.index)] } : {}),
+    })
+  }
+  // A hand placement that no longer makes sense: the label is placed automatically; nothing is blocked.
+  for (const f of [...notes.fallbacks, ...textLabelFallbacks(p)]) {
+    out.push({
+      severity: 'warning', place: { kind: 'row', list: f.list, index: f.index, field: f.list === 'shellNozzles' || f.list === 'headNozzles' ? 'labelMode' : 'id' },
+      text: `Label ${f.id} was moved by hand, but ${f.why}, so it is placed automatically.`,
+      fix: 'Move it again in the drawing preview (Move labels), or reset it to clear the old position.',
+      actions: [reset(f.list, f.index)],
     })
   }
 

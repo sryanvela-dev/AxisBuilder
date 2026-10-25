@@ -30,6 +30,8 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Format 4 adds per-item wrapping across the circumference seam (noWrap on shell nozzles, objects and scans;
   // acrossSeam on scans). All have defaults, so nothing needs converting.
   3: (data) => ({ ...data, schemaVersion: 4 }),
+  // Format 5 adds labels moved by hand in the drawing preview (labelOverrides); older files have none.
+  4: (data) => ({ ...data, schemaVersion: 5 }),
 }
 
 export interface OpenOptions {

@@ -10,14 +10,19 @@
 // Leaders (Phase 5a, engine/leaders.ts): straight, elbow (angled segment + horizontal landing, label at its end)
 // or curved. Spots are worked out as the drawing reads (the visual frame), and a spot is only clear when the label
 // AND the whole leader path (landing included) keep clear of scans, objects, nozzles, other labels and other leaders.
+//
+// Labels moved by hand (Phase 5b, project.labelOverrides, data/overrides.ts) are placed first, where they were put;
+// the automatic labels then keep clear of them and their leaders. A move that no longer makes sense (the label is off
+// the shell or away from its head, or no longer fits inside) falls back to automatic and says why (`fallback`).
 
-import type { Project, Scan } from '../data/schema.ts'
+import type { LabelOverride, MovableLabelList, Project, Scan } from '../data/schema.ts'
+import { rowOverride } from '../data/overrides.ts'
 import { clockPositionDegrees, drawnScans, imageInserts, panelOf, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
 import { arcBox, circumference, nozzlePieces, scanPieces, type ArcPiece } from './wrap.ts'
 import { headVector, readableRot, toLogical, toVisual, type Orientation } from './transform.ts'
 import {
-  LEADER_GAP, curvedSpot, elbowSpot, leaderStyle, pathHitsBox, pathsCross, straightSpot, type LeaderStyle, type Pt, type Spot,
+  LEADER_GAP, curvedSpot, elbowSpot, leaderStyle, leaderToLabel, pathHitsBox, pathsCross, straightSpot, type LeaderStyle, type Pt, type Spot,
 } from './leaders.ts'
 
 export type Box = [number, number, number, number]
@@ -42,6 +47,19 @@ export interface NozzleLabel {
   arcs?: ArcPiece[]
   /** No clear spot was found: what the label overlaps ("scan 12"), for the Review warning. */
   crowded?: string
+  /** Label width and height as drawn (the Drawing step's size applied); the label is turned to read upright. */
+  tw: number
+  sh: number
+  /** Center of the label when it is inside (a nozzle across the seam: the middle of its larger part). */
+  insideX: number
+  /** The label may go inside: it fits (and the nozzle is not split about in half across the seam). */
+  canBeInside: boolean
+  /** The drawn part of the main piece the leader must start on (logical degrees), null = the whole circle. */
+  tipArc: [number, number] | null
+  /** Placed by hand (label, leader end or both; project.labelOverrides). */
+  moved?: boolean
+  /** A hand placement that could not be used, and why ("it was off the shell"); the label is placed automatically. */
+  fallback?: string
 }
 
 /** SL_BBox: approximate text box. */
@@ -61,10 +79,11 @@ const ELBOW_DIRECTIONS: Pt[] = [45, -45, 135, -135, 0, 180, 90, -90].map((deg) =
  * for with the leader as well; only when none is clear is the label alone kept clear (as before leaders had shapes),
  * and the Review warning is about the label.
  */
-function firstHit(sp: Spot, bb: Box, avoid: readonly Box[], names: readonly string[], segs: readonly Pt[][], leader: boolean, skip?: Box): string | null {
-  const i = avoid.findIndex((a) => a !== skip && (overlap(bb, a) || (leader && pathHitsBox(sp.path, a))))
+function firstHit(sp: Spot, bb: Box, avoid: readonly Box[], names: readonly string[], segs: readonly Pt[][], leader: boolean, skip?: Box | ReadonlySet<Box>, skipSeg?: Pt[]): string | null {
+  const skipped = (a: Box) => (skip instanceof Set ? skip.has(a) : a === skip)
+  const i = avoid.findIndex((a) => !skipped(a) && (overlap(bb, a) || (leader && pathHitsBox(sp.path, a))))
   if (i >= 0) return names[i]
-  return leader && segs.some((q) => pathHitsBox(q, bb) || pathsCross(q, sp.path)) ? 'another leader' : null
+  return leader && segs.some((q) => q !== skipSeg && (pathHitsBox(q, bb) || pathsCross(q, sp.path))) ? 'another leader' : null
 }
 
 /**
@@ -88,6 +107,61 @@ function spotsAround(o: Orientation, style: LeaderStyle, n: Pt, r: number, ld: n
 const overlap = (a: Box, b: Box) => !(a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3])
 const finite = (b: Box) => b.every((v) => Number.isFinite(v))
 
+/** A label center `d` (as the drawing reads) from the nozzle center n, in logical coordinates. */
+export function offsetPoint(o: Orientation, n: Pt, d: { dx: number; dy: number }): Pt {
+  const [vx, vy] = toVisual(o, n[0], n[1])
+  return toLogical(o, vx + d.dx, vy + d.dy)
+}
+
+/** The offset (as the drawing reads) of a logical label center from the nozzle center n. */
+export function offsetOf(o: Orientation, n: Pt, c: Pt): { dx: number; dy: number } {
+  const nv = toVisual(o, n[0], n[1])
+  const cv = toVisual(o, c[0], c[1])
+  return { dx: cv[0] - nv[0], dy: cv[1] - nv[1] }
+}
+
+/** What a nozzle's label needs for placement, automatic or by hand. */
+interface LabelGeom {
+  x: number
+  y: number
+  r: number
+  txt: string
+  th: number
+  sh: number
+  tw: number
+  insideX: number
+  canBeInside: boolean
+  tipArc: [number, number] | null
+  arcs?: ArcPiece[]
+}
+
+/**
+ * A hand placement (label moved and/or leader end moved) as a label, or why it can't be used. A move of the leader end
+ * alone is applied after automatic placement (`withTip`), so here it gives null. `offPlace` says why a label center
+ * can't be used (off the shell, away from its head), or null when it can.
+ */
+function placedByHand(o: Orientation, style: LeaderStyle, g: LabelGeom, ov: LabelOverride | undefined, offPlace: (c: Pt) => string | null):
+  NozzleLabel | { unusable: string } | null {
+  if (!ov || ov.label === null || g.txt === '') return null
+  const base = { x: g.x, y: g.y, r: g.r, txt: g.txt, th: g.th, tw: g.tw, sh: g.sh, insideX: g.insideX, canBeInside: g.canBeInside, tipArc: g.tipArc, ...(g.arcs ? { arcs: g.arcs } : {}) }
+  if (ov.label === 'inside') {
+    if (!g.canBeInside) return { unusable: 'it no longer fits inside the nozzle' }
+    return { ...base, tx: g.insideX, ty: g.y, leader: null, moved: true }
+  }
+  const c = offsetPoint(o, [g.x, g.y], ov.label)
+  const why = offPlace(c)
+  if (why) return { unusable: why }
+  const sp = leaderToLabel(o, style, [g.x, g.y], g.r, ov.tip, c, g.tw, g.sh, g.tipArc)
+  return { ...base, tx: sp.tx, ty: sp.ty, leader: sp.path, moved: true }
+}
+
+/** An automatic label with its leader end moved by hand: the leader redrawn from there. */
+function withTip(o: Orientation, style: LeaderStyle, l: NozzleLabel, ov: LabelOverride | undefined): NozzleLabel {
+  if (!ov || ov.tip === null || l.leader === null) return l
+  const sp = leaderToLabel(o, style, [l.x, l.y], l.r, ov.tip, [l.tx, l.ty], l.tw, l.sh, l.tipArc)
+  return { ...l, leader: sp.path, moved: true }
+}
+
 /** Shell nozzle labels by nozzle index (included nozzles with all values), in SL_CircleSmart order. */
 export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, NozzleLabel> {
   const s = p.settings
@@ -103,6 +177,7 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const keep = (b: Box, what: string) => {
     avoid.push(b)
     names.push(what)
+    return b
   }
   for (const img of imageInserts(p, scans, false)) {
     const b: Box = [img.x, img.y, img.x + img.w, img.y + img.h]
@@ -127,6 +202,9 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   const lr = readableRot(o)
   const rules = textSizeRules(s)
   const C = circumference(p)
+
+  // What each nozzle's label needs, and whether it goes outside automatically.
+  const geoms = new Map<number, LabelGeom & { outside: boolean; halfSplit: boolean; v0: number; v1: number; pieces: ArcPiece[]; wrapped: boolean }>()
   p.shellNozzles.forEach((n, index) => {
     if (!n.include || n.x === null || n.y === null || n.diameter === null) return
     const { y, diameter: dia, id: txt } = n
@@ -152,9 +230,43 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     let outside = mode === 'OUTSIDE' || (mode === 'AUTO' && !insideOK) || !s.smartNozzleLabels
     if (mode === 'INSIDE') outside = false
     if (halfSplit) outside = true
-    const inX = wrapped ? (v0 + v1) / 2 : x
+    const insideX = wrapped ? (v0 + v1) / 2 : x
+    geoms.set(index, {
+      x, y, r, txt, th, sh, tw, insideX, canBeInside: insideOK && !halfSplit, tipArc: pieces[0].arc, ...(wrapped ? { arcs: pieces } : {}),
+      outside, halfSplit, v0, v1, pieces, wrapped,
+    })
+  })
+
+  // Labels moved by hand first: the automatic ones keep clear of them and their leaders.
+  const offShell = (bb: Box) => bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L
+  const byHand = new Map<number, NozzleLabel>()
+  const fallbacks = new Map<number, string>()
+  const ownBoxes = new Map<number, Box>()
+  /** Each label's own leader as placed (a leader end moved by hand redraws it, so it is looked up by label). */
+  const ownSegs = new Map<number, Pt[]>()
+  for (const [index, g] of geoms) {
+    const ov = rowOverride(p, 'shellNozzles', index)
+    const off = (c: Pt) => (c[0] < 0 || c[1] < 0 || c[0] > H || c[1] > L ? 'it was off the shell' : null)
+    const placed = placedByHand(o, style, g, ov, off)
+    if (!placed) continue
+    if ('unusable' in placed) {
+      fallbacks.set(index, placed.unusable)
+      continue
+    }
+    byHand.set(index, placed)
+    if (placed.leader) {
+      ownBoxes.set(index, keep(textBox(placed.tx, placed.ty, g.tw, g.sh, lr), `the label of ${g.txt}`))
+      segs.push(placed.leader)
+      ownSegs.set(index, placed.leader)
+    }
+  }
+
+  const nozzleBoxes = new Map<number, Box[]>()
+  for (const [index, g] of geoms) {
+    const { x, y, r, txt, th, sh, tw, v0, v1, pieces, wrapped, outside } = g
+    const common = { tw, sh, insideX: g.insideX, canBeInside: g.canBeInside, tipArc: g.tipArc }
     const arcs = wrapped ? { arcs: pieces } : {}
-    let label: NozzleLabel = { x, y, r, txt, th, tx: inX, ty: y, leader: null, ...arcs }
+    let label: NozzleLabel = byHand.get(index) ?? { x, y, r, txt, th, tx: g.insideX, ty: y, leader: null, ...common, ...arcs }
     /** The eight spots around the circle centered at cx (leader shape from the Drawing step); across the seam only leaders from the drawn part (a0..a1). */
     const placeOutside = (cx: number, a0: number, a1: number): { tx: number; ty: number; leader: Pt[]; crowded?: string } => {
       const spots = (ld: number): Spot[] => {
@@ -162,7 +274,6 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
         const usable = wrapped ? all.filter((sp) => sp.path[0][0] >= a0 - 1e-6 && sp.path[0][0] <= a1 + 1e-6) : all
         return usable.length ? usable : all
       }
-      const offShell = (bb: Box) => bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L
       const clear = (leader: boolean) => (sp: Spot) => {
         const bb = textBox(sp.tx, sp.ty, tw, sh, lr)
         return !offShell(bb) && firstHit(sp, bb, avoid, names, segs, leader) === null
@@ -177,25 +288,67 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
         found = spots(s.nozzleLeaderLength)[0]
         crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false) ?? 'the edge of the shell'
       }
-      keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`)
+      ownBoxes.set(index, keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`))
       segs.push(found.path)
+      ownSegs.set(index, found.path)
       return { tx: found.tx, ty: found.ty, leader: found.path, ...(crowded ? { crowded } : {}) }
     }
-    if (txt !== '' && outside) label = { x, y, r, txt, th, ...placeOutside(x, v0, v1), ...arcs }
-    out.set(index, label)
-    for (const pc of pieces) keep(arcBox(pc), `nozzle ${txt || index + 1}`)
-  })
+    if (!byHand.has(index) && txt !== '' && outside) {
+      label = { x, y, r, txt, th, ...placeOutside(x, v0, v1), ...common, ...arcs }
+      label = withTip(o, style, label, rowOverride(p, 'shellNozzles', index))
+    }
+    const fb = fallbacks.get(index)
+    out.set(index, fb ? { ...label, fallback: fb } : label)
+    nozzleBoxes.set(index, pieces.map((pc) => keep(arcBox(pc), `nozzle ${txt || index + 1}`)))
+  }
+
+  // The Review warning checks every outside label against everything as finally placed: a label moved by hand (label
+  // and leader) where it was put, and an automatic label (the label, as when it was placed) that a later nozzle or label
+  // landed on.
+  for (const [index, l] of out) {
+    if (!l.leader || l.crowded || !ownBoxes.has(index)) continue
+    const own = new Set<Box>([ownBoxes.get(index)!, ...(nozzleBoxes.get(index) ?? [])])
+    const bb = textBox(l.tx, l.ty, l.tw, l.sh, lr)
+    const hit = firstHit({ path: l.leader, tx: l.tx, ty: l.ty }, bb, avoid, names, segs, byHand.has(index), own, ownSegs.get(index))
+    if (hit) out.set(index, { ...l, crowded: hit })
+  }
   return out
 }
 
+export interface CrowdedLabel {
+  list: MovableLabelList
+  index: number
+  id: string
+  overlaps: string
+  /** The label was placed by hand. */
+  moved: boolean
+}
+
 /** Nozzle labels that could not be kept clear of everything else, for the Review warnings (app change 23). */
-export function crowdedLabels(p: Project): { list: 'shellNozzles' | 'headNozzles'; index: number; id: string; overlaps: string }[] {
-  if (p.vessel.length === null || p.vessel.height === null) return []
-  const out: { list: 'shellNozzles' | 'headNozzles'; index: number; id: string; overlaps: string }[] = []
-  for (const [index, l] of shellNozzleLabels(p, drawnScans(p))) if (l.crowded) out.push({ list: 'shellNozzles', index, id: l.txt, overlaps: l.crowded })
+export function crowdedLabels(p: Project): CrowdedLabel[] {
+  return nozzleLabelNotes(p).crowded
+}
+
+/**
+ * The Review notes on nozzle labels: crowded labels (automatic ones that found no clear spot, and labels placed by hand
+ * that overlap something), and hand placements that could not be used.
+ */
+export function nozzleLabelNotes(p: Project): { crowded: CrowdedLabel[]; fallbacks: { list: MovableLabelList; index: number; id: string; why: string }[] } {
+  const crowded: CrowdedLabel[] = []
+  const fallbacks: { list: MovableLabelList; index: number; id: string; why: string }[] = []
+  if (p.vessel.length === null || p.vessel.height === null) return { crowded, fallbacks }
   const { headDia, panel } = panelOf(p)
-  for (const [index, l] of headNozzleLabels(p, panel, headDia)) if (l.crowded) out.push({ list: 'headNozzles', index, id: l.txt, overlaps: l.crowded })
-  return out
+  const lists: [MovableLabelList, Map<number, NozzleLabel>][] = [
+    ['shellNozzles', shellNozzleLabels(p, drawnScans(p))],
+    ['headNozzles', headNozzleLabels(p, panel, headDia)],
+  ]
+  for (const [list, labels] of lists) {
+    for (const [index, l] of labels) {
+      if (l.crowded) crowded.push({ list, index, id: l.txt, overlaps: l.crowded, moved: !!l.moved })
+      if (l.fallback) fallbacks.push({ list, index, id: l.txt, why: l.fallback })
+    }
+  }
+  return { crowded, fallbacks }
 }
 
 /** Head nozzle labels by nozzle index (included nozzles on a shown head, with a diameter). */
@@ -235,8 +388,8 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
   avoid.push(...bodyBoxes)
   names.push(...shown.map(({ n, index }) => `head nozzle ${n.id || index + 1}`))
 
-  shown.forEach(({ n, index }, i) => {
-    const { x, y, dx, dy, nozR } = bodies[i]
+  const geoms = shown.map(({ n }, i): LabelGeom & { outside: boolean } => {
+    const { x, y, nozR } = bodies[i]
     const dia = n.diameter!
     const txt = n.id
     const th = Math.max(1.4, Math.min(2.2, dia * 0.22))
@@ -247,8 +400,48 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
     const insideOK = dia >= s.minNozzleInsideLabelDiameter + 2 && txt.length * sh * 0.55 < dia * 0.65 && sh < dia * 0.65
     let outside = m === 'OUTSIDE' || (m === 'AUTO' && !insideOK)
     if (m === 'INSIDE') outside = false
+    return { x, y, r: nozR, txt, th, sh, tw, insideX: x, canBeInside: insideOK, tipArc: null, outside }
+  })
+
+  // Labels moved by hand first. A label in the shell, or farther than a head diameter from its head's center, is off
+  // the head view: placed automatically instead.
+  const H = p.vessel.height
+  const L = p.vessel.length
+  const byHand = new Map<number, NozzleLabel>()
+  const fallbacks = new Map<number, string>()
+  const ownBoxes = new Map<number, Box>()
+  shown.forEach(({ n, index }, i) => {
+    const [hx, hy] = center(n.head)
+    const off = (c: Pt) =>
+      (H !== null && L !== null && c[0] > 0 && c[0] < H && c[1] > 0 && c[1] < L) || Math.hypot(c[0] - hx, c[1] - hy) > headDia ? 'it was off the head view' : null
+    const placed = placedByHand(o, style, geoms[i], rowOverride(p, 'headNozzles', index), off)
+    if (!placed) return
+    if ('unusable' in placed) {
+      fallbacks.set(index, placed.unusable)
+      return
+    }
+    byHand.set(index, placed)
+    const bb = textBox(placed.tx, placed.ty, geoms[i].tw, geoms[i].sh, lr)
+    avoid.push(bb)
+    names.push(`the label of ${n.id}`)
+    ownBoxes.set(index, bb)
+    if (placed.leader) segs.push(placed.leader)
+  })
+
+  shown.forEach(({ index }, i) => {
+    const { x, y, dx, dy, nozR } = bodies[i]
+    const g = geoms[i]
+    const { txt, th, sh, tw, outside } = g
+    const common = { tw, sh, insideX: g.insideX, canBeInside: g.canBeInside, tipArc: g.tipArc }
+    const fb = fallbacks.get(index)
+    const set = (l: NozzleLabel) => out.set(index, fb ? { ...l, fallback: fb } : l)
+    const hand = byHand.get(index)
+    if (hand) {
+      set(hand)
+      return
+    }
     if (txt === '' || !outside) {
-      out.set(index, { x, y, r: nozR, txt, th, tx: x, ty: y, leader: null })
+      set({ x, y, r: nozR, txt, th, tx: x, ty: y, leader: null, ...common })
       if (txt !== '') {
         avoid.push(textBox(x, y, tw, sh, lr))
         names.push(`the label of ${txt}`)
@@ -284,11 +477,26 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
       crowded = firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, false, own) ?? undefined
     }
     const sp = spotAt(k)
-    const label: NozzleLabel = { x, y, r: nozR, txt, th, tx: sp.tx, ty: sp.ty, leader: sp.path, ...(crowded ? { crowded } : {}) }
-    out.set(index, label)
-    avoid.push(textBox(label.tx, label.ty, tw, sh, lr))
+    let label: NozzleLabel = { x, y, r: nozR, txt, th, tx: sp.tx, ty: sp.ty, leader: sp.path, ...common, ...(crowded ? { crowded } : {}) }
+    label = withTip(o, style, label, rowOverride(p, 'headNozzles', index))
+    set(label)
+    const bb = textBox(label.tx, label.ty, tw, sh, lr)
+    avoid.push(bb)
     names.push(`the label of ${txt}`)
-    segs.push(sp.path)
+    ownBoxes.set(index, bb)
+    segs.push(label.leader!)
+  })
+
+  // The Review warning checks every label against everything as finally placed: a label moved by hand (label and
+  // leader) where it was put, an automatic outside label (the label) that a later label landed on.
+  shown.forEach(({ index }, i) => {
+    const l = out.get(index)
+    const hand = byHand.has(index)
+    if (!l || l.crowded || !ownBoxes.has(index) || (!hand && !l.leader)) return
+    const own = new Set<Box>([ownBoxes.get(index)!, bodyBoxes[i]])
+    const bb = textBox(l.tx, l.ty, l.tw, l.sh, lr)
+    const hit = firstHit({ path: l.leader ?? [], tx: l.tx, ty: l.ty }, bb, avoid, names, segs, hand && l.leader !== null, own, l.leader ?? undefined)
+    if (hit) out.set(index, { ...l, crowded: hit })
   })
   return out
 }

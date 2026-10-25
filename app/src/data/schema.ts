@@ -10,7 +10,7 @@
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 
-export const CURRENT_SCHEMA_VERSION = 4
+export const CURRENT_SCHEMA_VERSION = 5
 
 /** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
 export function newJobId(): string {
@@ -177,6 +177,29 @@ export const scanImageSchema = z.strictObject({
   include,
 })
 
+/** Lists whose labels can be moved by hand in the drawing preview (Phase 5b): nozzles, then the plain text labels. */
+export const MOVABLE_LABEL_LISTS = ['shellNozzles', 'headNozzles', 'circWelds', 'longSeams', 'objects', 'shellMut'] as const
+export type MovableLabelList = (typeof MOVABLE_LABEL_LISTS)[number]
+export type NozzleList = 'shellNozzles' | 'headNozzles'
+
+/**
+ * A label moved by hand in the drawing preview (format 5), keyed by its item's list, ID and which of the rows with
+ * that ID it is (nozzle names may repeat), not by its row number, so it survives sorting and inserted rows; renames
+ * and deletes are followed (data/overrides.ts). Measured as the drawing reads (right and up on the sheet, inches) from
+ * where the label is drawn automatically: a nozzle's center (across the seam: its main piece), a MUT point, the spot of
+ * a weld, seam or object label.
+ */
+export const labelOverrideSchema = z.strictObject({
+  list: z.enum(MOVABLE_LABEL_LISTS),
+  id: z.string(),
+  /** Which of the rows with this ID (0 = the first). */
+  occurrence: z.number().int().min(0).default(0),
+  /** Label center as an offset; 'inside' = inside a nozzle circle, no leader; null = automatic. */
+  label: z.union([z.strictObject({ dx: z.number(), dy: z.number() }), z.literal('inside')]).nullable().default(null),
+  /** Nozzles: where the leader meets the circle, in degrees (0 = right, counter-clockwise as the drawing reads); null = automatic. */
+  tip: z.number().nullable().default(null),
+})
+
 // --- Whole file ------------------------------------------------------------------------------
 
 /** Plain names for lists and their fields, used in error messages and the docs. */
@@ -262,10 +285,12 @@ const projectFileShape = {
   headMut: z.array(headMutSchema).default([]),
   scans: z.array(scanSchema).default([]),
   scanImages: z.array(scanImageSchema).default([]),
+  /** Labels moved by hand in the drawing preview (format 5). */
+  labelOverrides: z.array(labelOverrideSchema).default([]),
 }
 
 // Repeated IDs are allowed in a file (v5.0 allowed them, and jobs are imported as they are);
-// findDuplicateIds lists them and export refuses until they are renamed.
+// findDuplicateIds lists them and export refuses until they are renamed (nozzles excepted: REPEATS_ALLOWED).
 export const projectFileSchema = z.strictObject(projectFileShape).superRefine((file, ctx) => {
   const scanIds = new Set(file.scans.map((s) => idKey(s.id)))
   file.scanImages.forEach((img, i) => {
@@ -291,12 +316,20 @@ export const ID_GROUPS: ListKey[][] = [
 ]
 
 /**
- * Every repeated ID (ignoring case and outer spaces), as sentences. The project may still be saved and
- * opened; export refuses until these are renamed.
+ * Lists whose names may repeat (user, 2026-10-25): two nozzles may carry the same label (e.g. two "TOL"). Review still
+ * warns about a repeated nozzle name (data/checks.ts), but export goes on.
+ */
+export const REPEATS_ALLOWED: readonly ListKey[] = ['shellNozzles', 'headNozzles']
+export const repeatsAllowed = (lists: readonly ListKey[]) => lists.every((l) => REPEATS_ALLOWED.includes(l))
+
+/**
+ * Every repeated ID (ignoring case and outer spaces) that blocks export, as sentences (repeated nozzle names don't:
+ * REPEATS_ALLOWED). The project may still be saved and opened; export refuses until these are renamed.
  */
 export function findDuplicateIds(project: Pick<Project, ListKey>): string[] {
   const out: string[] = []
   for (const lists of ID_GROUPS) {
+    if (repeatsAllowed(lists)) continue
     const first = new Map<string, { list: ListKey; index: number }>()
     for (const list of lists) {
       const meta = LIST_META[list]
@@ -371,3 +404,4 @@ export type HeadNozzle = z.output<typeof headNozzleSchema>
 export type HeadMut = z.output<typeof headMutSchema>
 export type Scan = z.output<typeof scanSchema>
 export type ScanImage = z.output<typeof scanImageSchema>
+export type LabelOverride = z.output<typeof labelOverrideSchema>

@@ -244,7 +244,7 @@ export const LINE_LAYERS = [
  * (null when it varies, e.g. scan labels fitted to their box). Fixed height scales a layer's texts in
  * proportion to that base (a title stays bigger than its lines); with no base, every text gets the height.
  */
-function textStyle<K extends string>(key: K, name: string, color: number, base: number | null) {
+function textStyle<K extends string>(key: K, name: string, color: number, base: number | null, fixed?: number) {
   const lower = name.charAt(0).toLowerCase() + name.slice(1)
   const when = (v: string) => ({ section: 'settings' as const, key: `${key}Size`, values: [v] })
   const common = { excelSheet: PS, onSheet: false, group: 'textStyles' as const, step: 'Drawing' as const, level: 'Basic' as const }
@@ -254,7 +254,7 @@ function textStyle<K extends string>(key: K, name: string, color: number, base: 
     [`${key}Size`]: choice(TEXT_SIZE_MODES, {
       ...common, excelLabel: `${name} Size`, name: `${name}: size`,
       description: `How big ${lower} are: Automatic (as the drawing always made them, ${auto}), Scale (a multiple of that) or Fixed height.`,
-      default: 'Automatic', v5,
+      default: fixed === undefined ? 'Automatic' : 'Fixed height', v5,
     }),
     [`${key}Scale`]: num({
       ...common, excelLabel: `${name} Scale`, name: `${name}: scale`, showWhen: when('Scale'),
@@ -264,7 +264,7 @@ function textStyle<K extends string>(key: K, name: string, color: number, base: 
     [`${key}Height`]: num({
       ...common, excelLabel: `${name} Height`, name: `${name}: height`, showWhen: when('Fixed height'),
       description: base === null ? `Height of every one of the ${lower}.` : `Height of the main text (${base} in automatic); other text on the same layer keeps its proportion.`,
-      units: 'in', greaterThan: 0, max: 50, default: base ?? 2, v5,
+      units: 'in', greaterThan: 0, max: 50, default: fixed ?? base ?? 2, v5,
     }),
     [`${key}Color`]: num({
       ...common, excelLabel: `${name} Color`, name: `${name}: color`, color: true,
@@ -881,21 +881,21 @@ export const SETTINGS = {
   // TEXT SIZES AND COLORS (app only): one set per text layer, the same layers TEXTRESIZE knows.
   ...textStyle('scanText', 'Scan labels', 7, null),
   ...textStyle('objectText', 'Object labels', 7, null),
-  ...textStyle('shellNozzleText', 'Shell nozzle labels', 7, null),
-  ...textStyle('shellMutText', 'Shell MUT labels', 7, 1.5),
+  ...textStyle('shellNozzleText', 'Shell nozzle labels', 7, null, 4),
+  ...textStyle('shellMutText', 'Shell MUT labels', 7, 1.5, 3),
   ...textStyle('circWeldText', 'Circ weld labels', 7, 2),
   ...textStyle('longSeamText', 'Long seam labels', 7, 2),
-  ...textStyle('xRulerText', 'X ruler numbers', 1, 1.8),
-  ...textStyle('xAxisLabelText', 'X axis direction label', 1, 2.5),
-  ...textStyle('referenceText', 'Reference labels', 1, 1.5),
-  ...textStyle('yRulerText', 'Y ruler numbers', 5, 1.8),
-  ...textStyle('yAxisLabelText', 'Y axis direction label', 5, 2.5),
-  ...textStyle('headTitleText', 'Head titles', 7, 2.3),
-  ...textStyle('headNozzleText', 'Head nozzle labels', 7, null),
-  ...textStyle('headMutText', 'Head MUT labels', 7, 1.5),
+  ...textStyle('xRulerText', 'X ruler numbers', 1, 1.8, 3),
+  ...textStyle('xAxisLabelText', 'X axis direction label', 1, 2.5, 4),
+  ...textStyle('referenceText', 'Reference labels', 1, 1.5, 3),
+  ...textStyle('yRulerText', 'Y ruler numbers', 5, 1.8, 3),
+  ...textStyle('yAxisLabelText', 'Y axis direction label', 5, 2.5, 4),
+  ...textStyle('headTitleText', 'Head titles', 7, 2.3, 4),
+  ...textStyle('headNozzleText', 'Head nozzle labels', 7, null, 4),
+  ...textStyle('headMutText', 'Head MUT labels', 7, 1.5, 3),
   ...textStyle('headClockText', "Head 12 o'clock text", 7, 1.7),
-  ...textStyle('legendText', 'Legend text', 7, 2),
-  ...textStyle('titleBlockText', 'Title block text', 7, 1.8),
+  ...textStyle('legendText', 'Legend text', 7, 2, 3),
+  ...textStyle('titleBlockText', 'Title block text', 7, 1.8, 3),
 
   // LINE COLORS AND WEIGHTS (app only): the main geometry layers. Weights: outline heaviest, hatch and
   // leaders lightest, as a CAD plot style would.

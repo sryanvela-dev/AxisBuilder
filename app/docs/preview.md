@@ -103,6 +103,67 @@ viewport sets the scale, so it can differ a little from the preview.
 The divider on the preview's left edge (`PreviewSplitter.tsx`) makes the page or the preview wider (drag, or arrow
 keys); the width is remembered in the browser.
 
+## Drawing mode: moving labels (Phase 5b)
+
+"Move labels" above the preview turns on drawing mode (a blue frame and a status line say so). Pan and zoom still work:
+the wheel zooms; a drag on empty space, a middle-button drag or Space+drag moves the view.
+
+- Hover outlines a label that can be moved: shell and head nozzle labels (including one across the seam), circ weld and
+  long seam labels, object IDs and shell MUT labels (2026-10-25). Click selects it and its table row
+  (`selectionContext`); Esc clears the selection (before Esc closes full size).
+- Weld, seam, object and MUT labels move as text. A moved MUT label gets a leader to its point (the label is the only mark
+  of the point); a moved object ID outside its rectangle gets a leader to the nearest edge (inside, none); weld and seam
+  labels never get one. Their leaders use the leader shape and leader arrowhead. Dropped off the shell, the label goes
+  back to its automatic spot and the status line and Review say so.
+- Drag the label anywhere: while you drag, a dashed ghost shows the label and its leader redrawn from the nozzle in the
+  current shape and arrowhead. Dropped inside the circle, it becomes an inside label (no leader) only when it fits there
+  (the same inside rule as automatic placement); otherwise it stays where it was dropped, with a leader.
+- The selected label has a round handle on its leader end: drag it around the circle (it stays on the circle; on a
+  nozzle across the seam, on the drawn part).
+- Arrow keys nudge the selected label 0.5 in; Shift+arrows 6 in (as the drawing reads). A run of nudges on one label is
+  one undo step; every drag is one undo step.
+- Reset: right-click the label (Reset position), the Reset position button in the status line, or the "Moved ↺" chip by
+  its row number. "Reset all moved labels" is under Leaders and arrows on the Drawing step (asks first).
+- Snapping: a dragged label lines up with the centers of other labels (same x or y); Shift = free, Ctrl = keep it level
+  or plumb with where it started. The leader end snaps to the circle; Ctrl holds it right, up, left or down. A green
+  marker shows the snap.
+
+How it is built:
+
+- Project file format 5: `labelOverrides` (`data/schema.ts`), each `{ list, id, occurrence, label, tip }`, keyed by the
+  item's list, ID and occurrence (which of the rows with that ID: nozzle names may repeat), not its row number. `label` =
+  the label center as an offset from where it is drawn automatically (`{ dx, dy }`, inches as the drawing reads; for a
+  nozzle from its center, so a corrected nozzle X/Y moves the label with it), `'inside'` (nozzles), or null (automatic).
+  `tip` = a nozzle leader end as an angle on the circle (degrees as the drawing reads, 0 = right, counter-clockwise) or
+  null. `data/overrides.ts` sets and resets them by row (`setOverride(p, list, index, change)`); `syncLabelOverrides` (run
+  after every edit in `state/session.ts`) follows the row itself (an edit replaces only the rows it changes): sorted or
+  inserted rows, a rename, a delete.
+- `engine/textLabels.ts`: the weld, seam, object and MUT labels (`textLabelSpecs`: automatic spot, height, rotation,
+  leader target; `placeTextLabel`: the move, its leader, the off-shell fallback). `buildDrawing` draws them where placed;
+  the .lsp (app only, only for moved ones) writes the weld / seam / object without its label and an `SL_Text` plus
+  `SL_LeaderPart`s where it was put.
+- `engine/labels.ts`: labels moved by hand are placed first; automatic labels then keep clear of them and their
+  leaders. Each `NozzleLabel` says `moved`; a move that no longer makes sense falls back to automatic with `fallback` (off
+  the shell; in the shell or more than a head diameter from its head; no longer fits inside). A moved label is checked
+  against everything as finally placed (`crowded`), and so is every automatic outside label (its label box: a later
+  nozzle or label may land on it). `nozzleLabelNotes` feeds the Review warnings ("Label N2 (moved by
+  hand) overlaps scan 3", "Label N2 was moved by hand, but it was off the shell, so it is placed automatically"), both
+  with a one-click Reset position; neither blocks export or saving.
+- `engine/leaders.ts` `leaderToLabel`: the leader to a label at a given spot (Straight; Elbow with its horizontal landing
+  into the near side of the label; Curved), the tip at the given angle or facing the label, held to the drawn arc.
+- `engine/labelDrag.ts`: what a drop or a nudge stores (`dropLabel`, `dropPlaced`, `dropTip`, `nudgeLabel`, `NUDGE` /
+  `NUDGE_BIG`).
+- `buildDrawing` returns `labels` (`PlacedLabel`: every movable label as placed, its box as the drawing reads, its anchor,
+  `moved`, and `nozzle` or `text`) for the preview's tool and, later, the DXF. The Sheets view, PDF, report images and
+  the .lsp draw what the engine placed, so they all follow the moves. With no moves the output is unchanged (fingerprints).
+- `engine/snap.ts`: the shared snap engine (pure). `snapGeometry(drawing)` reads the real lines, rectangles, circles and
+  arcs (hatch left out) as the drawing reads; `findSnap` picks endpoint > intersection > center > perpendicular (from where
+  the move started) > align > on a line or circle, within a tolerance; Shift = free, Ctrl = ortho.
+- UI: `ui/preview/drawingTool.ts` (the tool interface: hover, down, move, up, menu, overlay; `DrawingView` routes the
+  pointer to it and keeps pan and zoom), `labelTool.tsx` (the label tool), `SnapMarker.tsx` (one symbol per snap kind),
+  `MoveLabels.tsx` (the job side: undo steps, keys, status line, menu). MUT areas (5c) are meant to be another tool.
+
 ## Planned (not built yet)
 
-Better-looking nozzle leaders (they now have their own layers).
+MUT areas (5c). Not movable (on purpose): scan IDs (centred in their scan), reference labels and the title / legend panel
+(the section sheets lay them out).

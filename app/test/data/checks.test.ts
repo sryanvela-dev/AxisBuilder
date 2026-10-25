@@ -60,11 +60,19 @@ describe('checks', () => {
     expect(checksAt(cs, 'shellNozzles', 1)).toHaveLength(0)
   })
 
-  it('shell and head nozzles share names (ignoring capitals)', () => {
+  it('a nozzle name used twice (shell and head share names, ignoring capitals) is a warning, not an error', () => {
     const p = sampleProject()
     const cs = checkFields({ ...p, headNozzles: [{ ...p.headNozzles[0], id: 'mw' }] })
-    expect(errors(cs).map((c) => c.text)).toEqual(['The name "mw" is also used in Shell nozzles, row 3.'])
-    expect(errors(cs)[0].place).toMatchObject({ list: 'headNozzles', index: 0, field: 'id' })
+    expect(errors(cs)).toEqual([])
+    const w = cs.filter((c) => c.text.startsWith('The name'))
+    expect(w.map((c) => [c.severity, c.text, c.exportRule])).toEqual([['warning', 'The name "mw" is also used in Shell nozzles, row 3.', undefined]])
+    expect(w[0].place).toMatchObject({ list: 'headNozzles', index: 0, field: 'id' })
+  })
+
+  it('other repeated names still block export', () => {
+    const p = sampleProject()
+    const cs = checkFields({ ...p, objects: [...p.objects, { ...p.objects[0] }] })
+    expect(errors(cs).map((c) => [c.text, c.exportRule])).toEqual([['The name "SADDLE A" is also used in row 1.', true]])
   })
 
   it('a long seam that starts after it stops is an error', () => {

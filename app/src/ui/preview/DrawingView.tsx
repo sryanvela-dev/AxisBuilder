@@ -1,10 +1,11 @@
 // The SVG drawing: pan by dragging, zoom with the wheel or buttons, fit to window. Items are drawn in
 // logical coordinates inside the orientation matrix (texts outside it, so they read the right way up).
 
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type PointerEvent, type WheelEvent } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type WheelEvent } from 'react'
 import { aciCss } from '../../engine/aci.ts'
 import type { DrawingItem, LayerGroup } from '../../engine/drawing.ts'
 import type { RenderItem, RenderModel } from './renderModel.ts'
+import type { DrawingTool, ToolPointer } from './drawingTool.ts'
 
 /** The CAD color as the CSS variable --c (the stylesheet strokes and fills with it; highlights win). */
 const colorStyle = (n: number) => ({ '--c': aciCss(n) }) as CSSProperties
@@ -25,6 +26,8 @@ interface Props {
   onPick: (item: DrawingItem) => void
   /** Changes when the drawing should be fitted again (another job or orientation). */
   fitKey: string
+  /** Drawing mode: the tool takes clicks and drags first (drawingTool.ts); null = clicks go to the row. */
+  tool?: DrawingTool | null
 }
 
 type Box = { x: number; y: number; w: number; h: number }
@@ -42,7 +45,12 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
   const { model } = props
   const svg = useRef<SVGSVGElement>(null)
   const [box, setBox] = useState<Box>(() => fitBox(model.bounds))
-  const drag = useRef<{ x: number; y: number; box: Box; moved: boolean } | null>(null)
+  /** pan: dragging moves the view; tool: the drawing-mode tool took the drag. */
+  const drag = useRef<{ x: number; y: number; box: Box; moved: boolean; mode: 'pan' | 'tool' } | null>(null)
+  const [cursor, setCursor] = useState<string | null>(null)
+  /** Space held: a left drag pans even over something the tool could take. */
+  const space = useRef(false)
+  const tool = props.tool ?? null
   const bounds = useRef(model.bounds)
   useEffect(() => {
     bounds.current = model.bounds
@@ -59,6 +67,18 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
     if (!el) return 1
     return Math.min(el.clientWidth / b.w, el.clientHeight / b.h) || 1
   }
+
+  // The view size, measured, so the tool can draw its marks a fixed number of pixels big while rendering.
+  const [size, setSize] = useState<[number, number]>([0, 0])
+  const toolOn = tool !== null
+  useEffect(() => {
+    const el = svg.current
+    if (!el || !toolOn) return
+    const ro = new ResizeObserver(() => setSize((s) => (s[0] === el.clientWidth && s[1] === el.clientHeight ? s : [el.clientWidth, el.clientHeight])))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [toolOn])
+  const renderScale = Math.min(size[0] / box.w, size[1] / box.h) || 1
 
   const zoomAt = useCallback((factor: number, clientX?: number, clientY?: number) => {
     setBox((b) => {
@@ -97,26 +117,80 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
     return () => el.removeEventListener('wheel', stop)
   }, [])
 
+  // Space+drag pans in drawing mode (not while typing in a box).
+  useEffect(() => {
+    if (!toolOn) return
+    const typing = (e: KeyboardEvent) => (e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]')
+    const down = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !typing(e)) {
+        space.current = true
+        e.preventDefault()
+      }
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') space.current = false
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      space.current = false
+    }
+  }, [toolOn])
+
+  /** The pointer for the tool: SVG point, screen scale and the keys held. */
+  function pointer(e: { clientX: number; clientY: number; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }): ToolPointer {
+    const el = svg.current
+    let pt: [number, number] = [0, 0]
+    const m = el?.getScreenCTM()
+    if (el && m) {
+      const sp = el.createSVGPoint()
+      sp.x = e.clientX
+      sp.y = e.clientY
+      const q = sp.matrixTransform(m.inverse())
+      pt = [q.x, q.y]
+    }
+    return { svg: pt, scale: scale(box), mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey }, clientX: e.clientX, clientY: e.clientY }
+  }
+
   function onPointerDown(e: PointerEvent<SVGSVGElement>) {
-    if (e.button !== 0) return
-    drag.current = { x: e.clientX, y: e.clientY, box, moved: false }
+    // Middle button pans; so does a left drag with Space held, or one the tool does not take.
+    if (e.button === 1) e.preventDefault()
+    if (e.button !== 0 && e.button !== 1) return
+    const takes = e.button === 0 && !space.current && tool !== null && tool.down(pointer(e))
+    drag.current = { x: e.clientX, y: e.clientY, box, moved: false, mode: takes ? 'tool' : 'pan' }
+    if (takes || e.button === 1) svg.current?.setPointerCapture(e.pointerId)
   }
   function onPointerMove(e: PointerEvent<SVGSVGElement>) {
     const d = drag.current
-    if (!d) return
+    if (!d) {
+      if (tool) setCursor(space.current ? null : tool.hover(pointer(e)))
+      return
+    }
     const dx = e.clientX - d.x
     const dy = e.clientY - d.y
     if (!d.moved && Math.abs(dx) + Math.abs(dy) < 4) return
-    if (!d.moved) svg.current?.setPointerCapture(e.pointerId)
+    if (!d.moved && d.mode === 'pan') svg.current?.setPointerCapture(e.pointerId)
     d.moved = true
+    if (d.mode === 'tool') {
+      tool?.move(pointer(e))
+      return
+    }
     const s = scale(d.box)
     setBox({ ...d.box, x: d.box.x - dx / s, y: d.box.y - dy / s })
   }
   function onPointerUp(e: PointerEvent<SVGSVGElement>) {
     const d = drag.current
     drag.current = null
-    if (d?.moved) {
-      svg.current?.releasePointerCapture(e.pointerId)
+    if (svg.current?.hasPointerCapture(e.pointerId)) svg.current.releasePointerCapture(e.pointerId)
+    if (d?.mode === 'tool') {
+      tool?.up(pointer(e), d.moved)
+      return
+    }
+    if (d?.moved || e.button !== 0) return
+    if (tool) {
+      tool.clickEmpty?.()
       return
     }
     // A click, not a drag: pick the item under the pointer.
@@ -129,13 +203,18 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
   return (
     <svg
       ref={svg}
-      className="drawing"
+      className={tool ? 'drawing drawing-mode' : 'drawing'}
       viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
       preserveAspectRatio="xMidYMid meet"
       onWheel={onWheel}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerLeave={() => tool?.leave?.()}
+      onContextMenu={(e: MouseEvent<SVGSVGElement>) => {
+        if (tool?.menu?.(pointer(e))) e.preventDefault()
+      }}
+      style={tool && cursor ? { cursor } : undefined}
       role="img"
       aria-label="Drawing preview"
     >
@@ -151,6 +230,7 @@ export const DrawingView = forwardRef<DrawingViewHandle, Props>(function Drawing
           hatchOpacity={model.hatchOpacity}
         />
       ))}
+      {tool?.overlay(renderScale)}
     </svg>
   )
 })

@@ -32,6 +32,7 @@ import {
   ucaseTrim,
 } from '../../engine/layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
+import { placeTextLabel, textLabelSpecs, type TextLabelSpec, type TextPlacement } from '../../engine/textLabels.ts'
 import { leaderParts, leaderStyle, type LeaderStyle, type Pt } from '../../engine/leaders.ts'
 import { writeSectionSheets } from './sectionSheets.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
@@ -255,6 +256,19 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   if (plan && plan.sections.length > 0) writeSectionSheets(w, plan)
   const sizes = v5 ? new Map() : textSizeRules(s) // change 15: text sizes (only when one is changed)
   const leaders = leaderStyle(s)
+  // Labels moved by hand (app only): weld, seam, object and MUT labels drawn where they were put (engine/textLabels.ts).
+  const movedTexts = new Map<string, { sp: TextLabelSpec; tp: TextPlacement }>()
+  if (!v5) {
+    for (const sp of textLabelSpecs(p)) {
+      const tp = placeTextLabel(p, sp)
+      if (tp.moved) movedTexts.set(`${sp.list}:${sp.index}`, { sp, tp })
+    }
+  }
+  /** SL_Text for a moved label, and its leader (MUT point, object edge) on the given layer. */
+  const movedText = (t: { sp: TextLabelSpec; tp: TextPlacement }, rot: string, leaderLayer: string) => {
+    w(`  (SL_Text ${LispNum(t.tp.x)} ${LispNum(t.tp.y)} ${LispNum(t.sp.th)} ${rot} ${LispStr(t.sp.txt)} ${LispStr(t.sp.layer)})`)
+    if (t.tp.leader) w(`  (foreach pc ${leaderPartsLisp(t.tp.leader, leaders)} (SL_LeaderPart pc ${LispStr(leaderLayer)}))`)
+  }
   if (sizes.size > 0) {
     writeTextSizes(w, [...sizes].map(([layer, r]) =>
       r.mode === 'SCALE' ? `(list ${LispStr(layer)} "SCALE" ${LispNum(r.value)})` : `(list ${LispStr(layer)} "HEIGHT" ${LispNum(r.value)} ${r.base === null ? 'nil' : LispNum(r.base)})`))
@@ -382,17 +396,28 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   if (s.showSupportsOnOverlay) {
     w('')
     w('  ;; Supports / structures')
-    for (const o of p.objects) {
-      if (!o.include) continue
+    p.objects.forEach((o, index) => {
+      if (!o.include) return
+      const moved = movedTexts.get(`objects:${index}`)
+      if (moved) {
+        // Change 27: the ID moved by hand; the rectangle (or its pieces) drawn without it.
+        for (const pc of objectPieces(o, C)) {
+          const box = `${LispNum(pc.x0)} ${LispNum(o.y!)} ${LispNum(pc.x1 - pc.x0)} ${LispNum(o.length!)}`
+          w(`  (SL_Rect ${box} "SUPPORTS")`)
+          w(`  (SL_AddAvoidRect ${box})`)
+        }
+        movedText(moved, LispNum(moved.sp.rot), 'SUPPORTS')
+        return
+      }
       const pieces = wraps ? objectPieces(o, C) : []
       if (isWrapped(pieces) || (pieces.length === 1 && pieces[0].x0 !== o.x)) {
         writePieces(w, pieces, LispNum(o.y!), LispNum(o.length!), o.id, '"SUPPORTS" ""', true)
-        continue
+        return
       }
       const box = `${LispNum(o.x!)} ${LispNum(o.y!)} ${LispNum(o.circWidth!)} ${LispNum(o.length!)}`
       w(`  (SL_LabelRect ${box} ${LispStr(o.id)} "SUPPORTS" "")`)
       w(`  (SL_AddAvoidRect ${box})`)
-    }
+    })
   }
 
   // Shell nozzles (PrintShellNozzleLispRows)
@@ -413,22 +438,30 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // Shell MUT points (always written, no Include column)
   w('')
   w('  ;; Shell MUT points - rows 91-110: A=MUT ID, B=X, C=Y, D=Min. T., E=Notes')
-  for (const m of p.shellMut) w(`  (SL_MUTPoint ${LispNum(m.x!)} ${LispNum(m.y!)} ${LispStr(m.id)})`)
+  p.shellMut.forEach((m, index) => {
+    const moved = movedTexts.get(`shellMut:${index}`)
+    if (moved) movedText(moved, '(SL_ReadableRot)', 'SHELL_MUT_TEXT')
+    else w(`  (SL_MUTPoint ${LispNum(m.x!)} ${LispNum(m.y!)} ${LispStr(m.id)})`)
+  })
 
   // Welds
   if (s.showWeldsOnOverlay) {
     w('')
     w('  ;; Welds')
-    for (const cw of p.circWelds) {
-      if (!cw.include) continue
-      const label = s.showWeldLabels && cw.showLabel ? cw.id : ''
+    p.circWelds.forEach((cw, index) => {
+      if (!cw.include) return
+      const moved = movedTexts.get(`circWelds:${index}`)
+      const label = s.showWeldLabels && cw.showLabel && !moved ? cw.id : ''
       w(`  (SL_CircWeld ${LispNum(cw.y!)} ${LispNum(-1)} ${LispNum(-1)} vesselXLen ${LispStr(label)})`)
-    }
-    for (const ls of p.longSeams) {
-      if (!ls.include) continue
-      const label = s.showWeldLabels && ls.showLabel ? ls.id : ''
+      if (moved) movedText(moved, '0', 'CIRC_WELDS')
+    })
+    p.longSeams.forEach((ls, index) => {
+      if (!ls.include) return
+      const moved = movedTexts.get(`longSeams:${index}`)
+      const label = s.showWeldLabels && ls.showLabel && !moved ? ls.id : ''
       w(`  (SL_LongSeam ${LispNum(ls.x!)} ${LispNum(ls.startY ?? -1)} ${LispNum(ls.stopY ?? -1)} vesselYLen ${LispStr(label)})`)
-    }
+      if (moved) movedText(moved, LispNum(moved.sp.rot), 'LONG_SEAMS')
+    })
   }
 
   // Rulers (PrintVisualBottomLeftRulers)
