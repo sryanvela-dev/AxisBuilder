@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyProject, openProject, saveProject } from '../../src/data/projectFile.ts'
 import { occurrenceOf, resetAllOverrides, resetOverride, rowOf, rowOverride, setOverride, syncLabelOverrides } from '../../src/data/overrides.ts'
-import type { Project, ShellNozzle } from '../../src/data/schema.ts'
+import { CURRENT_SCHEMA_VERSION, type Project, type ShellNozzle } from '../../src/data/schema.ts'
 import { sessionReducer, initialSession, type SessionAction, type SessionState } from '../../src/state/session.ts'
 
 const nozzle = (id: string, x = 50): ShellNozzle => ({ id, diameter: 10, x, y: 50, minT: null, notes: '', include: true, labelMode: 'AUTO', noWrap: false })
@@ -15,7 +15,7 @@ const ids = (p: Project) => p.labelOverrides.map((o) => `${o.list}:${o.id}#${o.o
 describe('label overrides in the project file (format 5)', () => {
   it('a format 4 file opens with no overrides', () => {
     const r = openProject(JSON.stringify({ schemaVersion: 4, jobId: 'j4' }))
-    expect(r.ok && r.project.schemaVersion).toBe(5)
+    expect(r.ok && r.project.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(r.ok && r.migratedFrom).toBe(4)
     expect(r.ok && r.project.labelOverrides).toEqual([])
   })

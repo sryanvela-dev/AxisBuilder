@@ -305,12 +305,15 @@ export function countedScans(p: Project, scans: Scan[], v5: boolean): Scan[] {
   return (v5 ? p.scans : scans).filter((sc) => sc.include && sc.xStop! - sc.xStart! > 0 && sc.yStop! - sc.yStart! > 0)
 }
 
-/** Coverage % (gross scanned area / shell area), or null when it is not shown. */
-export function coveragePercent(p: Project, counted: Scan[]): number | null {
+/**
+ * Coverage % (gross scanned area / shell area), or null when it is not shown. extraArea (app only): the hatched part of
+ * the shell MUT areas (engine/mutAreas.ts mutCoverageArea), added into the one figure.
+ */
+export function coveragePercent(p: Project, counted: Scan[], extraArea = 0): number | null {
   const vesselArea = p.vessel.length! * p.vessel.height!
   if (!(vesselArea > 0) || !p.settings.showCoveragePercentage) return null
   const area = counted.reduce((a, sc) => a + (sc.xStop! - sc.xStart!) * (sc.yStop! - sc.yStart!), 0)
-  return (area / vesselArea) * 100
+  return ((area + extraArea) / vesselArea) * 100
 }
 
 export interface ImageInsert {

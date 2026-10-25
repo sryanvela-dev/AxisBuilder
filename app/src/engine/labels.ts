@@ -370,7 +370,8 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
   const avoid: Box[] = []
   const names: string[] = []
   for (const m of p.headMut) {
-    if (!m.include || !shouldShowHead(mode, m.head) || m.id === '') continue
+    // A MUT drawn as an area (Phase 5c) has its ID in the area, not at its clock point.
+    if (!m.include || !shouldShowHead(mode, m.head) || m.id === '' || (m.area && m.area.length >= 3)) continue
     const [cx, cy] = center(m.head)
     const [dx, dy] = headVector(o, clockPositionDegrees(m.clock))
     const f = r * radiusFactor(m)

@@ -10,7 +10,7 @@
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 
-export const CURRENT_SCHEMA_VERSION = 5
+export const CURRENT_SCHEMA_VERSION = 6
 
 /** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
 export function newJobId(): string {
@@ -37,6 +37,14 @@ const include = z.boolean().default(true)
 /** Don't wrap across the circumference seam (X = 0 and X = circumference are the same line); default: wrap. */
 const noWrap = z.boolean().default(false)
 const notes = z.string().default('')
+/**
+ * A MUT area drawn in the preview (format 6): its corners in order, or null for a MUT point only. Shell MUT: logical
+ * inches (X around, Y along; X may run past the seam, the drawing wraps it). Head MUT: in head radii from the head's
+ * center as the head view reads (first = toward 3 o'clock, second = toward 12 o'clock), so an area stays on its head
+ * when the right panel moves or the head view changes size. Fewer than 3 corners or a crossing outline still saves;
+ * Review warns (data/checks.ts).
+ */
+const mutArea = z.array(z.tuple([z.number(), z.number()])).nullable().default(null)
 
 export const LABEL_MODES = ['AUTO', 'INSIDE', 'OUTSIDE'] as const
 export const HEADS = ['HEAD 1', 'HEAD 2'] as const
@@ -120,6 +128,7 @@ export const shellMutSchema = z.strictObject({
   y: position,
   minT: mutMinT,
   notes,
+  area: mutArea,
 })
 
 /** 0 = head center, 100 = head edge (v5.0's 0-1 factor x 100). */
@@ -149,6 +158,7 @@ export const headMutSchema = z.strictObject({
   labelMode,
   include,
   notes,
+  area: mutArea,
 })
 
 /** A scan with no width or height can be saved (so a half-typed job always saves); checks.ts blocks its export. */
@@ -177,8 +187,8 @@ export const scanImageSchema = z.strictObject({
   include,
 })
 
-/** Lists whose labels can be moved by hand in the drawing preview (Phase 5b): nozzles, then the plain text labels. */
-export const MOVABLE_LABEL_LISTS = ['shellNozzles', 'headNozzles', 'circWelds', 'longSeams', 'objects', 'shellMut'] as const
+/** Lists whose labels can be moved by hand in the drawing preview (Phase 5b): nozzles, then the plain text labels (head MUT: area labels only, 5c). */
+export const MOVABLE_LABEL_LISTS = ['shellNozzles', 'headNozzles', 'circWelds', 'longSeams', 'objects', 'shellMut', 'headMut'] as const
 export type MovableLabelList = (typeof MOVABLE_LABEL_LISTS)[number]
 export type NozzleList = 'shellNozzles' | 'headNozzles'
 
@@ -228,7 +238,7 @@ export const LIST_META = {
   },
   shellMut: {
     name: 'Shell MUT', idField: 'id',
-    fields: { id: 'MUT ID', x: 'X position', y: 'Y position', minT: 'Min. T', notes: 'Notes' },
+    fields: { id: 'MUT ID', x: 'X position', y: 'Y position', minT: 'Min. T', notes: 'Notes', area: 'Area' },
   },
   headNozzles: {
     name: 'Head nozzles', idField: 'id',
@@ -243,7 +253,7 @@ export const LIST_META = {
     fields: {
       head: 'Head', id: 'MUT ID', clock: 'Clock position', radiusPosition: 'Radius position',
       customRadiusPercent: 'Custom radius %', minT: 'Min. T', labelMode: 'Label mode',
-      include: 'Include', notes: 'Notes',
+      include: 'Include', notes: 'Notes', area: 'Area',
     },
   },
   scans: {
@@ -405,3 +415,5 @@ export type HeadMut = z.output<typeof headMutSchema>
 export type Scan = z.output<typeof scanSchema>
 export type ScanImage = z.output<typeof scanImageSchema>
 export type LabelOverride = z.output<typeof labelOverrideSchema>
+/** A MUT area's corners (see mutArea). */
+export type MutArea = [number, number][]

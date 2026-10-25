@@ -707,6 +707,12 @@ export const SETTINGS = {
     description: 'Draw the long-dash vessel centerline.',
     default: true, group: 'showHide', step: 'Drawing', level: 'Basic',
   }),
+  showMutMinT: yesNo({
+    excelLabel: 'Show Min T Under MUT ID', excelSheet: PS, onSheet: false, name: 'Show Min T under the MUT ID',
+    description: 'In each MUT area drawn in the preview, print the Min. T from its row under the MUT ID.',
+    default: false, group: 'showHide', step: 'Drawing', level: 'Basic',
+    v5: 'App only (Phase 5c, MUT areas).',
+  }),
   centerlineTransparency: num({
     excelLabel: 'Centerline Transparency', excelSheet: PS, onSheet: false, name: 'Centerline transparency',
     description: 'How transparent (see-through) the vessel centerline is, as in CAD: 0 = solid, 90 = faintest.',

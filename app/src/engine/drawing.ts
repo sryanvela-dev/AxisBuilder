@@ -32,6 +32,7 @@ import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
 import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from './styles.ts'
 import { circumference, isWrapped, labelPieceIndex, objectPieces, scanPieces, type XPiece } from './wrap.ts'
+import { areaTextLines, formatAreaSize, mutAreaLayouts, mutCoverageArea, mutAreaSize, type MutAreaLayout } from './mutAreas.ts'
 
 /** Where the preview may look different from the drawing in CAD. */
 export const PREVIEW_DIFFERENCES = [
@@ -57,7 +58,7 @@ export type Shape =
   | { t: 'image'; x: number; y: number; w: number; h: number; scanId: string; layer: string; from?: number; to?: number }
 
 /** CAD visibility groups (the AB... toggle commands in the .lsp). Items in 'always' have no toggle. */
-export type LayerGroup = 'images' | 'scans' | 'hatch' | 'welds' | 'nozzles' | 'objects' | 'rulers' | 'heads' | 'info' | 'sections' | 'always'
+export type LayerGroup = 'images' | 'scans' | 'hatch' | 'welds' | 'nozzles' | 'objects' | 'mut' | 'rulers' | 'heads' | 'info' | 'sections' | 'always'
 
 export const LAYER_GROUPS: { id: Exclude<LayerGroup, 'always'>; name: string; layers: string[] }[] = [
   { id: 'scans', name: 'Scans', layers: ['SCANS', 'SCAN_TEXT'] },
@@ -66,6 +67,8 @@ export const LAYER_GROUPS: { id: Exclude<LayerGroup, 'always'>; name: string; la
   { id: 'welds', name: 'Welds', layers: ['CIRC_WELDS', 'LONG_SEAMS', 'CIRC_WELD_TEXT', 'LONG_SEAM_TEXT'] },
   { id: 'nozzles', name: 'Nozzles', layers: ['NOZZLES', 'NOZZLE_LEADERS', 'SHELL_NOZZLE_TEXT'] },
   { id: 'objects', name: 'Objects', layers: ['SUPPORTS', 'SUPPORT_TEXT'] },
+  // MUT areas drawn in the preview (Phase 5c): outline and hatch; the IDs stay with the MUT text.
+  { id: 'mut', name: 'MUT areas', layers: ['MANUAL_UT_HATCH'] },
   { id: 'rulers', name: 'Rulers', layers: ['X_AXIS', 'Y_AXIS', 'X_RULER_TEXT', 'Y_RULER_TEXT', 'X_AXIS_LABEL_TEXT', 'Y_AXIS_LABEL_TEXT', 'REFERENCE_TEXT'] },
   { id: 'heads', name: 'Heads', layers: ['HEADS', 'HEAD_NOZZLE_LEADERS', 'HEAD_NOZZLE_TEXT', 'HEAD_MUT_TEXT', 'HEAD_TITLE_TEXT', 'HEAD_CLOCK_TEXT'] },
   {
@@ -468,8 +471,32 @@ export function buildDrawing(p: Project): Drawing {
     })
   }
 
+  // MUT areas (Phase 5c, engine/mutAreas.ts): the outline in its pieces, the hatch with islands left empty, the ID.
+  const areas = new Map(mutAreaLayouts(p).map((a) => [`${a.list}:${a.index}`, a]))
+  const mutArea = (pen: Pen, a: MutAreaLayout, textLayerName: string) => {
+    for (const pc of a.pieces) pen.poly([...pc, pc[0]], false, 'MANUAL_UT_HATCH')
+    for (const [q0, q1] of a.hatch) pen.line(q0[0], q0[1], q1[0], q1[1], 'MANUAL_UT_HATCH')
+    const t = placeText(`${a.list}:${a.index}`)
+    if (!t) return
+    const lines = areaTextLines(o, a, [t.tp.x, t.tp.y])
+    pen.text(lines.id[0], lines.id[1], a.th, readableRot(o), a.id, textLayerName)
+    if (a.sub !== null && lines.sub) pen.text(lines.sub[0], lines.sub[1], a.th, readableRot(o), a.sub, textLayerName)
+    if (t.tp.leader) pen.parts(leaderParts(t.tp.leader, leaders), textLayerName)
+  }
+  const areaInfo = (list: 'shellMut' | 'headMut', m: (typeof p.shellMut)[number] | (typeof p.headMut)[number]) => {
+    const size = mutAreaSize(p, list, m)
+    return size ? `MUT area${size.approx ? ' about' : ''} ${formatAreaSize(size.sqIn)}` : 'MUT area'
+  }
+
   // Shell MUT
   p.shellMut.forEach((m, index) => {
+    const a = areas.get(`shellMut:${index}`)
+    if (a) {
+      const pen = new Pen()
+      mutArea(pen, a, 'SHELL_MUT_TEXT')
+      add(`shellMut:${index}`, { list: 'shellMut', index, id: m.id }, pen, `${m.id}: ${areaInfo('shellMut', m)}${m.minT !== null ? `, min. T ${m.minT}` : ''}`)
+      return
+    }
     if (!complete(m.x, m.y)) return
     const pen = new Pen()
     const t = placeText(`shellMut:${index}`)
@@ -556,6 +583,13 @@ export function buildDrawing(p: Project): Drawing {
     }
     p.headMut.forEach((m, index) => {
       if (!m.include || !shouldShowHead(mode, m.head)) return
+      const a = areas.get(`headMut:${index}`)
+      if (a) {
+        const pen = new Pen()
+        mutArea(pen, a, 'HEAD_MUT_TEXT')
+        add(`headMut:${index}`, { list: 'headMut', index, id: m.id }, pen, `${m.id} (${m.head}): ${areaInfo('headMut', m)}${m.minT !== null ? `, min. T ${m.minT}` : ''}`)
+        return
+      }
       const [cx, cy] = center(m.head)
       const [dx, dy] = headVector(o, clockPositionDegrees(m.clock))
       const f = radiusFactor(m) * (headDia / 2)
@@ -568,7 +602,7 @@ export function buildDrawing(p: Project): Drawing {
   // Legend and title block
   if (s.showLegendOnOverlay) {
     const counted = countedScans(p, drawnScans(p), false)
-    const coverage = coveragePercent(p, counted)
+    const coverage = coveragePercent(p, counted, mutCoverageArea(p))
     const pen = new Pen()
     legend(pen, o, panel.legendX, panel.legendY, scales.legend, s.autHatchEnabled, step, {
       total: `Total Scans: ${counted.length}`,

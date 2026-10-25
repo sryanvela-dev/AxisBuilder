@@ -13,6 +13,7 @@ import { drawnScans } from '../engine/layout.ts'
 import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
 import { nozzleLabelNotes } from '../engine/labels.ts'
 import { textLabelFallbacks } from '../engine/textLabels.ts'
+import { mutAreaProblems } from '../engine/mutAreas.ts'
 import { isMovableList, resetOverride } from './overrides.ts'
 
 export type Severity = 'error' | 'warning'
@@ -259,6 +260,11 @@ export function checkProject(p: Project): Check[] {
       fix: 'Move it again in the drawing preview (Move labels), or reset it to clear the old position.',
       actions: [reset(f.list, f.index)],
     })
+  }
+
+  // MUT areas that can't be drawn as they are (Phase 5c): warnings only, never blocking.
+  for (const a of mutAreaProblems(p)) {
+    out.push({ severity: 'warning', place: { kind: 'row', list: a.list, index: a.index, field: 'area' }, text: a.text, fix: a.fix })
   }
 
   return out
