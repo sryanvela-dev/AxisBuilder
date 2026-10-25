@@ -607,3 +607,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Approved app output change (app change 24, phase2-notes): every app .lsp fingerprint refreshed; at 1x text 18 of 18 outside
   labels moved in REF1 and its variants, 11 of 11 in REF2, 1 of 1 in REF3 / REF4 (inside labels unchanged); none crowded at 1x,
   one new at 2x text in REF1 and its variants. compat v5.0 unchanged. Not yet checked in DraftSight/AutoCAD.
+- 2026-10-25 – Web app Phase 5a follow-up (feature/leaders-arrows, user): X and Y direction arrow length, per axis. Drawing step
+  "Leaders and arrows": "X / Y direction arrow length" = Automatic (as long as its wording, at least 14 in, as before) or
+  Fixed with a length in inches. Preview, Sheets view, PDF and report images use `directionArrowLength` (`engine/leaders.ts`);
+  .lsp (app only): `SL_X_ARROW_LEN` / `SL_Y_ARROW_LEN` and `SL_DirectionArrowLength`, patched into the nine ruler functions
+  (app change 25, library lines only, so every app fingerprint refreshed; drawings unchanged at Automatic). compat v5.0 unchanged.

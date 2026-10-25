@@ -197,3 +197,9 @@ export function pathsCross(p: readonly Pt[], q: readonly Pt[]): boolean {
   for (let i = 1; i < p.length; i++) for (let j = 1; j < q.length; j++) if (segmentsCross(p[i - 1], p[i], q[j - 1], q[j])) return true
   return false
 }
+
+/** Length of an X or Y direction arrow: as set on the Drawing step, or (Automatic) as long as its wording, at least 14 in (v5.0). */
+export function directionArrowLength(s: Project['settings'], axis: 'X' | 'Y', label: string): number {
+  const fixed = axis === 'X' ? (s.xArrowLengthMode === 'Fixed' ? s.xArrowLength : null) : s.yArrowLengthMode === 'Fixed' ? s.yArrowLength : null
+  return fixed ?? Math.max(14, label.length * 2.5 * 0.6)
+}

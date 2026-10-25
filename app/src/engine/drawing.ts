@@ -26,7 +26,7 @@ import {
   ucaseTrim,
 } from './layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.ts'
-import { arrowheadParts, dotPolygon, leaderParts, leaderStyle, type ArrowStyle, type LeaderPart, type LeaderStyle, type Pt } from './leaders.ts'
+import { arrowheadParts, directionArrowLength, dotPolygon, leaderParts, leaderStyle, type ArrowStyle, type LeaderPart, type LeaderStyle, type Pt } from './leaders.ts'
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
 import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from './styles.ts'
@@ -255,10 +255,9 @@ export function rulerNumberFits(pos: number, length: number, numberH: number): b
 }
 
 /** SL_RulerX / SL_RulerY and their orientation variants (one function, axis and tick side from the call). */
-function ruler(pen: Pen, o: Orientation, arrowHead: number, arrowStyle: ArrowStyle, c: RulerCall, numberH: number) {
+function ruler(pen: Pen, o: Orientation, arrowHead: number, arrowStyle: ArrowStyle, arrLen: number, c: RulerCall, numberH: number) {
   const inch = (v: number) => `${Math.round(v)}"`
   const numbered = (pos: number) => rulerNumberFits(pos, c.length, numberH)
-  const arrLen = Math.max(14, c.label.length * 2.5 * 0.6)
   const mid = c.length / 2
   const sd = c.side
   const ticks: number[] = []
@@ -477,7 +476,7 @@ export function buildDrawing(p: Project): Drawing {
       const labels = axisLabels(p)
       for (const c of rulerCalls({ ori, placement, rulerOffset: s.rulerOffset, vesselXLen: H, vesselYLen: L, spacing: s.rulerSpacing, xAxisLabel: labels.x, yAxisLabel: labels.y })) {
         const pen = new Pen()
-        ruler(pen, o, s.arrowHeadSize, s.arrowheadStyle, c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
+        ruler(pen, o, s.arrowHeadSize, s.arrowheadStyle, directionArrowLength(s, c.axis, c.label), c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
         add(`ruler:${c.layer}`, null, pen, c.label)
       }
     }

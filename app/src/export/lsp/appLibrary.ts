@@ -46,6 +46,12 @@ export const APP_LIBRARY_PATCHES: readonly LibraryPatch[] = [
     why: 'The axis direction label of each ruler goes on its own layer.',
   },
   {
+    find: /^( {2}\(setq arrLen )\(SL_LabelArrowLength label 2\.5 0\.0\)\)$/,
+    replace: '$1(SL_DirectionArrowLength label layer))',
+    count: 9,
+    why: 'The X and Y direction arrows can have a fixed length set on the Drawing step (change 25).',
+  },
+  {
     find: /^( {10}\(setq upperSS \(SL_SelectionByLayers \(list "HEADS") /,
     replace: '$1 "HEAD_NOZZLE_LEADERS" ',
     count: 1,
@@ -117,6 +123,12 @@ function writeLeaderLibrary(w: (line: string) => void): void {
   w('    ((= (car pc) "D") (SL_DotSolid (nth 1 pc) (nth 2 pc) layer))')
   w('    (T (SL_PolyLine (cdr pc) layer))')
   w('  )')
+  w(')')
+  w('')
+  w(';; Length of an X or Y direction arrow: SL_X_ARROW_LEN / SL_Y_ARROW_LEN when set (Fixed), else as long as its wording.')
+  w('(defun SL_DirectionArrowLength (label layer / fixed)')
+  w('  (setq fixed (if (= layer "X_AXIS") SL_X_ARROW_LEN SL_Y_ARROW_LEN))')
+  w('  (if fixed fixed (SL_LabelArrowLength label 2.5 0.0))')
   w(')')
   w('')
   w(';; The arrowhead at (tx ty); (ux uy) = unit direction from the tail to the tip.')

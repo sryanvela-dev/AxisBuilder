@@ -278,3 +278,27 @@ describe('the same shapes everywhere', () => {
     expect(Math.max(...count('Curved'))).toBe(CURVE_STEPS + 1)
   })
 })
+
+describe('direction arrow length', () => {
+  const shaftLengths = (p: Project, axis: 'X' | 'Y') => {
+    const it = buildDrawing(p).items.find((i) => i.key === `ruler:${axis}_AXIS`)!
+    return it.shapes.filter((s): s is Extract<Shape, { t: 'line' }> => s.t === 'line').map((s) => Math.hypot(s.x2 - s.x1, s.y2 - s.y1))
+  }
+  it('Automatic keeps the wording-based length; Fixed sets each axis on its own', () => {
+    const auto = job()
+    const fixed = job({ xArrowLengthMode: 'Fixed', xArrowLength: 41, yArrowLengthMode: 'Fixed', yArrowLength: 23 })
+    expect(shaftLengths(auto, 'X')).not.toContain(41)
+    for (const [axis, len] of [['X', 41], ['Y', 23]] as const) expect(shaftLengths(fixed, axis).some((l) => Math.abs(l - len) < 1e-9)).toBe(true)
+    // Only X fixed: Y unchanged.
+    const onlyX = job({ xArrowLengthMode: 'Fixed', xArrowLength: 41 })
+    expect(shaftLengths(onlyX, 'Y')).toEqual(shaftLengths(auto, 'Y'))
+  })
+  it('.lsp: written for each axis, patched into all nine ruler functions, never in compat v5.0', () => {
+    const app = exportLsp(job({ xArrowLengthMode: 'Fixed', xArrowLength: 41 }), OPTIONS)
+    expect(app).toContain('(setq SL_X_ARROW_LEN 41.)')
+    expect(app).toContain('(setq SL_Y_ARROW_LEN nil)')
+    expect(app.match(/\(setq arrLen \(SL_DirectionArrowLength label layer\)\)/g)).toHaveLength(9)
+    const v5 = exportLsp(job(), { ...OPTIONS, compat: 'v5.0' })
+    expect(v5).not.toContain('SL_DirectionArrowLength')
+  })
+})

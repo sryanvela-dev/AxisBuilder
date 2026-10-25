@@ -570,6 +570,30 @@ export const SETTINGS = {
     description: 'Size of the arrowheads on the X and Y direction arrows (and the 12 o\'clock arrows on the head views).',
     units: 'in', greaterThan: 0, default: 3, group: 'leaders', step: 'Drawing', level: 'Advanced',
   }),
+  xArrowLengthMode: choice(['Automatic', 'Fixed'], {
+    excelLabel: 'X Arrow Length Mode', excelSheet: PS, onSheet: false, name: 'X direction arrow length',
+    description: 'Automatic: the X direction arrow is as long as its wording (at least 14 in). Fixed: you set its length.',
+    default: 'Automatic', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 always sizes the arrow to its wording.',
+  }),
+  xArrowLength: num({
+    excelLabel: 'X Arrow Length', excelSheet: PS, onSheet: false, name: 'X arrow length',
+    description: 'Length of the X direction arrow (shaft and head). On a section sheet it never runs past 70% of the drawing side.',
+    units: 'in', greaterThan: 0, default: 28, group: 'leaders', step: 'Drawing', level: 'Basic',
+    showWhen: { section: 'settings', key: 'xArrowLengthMode', values: ['Fixed'] },
+  }),
+  yArrowLengthMode: choice(['Automatic', 'Fixed'], {
+    excelLabel: 'Y Arrow Length Mode', excelSheet: PS, onSheet: false, name: 'Y direction arrow length',
+    description: 'Automatic: the Y direction arrow is as long as its wording (at least 14 in). Fixed: you set its length.',
+    default: 'Automatic', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 always sizes the arrow to its wording.',
+  }),
+  yArrowLength: num({
+    excelLabel: 'Y Arrow Length', excelSheet: PS, onSheet: false, name: 'Y arrow length',
+    description: 'Length of the Y direction arrow (shaft and head). On a section sheet it never runs past 70% of the drawing side.',
+    units: 'in', greaterThan: 0, default: 28, group: 'leaders', step: 'Drawing', level: 'Basic',
+    showWhen: { section: 'settings', key: 'yArrowLengthMode', values: ['Fixed'] },
+  }),
   leaderShape: choice(LEADER_SHAPES, {
     excelLabel: 'Leader Shape', excelSheet: PS, onSheet: false, name: 'Leader shape',
     description: 'Straight: one line from the nozzle to its label. Elbow: an angled line from the nozzle, then a short horizontal landing, with the label at the end of the landing (like a CAD multileader). Curved: a smooth curve from the nozzle edge to the label. Applies to shell, head and across-the-seam nozzles.',

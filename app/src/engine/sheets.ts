@@ -22,7 +22,7 @@ import {
 } from './layout.ts'
 import { LETTER_AREA, paperAlong, sheetArea, sheetViewport, type Section, type SectionPlan } from './sections.ts'
 import { capTextWidth } from './textMetrics.ts'
-import { arrowheadParts, dotPolygon, type ArrowStyle, type Pt } from './leaders.ts'
+import { arrowheadParts, directionArrowLength, dotPolygon, type ArrowStyle, type Pt } from './leaders.ts'
 
 export type PaperShape =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number; layer: string }
@@ -95,7 +95,6 @@ class PaperPen {
 
 const inch = (v: number) => `${Math.round(v)}"`
 /** SL_LabelArrowLength txt 2.5 0 (as the drawing's rulers). */
-const arrowLength = (txt: string) => Math.max(14, txt.length * 2.5 * 0.6)
 
 /** Ticks from a to b every `spacing`, plus b itself when the last tick falls short of it (SL_PaperSectionRulers). */
 function ticks(a: number, b: number, spacing: number): number[] {
@@ -216,7 +215,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
     }
     const midY = vp.bottom + vp.h / 2
     pen.text(rulerX - sideLabel, midY, labelH, 90, labels.x, 'REPORT_X_RULER')
-    const ax = Math.min(0.7 * vp.h, arrowLength(labels.x) * sc)
+    const ax = Math.min(0.7 * vp.h, directionArrowLength(s, 'X', labels.x) * sc)
     const arrowX = rulerX - sideArrow
     if (o === 'Horizontal CCW') pen.arrow(arrowX, midY - ax / 2, arrowX, midY + ax / 2, head, 'REPORT_X_RULER')
     else pen.arrow(arrowX, midY + ax / 2, arrowX, midY - ax / 2, head, 'REPORT_X_RULER')
@@ -231,7 +230,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
     }
     const midX = vp.left + vp.w / 2
     pen.text(midX, rulerY - bottomLabel, labelH, 0, labels.y, 'REPORT_Y_RULER')
-    const ay = Math.min(0.7 * vp.w, arrowLength(labels.y) * sc)
+    const ay = Math.min(0.7 * vp.w, directionArrowLength(s, 'Y', labels.y) * sc)
     const arrowY = rulerY - bottomArrow
     if (o === 'Horizontal CCW') pen.arrow(midX + ay / 2, arrowY, midX - ay / 2, arrowY, head, 'REPORT_Y_RULER')
     else pen.arrow(midX - ay / 2, arrowY, midX + ay / 2, arrowY, head, 'REPORT_Y_RULER')
@@ -247,7 +246,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
     }
     const midX = vp.left + vp.w / 2
     pen.text(midX, rulerY - bottomLabel, labelH, 0, labels.x, 'REPORT_X_RULER')
-    const ax = Math.min(0.7 * vp.w, arrowLength(labels.x) * sc)
+    const ax = Math.min(0.7 * vp.w, directionArrowLength(s, 'X', labels.x) * sc)
     pen.arrow(midX - ax / 2, rulerY - bottomArrow, midX + ax / 2, rulerY - bottomArrow, head, 'REPORT_X_RULER')
     const rulerX = vp.left - s.rulerOffset * sc
     pen.line(rulerX, vp.bottom, rulerX, top, 'REPORT_Y_RULER')
@@ -259,7 +258,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
     }
     const midY = vp.bottom + vp.h / 2
     pen.text(rulerX - sideLabel, midY, labelH, 90, labels.y, 'REPORT_Y_RULER')
-    const ay = Math.min(0.7 * vp.h, arrowLength(labels.y) * sc)
+    const ay = Math.min(0.7 * vp.h, directionArrowLength(s, 'Y', labels.y) * sc)
     pen.arrow(rulerX - sideArrow, midY - ay / 2, rulerX - sideArrow, midY + ay / 2, head, 'REPORT_Y_RULER')
   }
 
