@@ -3,8 +3,8 @@
 // the selection, arrows nudge NUDGE in, Shift+arrows NUDGE_BIG).
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { resetOverride, rowOverride, setOverride } from '../../data/overrides.ts'
-import { idKey, type LabelOverride, type Project } from '../../data/schema.ts'
+import { isMovableList, resetOverride, rowOverride, setOverride } from '../../data/overrides.ts'
+import type { LabelOverride, Project } from '../../data/schema.ts'
 import type { Drawing, PlacedLabel } from '../../engine/drawing.ts'
 import { NUDGE, NUDGE_BIG, nudgeLabel } from '../../engine/labelDrag.ts'
 import type { Orientation } from '../../engine/transform.ts'
@@ -15,14 +15,9 @@ import type { DrawingTool } from './drawingTool.ts'
 
 const typing = (t: EventTarget | null) => (t as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]') != null
 
-/** The label key of the selected row, when it is a nozzle with a label. */
+/** The label key of the selected row, when its list has movable labels. */
 export function selectedLabelKey(selected: { list: string; index: number } | null): string | null {
-  return selected && (selected.list === 'shellNozzles' || selected.list === 'headNozzles') ? `${selected.list}:${selected.index}` : null
-}
-
-/** A label's first row with its ID owns the move (repeated names: the later rows can't be moved until renamed). */
-function ownsId(p: Project, pl: PlacedLabel): boolean {
-  return p[pl.list].findIndex((n) => idKey(n.id) === idKey(pl.id)) === pl.index
+  return selected && isMovableList(selected.list) ? `${selected.list}:${selected.index}` : null
 }
 
 export function useMoveLabels(on: boolean, project: Project, drawing: Drawing): {
@@ -32,22 +27,16 @@ export function useMoveLabels(on: boolean, project: Project, drawing: Drawing): 
 } {
   const app = useApp()
   const { selected, select } = useSelection()
-  const [message, setMessage] = useState('')
   const [menuAt, setMenuAt] = useState<{ pl: PlacedLabel; x: number; y: number } | null>(null)
   const selectedKey = selectedLabelKey(selected)
-  const sel = drawing.labels.find((x) => x.key === selectedKey && x.label.txt !== '') ?? null
+  const sel = drawing.labels.find((x) => x.key === selectedKey && x.txt !== '') ?? null
   const o = project.vessel.orientation as Orientation
 
   const store = (pl: PlacedLabel, change: Partial<Pick<LabelOverride, 'label' | 'tip'>>, what: LabelPart | 'nudge') => {
-    if (!ownsId(app.state.job!.history.present, pl)) {
-      setMessage(`${pl.id} is used by another row too: rename one before moving its label.`)
-      return
-    }
-    setMessage('')
     const label = what === 'tip' ? `Move leader end of ${pl.id}` : `Move label ${pl.id}`
-    app.edit(label, (p) => setOverride(p, pl.list, pl.id, change), what === 'nudge' ? `nudge:${pl.key}` : undefined)
+    app.edit(label, (p) => setOverride(p, pl.list, pl.index, change), what === 'nudge' ? `nudge:${pl.key}` : undefined)
   }
-  const reset = (pl: PlacedLabel) => app.edit(`Reset position of ${pl.id}`, (p) => resetOverride(p, pl.list, pl.id))
+  const reset = (pl: PlacedLabel) => app.edit(`Reset position of ${pl.id}`, (p) => resetOverride(p, pl.list, pl.index))
 
   const tool = useLabelTool({
     project,
@@ -84,7 +73,7 @@ export function useMoveLabels(on: boolean, project: Project, drawing: Drawing): 
       e.preventDefault()
       e.stopPropagation()
       const step = e.shiftKey ? NUDGE_BIG : NUDGE
-      store(sel, nudgeLabel(o, sel.label, d[0] * step, d[1] * step), 'nudge')
+      store(sel, nudgeLabel(o, sel, d[0] * step, d[1] * step), 'nudge')
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
@@ -104,13 +93,15 @@ export function useMoveLabels(on: boolean, project: Project, drawing: Drawing): 
   const status = (
     <div className="move-status" role="status">
       <span>
-        <strong>Move labels:</strong> drag a nozzle label, or the round handle on its leader end. Shift = no snap, Ctrl = level
+        <strong>Move labels:</strong> drag a nozzle, weld, seam, object or MUT label, or the round handle on a nozzle leader end. Shift = no snap, Ctrl = level
         or plumb. Arrow keys nudge {NUDGE} in (Shift: {NUDGE_BIG} in). Esc clears.
       </span>
       {sel && (
         <span className="move-selection">
           <strong>{sel.id}</strong>
-          {moved ? <span className="moved-chip">Moved by hand</span> : <span className="muted">placed automatically</span>}
+          {moved && sel.moved && <span className="moved-chip">Moved by hand</span>}
+          {moved && !sel.moved && <span className="moved-chip">Moved off the shell or view: placed automatically</span>}
+          {!moved && <span className="muted">placed automatically</span>}
           {moved && (
             <button type="button" className="btn btn-small" onClick={() => reset(sel)}>
               Reset position
@@ -118,7 +109,6 @@ export function useMoveLabels(on: boolean, project: Project, drawing: Drawing): 
           )}
         </span>
       )}
-      {message && <span className="move-message">{message}</span>}
     </div>
   )
   const menu = menuAt && (

@@ -240,7 +240,7 @@ function Row(props: {
               className="moved-chip moved-reset"
               title="Its label was moved by hand in the drawing preview. Click to place it automatically again."
               aria-label={`Reset position of the ${id} label (moved by hand)`}
-              onClick={() => app.edit(`Reset position of ${id}`, (p) => (isMovableList(list) ? resetOverride(p, list, id) : p))}
+              onClick={() => app.edit(`Reset position of ${id}`, (p) => (isMovableList(list) ? resetOverride(p, list, index) : p))}
             >
               Moved ↺
             </button>

@@ -30,10 +30,10 @@ describe('move labels tool', () => {
     it(`finds the label under the pointer, and the selected label's leader end first (${o})`, () => {
       const d = buildDrawing(job(o))
       const n2 = d.labels.find((x) => x.id === 'N2')!
-      const b = labelBoxVisual(o, n2.label)
+      const b = labelBoxVisual(o, n2)
       const mid: [number, number] = [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]
       expect(hitLabel(o, d.labels, mid, 0.1, null)).toMatchObject({ part: 'label', pl: { id: 'N2' } })
-      const tip = tipVisual(o, n2.label)!
+      const tip = tipVisual(o, n2)!
       expect(hitLabel(o, d.labels, tip, 0.5, n2.key)).toMatchObject({ part: 'tip', pl: { id: 'N2' } })
       expect(hitLabel(o, d.labels, [-1000, -1000], 0.5, n2.key)).toBeNull()
     })
@@ -43,27 +43,27 @@ describe('move labels tool', () => {
     const o: Orientation = 'Horizontal CW'
     const p = job(o)
     const n2 = buildDrawing(p).labels.find((x) => x.id === 'N2')!
-    const g = labelGhost(o, p, n2.label, { label: { dx: 20, dy: 10 } }, null)
-    const c = toVisual(o, n2.label.x, n2.label.y)
+    const g = labelGhost(o, p, n2, { label: { dx: 20, dy: 10 } }, null)
+    const c = toVisual(o, n2.nozzle!.x, n2.nozzle!.y)
     expect((g.box[0] + g.box[2]) / 2).toBeCloseTo(c[0] + 20, 9)
     expect((g.box[1] + g.box[3]) / 2).toBeCloseTo(c[1] + 10, 9)
     expect(g.path?.length).toBeGreaterThan(1)
     // Dropped inside: no leader.
-    expect(labelGhost(o, p, n2.label, { label: 'inside' }, null).path).toBeNull()
+    expect(labelGhost(o, p, n2, { label: 'inside' }, null).path).toBeNull()
     // The same as the engine draws after the drop.
-    const after = buildDrawing(setOverride(p, 'shellNozzles', 'N2', { label: { dx: 20, dy: 10 } })).labels.find((x) => x.id === 'N2')!
-    expect(g.path).toEqual(after.label.leader!.map((q) => toVisual(o, q[0], q[1])))
+    const after = buildDrawing(setOverride(p, 'shellNozzles', 1, { label: { dx: 20, dy: 10 } })).labels.find((x) => x.id === 'N2')!
+    expect(g.path).toEqual(after.nozzle!.leader!.map((q) => toVisual(o, q[0], q[1])))
   })
 })
 
 describe('undo for moved labels', () => {
   const open = (): SessionState => sessionReducer(initialSession, { type: 'openJob', project: job('Vertical'), source: 'new' })
-  const drop = (dx: number): SessionAction => ({ type: 'edit', label: 'Move label N2', update: (p) => setOverride(p, 'shellNozzles', 'N2', { label: { dx, dy: 0 } }) })
+  const drop = (dx: number): SessionAction => ({ type: 'edit', label: 'Move label N2', update: (p) => setOverride(p, 'shellNozzles', 1, { label: { dx, dy: 0 } }) })
   const nudge: SessionAction = {
     type: 'edit', label: 'Move label N2', group: 'nudge:shellNozzles:1',
     update: (p) => {
-      const l = buildDrawing(p).labels.find((x) => x.id === 'N2')!.label
-      return setOverride(p, 'shellNozzles', 'N2', nudgeLabel('Vertical', l, NUDGE, 0))
+      const l = buildDrawing(p).labels.find((x) => x.id === 'N2')!
+      return setOverride(p, 'shellNozzles', 1, nudgeLabel('Vertical', l, NUDGE, 0))
     },
   }
   const present = (s: SessionState) => s.job!.history.present.labelOverrides
@@ -90,8 +90,8 @@ describe('undo for moved labels', () => {
   })
 
   it('reset one and reset all are one step each, and can be undone', () => {
-    let s = [drop(10), { type: 'edit', label: 'Move', update: (p: Project) => setOverride(p, 'headNozzles', 'N4', { tip: 45 }) } as SessionAction].reduce(sessionReducer, open())
-    s = sessionReducer(s, { type: 'edit', label: 'Reset position of N2', update: (p) => resetOverride(p, 'shellNozzles', 'N2') })
+    let s = [drop(10), { type: 'edit', label: 'Move', update: (p: Project) => setOverride(p, 'headNozzles', 1, { tip: 45 }) } as SessionAction].reduce(sessionReducer, open())
+    s = sessionReducer(s, { type: 'edit', label: 'Reset position of N2', update: (p) => resetOverride(p, 'shellNozzles', 1) })
     expect(present(s).map((o) => o.id)).toEqual(['N4'])
     s = sessionReducer(s, { type: 'edit', label: 'Reset all moved labels', update: resetAllOverrides })
     expect(present(s)).toEqual([])

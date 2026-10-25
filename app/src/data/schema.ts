@@ -177,21 +177,26 @@ export const scanImageSchema = z.strictObject({
   include,
 })
 
-/** Lists whose labels can be moved by hand in the drawing preview (Phase 5b). */
-export const MOVABLE_LABEL_LISTS = ['shellNozzles', 'headNozzles'] as const
+/** Lists whose labels can be moved by hand in the drawing preview (Phase 5b): nozzles, then the plain text labels. */
+export const MOVABLE_LABEL_LISTS = ['shellNozzles', 'headNozzles', 'circWelds', 'longSeams', 'objects', 'shellMut'] as const
 export type MovableLabelList = (typeof MOVABLE_LABEL_LISTS)[number]
+export type NozzleList = 'shellNozzles' | 'headNozzles'
 
 /**
- * A label moved by hand in the drawing preview (format 5), keyed by its item's list and ID (not its row), so it
- * survives sorting and inserted rows; renames and deletes are followed (data/overrides.ts). Measured as the drawing
- * reads (right and up on the sheet, inches) from the nozzle's center (a nozzle across the seam: its main piece).
+ * A label moved by hand in the drawing preview (format 5), keyed by its item's list, ID and which of the rows with
+ * that ID it is (nozzle names may repeat), not by its row number, so it survives sorting and inserted rows; renames
+ * and deletes are followed (data/overrides.ts). Measured as the drawing reads (right and up on the sheet, inches) from
+ * where the label is drawn automatically: a nozzle's center (across the seam: its main piece), a MUT point, the spot of
+ * a weld, seam or object label.
  */
 export const labelOverrideSchema = z.strictObject({
   list: z.enum(MOVABLE_LABEL_LISTS),
   id: z.string(),
-  /** Label center as an offset from the nozzle center; 'inside' = inside the circle, no leader; null = automatic. */
+  /** Which of the rows with this ID (0 = the first). */
+  occurrence: z.number().int().min(0).default(0),
+  /** Label center as an offset; 'inside' = inside a nozzle circle, no leader; null = automatic. */
   label: z.union([z.strictObject({ dx: z.number(), dy: z.number() }), z.literal('inside')]).nullable().default(null),
-  /** Where the leader meets the circle, in degrees (0 = right, counter-clockwise as the drawing reads); null = automatic. */
+  /** Nozzles: where the leader meets the circle, in degrees (0 = right, counter-clockwise as the drawing reads); null = automatic. */
   tip: z.number().nullable().default(null),
 })
 

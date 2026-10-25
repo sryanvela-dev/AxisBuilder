@@ -1,4 +1,5 @@
-// The "Move labels" tool of the preview's drawing mode (Phase 5b): hover outlines a nozzle label that can be moved,
+// The "Move labels" tool of the preview's drawing mode (Phase 5b): hover outlines a label that can be moved (nozzle,
+// weld, seam, object and MUT labels),
 // click selects it (and its table row), drag moves the label (lined up with other labels unless Shift is held; Ctrl
 // keeps it level or plumb with where it started), and the round handle on the selected label's leader end moves the
 // leader end around the circle (Ctrl: right, up, left or down only). The project changes once, on drop (one undo step).
@@ -7,8 +8,8 @@ import { useRef, useState } from 'react'
 import { rowOverride } from '../../data/overrides.ts'
 import type { LabelOverride, Project } from '../../data/schema.ts'
 import type { PlacedLabel } from '../../engine/drawing.ts'
-import { dropLabel, dropTip } from '../../engine/labelDrag.ts'
-import type { NozzleLabel } from '../../engine/labels.ts'
+import { dropPlaced, dropTip } from '../../engine/labelDrag.ts'
+import { textLeader } from '../../engine/textLabels.ts'
 import { leaderStyle, leaderToLabel, visualAngle, type Pt } from '../../engine/leaders.ts'
 import { findSnap, type Snap } from '../../engine/snap.ts'
 import { toLogical, toVisual, type Orientation } from '../../engine/transform.ts'
@@ -23,15 +24,16 @@ const HIT_PX = 5
 const SNAP_PX = 8
 const HANDLE_PX = 5
 
-/** The label's box as the drawing reads (labels always read upright, so it is tw wide and sh tall). */
-export function labelBoxVisual(o: Orientation, l: NozzleLabel): Box {
-  const [x, y] = toVisual(o, l.tx, l.ty)
-  return [x - l.tw / 2, y - l.sh / 2, x + l.tw / 2, y + l.sh / 2]
+/** The label's box as the drawing reads. */
+export function labelBoxVisual(o: Orientation, pl: PlacedLabel): Box {
+  const [x, y] = toVisual(o, pl.x, pl.y)
+  return [x - pl.w / 2, y - pl.h / 2, x + pl.w / 2, y + pl.h / 2]
 }
 
-/** The leader end on the circle as the drawing reads, or null for an inside label. */
-export function tipVisual(o: Orientation, l: NozzleLabel): Pt | null {
-  return l.leader ? toVisual(o, l.leader[0][0], l.leader[0][1]) : null
+/** A nozzle label's leader end on the circle as the drawing reads; null for an inside label or a text label. */
+export function tipVisual(o: Orientation, pl: PlacedLabel): Pt | null {
+  const l = pl.nozzle
+  return l?.leader ? toVisual(o, l.leader[0][0], l.leader[0][1]) : null
 }
 
 const inBox = (b: Box, q: Pt, tol: number) => q[0] >= b[0] - tol && q[0] <= b[2] + tol && q[1] >= b[1] - tol && q[1] <= b[3] + tol
@@ -39,12 +41,12 @@ const inBox = (b: Box, q: Pt, tol: number) => q[0] >= b[0] - tol && q[0] <= b[2]
 /** What is under the pointer (visual point): the selected label's leader end first, then the nearest label. */
 export function hitLabel(o: Orientation, labels: readonly PlacedLabel[], q: Pt, tol: number, selectedKey: string | null): { pl: PlacedLabel; part: LabelPart } | null {
   const sel = labels.find((x) => x.key === selectedKey)
-  const tip = sel && sel.label.txt !== '' ? tipVisual(o, sel.label) : null
+  const tip = sel && sel.txt !== '' ? tipVisual(o, sel) : null
   if (sel && tip && Math.hypot(q[0] - tip[0], q[1] - tip[1]) <= tol * 1.6) return { pl: sel, part: 'tip' }
   let best: { pl: PlacedLabel; d: number } | null = null
   for (const pl of labels) {
-    if (pl.label.txt === '') continue
-    const b = labelBoxVisual(o, pl.label)
+    if (pl.txt === '') continue
+    const b = labelBoxVisual(o, pl)
     if (!inBox(b, q, tol)) continue
     const d = Math.hypot(q[0] - (b[0] + b[2]) / 2, q[1] - (b[1] + b[3]) / 2)
     if (!best || d < best.d) best = { pl, d }
@@ -53,16 +55,18 @@ export function hitLabel(o: Orientation, labels: readonly PlacedLabel[], q: Pt, 
 }
 
 /** Where a label being dragged would land, as the drawing reads: its box and leader (null = inside, no leader). */
-export function labelGhost(o: Orientation, p: Project, l: NozzleLabel, change: Partial<Pick<LabelOverride, 'label' | 'tip'>>, tip: number | null): { box: Box; path: Pt[] | null } {
-  const n: Pt = [l.x, l.y]
-  const nv = toVisual(o, l.x, l.y)
+export function labelGhost(o: Orientation, p: Project, pl: PlacedLabel, change: Partial<Pick<LabelOverride, 'label' | 'tip'>>, tip: number | null): { box: Box; path: Pt[] | null } {
+  const l = pl.nozzle
+  const av = toVisual(o, pl.anchor[0], pl.anchor[1])
   const label = change.label
-  const centre: Pt = label === 'inside' ? [l.insideX, l.y] : label ? toLogical(o, nv[0] + label.dx, nv[1] + label.dy) : [l.tx, l.ty]
+  const centre: Pt = label === 'inside' && l ? [l.insideX, l.y] : label && label !== 'inside' ? toLogical(o, av[0] + label.dx, av[1] + label.dy) : [pl.x, pl.y]
   const cv = toVisual(o, centre[0], centre[1])
-  const box: Box = [cv[0] - l.tw / 2, cv[1] - l.sh / 2, cv[0] + l.tw / 2, cv[1] + l.sh / 2]
+  const box: Box = [cv[0] - pl.w / 2, cv[1] - pl.h / 2, cv[0] + pl.w / 2, cv[1] + pl.h / 2]
+  const visual = (path: Pt[] | null) => path?.map((q) => toVisual(o, q[0], q[1])) ?? null
+  if (!l) return { box, path: visual(textLeader(o, p, pl.text?.target ?? null, centre, pl.w, pl.h)) }
   if (label === 'inside' || (label === undefined && l.leader === null)) return { box, path: null }
-  const sp = leaderToLabel(o, leaderStyle(p.settings), n, l.r, change.tip !== undefined ? change.tip : tip, centre, l.tw, l.sh, l.tipArc)
-  return { box, path: sp.path.map((q) => toVisual(o, q[0], q[1])) }
+  const sp = leaderToLabel(o, leaderStyle(p.settings), [l.x, l.y], l.r, change.tip !== undefined ? change.tip : tip, centre, l.tw, l.sh, l.tipArc)
+  return { box, path: visual(sp.path) }
 }
 
 interface Drag {
@@ -106,21 +110,21 @@ export function useLabelTool(props: LabelToolProps): DrawingTool {
     const tol = SNAP_PX / e.scale
     if (d.part === 'tip') {
       // On the circle always; Ctrl holds it to right, up, left or down of the center.
-      const l = d.pl.label
+      const l = d.pl.nozzle!
       const c = toVisual(o, l.x, l.y)
       const arc: [number, number] | null = l.tipArc ? [visualAngle(o, l.tipArc[0]), visualAngle(o, l.tipArc[1])] : null
       const s = findSnap({ segs: [], circles: [{ c, r: l.r, arc }] }, q, Math.max(l.r * 4, tol), { ortho: e.mods.ctrl, from: c, kinds: ['on'] })
       return s.kind ? s : { pt: q, kind: null }
     }
     const at: Pt = [q[0] + d.grab[0], q[1] + d.grab[1]]
-    const others = labels.filter((x) => x.key !== d.pl.key && x.label.txt !== '').map((x) => toVisual(o, x.label.tx, x.label.ty))
+    const others = labels.filter((x) => x.key !== d.pl.key && x.txt !== '').map((x) => toVisual(o, x.x, x.y))
     return findSnap({ segs: [], circles: [] }, at, tol, { free: e.mods.shift, ortho: e.mods.ctrl, from: d.start, align: others, kinds: ['align'] })
   }
 
   /** What a drop at this snap stores. */
   const changeFor = (d: Drag): Partial<Pick<LabelOverride, 'label' | 'tip'>> => {
     const at = toLogical(o, d.snap.pt[0], d.snap.pt[1])
-    return d.part === 'tip' ? dropTip(o, d.pl.label, at) : dropLabel(o, d.pl.label, at)
+    return d.part === 'tip' ? dropTip(o, d.pl.nozzle!, at) : dropPlaced(o, d.pl, at)
   }
 
   return {
@@ -136,8 +140,7 @@ export function useLabelTool(props: LabelToolProps): DrawingTool {
       const h = hit(e)
       if (!h) return false
       props.select(h.pl)
-      const l = h.pl.label
-      const start = h.part === 'tip' ? tipVisual(o, l)! : toVisual(o, l.tx, l.ty)
+      const start = h.part === 'tip' ? tipVisual(o, h.pl)! : toVisual(o, h.pl.x, h.pl.y)
       const q = svgToVisual(e.svg)
       const base = { pl: h.pl, part: h.part, grab: [start[0] - q[0], start[1] - q[1]] as Pt, start }
       setDrag({ ...base, snap: { pt: start, kind: null } })
@@ -175,18 +178,18 @@ export function useLabelTool(props: LabelToolProps): DrawingTool {
         return <rect key={key} className={cls} x={x0 - pad} y={y0 - pad} width={b[2] - b[0] + 2 * pad} height={b[3] - b[1] + 2 * pad} />
       }
       const hovered = hover && !drag ? labels.find((x) => x.key === hover.key) : undefined
-      if (hovered && hovered.key !== selectedKey && hovered.label.txt !== '') out.push(rect(labelBoxVisual(o, hovered.label), 'move-hover', 'hover'))
+      if (hovered && hovered.key !== selectedKey && hovered.txt !== '') out.push(rect(labelBoxVisual(o, hovered), 'move-hover', 'hover'))
       const sel = labels.find((x) => x.key === selectedKey)
-      if (sel && sel.label.txt !== '') {
-        out.push(rect(labelBoxVisual(o, sel.label), sel.label.moved ? 'move-selected moved' : 'move-selected', 'sel'))
-        const tip = tipVisual(o, sel.label)
+      if (sel && sel.txt !== '') {
+        out.push(rect(labelBoxVisual(o, sel), sel.moved ? 'move-selected moved' : 'move-selected', 'sel'))
+        const tip = tipVisual(o, sel)
         if (tip && drag?.part !== 'tip') {
           const [x, y] = visualToSvg(tip)
           out.push(<circle key="tip" className={`move-handle${hover?.part === 'tip' ? ' hot' : ''}`} cx={x} cy={y} r={HANDLE_PX / scale} />)
         }
       }
       if (drag) {
-        const g = labelGhost(o, p, drag.pl.label, changeFor(drag), tipOverride(drag.pl))
+        const g = labelGhost(o, p, drag.pl, changeFor(drag), tipOverride(drag.pl))
         out.push(rect(g.box, 'move-ghost', 'ghost'))
         if (g.path) out.push(<polyline key="ghost-leader" className="move-ghost" points={g.path.map((q) => visualToSvg(q).join(',')).join(' ')} />)
         if (drag.part === 'tip' && g.path) {

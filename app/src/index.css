@@ -1570,9 +1570,6 @@ svg.drawing .snap-marker .snap-guide {
   white-space: nowrap;
 }
 
-.move-message {
-  color: var(--warn);
-}
 
 button.moved-reset {
   border: 1px solid var(--warn);

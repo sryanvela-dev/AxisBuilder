@@ -12,6 +12,7 @@ import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
 import { drawnScans } from '../engine/layout.ts'
 import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
 import { nozzleLabelNotes } from '../engine/labels.ts'
+import { textLabelFallbacks } from '../engine/textLabels.ts'
 import { isMovableList, resetOverride } from './overrides.ts'
 
 export type Severity = 'error' | 'warning'
@@ -51,7 +52,7 @@ export function applyCheckAction(p: Project, a: CheckAction): Project {
   const items = p[a.list] as Record<string, unknown>[]
   if (!items[a.index]) return p
   const next = { ...p, [a.list]: items.map((item, i) => (i === a.index ? { ...item, ...a.changes } : item)) } as Project
-  return a.resetLabel && isMovableList(a.list) ? resetOverride(next, a.list, String(items[a.index].id)) : next
+  return a.resetLabel && isMovableList(a.list) ? resetOverride(next, a.list, a.index) : next
 }
 
 const fieldName = (list: ListKey, key: string) => (LIST_META[list].fields as Record<string, string>)[key]
@@ -251,9 +252,9 @@ export function checkProject(p: Project): Check[] {
     })
   }
   // A hand placement that no longer makes sense: the label is placed automatically; nothing is blocked.
-  for (const f of notes.fallbacks) {
+  for (const f of [...notes.fallbacks, ...textLabelFallbacks(p)]) {
     out.push({
-      severity: 'warning', place: { kind: 'row', list: f.list, index: f.index, field: 'labelMode' },
+      severity: 'warning', place: { kind: 'row', list: f.list, index: f.index, field: f.list === 'shellNozzles' || f.list === 'headNozzles' ? 'labelMode' : 'id' },
       text: `Label ${f.id} was moved by hand, but ${f.why}, so it is placed automatically.`,
       fix: 'Move it again in the drawing preview (Move labels), or reset it to clear the old position.',
       actions: [reset(f.list, f.index)],

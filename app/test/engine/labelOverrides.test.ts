@@ -40,7 +40,7 @@ describe('labels moved by hand', () => {
   for (const o of ORIENTATIONS) {
     for (const leaderShape of SHAPES) {
       it(`a shell label goes where it was put, its leader from the circle (${o}, ${leaderShape})`, () => {
-        const p = setOverride(job(o, { leaderShape }), 'shellNozzles', 'N2', { label: { dx: 18, dy: 9 } })
+        const p = setOverride(job(o, { leaderShape }), 'shellNozzles', 1, { label: { dx: 18, dy: 9 } })
         const l = shell(p).get(1)!
         expect(l.moved).toBe(true)
         close(rel(o, l, [l.tx, l.ty]), [18, 9])
@@ -53,7 +53,7 @@ describe('labels moved by hand', () => {
     }
 
     it(`a head label goes where it was put, the leader end at the set angle (${o})`, () => {
-      let p = setOverride(job(o), 'headNozzles', 'N4', { label: { dx: -10, dy: 6 }, tip: 90 })
+      let p = setOverride(job(o), 'headNozzles', 1, { label: { dx: -10, dy: 6 }, tip: 90 })
       p = { ...p, headNozzles: p.headNozzles.map((n) => (n.id === 'N4' ? { ...n, labelMode: 'OUTSIDE' as const } : n)) }
       const l = heads(p).get(1)!
       expect(l.moved).toBe(true)
@@ -64,7 +64,7 @@ describe('labels moved by hand', () => {
 
     it(`the leader end alone can be moved; the label stays automatic (${o})`, () => {
       const auto = shell(job(o)).get(1)!
-      const p = setOverride(job(o), 'shellNozzles', 'N2', { tip: 270 })
+      const p = setOverride(job(o), 'shellNozzles', 1, { tip: 270 })
       const l = shell(p).get(1)!
       expect([l.tx, l.ty]).toEqual([auto.tx, auto.ty])
       close(rel(o, l, l.leader![0]), [0, -l.r])
@@ -72,10 +72,11 @@ describe('labels moved by hand', () => {
   }
 
   it('the moved position is what the drawing, the Sheets view and the .lsp use', () => {
-    const p = setOverride(job('Horizontal CW'), 'shellNozzles', 'N2', { label: { dx: 18, dy: 9 } })
+    const p = setOverride(job('Horizontal CW'), 'shellNozzles', 1, { label: { dx: 18, dy: 9 } })
     const l = shell(p).get(1)!
     const placed = buildDrawing(p).labels.find((x) => x.key === 'shellNozzles:1')!
-    expect(placed.label).toEqual(l)
+    expect(placed.nozzle).toEqual(l)
+    expect([placed.x, placed.y, placed.moved]).toEqual([l.tx, l.ty, true])
     const lsp = exportLsp(p)
     expect(lsp).toContain(`(SL_NozzleAt ${[l.x, l.y, l.r].map(LispNum).join(' ')} "N2" 1.6 ${LispNum(l.tx)} ${LispNum(l.ty)} `)
     // Text size, leader shape and arrowhead changes keep the move.
@@ -91,7 +92,7 @@ describe('labels moved by hand', () => {
     const crowded = { ...l, canBeInside: false }
     expect(dropLabel('Vertical', crowded, [l.x + 1, l.y])).toEqual({ label: { dx: 1, dy: 0 } })
     // A stored inside label that no longer fits falls back to automatic, and says so.
-    const q = setOverride({ ...p, settings: { ...p.settings, shellNozzleTextSize: 'Scale', shellNozzleTextScale: 5 } }, 'shellNozzles', 'N1', { label: 'inside' })
+    const q = setOverride({ ...p, settings: { ...p.settings, shellNozzleTextSize: 'Scale', shellNozzleTextScale: 5 } }, 'shellNozzles', 0, { label: 'inside' })
     const back = shell(q).get(0)!
     expect(back.fallback).toBe('it no longer fits inside the nozzle')
     expect(back.leader).not.toBeNull()
@@ -99,9 +100,10 @@ describe('labels moved by hand', () => {
 
   it('nudges move the label as the drawing reads; Shift steps are bigger', () => {
     for (const o of ORIENTATIONS) {
-      const l = shell(job(o)).get(1)!
+      const pl = buildDrawing(job(o)).labels.find((x) => x.key === 'shellNozzles:1')!
+      const l = pl.nozzle!
       const before = rel(o, l, [l.tx, l.ty])
-      const { label } = nudgeLabel(o, l, 0.5, 0)
+      const { label } = nudgeLabel(o, pl, 0.5, 0)
       expect(label).not.toBe('inside')
       const d = label as { dx: number; dy: number }
       expect(d.dx).toBeCloseTo(before[0] + 0.5, 3)
@@ -122,7 +124,7 @@ describe('labels moved by hand', () => {
     // Pointing left (180) is off the drawn part: held to the nearer end.
     const { tip } = dropTip(o, w, [w.x - 50, w.y + 1])
     expect([a0, a1].some((a) => Math.abs(a - tip!) < 1e-3)).toBe(true)
-    const q = setOverride(p, 'shellNozzles', 'N2', { label: { dx: -20, dy: 5 }, tip: 180 })
+    const q = setOverride(p, 'shellNozzles', 1, { label: { dx: -20, dy: 5 }, tip: 180 })
     const lq = shell(q).get(1)!
     expect(lq.leader![0][0]).toBeGreaterThanOrEqual(-1e-6)
   })
@@ -132,7 +134,7 @@ describe('labels moved by hand', () => {
     const p = job('Vertical')
     const auto = shell(p).get(1)!
     const n1 = shell(p).get(0)!
-    const q = setOverride(p, 'shellNozzles', 'N1', { label: { dx: auto.tx - n1.x, dy: auto.ty - n1.y } })
+    const q = setOverride(p, 'shellNozzles', 0, { label: { dx: auto.tx - n1.x, dy: auto.ty - n1.y } })
     const moved = shell(q).get(0)!
     const after = shell(q).get(1)!
     expect([after.tx, after.ty]).not.toEqual([auto.tx, auto.ty])
@@ -147,7 +149,7 @@ describe('labels moved by hand', () => {
     const n2 = shell(p0).get(1)!
     const cx = (s.xStart! + s.xStop!) / 2
     const cy = (s.yStart! + s.yStop!) / 2
-    const p = setOverride(p0, 'shellNozzles', 'N2', { label: { dx: cx - n2.x, dy: cy - n2.y } })
+    const p = setOverride(p0, 'shellNozzles', 1, { label: { dx: cx - n2.x, dy: cy - n2.y } })
     const c = checkProject(p).find((x) => x.text.startsWith('Label N2'))!
     expect(c.text).toMatch(/^Label N2 \(moved by hand\) overlaps scan /)
     expect(c.actions?.[0].label).toBe('Reset position')
@@ -155,7 +157,7 @@ describe('labels moved by hand', () => {
   })
 
   it('a label put off the shell is placed automatically, with a warning that never blocks export', () => {
-    const p = setOverride(job('Vertical'), 'shellNozzles', 'N2', { label: { dx: -500, dy: 0 } })
+    const p = setOverride(job('Vertical'), 'shellNozzles', 1, { label: { dx: -500, dy: 0 } })
     const l = shell(p).get(1)!
     expect(l.fallback).toBe('it was off the shell')
     expect(l.tx).toEqual(shell(job('Vertical')).get(1)!.tx)
@@ -165,14 +167,14 @@ describe('labels moved by hand', () => {
   })
 
   it('a head label put far from its head view is placed automatically', () => {
-    const p = setOverride(job('Vertical'), 'headNozzles', 'N3', { label: { dx: 0, dy: 900 } })
+    const p = setOverride(job('Vertical'), 'headNozzles', 0, { label: { dx: 0, dy: 900 } })
     expect(heads(p).get(0)!.fallback).toBe('it was off the head view')
   })
 
   it('no overrides: the same labels as before (the golden jobs and their fingerprints stay)', () => {
     const p = job('Horizontal CW')
     const a = shell(p)
-    const b = shell(setOverride(setOverride(p, 'shellNozzles', 'N2', { tip: 0 }), 'shellNozzles', 'N2', { tip: null }))
+    const b = shell(setOverride(setOverride(p, 'shellNozzles', 1, { tip: 0 }), 'shellNozzles', 1, { tip: null }))
     expect([...b.values()]).toEqual([...a.values()])
   })
 })

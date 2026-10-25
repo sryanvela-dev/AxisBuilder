@@ -26,6 +26,7 @@ import {
   ucaseTrim,
 } from './layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.ts'
+import { fitTextHeight, labelRot, placeTextLabel, textLabelSpecs, textLayer, type TextLabelSpec, type TextPlacement } from './textLabels.ts'
 import { arrowheadParts, directionArrowLength, dotPolygon, leaderParts, leaderStyle, type ArrowStyle, type LeaderPart, type LeaderStyle, type Pt } from './leaders.ts'
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
@@ -115,8 +116,25 @@ export interface PlacedLabel {
   list: MovableLabelList
   index: number
   id: string
-  label: NozzleLabel
+  txt: string
+  /** Label center as drawn (logical) and its box as the drawing reads (w across, h up), at the Drawing step's size. */
+  x: number
+  y: number
+  w: number
+  h: number
+  /** Where a move is measured from (logical): a nozzle's center, a text label's automatic spot. */
+  anchor: Pt
+  moved: boolean
+  /** Nozzle labels: the placed label with its leader and leader end (engine/labels.ts). */
+  nozzle?: NozzleLabel
+  /** Weld, seam, object and MUT labels (engine/textLabels.ts). */
+  text?: TextLabelSpec
 }
+
+const nozzlePlaced = (key: string, list: MovableLabelList, index: number, id: string, l: NozzleLabel): PlacedLabel =>
+  ({ key, list, index, id, txt: l.txt, x: l.tx, y: l.ty, w: l.tw, h: l.sh, anchor: [l.x, l.y], moved: !!l.moved, nozzle: l })
+const textPlaced = (sp: TextLabelSpec, tp: TextPlacement): PlacedLabel =>
+  ({ key: `${sp.list}:${sp.index}`, list: sp.list, index: sp.index, id: sp.id, txt: sp.txt, x: tp.x, y: tp.y, w: tp.w, h: tp.h, anchor: [sp.ax, sp.ay], moved: tp.moved, text: sp })
 
 export interface Drawing {
   orientation: Orientation
@@ -131,14 +149,6 @@ export interface Drawing {
   labels: PlacedLabel[]
 }
 
-/** SL_TextLayer: geometry layer -> its text layer. */
-function textLayer(layer: string): string {
-  const map: Record<string, string> = {
-    SCANS: 'SCAN_TEXT', SUPPORTS: 'SUPPORT_TEXT', NOZZLES: 'SHELL_NOZZLE_TEXT', MUT_TEXT: 'SHELL_MUT_TEXT', X_AXIS: 'X_RULER_TEXT',
-    Y_AXIS: 'Y_RULER_TEXT', LEGEND: 'LEGEND_TEXT', CIRC_WELDS: 'CIRC_WELD_TEXT', LONG_SEAMS: 'LONG_SEAM_TEXT', TITLE_BLOCK: 'TITLE_BLOCK_TEXT',
-  }
-  return map[layer] ?? layer
-}
 
 const fmt = (n: number) => String(Math.round(n * 1000) / 1000)
 
@@ -208,17 +218,7 @@ class Pen {
   }
 }
 
-/** SL_FitTextHeight */
-export function fitTextHeight(w: number, h: number, txt: string): number {
-  const byShort = Math.min(w, h) * 0.22
-  const byLong = (Math.max(w, h) * 0.78) / (Math.max(1, txt.length) * 0.85)
-  return Math.max(0.45, Math.min(byShort, byLong))
-}
-
-/** SL_LabelRot (app): tall labels read upright in Horizontal CCW too. */
-function labelRot(o: Orientation, w: number, h: number): number {
-  return h > w ? (o === 'Horizontal CCW' ? -90 : 90) : 0
-}
+export { fitTextHeight }
 
 /** SL_LabelRect (app version) */
 function labelRect(pen: Pen, o: Orientation, x: number, y: number, w: number, h: number, txt: string, outline: string, hatch: string, hatchOn: boolean, step: number) {
@@ -389,6 +389,21 @@ export function buildDrawing(p: Project): Drawing {
   const leaders = leaderStyle(s)
   const sized = L !== null && H !== null && L > 0 && H > 0
   const complete = (...v: (number | null)[]) => v.every((n) => n !== null && Number.isFinite(n))
+  // Weld, seam, object and MUT labels: at their automatic spot, or where they were moved (engine/textLabels.ts).
+  const textSpecs = new Map(textLabelSpecs(p).map((sp) => [`${sp.list}:${sp.index}`, sp]))
+  /** The placement of a text label, recorded for the preview's Move labels tool; null when the item has no label. */
+  const placeText = (key: string): { sp: TextLabelSpec; tp: TextPlacement } | null => {
+    const sp = textSpecs.get(key)
+    if (!sp) return null
+    const tp = placeTextLabel(p, sp)
+    placed.push(textPlaced(sp, tp))
+    return { sp, tp }
+  }
+  /** A moved text label: the text where it was put, and its leader (MUT point, object edge). */
+  const movedText = (pen: Pen, t: { sp: TextLabelSpec; tp: TextPlacement }, leaderLayer: string) => {
+    pen.text(t.tp.x, t.tp.y, t.sp.th, t.sp.rot, t.sp.txt, t.sp.layer)
+    if (t.tp.leader) pen.parts(leaderParts(t.tp.leader, leaders), leaderLayer)
+  }
 
   // Vessel border and centerline
   if (sized && s.showVesselOnOverlay) {
@@ -429,7 +444,11 @@ export function buildDrawing(p: Project): Drawing {
       if (!ob.include || !complete(ob.x, ob.y, ob.circWidth, ob.length)) return
       const pen = new Pen()
       const pieces = objectPieces(ob, C)
-      if (isWrapped(pieces)) wrappedRect(pen, o, pieces, ob.y!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
+      const t = placeText(`objects:${index}`)
+      if (t?.tp.moved) {
+        for (const pc of pieces) pieceRect(pen, pc.x0, ob.y!, pc.x1 - pc.x0, ob.length!, 'SUPPORTS', '', false, step)
+        movedText(pen, t, 'SUPPORTS')
+      } else if (isWrapped(pieces)) wrappedRect(pen, o, pieces, ob.y!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
       else labelRect(pen, o, pieces[0].x0, ob.y!, ob.circWidth!, ob.length!, ob.id, 'SUPPORTS', '', false, step)
       const across = isWrapped(pieces) ? ', across the seam' : ''
       add(`objects:${index}`, { list: 'objects', index, id: ob.id }, pen, `${ob.id}: X ${fmt(ob.x!)}, Y ${fmt(ob.y!)}, ${fmt(ob.circWidth!)} x ${fmt(ob.length!)} in${across}`)
@@ -444,7 +463,7 @@ export function buildDrawing(p: Project): Drawing {
       if (!l) return
       const pen = new Pen()
       nozzleAt(pen, o, l, 'NOZZLES', 'NOZZLES', leaders)
-      placed.push({ key: `shellNozzles:${index}`, list: 'shellNozzles', index, id: n.id, label: l })
+      placed.push(nozzlePlaced(`shellNozzles:${index}`, 'shellNozzles', index, n.id, l))
       add(`shellNozzles:${index}`, { list: 'shellNozzles', index, id: n.id }, pen, `${n.id}: diameter ${fmt(n.diameter!)} in at X ${fmt(n.x!)}, Y ${fmt(n.y!)}${n.minT !== null ? `, min. T ${n.minT}` : ''}`)
     })
   }
@@ -453,7 +472,9 @@ export function buildDrawing(p: Project): Drawing {
   p.shellMut.forEach((m, index) => {
     if (!complete(m.x, m.y)) return
     const pen = new Pen()
-    pen.text(m.x!, m.y!, 1.5, readableRot(o), m.id, 'SHELL_MUT_TEXT')
+    const t = placeText(`shellMut:${index}`)
+    if (t?.tp.moved) movedText(pen, t, 'SHELL_MUT_TEXT')
+    else pen.text(m.x!, m.y!, 1.5, readableRot(o), m.id, 'SHELL_MUT_TEXT')
     add(`shellMut:${index}`, { list: 'shellMut', index, id: m.id }, pen, `${m.id}: X ${fmt(m.x!)}, Y ${fmt(m.y!)}${m.minT !== null ? `, min. T ${m.minT}` : ''}`)
   })
 
@@ -463,7 +484,8 @@ export function buildDrawing(p: Project): Drawing {
       if (!cw.include || !complete(cw.y)) return
       const pen = new Pen()
       pen.dash(0, cw.y!, H, cw.y!, 4, 2.5, 'CIRC_WELDS')
-      if (s.showWeldLabels && cw.showLabel && cw.id) pen.text(H - 3, cw.y!, 2, 0, cw.id, 'CIRC_WELDS')
+      const t = placeText(`circWelds:${index}`)
+      if (t) pen.text(t.tp.x, t.tp.y, 2, 0, cw.id, 'CIRC_WELDS')
       add(`circWelds:${index}`, { list: 'circWelds', index, id: cw.id }, pen, `${cw.id}: circ weld at Y ${fmt(cw.y!)}`)
     })
     p.longSeams.forEach((ls, index) => {
@@ -471,10 +493,9 @@ export function buildDrawing(p: Project): Drawing {
       const pen = new Pen()
       const y1 = ls.startY === null || ls.startY < 0 ? 0 : ls.startY
       const y2 = ls.stopY === null || ls.stopY < 0 ? L : ls.stopY
-      let labelY = y1 + 6
-      if (labelY > y2 - 2) labelY = y1 + (y2 - y1) / 2
       pen.dash(ls.x!, y1, ls.x!, y2, 4, 2.5, 'LONG_SEAMS')
-      if (s.showWeldLabels && ls.showLabel && ls.id) pen.text(ls.x!, labelY, 2, o === 'Horizontal CCW' ? -90 : 90, ls.id, 'LONG_SEAMS')
+      const t = placeText(`longSeams:${index}`)
+      if (t) pen.text(t.tp.x, t.tp.y, 2, t.sp.rot, ls.id, 'LONG_SEAMS')
       add(`longSeams:${index}`, { list: 'longSeams', index, id: ls.id }, pen, `${ls.id}: long seam at X ${fmt(ls.x!)}, Y ${fmt(y1)} to ${fmt(y2)}`)
     })
   }
@@ -529,7 +550,7 @@ export function buildDrawing(p: Project): Drawing {
         if (!l) return
         const pen = new Pen()
         nozzleAt(pen, o, l, 'HEADS', 'HEAD_NOZZLE_TEXT', leaders)
-        placed.push({ key: `headNozzles:${index}`, list: 'headNozzles', index, id: n.id, label: l })
+        placed.push(nozzlePlaced(`headNozzles:${index}`, 'headNozzles', index, n.id, l))
         add(`headNozzles:${index}`, { list: 'headNozzles', index, id: n.id }, pen, `${n.id} (${n.head}): diameter ${fmt(n.diameter!)} in at ${n.clock ?? '?'} o'clock`)
       })
     }
