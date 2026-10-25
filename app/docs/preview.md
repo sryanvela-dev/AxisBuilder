@@ -108,8 +108,13 @@ keys); the width is remembered in the browser.
 "Move labels" above the preview turns on drawing mode (a blue frame and a status line say so). Pan and zoom still work:
 the wheel zooms; a drag on empty space, a middle-button drag or Space+drag moves the view.
 
-- Hover outlines a nozzle label that can be moved (shell and head nozzles, including one across the seam). Click selects
-  it and its table row (`selectionContext`); Esc clears the selection (before Esc closes full size).
+- Hover outlines a label that can be moved: shell and head nozzle labels (including one across the seam), circ weld and
+  long seam labels, object IDs and shell MUT labels (2026-10-25). Click selects it and its table row
+  (`selectionContext`); Esc clears the selection (before Esc closes full size).
+- Weld, seam, object and MUT labels move as text. A moved MUT label gets a leader to its point (the label is the only mark
+  of the point); a moved object ID outside its rectangle gets a leader to the nearest edge (inside, none); weld and seam
+  labels never get one. Their leaders use the leader shape and leader arrowhead. Dropped off the shell, the label goes
+  back to its automatic spot and the status line and Review say so.
 - Drag the label anywhere: while you drag, a dashed ghost shows the label and its leader redrawn from the nozzle in the
   current shape and arrowhead. Dropped inside the circle, it becomes an inside label (no leader) only when it fits there
   (the same inside rule as automatic placement); otherwise it stays where it was dropped, with a leader.
@@ -125,24 +130,32 @@ the wheel zooms; a drag on empty space, a middle-button drag or Space+drag moves
 
 How it is built:
 
-- Project file format 5: `labelOverrides` (`data/schema.ts`), each `{ list, id, label, tip }`, keyed by the item's list
-  and ID (not its row). `label` = the label center as an offset from the nozzle center (`{ dx, dy }`, inches as the drawing
-  reads, so a corrected nozzle X/Y moves the label with it), `'inside'`, or null (automatic). `tip` = the leader end as an
-  angle on the circle (degrees as the drawing reads, 0 = right, counter-clockwise) or null. `data/overrides.ts` sets and
-  resets them; `syncLabelOverrides` (run after every edit in `state/session.ts`) follows renames (a row whose old ID is
-  gone and whose new ID is new) and drops deleted items; sorting is never taken for a rename.
+- Project file format 5: `labelOverrides` (`data/schema.ts`), each `{ list, id, occurrence, label, tip }`, keyed by the
+  item's list, ID and occurrence (which of the rows with that ID: nozzle names may repeat), not its row number. `label` =
+  the label center as an offset from where it is drawn automatically (`{ dx, dy }`, inches as the drawing reads; for a
+  nozzle from its center, so a corrected nozzle X/Y moves the label with it), `'inside'` (nozzles), or null (automatic).
+  `tip` = a nozzle leader end as an angle on the circle (degrees as the drawing reads, 0 = right, counter-clockwise) or
+  null. `data/overrides.ts` sets and resets them by row (`setOverride(p, list, index, change)`); `syncLabelOverrides` (run
+  after every edit in `state/session.ts`) follows the row itself (an edit replaces only the rows it changes): sorted or
+  inserted rows, a rename, a delete.
+- `engine/textLabels.ts`: the weld, seam, object and MUT labels (`textLabelSpecs`: automatic spot, height, rotation,
+  leader target; `placeTextLabel`: the move, its leader, the off-shell fallback). `buildDrawing` draws them where placed;
+  the .lsp (app only, only for moved ones) writes the weld / seam / object without its label and an `SL_Text` plus
+  `SL_LeaderPart`s where it was put.
 - `engine/labels.ts`: labels moved by hand are placed first; automatic labels then keep clear of them and their
   leaders. Each `NozzleLabel` says `moved`; a move that no longer makes sense falls back to automatic with `fallback` (off
   the shell; in the shell or more than a head diameter from its head; no longer fits inside). A moved label is checked
-  against everything as finally placed (`crowded`). `nozzleLabelNotes` feeds the Review warnings ("Label N2 (moved by
+  against everything as finally placed (`crowded`), and so is every automatic outside label (its label box: a later
+  nozzle or label may land on it). `nozzleLabelNotes` feeds the Review warnings ("Label N2 (moved by
   hand) overlaps scan 3", "Label N2 was moved by hand, but it was off the shell, so it is placed automatically"), both
   with a one-click Reset position; neither blocks export or saving.
 - `engine/leaders.ts` `leaderToLabel`: the leader to a label at a given spot (Straight; Elbow with its horizontal landing
   into the near side of the label; Curved), the tip at the given angle or facing the label, held to the drawn arc.
-- `engine/labelDrag.ts`: what a drop or a nudge stores (`dropLabel`, `dropTip`, `nudgeLabel`, `NUDGE` / `NUDGE_BIG`).
-- `buildDrawing` returns `labels` (every nozzle label as placed, with its row) for the preview's tool and, later, the DXF.
-  The Sheets view, PDF, report images and the .lsp (`SL_NozzleAt`) already draw what the engine placed, so they all
-  follow the moves. With no moves the output is unchanged (fingerprints).
+- `engine/labelDrag.ts`: what a drop or a nudge stores (`dropLabel`, `dropPlaced`, `dropTip`, `nudgeLabel`, `NUDGE` /
+  `NUDGE_BIG`).
+- `buildDrawing` returns `labels` (`PlacedLabel`: every movable label as placed, its box as the drawing reads, its anchor,
+  `moved`, and `nozzle` or `text`) for the preview's tool and, later, the DXF. The Sheets view, PDF, report images and
+  the .lsp draw what the engine placed, so they all follow the moves. With no moves the output is unchanged (fingerprints).
 - `engine/snap.ts`: the shared snap engine (pure). `snapGeometry(drawing)` reads the real lines, rectangles, circles and
   arcs (hatch left out) as the drawing reads; `findSnap` picks endpoint > intersection > center > perpendicular (from where
   the move started) > align > on a line or circle, within a tolerance; Shift = free, Ctrl = ortho.
@@ -152,4 +165,5 @@ How it is built:
 
 ## Planned (not built yet)
 
-Moving other labels (scan, object, weld and seam IDs and others; to be decided), MUT areas (5c).
+MUT areas (5c). Not movable (on purpose): scan IDs (centred in their scan), reference labels and the title / legend panel
+(the section sheets lay them out).

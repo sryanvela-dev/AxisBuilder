@@ -140,7 +140,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   in `app/src/data/projectFile.ts`. Format 2 (Phase 3d) adds `jobId` (random, stable per job; format 1 files get
   one when opened). Format 3 (Phase 3f-1) only adds settings (text sizes and colors, line colors); older files open
   with their defaults. Format 4 (Phase 3f-2) adds `noWrap` (shell nozzles, objects, scans) and `acrossSeam` (scans),
-  both false by default. Format 5 (Phase 5b) adds `labelOverrides` (nozzle labels moved by hand); older files have none.
+  both false by default. Format 5 (Phase 5b) adds `labelOverrides` (labels moved by hand); older files have none.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -190,7 +190,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   folders now live in JobScreen (`foldersContext`), shared by the Images step and the preview.
 - Drawing step (Phase 3f-1, `DrawingStep` in `ui/projectSteps.tsx`): every drawing-look setting, in the groups Text
   sizes and colors, Rulers and labels, Nozzle labels, Legend and title block, Head views (links to Field data for heads
-  on/off and names), Show or hide, Line colors and transparency; wide preview beside it. Text sizes and colors: one row
+  on/off and names), Show or hide, Line colors and transparency; wide preview beside it. Default text sizes (user,
+  2026-10-25, app change 26): Fixed height for objects 3, shell nozzle labels 4, shell and head MUT 3, ruler numbers 3,
+  axis direction labels 4, head titles 4, head nozzle labels 4, legend 3, title block 3 in; the rest Automatic (rule tests
+  start from `test/automaticText.ts`). Text sizes and colors: one row
   per text layer (`TEXT_TYPES` in settings.ts = v5.0's 14 TEXTRESIZE layers plus X_AXIS_LABEL_TEXT, Y_AXIS_LABEL_TEXT,
   REFERENCE_TEXT, marked `appLayer`; settings `<key>Size` Automatic / Scale /
   Fixed height, `<key>Scale`, `<key>Height`, `<key>Color`), line colors `LINE_LAYERS` (`<key>Color`; NOZZLE_LEADERS and
@@ -252,14 +255,17 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   printed size, embedded once); browser photo reading `ui/sheetPhotos.ts`. PDF layers named like the preview toggles.
   `npm run pdf:report` prints the PDF size per golden job (`-- --out <folder>` writes them; never into the repo).
 - Drawing mode and snapping (Phase 5b, `app/docs/preview.md` "Drawing mode"): "Move labels" in the preview. Shell and
-  head nozzle labels and their leader ends are dragged, nudged (arrows 0.5 in, Shift 6 in) and reset (right-click, status
-  line, "Moved ↺" chip by the row number, "Reset all moved labels" under Leaders and arrows). Moves are
-  `project.labelOverrides`, keyed by list + ID (`data/overrides.ts`; `syncLabelOverrides` after every edit follows renames
-  and deletes). Each holds the label offset from the nozzle center as the drawing reads, `'inside'`, and/or the leader end
-  angle. The engine applies them (`engine/labels.ts`: moved labels first, automatic ones avoid them, `moved` / `fallback` /
-  `crowded`; `leaders.ts leaderToLabel`; `labelDrag.ts`), so the preview, Sheets, PDF, report images, .lsp and later the
-  DXF all follow (`buildDrawing().labels`). Review warns about a moved label that overlaps or could not be used (Reset
-  position action, never blocking). Shared tools for 5c: `engine/snap.ts` (pure: `snapGeometry`, `findSnap`; endpoint,
+  head nozzle labels and their leader ends, circ weld and long seam labels, object IDs and shell MUT labels are dragged,
+  nudged (arrows 0.5 in, Shift 6 in) and reset (right-click, status line, "Moved ↺" chip by the row number, "Reset all
+  moved labels" under Leaders and arrows). Moves are `project.labelOverrides`, keyed by list + ID + occurrence (nozzle
+  names may repeat; `data/overrides.ts`, by row index; `syncLabelOverrides` after every edit follows the row itself through
+  sorting, renames and deletes). Each holds the label offset from its automatic spot (a nozzle: its center) as the drawing
+  reads, `'inside'` (nozzles), and/or a nozzle leader end angle. The engine applies them (`engine/labels.ts`: moved nozzle
+  labels first, automatic ones avoid them, `moved` / `fallback` / `crowded`, every outside label re-checked at its final
+  position; `engine/textLabels.ts`: weld / seam / object / MUT labels, a leader to the MUT point or the object's nearest
+  edge; `leaders.ts leaderToLabel`; `labelDrag.ts`), so the preview, Sheets, PDF, report images, .lsp and later the DXF all
+  follow (`buildDrawing().labels`, `PlacedLabel`). Review warns about a label that overlaps or a move that could not be
+  used (Reset position action, never blocking). Shared tools for 5c: `engine/snap.ts` (pure: `snapGeometry`, `findSnap`; endpoint,
   intersection, center, perpendicular, align, on; Shift free, Ctrl ortho; visual frame), `ui/preview/drawingTool.ts` (tool
   interface that `DrawingView` routes the pointer to; pan stays: empty-space drag, middle drag, Space+drag),
   `SnapMarker.tsx`. One undo step per drop; a run of nudges on one label is one step.
@@ -282,7 +288,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   sections and the whole file match in `compat: 'v5.0'` mode; the default app output adds the user-approved changes in
   `APP_CHANGES`). Fixed library generated from the VBA; all 7 golden jobs match (CW, CCW, Vertical,
   AutoCAD); quirks, decisions and what is not yet proven (shell MUT, some "off" switches) are in `app/docs/phase2-notes.md`. Export refuses while missing values or repeated
-  names exist; the importer renames repeated names ("N1" -> "N1 (2)") and lists each rename in its report.
+  names exist; the importer renames repeated names ("N1" -> "N1 (2)") and lists each rename in its report. Nozzle names
+  are the exception (user, 2026-10-25, `REPEATS_ALLOWED` in schema.ts): they may repeat, the importer keeps them, Review
+  warns, export goes on.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -679,3 +687,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   can't be used (fall back to automatic). New shared snap engine `engine/snap.ts` and tool interface
   `ui/preview/drawingTool.ts`. No overrides in the golden jobs: fingerprints and compat v5.0 unchanged. Not yet
   click-tested by the user. No VBA or workbook changes.
+- 2026-10-25 – Phase 5b follow-up (feature/drawing-mode, user: leader movement works). (1) Default text heights, app change
+  26: Fixed height for objects 3, shell nozzle labels 4, shell / head MUT 3, X / Y ruler numbers 3, X / Y axis labels 4, head
+  titles 4, head nozzle labels 4, legend 3, title block 3 in (scan, weld, seam, reference and 12 o'clock text stay
+  Automatic); every app fingerprint refreshed; REF1's N1 label now overlaps scan 3 (Review warning). (2) Repeated nozzle
+  names allowed: Review warning instead of an export error, the importer keeps them (`REPEATS_ALLOWED`). (3) Moves keyed by
+  ID + occurrence and followed by row (format 5 not yet released, so no new version). (4) Circ weld, long seam, object and
+  shell MUT labels movable (app change 27, `engine/textLabels.ts`; MUT and object get a leader; the .lsp writes moved ones
+  as SL_Text). (5) Review re-checks every automatic outside nozzle label at its final position (REF1: N13 overlaps N15).
+  compat v5.0 unchanged. No VBA or workbook changes.
