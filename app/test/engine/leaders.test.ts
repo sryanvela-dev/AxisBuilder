@@ -304,11 +304,11 @@ describe('direction arrow length', () => {
 })
 
 describe('the app .lsp functions DraftSight must know', () => {
-  it('the leader and arrow code uses no mapcar, lambda or distance (DraftSight stopped with "No function" on them)', () => {
+  it('the leader and arrow code uses no mapcar, lambda, distance or expt (DraftSight refused them or a zero base)', () => {
     const app = exportLsp(job(), OPTIONS)
     const mine = app.slice(app.indexOf('(defun SL_PolyMake'), app.indexOf('(defun SL_LeaderLayer'))
     expect(mine.length).toBeGreaterThan(500)
-    for (const word of ['mapcar', 'lambda', 'distance']) expect(mine).not.toContain(word)
+    for (const word of ['mapcar', 'lambda', 'distance', 'expt']) expect(mine).not.toContain(word)
   })
 })
 

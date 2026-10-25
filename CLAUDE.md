@@ -635,3 +635,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Follow-up (feature/leaders-arrows, user): DraftSight drew the arrowheads hollow (the guard's line fallback) and the
   Command Window scrolls the reason away, so the first refusal now shows a message box with CAD's error text (`SL_FallbackNote`,
   once per load). Fingerprints refreshed. Waiting for that text to make the solid fill work in DraftSight.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): DraftSight's message box said "Invalid parameter" for the arrowhead on the Y ruler (it drew
+  hollow). The nozzle leaders' solid heads drew, the straight horizontal arrow did not; the only difference is `expt` of a
+  zero difference in `SL_ArrowSolid` (a horizontal or vertical head), so the width is now `sqrt(dx*dx + dy*dy)`. Fingerprints
+  refreshed; test bans `expt`. Please re-test: the direction arrows should now be solid.
