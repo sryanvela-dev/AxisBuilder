@@ -164,7 +164,7 @@ function LspPanel({ disabled }: { disabled: boolean }) {
     } catch {
       // No folder yet.
     }
-    const check = checkTargetFolder(names, marker, p.jobId, plan)
+    const check = checkTargetFolder(names, marker, p.jobId, plan, jobTitle(job))
     if (check.kind === 'otherJob') return `${root.name}\\${folder} holds the processed images of "${check.marker.jobName || 'another job'}". Nothing was changed.`
     const existing = new Map<string, ExistingImage>()
     if (dir) {

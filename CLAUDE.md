@@ -612,3 +612,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Fixed with a length in inches. Preview, Sheets view, PDF and report images use `directionArrowLength` (`engine/leaders.ts`);
   .lsp (app only): `SL_X_ARROW_LEN` / `SL_Y_ARROW_LEN` and `SL_DirectionArrowLength`, patched into the nine ruler functions
   (app change 25, library lines only, so every app fingerprint refreshed; drawings unchanged at Automatic). compat v5.0 unchanged.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): "Make CAD drawing" stopped with "REF1\Processed_Images holds the processed images of
+  <this job's own name>" when the folder's marker had another job ID but the same job name (the Excel file imported again gives
+  a new ID). `checkTargetFolder` now takes the job name: the same name = the same job's folder (the replace question still asks
+  about images already there); a different name still stops. Test added.

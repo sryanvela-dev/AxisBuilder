@@ -136,6 +136,10 @@ describe('the target folder', () => {
   })
 
   it('this job: lists the images that would be replaced', () => {
+    // The same job name under another ID (the Excel file imported again) is the same job's folder.
+    const sameName = markerText({ jobId: 'older-import', jobName: 'Same name' }, 2)
+    expect(checkTargetFolder([MARKER_FILE, 'SCAN_1_FIT.png'], sameName, p.jobId, plan, 'same NAME')).toEqual({ kind: 'ok', existing: ['SCAN_1_FIT.png'], unmarked: false })
+    expect(checkTargetFolder([MARKER_FILE, 'SCAN_1_FIT.png'], sameName, p.jobId, plan, 'Other')).toMatchObject({ kind: 'otherJob' })
     expect(checkTargetFolder([MARKER_FILE, 'scan_1_fit.png', 'notes.txt'], mine, p.jobId, plan)).toEqual({ kind: 'ok', existing: ['SCAN_1_FIT.png'], unmarked: false })
   })
 

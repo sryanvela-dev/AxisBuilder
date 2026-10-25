@@ -53,7 +53,7 @@ export function ProcessPanel({ photos, jobFolder }: { photos: RememberedFolder; 
     } catch {
       // No such folder yet: it is made below.
     }
-    const check = checkTargetFolder(names, marker, p.jobId, plan)
+    const check = checkTargetFolder(names, marker, p.jobId, plan, jobTitle(job))
     if (check.kind === 'otherJob') {
       await say(
         'This folder belongs to another job',
