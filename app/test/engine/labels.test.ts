@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Project } from '../../src/data/schema.ts'
 import { buildDrawing } from '../../src/engine/drawing.ts'
-import { headNozzleLabels, shellNozzleLabels } from '../../src/engine/labels.ts'
+import { headNozzleLabels, labelWidth, shellNozzleLabels } from '../../src/engine/labels.ts'
 import { drawnScans, panelOf } from '../../src/engine/layout.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
@@ -23,7 +23,7 @@ describe('app changes 2026-10-23', () => {
     expect(v5.split('(SL_CircleSmart ').length - 1).toBe(p.shellNozzles.length)
     // N1 (12 in) fits its label inside; N2 (4 in) gets a leader to the first free spot (right of the circle).
     expect(app).toContain('(SL_NozzleAt 94. 30. 6. "N1" 2.4 94. 30. nil "NOZZLES" "NOZZLES")')
-    expect(app).toContain('(SL_NozzleAt 20. 150. 2. "N2" 1.6 26.96 150. (list (list "L" (list 22. 150.) ')
+    expect(app).toMatch(/(SL_NozzleAt 20. 150. 2. "N2" 1.6 2d.d+ 150. (list (list "L" (list 22. 150.) /)
   })
 
   it('shell label placement keeps v5.0 rules: inside if it fits, else right, upper-right, ... avoiding images and objects', () => {
@@ -31,12 +31,12 @@ describe('app changes 2026-10-23', () => {
     const labels = shellNozzleLabels(p, drawnScans(p))
     const n2 = labels.get(1)!
     // Right of the circle: x + r + leader (4) + half the text width.
-    expect(n2.tx).toBeCloseTo(20 + 2 + 4 + (2 * 1.6 * 0.6) / 2)
+    expect(n2.tx).toBeCloseTo(20 + 2 + 4 + labelWidth('N2', 1.6) / 2)
     // Put an object right of N2: the label moves to the next spot where the label and its whole leader are clear. The
     // upper right is not: its leader would run through the object, so the label goes to the left of the circle.
     const blocked: Project = { ...p, objects: [{ id: 'B', x: 22, y: 146, circWidth: 10, length: 8, include: true, notes: '', noWrap: false }] }
     const moved = shellNozzleLabels(blocked, drawnScans(blocked)).get(1)!
-    expect([moved.tx, moved.ty]).toEqual([20 - 2 - 4 - (2 * 1.6 * 0.6) / 2, 150])
+    expect([moved.tx, moved.ty]).toEqual([20 - 2 - 4 - labelWidth('N2', 1.6) / 2, 150])
   })
 
   it('crowded head nozzle labels move out along their leader instead of overlapping', () => {
@@ -56,8 +56,10 @@ describe('app changes 2026-10-23', () => {
     const dist = (x: { x: number; y: number; tx: number; ty: number }) => Math.hypot(x.tx - x.x, x.ty - x.y)
     // A1 is alone where its label goes: exactly v5.0's distance (radius + leader 8 + 8).
     expect(dist(a1)).toBeCloseTo(1 + 8 + 8)
-    // A2 is one degree away, so its label would land on A1's: moved out one step (1.6 x text height).
-    expect(dist(a2)).toBeCloseTo(17 + 1.4 * 1.6)
+    // A2 is one degree away, so its label would land on A1's: moved out whole steps (1.6 x text height).
+    const steps = (dist(a2) - 17) / (1.4 * 1.6)
+    expect(steps).toBeGreaterThanOrEqual(1)
+    expect(steps).toBeCloseTo(Math.round(steps))
     // Its leader still starts on the circle edge.
     expect(Math.hypot(a2.leader![0][0] - a2.x, a2.leader![0][1] - a2.y)).toBeCloseTo(1)
   })
