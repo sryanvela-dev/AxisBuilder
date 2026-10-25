@@ -20,6 +20,7 @@ import { addPoint, drawSnap, parseTypedPoint, removeLast, typedFrame } from './a
 import { svgToVisual, visualToSvg, type DrawingTool, type ToolPointer } from './drawingTool.ts'
 import { previewPrefs, setPreviewPrefs } from './previewPrefs.ts'
 import { SnapMarker } from './SnapMarker.tsx'
+import { CornerBox } from './CornerBox.tsx'
 
 type Pt = [number, number]
 type Row = AreaRow
@@ -88,6 +89,8 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
   const selItem = selRow ? rowOf(project, selRow) : undefined
   const selTarget = selRow && selItem ? targetOf(selRow.list, selItem) : null
   const selFrame = selTarget ? areaFrame(project, selTarget) : null
+  /** What typed corner values mean for the selected area (X / Y on the shell; right / up from a head's center). */
+  const selTf = selTarget ? typedFrame(project, selTarget) : null
   /** The selected row's area as stored, as the drawing reads (corners past the seam stay where they were drawn). */
   const selPts: Pt[] | null = selFrame && selItem?.area ? selItem.area.map((q) => selFrame.toVisual(q)) : null
   /** The selected corner, only while its row is the selected one. */
@@ -499,6 +502,36 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
         <button type="button" className="btn btn-small" onClick={() => start('pick', selRow)}>Pick inside</button>
         {selItem.area && <button type="button" className="btn btn-small" onClick={() => removeArea(selRow)}>Delete area</button>}
         {drawableArea(selItem) && <span className="muted">Drag a corner to move it (on {where}); drag or click a + to add one; click a corner and press Delete to remove it.</span>}
+        {selItem.area && selFrame && selTf && (
+          <details className="area-corners">
+            <summary>Corners ({selItem.area.length}): type exact values</summary>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{selRow.list === 'shellMut' ? 'X (in)' : 'Right (in)'}</th>
+                  <th>{selRow.list === 'shellMut' ? 'Y (in)' : 'Up (in)'}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selItem.area.map((q, i) => {
+                  const t = selTf.fromVisual(selFrame.toVisual(q))
+                  const store = (k: 0 | 1, value: number) => {
+                    const next: Pt = k === 0 ? [value, t[1]] : [t[0], value]
+                    app.edit(`Move a corner of the MUT area of ${selItem.id}`, (p) => moveCorner(p, selRow.list, selRow.index, i, selFrame.toStored(selTf.toVisual(next))))
+                  }
+                  return (
+                    <tr key={i} className={corner === i ? 'area-corner-selected' : undefined} onFocus={() => setCorner(i)}>
+                      <td>{i + 1}</td>
+                      <td><CornerBox value={t[0]} label={`Corner ${i + 1}, ${selRow.list === 'shellMut' ? 'X' : 'right'}`} store={(v) => store(0, v)} /></td>
+                      <td><CornerBox value={t[1]} label={`Corner ${i + 1}, ${selRow.list === 'shellMut' ? 'Y' : 'up'}`} store={(v) => store(1, v)} /></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </details>
+        )}
       </span>
     )
   } else {
@@ -552,3 +585,4 @@ export function useMutAreas(on: boolean, project: Project): { tool: DrawingTool 
   )
   return { tool, status, menu }
 }
+

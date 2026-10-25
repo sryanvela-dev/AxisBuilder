@@ -100,12 +100,14 @@ describe('polygon geometry', () => {
 })
 
 describe('MUT areas on the shell', () => {
-  it('a shell area replaces the point marker: outline and hatch on MANUAL_UT_HATCH, the ID in the middle', () => {
+  it('a shell area replaces the point marker: solid outline on MANUAL_UT, hatch on MANUAL_UT_HATCH, the ID in the middle', () => {
     const p = shell('Vertical', { shellMut: [mut('MUT3', square(50, 40, 20))] })
     const item = buildDrawing(p).items.find((i) => i.key === 'shellMut:0')!
+    expect(item.shapes.filter((s) => s.layer === 'MANUAL_UT').map((s) => s.t)).toEqual(['poly'])
     const lines = item.shapes.filter((s) => s.layer === 'MANUAL_UT_HATCH')
-    expect(lines.some((s) => s.t === 'poly')).toBe(true)
-    expect(lines.filter((s) => s.t === 'line').length).toBeGreaterThan(5)
+    expect(lines.every((s) => s.t === 'line')).toBe(true)
+    expect(lines.length).toBeGreaterThan(5)
+    expect(buildDrawing(p).layerColors.MANUAL_UT).toBe(3)
     const text = item.shapes.find((s) => s.t === 'text')!
     expect(text).toMatchObject({ text: 'MUT3', x: 60, y: 50 })
     expect(item.info).toContain('400 sq in')
@@ -305,6 +307,9 @@ describe('the .lsp backup', () => {
     expect(app).toContain(';; MUT area M1 (drawn in AxisBuilder)')
     expect(app).toContain(';; MUT area H1 (drawn in AxisBuilder)')
     expect(app).toMatch(/\(foreach s '\(\(.*\)\) \(SL_Line \(car s\) \(cadr s\) \(caddr s\) \(cadddr s\) "MANUAL_UT_HATCH"\)\)/)
+    expect(app).toContain('(cadddr s) "MANUAL_UT"))')
+    expect(app).toContain('(SL_Layer "MANUAL_UT" 3)')
+    expect(lsp(shell())).not.toContain('MANUAL_UT"')
     expect(app).toContain('"M1" "SHELL_MUT_TEXT")')
     expect(app).not.toMatch(/SL_MUTPoint [0-9.]+ [0-9.]+ "M1"/)
     expect(app).not.toMatch(/SL_HeadMUT .* "H1" "MUT_TEXT"/)
@@ -313,5 +318,31 @@ describe('the .lsp backup', () => {
     const v5 = lsp(p, true)
     expect(v5).not.toContain('MUT area')
     expect(v5).toMatch(/SL_MUTPoint [0-9.]+ [0-9.]+ "M1"/)
+  })
+})
+
+describe('automatic nozzle labels keep clear of MUT areas', () => {
+  const box = (l: { tx: number; ty: number; tw: number; sh: number }) => [l.tx - l.tw / 2, l.ty - l.sh / 2, l.tx + l.tw / 2, l.ty + l.sh / 2]
+  const overlaps = (b: number[], x0: number, y0: number, x1: number, y1: number) => b[0] < x1 && b[2] > x0 && b[1] < y1 && b[3] > y0
+  const nozzle = (id: string, x: number, y: number) => ({ id, diameter: 2, x, y, minT: null, notes: '', include: true, labelMode: 'OUTSIDE' as const, noWrap: false })
+
+  it('a label outside its area stays off it; a nozzle inside an area may keep its label there; golden-style jobs without areas are unchanged', () => {
+    for (const o of ORIENTATIONS) {
+      // A big area all round the nozzle's right, above and below: the label must find the free side.
+      const base = shell(o, { shellNozzles: [nozzle('N1', 100, 60)] })
+      const without = buildDrawing(base).labels.find((l) => l.key === 'shellNozzles:0')!.nozzle!
+      const area: [number, number][] = [[103, 20], [160, 20], [160, 100], [103, 100]]
+      const blockAt = (x0: number, y0: number, x1: number, y1: number): Project => ({ ...base, shellMut: [mut('MB', [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], (x0 + x1) / 2, (y0 + y1) / 2)] })
+      // Put the area where the label went without it.
+      const b = box(without)
+      const p = blockAt(b[0] - 1, b[1] - 1, b[2] + 1, b[3] + 1)
+      const l = buildDrawing(p).labels.find((x) => x.key === 'shellNozzles:0')!.nozzle!
+      expect(overlaps(box(l), b[0] - 1, b[1] - 1, b[2] + 1, b[3] + 1)).toBe(false)
+      expect(l.crowded).toBeUndefined()
+      // Inside an area: no crowding warning about that area.
+      const inside = { ...base, shellMut: [mut('MI', area, 120, 60)], shellNozzles: [nozzle('N1', 130, 60)] }
+      const li = buildDrawing(inside).labels.find((x) => x.key === 'shellNozzles:0')!.nozzle!
+      expect(li.crowded ?? '').not.toContain('MUT area MI')
+    }
   })
 })

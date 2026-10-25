@@ -68,7 +68,7 @@ export const LAYER_GROUPS: { id: Exclude<LayerGroup, 'always'>; name: string; la
   { id: 'nozzles', name: 'Nozzles', layers: ['NOZZLES', 'NOZZLE_LEADERS', 'SHELL_NOZZLE_TEXT'] },
   { id: 'objects', name: 'Objects', layers: ['SUPPORTS', 'SUPPORT_TEXT'] },
   // MUT areas drawn in the preview (Phase 5c): outline and hatch; the IDs stay with the MUT text.
-  { id: 'mut', name: 'MUT areas', layers: ['MANUAL_UT_HATCH'] },
+  { id: 'mut', name: 'MUT areas', layers: ['MANUAL_UT', 'MANUAL_UT_HATCH'] },
   { id: 'rulers', name: 'Rulers', layers: ['X_AXIS', 'Y_AXIS', 'X_RULER_TEXT', 'Y_RULER_TEXT', 'X_AXIS_LABEL_TEXT', 'Y_AXIS_LABEL_TEXT', 'REFERENCE_TEXT'] },
   { id: 'heads', name: 'Heads', layers: ['HEADS', 'HEAD_NOZZLE_LEADERS', 'HEAD_NOZZLE_TEXT', 'HEAD_MUT_TEXT', 'HEAD_TITLE_TEXT', 'HEAD_CLOCK_TEXT'] },
   {
@@ -87,7 +87,7 @@ export function groupOfLayer(layer: string): LayerGroup {
 
 /** CAD layer colors (SL_SetupLayers): 7 = drawing color, 1 red, 3 green, 5 blue, 6 magenta. */
 export const LAYER_COLOR: Record<string, number> = {
-  AUT_HATCH: 5, SUPPORTS: 6, X_AXIS: 1, Y_AXIS: 5, LEGEND_AUT_HATCH: 5, LEGEND_MUT_HATCH: 3, MANUAL_UT_HATCH: 3,
+  AUT_HATCH: 5, SUPPORTS: 6, X_AXIS: 1, Y_AXIS: 5, LEGEND_AUT_HATCH: 5, LEGEND_MUT_HATCH: 3, MANUAL_UT_HATCH: 3, MANUAL_UT: 3,
   X_RULER_TEXT: 1, Y_RULER_TEXT: 5,
   // Layers the app adds (same colors as the layer they came from).
   X_AXIS_LABEL_TEXT: 1, Y_AXIS_LABEL_TEXT: 5, REFERENCE_TEXT: 1,
@@ -474,7 +474,7 @@ export function buildDrawing(p: Project): Drawing {
   // MUT areas (Phase 5c, engine/mutAreas.ts): the outline in its pieces, the hatch with islands left empty, the ID.
   const areas = new Map(mutAreaLayouts(p).map((a) => [`${a.list}:${a.index}`, a]))
   const mutArea = (pen: Pen, a: MutAreaLayout, textLayerName: string) => {
-    for (const pc of a.pieces) pen.poly([...pc, pc[0]], false, 'MANUAL_UT_HATCH')
+    for (const pc of a.pieces) pen.poly([...pc, pc[0]], false, 'MANUAL_UT')
     for (const [q0, q1] of a.hatch) pen.line(q0[0], q0[1], q1[0], q1[1], 'MANUAL_UT_HATCH')
     const t = placeText(`${a.list}:${a.index}`)
     if (!t) return

@@ -34,7 +34,7 @@ import {
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
 import { placeTextLabel, textLabelSpecs, type TextLabelSpec, type TextPlacement } from '../../engine/textLabels.ts'
 import { leaderParts, leaderStyle, type LeaderStyle, type Pt } from '../../engine/leaders.ts'
-import { areaTextLines, mutAreaLayouts, mutCoverageArea, type MutAreaLayout } from '../../engine/mutAreas.ts'
+import { areaTextLines, hasMutAreas, mutAreaLayouts, mutCoverageArea, type MutAreaLayout } from '../../engine/mutAreas.ts'
 import type { Orientation } from '../../engine/transform.ts'
 import { writeSectionSheets } from './sectionSheets.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
@@ -136,18 +136,19 @@ function leaderPartsLisp(path: Pt[] | null, ls: LeaderStyle): string {
 }
 
 /**
- * A MUT area (app output, Phase 5c): its outline and hatch as plain lines on MANUAL_UT_HATCH (no CAD HATCH entity, so
- * DraftSight and AutoCAD draw it alike), the ID (and Min. T) with SL_Text, and a leader when the ID sits outside. The
+ * A MUT area (app output, Phase 5c): its outline as plain lines on MANUAL_UT (solid) and its hatch on MANUAL_UT_HATCH
+ * (see-through; no CAD HATCH entity, so DraftSight and AutoCAD draw it alike), the ID (and Min. T) with SL_Text, and a leader when the ID sits outside. The
  * lines are exactly the app's (engine/mutAreas.ts), written in groups so no line of the file gets long.
  */
 function writeMutArea(w: (line: string) => void, a: MutAreaLayout, label: { sp: TextLabelSpec; tp: TextPlacement } | undefined, ls: LeaderStyle, o: Orientation) {
   w(`  ;; MUT area ${a.id.replace(/[\r\n]/g, ' ')} (drawn in AxisBuilder)`)
-  const segs: [Pt, Pt][] = []
-  for (const pc of a.pieces) pc.forEach((q, i) => segs.push([q, pc[(i + 1) % pc.length]]))
-  segs.push(...a.hatch)
-  for (let i = 0; i < segs.length; i += 12) {
-    const group = segs.slice(i, i + 12).map(([q0, q1]) => `(${LispNum(q0[0])} ${LispNum(q0[1])} ${LispNum(q1[0])} ${LispNum(q1[1])})`).join(' ')
-    w(`  (foreach s '(${group}) (SL_Line (car s) (cadr s) (caddr s) (cadddr s) "MANUAL_UT_HATCH"))`)
+  const outline: [Pt, Pt][] = []
+  for (const pc of a.pieces) pc.forEach((q, i) => outline.push([q, pc[(i + 1) % pc.length]]))
+  for (const [segs, layer] of [[outline, 'MANUAL_UT'], [a.hatch, 'MANUAL_UT_HATCH']] as const) {
+    for (let i = 0; i < segs.length; i += 12) {
+      const group = segs.slice(i, i + 12).map(([q0, q1]) => `(${LispNum(q0[0])} ${LispNum(q0[1])} ${LispNum(q1[0])} ${LispNum(q1[1])})`).join(' ')
+      w(`  (foreach s '(${group}) (SL_Line (car s) (cadr s) (caddr s) (cadddr s) ${LispStr(layer)}))`)
+    }
   }
   if (!label) return
   const lines = areaTextLines(o, a, [label.tp.x, label.tp.y])
@@ -372,7 +373,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w('  (setvar "OSMODE" 0)')
   w('  (SL_SetupLayers)')
   // Changes 16 and 17: layer colors chosen in the app (only those that differ) and the layers the app adds.
-  if (!v5) for (const [layer, color] of appLayerSetup(s)) w(`  (SL_Layer ${LispStr(layer)} ${CStr(color)})`)
+  if (!v5) for (const [layer, color] of appLayerSetup(s, hasMutAreas(p))) w(`  (SL_Layer ${LispStr(layer)} ${CStr(color)})`)
   if (!v5) w(`  (SL_SetLayerTransparencyTo "CENTERLINE" ${CStr(Math.round(Math.min(90, Math.max(0, s.centerlineTransparency))))})`) // change 11
   w('  (SL_SetupViewportLayers)')
   w('  (setvar "UCSICON" 0)')

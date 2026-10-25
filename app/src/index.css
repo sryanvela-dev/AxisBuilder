@@ -2058,3 +2058,34 @@ svg.drawing .area-plus {
   min-height: 5.2em;
   align-content: flex-start;
 }
+
+.area-status .area-corners table {
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.area-status .area-corners td,
+.area-status .area-corners th {
+  padding: 1px 4px;
+  font-weight: normal;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.area-status .area-corners input {
+  width: 6em;
+}
+
+.area-status .area-corner-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.area-status .move-selection {
+  flex-wrap: wrap;
+}
+
+.area-status .area-corners {
+  flex-basis: 100%;
+  max-height: 11em;
+  overflow: auto;
+}

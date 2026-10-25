@@ -194,7 +194,12 @@ under the layer chips says what to do at each step and keeps one height, so the 
   right-click > Remove corner) to remove it (an area keeps 3); Delete with no corner selected, the status line's "Delete
   area", right-click > Delete area or the ✕ in the Area column delete the area (the row stays, a MUT point again). "Draw
   again" replaces it. Every action is one undo step (Ctrl+Z / Ctrl+Y). The ID label moves with Move labels like the other
-  labels (a `shellMut` / `headMut` label override).
+  labels (a `shellMut` / `headMut` label override). "Corners (n): type exact values" in the status line opens a table of
+  the selected area's corners (shell: X and Y; head: inches right and up from the head's center); a value typed there is
+  stored on Enter or when you leave the box (one undo step; `ui/preview/CornerBox.tsx`).
+- **Nozzle labels keep clear of areas**: automatic shell and head nozzle labels (and their leaders) avoid each MUT area's
+  box, as they avoid scans and objects, except a nozzle's own label when the nozzle sits in the area (`engine/labels.ts`
+  `areasAround`). A label that can't be kept clear gets the usual Review warning ("Label N4 overlaps MUT area M5").
 
 How it is built:
 
@@ -210,8 +215,10 @@ How it is built:
   else the most open spot where it fits, else beside the area with a leader into it; a move by hand applies), the hatch
   lines (45 degrees, the scan hatch spacing, `polygon.ts hatchLines`) with islands left empty: scans, objects, nozzle
   circles, nozzle labels and the area's own label; and `coverageArea`. The drawing draws a shell MUT row with an area
-  instead of its point marker (head MUT likewise), on MANUAL_UT_HATCH (its color, transparency and line weight; outline
-  and hatch both, in the "MUT areas" layer group) with the ID on SHELL_MUT_TEXT / HEAD_MUT_TEXT at their size.
+  instead of its point marker (head MUT likewise): the outline solid on the app layer MANUAL_UT (color 3; its own color and
+  line weight on the Drawing step, "MUT area outlines"), the hatch see-through on MANUAL_UT_HATCH (its color, the hatch
+  transparency and weight), both in the "MUT areas" layer group, with the ID on SHELL_MUT_TEXT / HEAD_MUT_TEXT at their
+  size. The .lsp sets up MANUAL_UT only for a job with a MUT area (`appLayerSetup(s, hasMutAreas(p))`).
   Setting "Show Min T under the MUT ID" (Drawing step, Show or hide; off by default) adds a second line.
 - Coverage: `coveragePercent(p, counted, mutCoverageArea(p))`: the hatched part of each shell area (the area on the shell
   minus scans, objects and nozzles inside it; labels don't count against it) is added to the scanned area; scan-to-scan

@@ -32,10 +32,11 @@ export function sizedHeight(rules: ReadonlyMap<string, TextSizeRule>, layer: str
 
 /**
  * The layers the app's drawing sets up after SL_SetupLayers, in a fixed order: every layer the app adds
- * (with its color), then v5.0's layers whose color the settings change.
+ * (with its color), then v5.0's layers whose color the settings change. mutAreas: the job has a MUT area (the MUT
+ * outline layer is set up only then).
  */
-export function appLayerSetup(s: Settings): [string, number][] {
-  const all = [...LINE_LAYERS, ...TEXT_TYPES] as readonly { key: string; layer: string; appLayer?: boolean }[]
+export function appLayerSetup(s: Settings, mutAreas = true): [string, number][] {
+  const all = ([...LINE_LAYERS, ...TEXT_TYPES] as readonly { key: string; layer: string; appLayer?: boolean; onlyWithMutAreas?: boolean }[]).filter((l) => mutAreas || !l.onlyWithMutAreas)
   const color = (key: string) => setting(s, `${key}Color`) as number
   return [
     ...all.filter((l) => l.appLayer).map((l): [string, number] => [l.layer, color(l.key)]),

@@ -282,7 +282,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `mutAreaLayouts` (cached per project) gives the pieces, the ID's spot (centroid if it fits, else the most open spot, else
   outside with a leader; movable as a `shellMut` / `headMut` label override, `headMut` joined `MOVABLE_LABEL_LISTS`), the
   hatch lines with islands (scans, objects, nozzles, nozzle labels, its own label) and `coverageArea`; drawn instead of the
-  MUT point on MANUAL_UT_HATCH (layer group 'mut', "MUT areas"). Coverage adds the shell areas' hatched part
+  MUT point: the outline solid on the app layer MANUAL_UT ("MUT area outlines" color / weight; set up in the .lsp only
+  when the job has an area), the hatch on MANUAL_UT_HATCH (layer group 'mut', "MUT areas"). Automatic nozzle labels keep
+  clear of areas (`areasAround` in labels.ts; not a nozzle's own area). A corner table in the status line takes exact
+  values (`ui/preview/CornerBox.tsx`). Coverage adds the shell areas' hatched part
   (`coveragePercent(p, counted, mutCoverageArea(p))`; head areas never; compat v5.0 unchanged). .lsp (app change 28): plain
   `SL_Line`s and `SL_Text`. Review warns about bad areas (`mutAreaProblems`), never blocking. Setting "Show Min T under the
   MUT ID" (off). The geometry is the app's own (`engine/polygon.ts`), no clipping library.
@@ -725,3 +728,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   setting "Show Min T under the MUT ID" (off). The sample job gets MUT areas (M4-M6 on the shell, one across the seam, M7
   on the west head), so its fingerprint was refreshed; the golden jobs' are unchanged; compat v5.0 unchanged. Not yet
   checked in DraftSight/AutoCAD. No VBA or workbook changes.
+- 2026-10-25 – Phase 5c follow-up (feature/mut-areas, user approved the decisions and the three suggestions): MUT area outlines
+  on a new solid app layer MANUAL_UT (settings "MUT area outlines" color 3 / weight 0.25; written to the .lsp only when a
+  job has an area), the hatch stays on MANUAL_UT_HATCH; automatic shell and head nozzle labels keep clear of MUT areas
+  (except a nozzle inside the area); a corner table (X / Y, or right / up on a head) in the MUT areas status line. Golden
+  fingerprints unchanged; the sample's refreshed. No VBA or workbook changes.

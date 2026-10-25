@@ -237,6 +237,9 @@ export const LINE_LAYERS = [
   { key: 'headNozzleLeader', layer: 'HEAD_NOZZLE_LEADERS', appLayer: true },
   { key: 'xRuler', layer: 'X_AXIS' },
   { key: 'yRuler', layer: 'Y_AXIS' },
+  // MUT area outlines (Phase 5c): solid, while the hatch on MANUAL_UT_HATCH stays see-through. Set up in the .lsp only
+  // when the job has a MUT area (onlyWithMutAreas), so other jobs' drawings don't change.
+  { key: 'mutOutline', layer: 'MANUAL_UT', appLayer: true, onlyWithMutAreas: true },
 ] as const
 
 /**
@@ -918,6 +921,7 @@ export const SETTINGS = {
   ...layerColor('headNozzleLeader', 'Head nozzle leaders', 7, '0.13'),
   ...layerColor('xRuler', 'X ruler', 1, '0.25'),
   ...layerColor('yRuler', 'Y ruler', 5, '0.25'),
+  ...layerColor('mutOutline', 'MUT area outlines', 3, '0.25'),
 
   // PDF AND REPORT IMAGES (app only, Phase 4b, Export step).
   exportSet: choice(EXPORT_SETS, {

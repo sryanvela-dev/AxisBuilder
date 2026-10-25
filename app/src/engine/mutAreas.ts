@@ -14,13 +14,13 @@ import type { HeadMut, MutArea, Project, ShellMut } from '../data/schema.ts'
 import { drawnScans, panelOf, shouldShowHead } from './layout.ts'
 import { headNozzleLabels, offsetPoint, shellNozzleLabels, type NozzleLabel } from './labels.ts'
 import {
-  boxOf, boxTouchesPolygon, circlePolygon, clipToBox, enclosingBoundary, hatchLines, hatchedArea, labelSpot,
+  boxOf, boxTouchesPolygon, circlePolygon, enclosingBoundary, hatchLines, hatchedArea, labelSpot,
   pointInPolygon, polygonArea, rectPolygon, selfIntersects, type Box, type Poly, type Pt,
 } from './polygon.ts'
 import type { SnapCircle, SnapGeom } from './snap.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
 import { headVector, toLogical, toVisual, type Orientation } from './transform.ts'
-import { circumference, nozzlePieces, objectPieces, scanPieces } from './wrap.ts'
+import { circumference, nozzlePieces, objectPieces, scanPieces, shellAreaPieces } from './wrap.ts'
 
 export type MutList = 'shellMut' | 'headMut'
 export type HeadName = 'HEAD 1' | 'HEAD 2'
@@ -115,22 +115,7 @@ export function targetAt(p: Project, v: Pt): AreaTarget {
 
 // --- Pieces across the seam ----------------------------------------------------------------------------
 
-/**
- * A shell area's outline as drawn: clipped to the shell, in pieces across the circumference seam (a corner past
- * X = 0 or the circumference wraps round to the other edge, as scans do). Logical. An area that can't be placed
- * (vessel size not known) is drawn as it is.
- */
-export function shellAreaPieces(p: Project, pts: readonly Pt[]): Poly[] {
-  const C = circumference(p)
-  const L = p.vessel.length
-  if (C === null || L === null || !(L > 0)) return [pts.map((q) => [q[0], q[1]] as Pt)]
-  const out: Poly[] = []
-  for (const k of [0, -C, C]) {
-    const piece = clipToBox(pts.map((q): Pt => [q[0] + k, q[1]]), [0, 0, C, L])
-    if (piece.length >= 3 && polygonArea(piece) > 1e-6) out.push(piece)
-  }
-  return out
-}
+export { shellAreaPieces }
 
 // --- Labels --------------------------------------------------------------------------------------------
 
