@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { applyCheckAction, checksAt, type Check, type CheckAction } from '../data/checks.ts'
+import { isMovableList, resetOverride, rowOverride } from '../data/overrides.ts'
 import { wrapNote } from '../engine/wrapNotes.ts'
 import {
   TABLE_COLUMNS,
@@ -231,7 +232,20 @@ function Row(props: {
         className={[hasMessages ? 'has-messages' : '', isSelected ? 'row-selected' : ''].filter(Boolean).join(' ') || undefined}
         onFocus={() => !isSelected && select({ list, index })}
       >
-        <td className="num row-no">{index + 1}</td>
+        <td className="num row-no">
+          {index + 1}
+          {isMovableList(list) && rowOverride(project, list, index) && (
+            <button
+              type="button"
+              className="moved-chip moved-reset"
+              title="Its label was moved by hand in the drawing preview. Click to place it automatically again."
+              aria-label={`Reset position of the ${id} label (moved by hand)`}
+              onClick={() => app.edit(`Reset position of ${id}`, (p) => (isMovableList(list) ? resetOverride(p, list, id) : p))}
+            >
+              Moved ↺
+            </button>
+          )}
+        </td>
         {cols.map((col) => (
           <td key={col.key} className={`col-${col.kind}`} data-field={col.key}>
             <Cell list={list} index={index} item={item} col={col} step={step} afterEdit={props.afterEdit} checks={rowChecks.filter((c) => c.place.kind === 'row' && c.place.field === col.key)} />
