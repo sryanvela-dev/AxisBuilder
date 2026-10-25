@@ -643,3 +643,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   heads. A refused closed head is now retried as a plain SOLID entity (`SL_ArrowHeadSolidEnt`) before the line outline, and the
   once-per-load message box also lists the polyline entity the file tried to make (`SL_LAST`, `SL_Describe`) and whether the
   SOLID worked, so the data DraftSight objects to is visible. Fingerprints refreshed.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): confirmed in DraftSight: the SOLID entity draws the closed direction arrowheads solid (the
+  tapered-polyline version failed with "Invalid parameter" before the entity was made; cause not found). `SL_ArrowHead` now makes
+  Closed filled heads as a SOLID entity first (outline lines remain the fallback, with the one-time message box), so no
+  message appears. Leader heads on nozzles still use the tapered polyline, which DraftSight accepted. Fingerprints refreshed.
