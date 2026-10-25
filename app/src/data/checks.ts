@@ -7,7 +7,7 @@
 // refusal), so the step bar and the export never disagree; a test keeps the two in step.
 
 import { formatNumber } from './parse.ts'
-import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, type ListKey, type Project } from './schema.ts'
+import { LIST_META, ID_GROUPS, REQUIRED_FOR_EXPORT, idKey, repeatsAllowed, type ListKey, type Project } from './schema.ts'
 import { SETTINGS, VESSEL_FIELDS, fieldDef } from './settings.ts'
 import { drawnScans } from '../engine/layout.ts'
 import { circumference, scanPieces, scanXRange } from '../engine/wrap.ts'
@@ -128,8 +128,9 @@ export function checkProject(p: Project): Check[] {
     })
   }
 
-  // Repeated names (as findDuplicateIds: the later one is flagged)
+  // Repeated names (as findDuplicateIds: the later one is flagged). Nozzle names may repeat: a warning only.
   for (const lists of ID_GROUPS) {
+    const allowed = repeatsAllowed(lists)
     const first = new Map<string, { list: ListKey; index: number }>()
     for (const list of lists) {
       const meta = LIST_META[list]
@@ -141,10 +142,15 @@ export function checkProject(p: Project): Check[] {
           return
         }
         const where = earlier.list === list ? `row ${earlier.index + 1}` : `${LIST_META[earlier.list].name}, row ${earlier.index + 1}`
-        out.push({
-          severity: 'error', exportRule: true, place: { kind: 'row', list, index, field: meta.idField },
-          text: `The name "${id}" is also used in ${where}.`, fix: 'Give each one its own name (names are compared ignoring capitals).',
-        })
+        out.push(allowed
+          ? {
+              severity: 'warning', place: { kind: 'row', list, index, field: meta.idField },
+              text: `The name "${id}" is also used in ${where}.`, fix: 'Both are drawn with this name. If they are different nozzles, give each its own name.',
+            }
+          : {
+              severity: 'error', exportRule: true, place: { kind: 'row', list, index, field: meta.idField },
+              text: `The name "${id}" is also used in ${where}.`, fix: 'Give each one its own name (names are compared ignoring capitals).',
+            })
       })
     }
   }

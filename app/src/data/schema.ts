@@ -285,7 +285,7 @@ const projectFileShape = {
 }
 
 // Repeated IDs are allowed in a file (v5.0 allowed them, and jobs are imported as they are);
-// findDuplicateIds lists them and export refuses until they are renamed.
+// findDuplicateIds lists them and export refuses until they are renamed (nozzles excepted: REPEATS_ALLOWED).
 export const projectFileSchema = z.strictObject(projectFileShape).superRefine((file, ctx) => {
   const scanIds = new Set(file.scans.map((s) => idKey(s.id)))
   file.scanImages.forEach((img, i) => {
@@ -311,12 +311,20 @@ export const ID_GROUPS: ListKey[][] = [
 ]
 
 /**
- * Every repeated ID (ignoring case and outer spaces), as sentences. The project may still be saved and
- * opened; export refuses until these are renamed.
+ * Lists whose names may repeat (user, 2026-10-25): two nozzles may carry the same label (e.g. two "TOL"). Review still
+ * warns about a repeated nozzle name (data/checks.ts), but export goes on.
+ */
+export const REPEATS_ALLOWED: readonly ListKey[] = ['shellNozzles', 'headNozzles']
+export const repeatsAllowed = (lists: readonly ListKey[]) => lists.every((l) => REPEATS_ALLOWED.includes(l))
+
+/**
+ * Every repeated ID (ignoring case and outer spaces) that blocks export, as sentences (repeated nozzle names don't:
+ * REPEATS_ALLOWED). The project may still be saved and opened; export refuses until these are renamed.
  */
 export function findDuplicateIds(project: Pick<Project, ListKey>): string[] {
   const out: string[] = []
   for (const lists of ID_GROUPS) {
+    if (repeatsAllowed(lists)) continue
     const first = new Map<string, { list: ListKey; index: number }>()
     for (const list of lists) {
       const meta = LIST_META[list]

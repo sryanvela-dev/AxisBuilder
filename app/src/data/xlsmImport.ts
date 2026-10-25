@@ -863,7 +863,7 @@ function importSection(
 
 /**
  * Renames repeated IDs (shared across the given lists): v5.0 allowed a name twice, the app needs
- * unique names. The later one gets " (2)", " (3)", ... and every rename is listed in the report.
+ * unique names (not for nozzles: REPEATS_ALLOWED, kept as written and warned about on Review). The later one gets " (2)", " (3)", ... and every rename is listed in the report.
  */
 function renameDuplicateIds(
   lists: { spec: SectionSpec; items: Record<string, unknown>[]; rows: number[]; columns: Column[] }[],
@@ -934,7 +934,6 @@ export function importWorkbook(bytes: ArrayBuffer | Uint8Array): ImportResult {
 
   renameDuplicateIds([byList.circWelds], sheets)
   renameDuplicateIds([byList.longSeams], sheets)
-  renameDuplicateIds([byList.shellNozzles, byList.headNozzles], sheets)
   renameDuplicateIds([byList.objects], sheets)
   renameDuplicateIds([byList.shellMut, byList.headMut], sheets)
   renameDuplicateIds([byList.scans], sheets)

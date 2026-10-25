@@ -74,7 +74,7 @@ describe('current layout (40 nozzle rows)', () => {
         minT: 0.3, notes: '', labelMode: 'AUTO', include: true },
       { head: 'HEAD 2', id: 'N11', diameter: 2, clock: '3', radiusPosition: 'CUSTOM', customRadiusPercent: 60,
         minT: 'TOL', notes: '', labelMode: 'AUTO', include: true },
-      { head: 'HEAD 1', id: 'n3 (2)', diameter: 2, clock: '12', radiusPosition: 'CENTER', customRadiusPercent: null,
+      { head: 'HEAD 1', id: 'n3', diameter: 2, clock: '12', radiusPosition: 'CENTER', customRadiusPercent: null,
         minT: null, notes: '', labelMode: 'AUTO', include: true },
       { head: 'HEAD 1', id: 'N12', diameter: 3, clock: null, radiusPosition: 'CENTER', customRadiusPercent: null,
         minT: null, notes: '', labelMode: 'AUTO', include: true },
@@ -122,7 +122,6 @@ describe('current layout (40 nozzle rows)', () => {
         'review Head Features!D5', // degrees converted
         'review Head Features!D7',
         'invalid Head Features!A8', // HEAD 3
-        'changed Head Features!B6', // n3 renamed (also used by shell N3)
         'invalid Head Features!D29',
         'changed Head Features!B29', // M1 renamed (also used by shell M1)
         'invalid Head Features!C30',
@@ -142,16 +141,15 @@ describe('current layout (40 nozzle rows)', () => {
       message: 'OCR could not read this value; left blank.',
     })
     expect(find('Head Features', 'D5').message).toBe('Degrees converted to clock position 3; please check it.')
-    expect(find('Head Features', 'B6').message).toBe(
-      'Head nozzles: "n3" is also used by Shell nozzles, row 29; renamed to "n3 (2)" (names must be unique).',
-    )
+    // A repeated nozzle name is kept as written (Review warns about it).
+    expect(current.report.find((e) => e.sheet === 'Head Features' && e.cell === 'B6')).toBeUndefined()
     expect(find('Shell Features', 'D32').message).toMatch(/highlighted yellow.*value kept/)
   })
 
-  it('renames repeated names, so none are left to block export', () => {
+  it('renames repeated names, so none are left to block export; repeated nozzle names stay as written', () => {
     expect(current.summary.duplicateIds).toEqual([])
+    expect(current.project.headNozzles.map((n) => n.id)).toContain('n3')
     expect(current.report.filter((e) => /renamed to/.test(e.message)).map((e) => e.message)).toEqual([
-      'Head nozzles: "n3" is also used by Shell nozzles, row 29; renamed to "n3 (2)" (names must be unique).',
       'Head MUT: "M1" is also used by Shell MUT, row 91; renamed to "M1 (2)" (names must be unique).',
       'AUT scans: "scan1" is also used by row 3; renamed to "scan1 (2)" (names must be unique).',
     ])

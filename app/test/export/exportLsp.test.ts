@@ -180,12 +180,14 @@ describe('head clock positions (v5.0 ClockPositionDegrees)', () => {
 })
 
 describe('export guard', () => {
-  it('refuses repeated names until they are renamed', () => {
-    const p = ref1((x) => (x.headNozzles[0].id = 'N1'))
-    expect(exportProblems(p)).toEqual([
-      'Head nozzles, item 1 (N1): Nozzle "N1" is also used by Shell nozzles, item 1; rename one before export.',
-    ])
+  it('refuses repeated names until they are renamed; repeated nozzle names are allowed', () => {
+    const p = ref1((x) => (x.circWelds[1].id = x.circWelds[0].id))
+    expect(exportProblems(p)).toHaveLength(1)
+    expect(exportProblems(p)[0]).toMatch(/^Circ welds, item 2 .* rename one before export.$/)
     expect(() => exportText(p)).toThrow(ExportBlockedError)
+    const nozzles = ref1((x) => (x.headNozzles[0].id = 'N1'))
+    expect(exportProblems(nozzles)).toEqual([])
+    expect(exportText(nozzles)).toContain('"N1"')
   })
 
   it('refuses missing measurements', () => {
