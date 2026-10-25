@@ -7,11 +7,14 @@ import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
 
+/** v5.0's straight leaders (the default is Elbow) on a Vertical drawing: the spots these tests were written for (the app now places labels as the drawing reads). */
+const straight = (p: Project): Project => ({ ...p, vessel: { ...p.vessel, orientation: 'Vertical' }, settings: { ...p.settings, leaderShape: 'Straight' } })
+
 const drawingBody = (lsp: string) => lsp.slice(lsp.indexOf('(defun c:SCANOVERLAY'), lsp.indexOf('AxisBuilder master drawing complete'))
 
 describe('app changes 2026-10-23', () => {
   it('nozzle labels are written where the app placed them; v5.0 compat keeps SL_CircleSmart / SL_HeadNozzle', () => {
-    const p = sampleProject()
+    const p = straight(sampleProject())
     const app = drawingBody(exportLsp(p))
     const v5 = drawingBody(exportLsp(p, { compat: 'v5.0' }))
     expect(app).not.toContain('(SL_CircleSmart ')
@@ -20,23 +23,24 @@ describe('app changes 2026-10-23', () => {
     expect(v5.split('(SL_CircleSmart ').length - 1).toBe(p.shellNozzles.length)
     // N1 (12 in) fits its label inside; N2 (4 in) gets a leader to the first free spot (right of the circle).
     expect(app).toContain('(SL_NozzleAt 94. 30. 6. "N1" 2.4 94. 30. nil "NOZZLES" "NOZZLES")')
-    expect(app).toContain('(SL_NozzleAt 20. 150. 2. "N2" 1.6 26.96 150. (list 22. 150. 26.96 150.) "NOZZLES" "NOZZLES")')
+    expect(app).toContain('(SL_NozzleAt 20. 150. 2. "N2" 1.6 26.96 150. (list (list "L" (list 22. 150.) ')
   })
 
   it('shell label placement keeps v5.0 rules: inside if it fits, else right, upper-right, ... avoiding images and objects', () => {
-    const p = sampleProject()
+    const p = straight(sampleProject())
     const labels = shellNozzleLabels(p, drawnScans(p))
     const n2 = labels.get(1)!
     // Right of the circle: x + r + leader (4) + half the text width.
     expect(n2.tx).toBeCloseTo(20 + 2 + 4 + (2 * 1.6 * 0.6) / 2)
-    // Put an object right of N2: the label moves to the next free spot (upper right).
+    // Put an object right of N2: the label moves to the next spot where the label and its whole leader are clear. The
+    // upper right is not: its leader would run through the object, so the label goes to the left of the circle.
     const blocked: Project = { ...p, objects: [{ id: 'B', x: 22, y: 146, circWidth: 10, length: 8, include: true, notes: '', noWrap: false }] }
     const moved = shellNozzleLabels(blocked, drawnScans(blocked)).get(1)!
-    expect([moved.tx, moved.ty]).toEqual([n2.tx, 150 + 2 + 4])
+    expect([moved.tx, moved.ty]).toEqual([20 - 2 - 4 - (2 * 1.6 * 0.6) / 2, 150])
   })
 
   it('crowded head nozzle labels move out along their leader instead of overlapping', () => {
-    const p = sampleProject()
+    const p = straight(sampleProject())
     const crowded: Project = {
       ...p,
       headNozzles: [
@@ -54,8 +58,8 @@ describe('app changes 2026-10-23', () => {
     expect(dist(a1)).toBeCloseTo(1 + 8 + 8)
     // A2 is one degree away, so its label would land on A1's: moved out one step (1.6 x text height).
     expect(dist(a2)).toBeCloseTo(17 + 1.4 * 1.6)
-    // Its leader still runs from the circle edge, now ending one step further out.
-    expect(Math.hypot(a2.leader![2] - a2.x, a2.leader![3] - a2.y)).toBeCloseTo(1 + 8 + 4 + 1.4 * 1.6)
+    // Its leader still starts on the circle edge.
+    expect(Math.hypot(a2.leader![0][0] - a2.x, a2.leader![0][1] - a2.y)).toBeCloseTo(1)
   })
 
   it('Horizontal CCW: tall scan, object and long seam labels read upright; the .lsp redefines SL_LabelRect and SL_LongSeam', () => {

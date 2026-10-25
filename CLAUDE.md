@@ -595,3 +595,65 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   only when width and height fit; every drawn scan avoided (not only photos); crowded labels try longer leaders,
   then are placed with a Review warning ("Label N4 overlaps scan 12", `crowdedLabels`). No golden job's labels move
   (default and 2x nozzle text, `npm run labels:report`), so no fingerprint changed for 6-8. compat v5.0 unchanged.
+- 2026-10-24 – Web app Phase 5a (branch feature/leaders-arrows, user request): leader and arrow styling. Drawing step group
+  "Leaders and arrows": leader shape Straight / Elbow (default: angled segment from the nozzle, 2 in horizontal landing, label
+  at its end, centred on it) / Curved; arrowhead Closed filled (default) / Open / Dot / None; leader arrowhead size 1.5 in;
+  "Arrow head size" renamed Direction arrow size (3 in) and moved into the group. Applies to shell, head and across-the-seam
+  nozzle leaders and to the X and Y direction arrows (and the head 12 o'clock arrows). `engine/leaders.ts` (paths worked out as
+  the drawing reads, landings horizontal in all orientations; heads; segment / box tests); `engine/labels.ts` keeps label and
+  whole leader clear (scans, objects, nozzles, labels, leaders), label alone as a fallback before the Review warning; new
+  `poly` shape (open or filled) through the preview, Sheets view, PDF (fill + stroke) and report images. .lsp (app only):
+  `SL_NozzleAt` takes parts (polyline, solid triangle as a tapered LWPOLYLINE, dot), `SL_Arrow` uses `SL_ARROW_STYLE`.
+  Approved app output change (app change 24, phase2-notes): every app .lsp fingerprint refreshed; at 1x text 18 of 18 outside
+  labels moved in REF1 and its variants, 11 of 11 in REF2, 1 of 1 in REF3 / REF4 (inside labels unchanged); none crowded at 1x,
+  one new at 2x text in REF1 and its variants. compat v5.0 unchanged. Not yet checked in DraftSight/AutoCAD.
+- 2026-10-25 – Web app Phase 5a follow-up (feature/leaders-arrows, user): X and Y direction arrow length, per axis. Drawing step
+  "Leaders and arrows": "X / Y direction arrow length" = Automatic (as long as its wording, at least 14 in, as before) or
+  Fixed with a length in inches. Preview, Sheets view, PDF and report images use `directionArrowLength` (`engine/leaders.ts`);
+  .lsp (app only): `SL_X_ARROW_LEN` / `SL_Y_ARROW_LEN` and `SL_DirectionArrowLength`, patched into the nine ruler functions
+  (app change 25, library lines only, so every app fingerprint refreshed; drawings unchanged at Automatic). compat v5.0 unchanged.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): "Make CAD drawing" stopped with "REF1\Processed_Images holds the processed images of
+  <this job's own name>" when the folder's marker had another job ID but the same job name (the Excel file imported again gives
+  a new ID). `checkTargetFolder` now takes the job name: the same name = the same job's folder (the replace question still asks
+  about images already there); a different name still stops. Test added.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): DraftSight stopped with "SCANLAYOUT stopped: Error: No function." on the Phase 5a
+  .lsp: the leader polyline writer used `mapcar` with a quoted lambda and the solid triangle used `distance`; both replaced by
+  plain `foreach` / `sqrt` (`SL_PolyLine`, `SL_ArrowSolid`); test added. App fingerprints refreshed (library lines only). Not run
+  in DraftSight by me: please re-test. Nozzle label placement fixes (all nozzles avoided up front, MUT / weld text, real text
+  width) tried and backed out at the user's request; placement becomes manually adjustable in the next change.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): the real cause of "SCANLAYOUT stopped: Error: No function." on the app .lsp: a stray ")"
+  in `SL_RulerNumberFits` (app change 22, written 2026-10-24, never loaded in CAD) ended the file early at load, so CAD kept the
+  library's first menu (option 1 = SCANLAYOUT, which the master file never defines) and never reached the real AXISBUILDER menu or
+  c:AXISDRAWING. The extra ")" is removed; new test: every golden job and every leader / arrowhead setting writes balanced
+  parentheses (app and v5.0). The earlier mapcar / distance change stays (harmless). Fingerprints refreshed. Please re-test in CAD.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): in DraftSight the drawing stopped at the Y ruler's arrow with "AXISDRAWING stopped: Error:
+  Invalid parameter." (no X ruler, reference labels, heads, legend or title block). Cause not yet known (the leader arrowheads on
+  the nozzles drew). Arrowheads and leader parts are now made inside `vl-catch-all-apply`; if CAD refuses the entity, the same
+  shape is drawn with LINE / CIRCLE commands and one line "AxisBuilder: an arrowhead was drawn with lines (<reason>)" is printed,
+  so the drawing always completes. `SL_ArrowHead` / `SL_LeaderPart` are the guarded names (the entity code is `...Make`).
+  Fingerprints refreshed. The printed reason tells what DraftSight objects to.
+- 2026-10-25 – Follow-up (feature/leaders-arrows, user): DraftSight drew the arrowheads hollow (the guard's line fallback) and the
+  Command Window scrolls the reason away, so the first refusal now shows a message box with CAD's error text (`SL_FallbackNote`,
+  once per load). Fingerprints refreshed. Waiting for that text to make the solid fill work in DraftSight.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): DraftSight's message box said "Invalid parameter" for the arrowhead on the Y ruler (it drew
+  hollow). The nozzle leaders' solid heads drew, the straight horizontal arrow did not; the only difference is `expt` of a
+  zero difference in `SL_ArrowSolid` (a horizontal or vertical head), so the width is now `sqrt(dx*dx + dy*dy)`. Fingerprints
+  refreshed; test bans `expt`. Please re-test: the direction arrows should now be solid.
+- 2026-10-25 – Follow-up (feature/leaders-arrows, user): the `expt` change did not cure DraftSight's "Invalid parameter" on the direction arrow
+  heads. A refused closed head is now retried as a plain SOLID entity (`SL_ArrowHeadSolidEnt`) before the line outline, and the
+  once-per-load message box also lists the polyline entity the file tried to make (`SL_LAST`, `SL_Describe`) and whether the
+  SOLID worked, so the data DraftSight objects to is visible. Fingerprints refreshed.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): confirmed in DraftSight: the SOLID entity draws the closed direction arrowheads solid (the
+  tapered-polyline version failed with "Invalid parameter" before the entity was made; cause not found). `SL_ArrowHead` now makes
+  Closed filled heads as a SOLID entity first (outline lines remain the fallback, with the one-time message box), so no
+  message appears. Leader heads on nozzles still use the tapered polyline, which DraftSight accepted. Fingerprints refreshed.
+- 2026-10-25 – Fixes (feature/leaders-arrows, user): (1) Separate arrowhead settings: "Leader arrowhead" (Closed filled / Open / Dot / None,
+  nozzle leaders only) and new "Direction arrowhead" (Closed filled / Open / None, X and Y arrows and the head 12 o'clock arrows);
+  the .lsp's `SL_ARROW_STYLE` follows the direction one. In DraftSight the direction arrows are a SOLID entity (Closed) or two
+  LINEs (Open); the unused tapered-polyline head function is gone, so no message box. (2) Drawing step shortcuts scroll only the
+  step page (`ui/scrollPage.ts`), not the whole screen; the Field data shortcuts use it too. (3) The drawing preview is black like
+  CAD model space in light and dark mode (exact colors: 7 white; Softer for screens: the dark shades); the Sheets view stays
+  white paper. Fingerprints refreshed.
+- 2026-10-25 – Fixes (feature/leaders-arrows, user): the Sheets view keeps the app's own light / dark surround (only the drawing view is black), so
+  its Previous / Next / Fit buttons look right in light mode; the step shortcuts land with the group title just below the sticky
+  shortcut bar (`scrollPageTo` subtracts the bar's height). No .lsp change.

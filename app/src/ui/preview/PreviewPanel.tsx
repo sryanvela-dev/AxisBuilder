@@ -140,7 +140,7 @@ export function PreviewPanel() {
           </label>
         ))}
       </div>
-      <div className={`preview-canvas${project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>
+      <div className={`preview-canvas${showSheets ? ' sheets' : project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>
         {showSheets ? (
           <SheetsView drawing={drawing} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
         ) : (

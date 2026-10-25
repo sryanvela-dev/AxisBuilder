@@ -44,6 +44,7 @@ export interface Ctx2D {
   rect(x: number, y: number, w: number, h: number): void
   clip(): void
   stroke(): void
+  fill(): void
   fillRect(x: number, y: number, w: number, h: number): void
   fillText(text: string, x: number, y: number): void
   drawImage(image: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void
@@ -105,6 +106,7 @@ function step(ctx: Ctx2D, s: DrawStep, photos: ReadonlyMap<string, ReportPhoto>,
   if (s.kind === 'path') {
     ctx.globalAlpha = s.style.opacity
     ctx.strokeStyle = css(s.style.color, soft)
+    ctx.fillStyle = css(s.style.color, soft)
     ctx.lineWidth = Math.max(s.style.weight, minW)
     ctx.beginPath()
     for (const o of s.ops) {
@@ -113,6 +115,7 @@ function step(ctx: Ctx2D, s: DrawStep, photos: ReadonlyMap<string, ReportPhoto>,
       else if (o[0] === 'C') ctx.bezierCurveTo(o[1], o[2], o[3], o[4], o[5], o[6])
       else ctx.closePath()
     }
+    if (s.fill) ctx.fill()
     ctx.stroke()
     ctx.globalAlpha = 1
     return

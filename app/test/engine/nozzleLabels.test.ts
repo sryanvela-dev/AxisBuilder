@@ -7,12 +7,16 @@ import { drawnScans } from '../../src/engine/layout.ts'
 import { crowdedLabels, shellNozzleLabels } from '../../src/engine/labels.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
 
-/** The sample job with one shell nozzle changed (index 1, N2) and the given extra settings. */
+/**
+ * The sample job with one shell nozzle changed (index 1, N2) and the given extra settings. Straight leaders on a Vertical
+ * drawing unless a test says otherwise: the spots these tests were written for (labels are placed as the drawing reads).
+ */
 function withNozzle(n: Partial<Project['shellNozzles'][number]>, settings: Partial<Project['settings']> = {}, scans?: Project['scans']): Project {
   const p = sampleProject()
   return {
     ...p, ...(scans ? { scans } : {}),
-    settings: { ...p.settings, ...settings },
+    vessel: { ...p.vessel, orientation: 'Vertical' },
+    settings: { ...p.settings, leaderShape: 'Straight', ...settings },
     shellNozzles: p.shellNozzles.map((x, i) => (i === 1 ? { ...x, ...n } : x)),
   }
 }
@@ -29,7 +33,7 @@ describe('nozzle labels', () => {
   it('keeps labels off scans without photos', () => {
     // A scan just right of N2, no photos: the first spot (right) is on it, so the label goes to the left.
     const scans: Project['scans'] = [{ id: 'S', xStart: 55, xStop: 100, yStart: 80, yStop: 120, include: true, noWrap: false, acrossSeam: false }]
-    const p = withNozzle({ x: 50, y: 100, diameter: 4, labelMode: 'OUTSIDE' }, { generateOverlayDrawing: false }, scans)
+    const p = withNozzle({ x: 50, y: 100, diameter: 4, labelMode: 'OUTSIDE' }, { generateOverlayDrawing: false, leaderShape: 'Straight' }, scans)
     const l = shellNozzleLabels(p, drawnScans(p)).get(1)!
     expect(l.tx).toBeLessThan(50)
     expect(l.crowded).toBeUndefined()

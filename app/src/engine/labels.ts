@@ -6,12 +6,19 @@
 // around the circle, avoiding scan images, objects and earlier nozzles and labels).
 // Head nozzles: SL_HeadNozzle's rules, plus a new check: a label placed outside is moved further out along
 // its leader until it no longer overlaps another head label, a head nozzle or head MUT text.
+//
+// Leaders (Phase 5a, engine/leaders.ts): straight, elbow (angled segment + horizontal landing, label at its end)
+// or curved. Spots are worked out as the drawing reads (the visual frame), and a spot is only clear when the label
+// AND the whole leader path (landing included) keep clear of scans, objects, nozzles, other labels and other leaders.
 
 import type { Project, Scan } from '../data/schema.ts'
 import { clockPositionDegrees, drawnScans, imageInserts, panelOf, radiusFactor, shouldShowHead, type Panel } from './layout.ts'
 import { sizedHeight, textSizeRules } from './styles.ts'
 import { arcBox, circumference, nozzlePieces, scanPieces, type ArcPiece } from './wrap.ts'
-import { headVector, readableRot, type Orientation } from './transform.ts'
+import { headVector, readableRot, toLogical, toVisual, type Orientation } from './transform.ts'
+import {
+  LEADER_GAP, curvedSpot, elbowSpot, leaderStyle, pathHitsBox, pathsCross, straightSpot, type LeaderStyle, type Pt, type Spot,
+} from './leaders.ts'
 
 export type Box = [number, number, number, number]
 
@@ -26,8 +33,8 @@ export interface NozzleLabel {
   /** Label center. */
   tx: number
   ty: number
-  /** Leader line from the circle to the label, or null when the label is inside. */
-  leader: [number, number, number, number] | null
+  /** Leader path from the circle edge (first point) to the label, in logical coordinates, or null when the label is inside. */
+  leader: Pt[] | null
   /**
    * A nozzle across the circumference seam: its pieces (the main one first, then the overhang at the other
    * edge), drawn instead of the whole circle. x, y is then the main piece's center (engine/wrap.ts).
@@ -46,6 +53,38 @@ export function textBox(cx: number, cy: number, tw: number, th: number, rot: num
 /** How many times a crowded outside label's leader is made longer (one label height and a half each) before giving up. */
 const LONGER_LEADERS = 3
 
+/** Elbow leaders leave the nozzle along these visual directions, in this order (angled first, flat and vertical last). */
+const ELBOW_DIRECTIONS: Pt[] = [45, -45, 135, -135, 0, 180, 90, -90].map((deg) => [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)] as Pt)
+
+/**
+ * The first thing a label (and, with `leader`, its whole leader path) runs into; null when clear. A spot is first looked
+ * for with the leader as well; only when none is clear is the label alone kept clear (as before leaders had shapes),
+ * and the Review warning is about the label.
+ */
+function firstHit(sp: Spot, bb: Box, avoid: readonly Box[], names: readonly string[], segs: readonly Pt[][], leader: boolean, skip?: Box): string | null {
+  const i = avoid.findIndex((a) => a !== skip && (overlap(bb, a) || (leader && pathHitsBox(sp.path, a))))
+  if (i >= 0) return names[i]
+  return leader && segs.some((q) => pathHitsBox(q, bb) || pathsCross(q, sp.path)) ? 'another leader' : null
+}
+
+/**
+ * Candidate spots for a shell nozzle label at leader length `ld`, all in the visual frame (as the drawing reads):
+ * Elbow = the eight angled / flat / vertical directions; Straight and Curved = SL_CircleSmart's eight spots around
+ * the circle (right, left, then above and below).
+ */
+function spotsAround(o: Orientation, style: LeaderStyle, n: Pt, r: number, ld: number, tw: number, sh: number): Spot[] {
+  if (style.shape === 'Elbow') return ELBOW_DIRECTIONS.map((d) => elbowSpot(o, n, r, d, ld, style.landing, sh * LEADER_GAP, tw))
+  const [nx, ny] = toVisual(o, n[0], n[1])
+  const around: [number, number][] = [[1, 0], [1, 1], [1, -1], [-1, 0], [-1, 1], [-1, -1], [0, 1], [0, -1]]
+  return around.map(([sx, sy]) => {
+    const e: Pt = [nx + sx * r, ny + sy * r]
+    const c: Pt = sx === 0 ? [nx, ny + sy * (r + ld + sh / 2)] : [nx + sx * (r + ld + tw / 2), ny + sy * (r + ld)]
+    const [ex, ey] = toLogical(o, e[0], e[1])
+    const [cx, cy] = toLogical(o, c[0], c[1])
+    return style.shape === 'Curved' ? curvedSpot(o, n, [ex, ey], [cx, cy], tw, sh) : straightSpot(o, [ex, ey], [cx, cy], tw, sh)
+  })
+}
+
 const overlap = (a: Box, b: Box) => !(a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3])
 const finite = (b: Box) => b.every((v) => Number.isFinite(v))
 
@@ -58,6 +97,9 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
   // What labels keep clear of, with what each is (for the Review warning when a label can't be kept clear).
   const avoid: Box[] = []
   const names: string[] = []
+  const style = leaderStyle(s)
+  /** Leaders placed so far (later labels keep clear of them). */
+  const segs: Pt[][] = []
   const keep = (b: Box, what: string) => {
     avoid.push(b)
     names.push(what)
@@ -113,37 +155,31 @@ export function shellNozzleLabels(p: Project, scans: Scan[]): Map<number, Nozzle
     const inX = wrapped ? (v0 + v1) / 2 : x
     const arcs = wrapped ? { arcs: pieces } : {}
     let label: NozzleLabel = { x, y, r, txt, th, tx: inX, ty: y, leader: null, ...arcs }
-    /** SL_CircleSmart's eight spots around the circle centered at cx; across the seam only leaders from the drawn part (a0..a1). */
-    const placeOutside = (cx: number, a0: number, a1: number): { tx: number; ty: number; leader: [number, number, number, number]; crowded?: string } => {
-      const spots = (ld: number): [number, number, number, number][] => {
-        const candidates: [number, number, number, number][] = [
-          [cx + r + ld + tw / 2, y, cx + r, y],
-          [cx + r + ld + tw / 2, y + r + ld, cx + r, y + r],
-          [cx + r + ld + tw / 2, y - r - ld, cx + r, y - r],
-          [cx - r - ld - tw / 2, y, cx - r, y],
-          [cx - r - ld - tw / 2, y + r + ld, cx - r, y + r],
-          [cx - r - ld - tw / 2, y - r - ld, cx - r, y - r],
-          [cx, y + r + ld + tw / 2, cx, y + r],
-          [cx, y - r - ld - tw / 2, cx, y - r],
-        ]
-        const usable = wrapped ? candidates.filter((c) => c[2] >= a0 - 1e-6 && c[2] <= a1 + 1e-6) : candidates
-        return usable.length ? usable : candidates
+    /** The eight spots around the circle centered at cx (leader shape from the Drawing step); across the seam only leaders from the drawn part (a0..a1). */
+    const placeOutside = (cx: number, a0: number, a1: number): { tx: number; ty: number; leader: Pt[]; crowded?: string } => {
+      const spots = (ld: number): Spot[] => {
+        const all = spotsAround(o, style, [cx, y], r, ld, tw, sh)
+        const usable = wrapped ? all.filter((sp) => sp.path[0][0] >= a0 - 1e-6 && sp.path[0][0] <= a1 + 1e-6) : all
+        return usable.length ? usable : all
       }
       const offShell = (bb: Box) => bb[0] < 0 || bb[1] < 0 || bb[2] > H || bb[3] > L
-      const clear = (bb: Box) => !offShell(bb) && !avoid.some((a) => overlap(bb, a))
-      // SL_CircleSmart's eight spots at the set leader length; when none is clear, the leader is made longer a few
-      // times (app change 23) before the label is placed where it overlaps and a Review warning says so.
-      let found: [number, number, number, number] | undefined
-      for (let k = 0; k <= LONGER_LEADERS && !found; k++) found = spots(s.nozzleLeaderLength + k * sh * 1.6).find((c) => clear(textBox(c[0], c[1], tw, sh, lr)))
+      const clear = (leader: boolean) => (sp: Spot) => {
+        const bb = textBox(sp.tx, sp.ty, tw, sh, lr)
+        return !offShell(bb) && firstHit(sp, bb, avoid, names, segs, leader) === null
+      }
+      // The eight spots at the set leader length; when none is clear (label and whole leader), the leader is made
+      // longer a few times (app change 23); then the same for the label alone; then the label is placed where it
+      // overlaps and a Review warning says so.
+      let found: Spot | undefined
+      for (const leader of [true, false]) for (let k = 0; k <= LONGER_LEADERS && !found; k++) found = spots(s.nozzleLeaderLength + k * sh * 1.6).find(clear(leader))
       let crowded: string | undefined
       if (!found) {
         found = spots(s.nozzleLeaderLength)[0]
-        const bb = textBox(found[0], found[1], tw, sh, lr)
-        const hit = avoid.findIndex((a) => overlap(bb, a))
-        crowded = hit >= 0 ? names[hit] : 'the edge of the shell'
+        crowded = firstHit(found, textBox(found.tx, found.ty, tw, sh, lr), avoid, names, segs, false) ?? 'the edge of the shell'
       }
-      keep(textBox(found[0], found[1], tw, sh, lr), `the label of ${txt}`)
-      return { tx: found[0], ty: found[1], leader: [found[2], found[3], found[0], found[1]], ...(crowded ? { crowded } : {}) }
+      keep(textBox(found.tx, found.ty, tw, sh, lr), `the label of ${txt}`)
+      segs.push(found.path)
+      return { tx: found.tx, ty: found.ty, leader: found.path, ...(crowded ? { crowded } : {}) }
     }
     if (txt !== '' && outside) label = { x, y, r, txt, th, ...placeOutside(x, v0, v1), ...arcs }
     out.set(index, label)
@@ -171,6 +207,8 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
   if (mode === 'NONE' || !s.showHeadNozzles) return out
   const lr = readableRot(o)
   const rules = textSizeRules(s)
+  const style = leaderStyle(s)
+  const segs: Pt[][] = []
   const r = headDia / 2
   const center = (head: string): [number, number] => (head === 'HEAD 1' ? [panel.head1X, panel.head1Y] : [panel.head2X, panel.head2Y])
   const shown = p.headNozzles.map((n, index) => ({ n, index })).filter(({ n }) => n.include && shouldShowHead(mode, n.head) && n.diameter !== null)
@@ -217,33 +255,40 @@ export function headNozzleLabels(p: Project, panel: Panel, headDia: number): Map
       }
       return
     }
-    // SL_HeadNozzle: leader along the clock direction, text beyond it; moved out step by step if crowded.
+    // SL_HeadNozzle: leader along the clock direction, label beyond it; moved out step by step if crowded.
+    // Elbow: the angled segment runs along the clock direction, then the horizontal landing, label at its end.
     const ld = s.headNozzleLeaderLength
     const step = sh * 1.6
     const own = bodyBoxes[i]
-    let k = 0
-    for (; k <= 6; k++) {
+    const dv = toVisual(o, dx, dy)
+    const edge: Pt = [x + nozR * dx, y + nozR * dy]
+    const spotAt = (k: number): Spot => {
+      if (style.shape === 'Elbow') return elbowSpot(o, [x, y], nozR, dv, ld + k * step, style.landing, sh * LEADER_GAP, tw)
       const t = nozR + ld + 8 + k * step
-      const bb = textBox(x + t * dx, y + t * dy, tw, sh, lr)
-      if (!avoid.some((a) => a !== own && overlap(bb, a))) break
+      const c: Pt = [x + t * dx, y + t * dy]
+      return style.shape === 'Curved' ? curvedSpot(o, [x, y], edge, c, tw, sh) : straightSpot(o, edge, c, tw, sh)
+    }
+    // Label and whole leader clear first, then the label alone.
+    let k = 7
+    for (const withLeader of [true, false]) {
+      for (let i = 0; i <= 6 && k > 6; i++) {
+        const sp = spotAt(i)
+        if (firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, withLeader, own) === null) k = i
+      }
     }
     // Still crowded at the longest leader: placed at the first spot, with a Review warning (app change 23).
     let crowded: string | undefined
     if (k > 6) {
       k = 0
-      const t = nozR + ld + 8
-      const bb = textBox(x + t * dx, y + t * dy, tw, sh, lr)
-      const hit = avoid.findIndex((a) => a !== own && overlap(bb, a))
-      crowded = hit >= 0 ? names[hit] : undefined
+      const sp = spotAt(0)
+      crowded = firstHit(sp, textBox(sp.tx, sp.ty, tw, sh, lr), avoid, names, segs, false, own) ?? undefined
     }
-    const tDist = nozR + ld + 8 + k * step
-    const lEnd = nozR + ld + 4 + k * step
-    const label: NozzleLabel = {
-      x, y, r: nozR, txt, th, tx: x + tDist * dx, ty: y + tDist * dy, leader: [x + nozR * dx, y + nozR * dy, x + lEnd * dx, y + lEnd * dy], ...(crowded ? { crowded } : {}),
-    }
+    const sp = spotAt(k)
+    const label: NozzleLabel = { x, y, r: nozR, txt, th, tx: sp.tx, ty: sp.ty, leader: sp.path, ...(crowded ? { crowded } : {}) }
     out.set(index, label)
     avoid.push(textBox(label.tx, label.ty, tw, sh, lr))
     names.push(`the label of ${txt}`)
+    segs.push(sp.path)
   })
   return out
 }

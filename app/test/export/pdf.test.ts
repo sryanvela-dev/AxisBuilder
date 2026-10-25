@@ -191,7 +191,7 @@ function recorder() {
     restore: () => (m = stack.pop()!),
     setTransform: (...a: number[]) => (m = a),
     transform: (...a: number[]) => (m = mul(m, a)),
-    beginPath() {}, moveTo() {}, lineTo() {}, bezierCurveTo() {}, closePath() {}, rect() {}, clip() {}, fillRect() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, bezierCurveTo() {}, closePath() {}, rect() {}, clip() {}, fillRect() {}, fill() {},
     stroke: () => calls.push({ op: 'stroke', args: [] }),
     fillText: (t: string) => calls.push({ op: 'text', args: [t] }),
     drawImage: (...a: unknown[]) => {

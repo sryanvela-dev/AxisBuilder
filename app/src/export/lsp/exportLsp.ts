@@ -32,6 +32,7 @@ import {
   ucaseTrim,
 } from '../../engine/layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from '../../engine/labels.ts'
+import { leaderParts, leaderStyle, type LeaderStyle, type Pt } from '../../engine/leaders.ts'
 import { writeSectionSheets } from './sectionSheets.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
 import { patchLibraryLine, writeAppLibrary, writeImageFinder, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
@@ -120,9 +121,19 @@ function combinePath(folder: string, file: string): string {
   return /[\\/]$/.test(folder) ? folder + file : `${folder}\\${file}`
 }
 
+/** A leader and its arrowhead as SL_NozzleAt's parts list (Phase 5a): "L" polyline, "F" solid triangle, "D" dot; nil when the label is inside. */
+function leaderPartsLisp(path: Pt[] | null, ls: LeaderStyle): string {
+  if (!path) return 'nil'
+  const pt = (q: Pt) => `(list ${LispNum(q[0])} ${LispNum(q[1])})`
+  const parts = leaderParts(path, ls).map((part) =>
+    part.k === 'dot' ? `(list "D" ${pt(part.c)} ${LispNum(part.d)})` : `(list ${part.k === 'fill' ? '"F"' : '"L"'} ${part.pts.map(pt).join(' ')})`,
+  )
+  return `(list ${parts.join(' ')})`
+}
+
 /** One SL_NozzleAt call (app output): circle, label and leader where engine/labels.ts placed them. */
-function nozzleAt(l: NozzleLabel, layer: string, textLayer: string): string {
-  const leader = l.leader ? `(list ${l.leader.map(LispNum).join(' ')})` : 'nil'
+function nozzleAt(l: NozzleLabel, layer: string, textLayer: string, ls: LeaderStyle): string {
+  const leader = leaderPartsLisp(l.leader, ls)
   if (l.arcs) {
     // Change 19: across the seam, the circle's pieces (arcs) instead of the whole circle.
     const pieces = l.arcs.map((a) => `(list ${[a.cx, a.cy, a.r, ...(a.arc ?? [])].map(LispNum).join(' ')})`).join(' ')
@@ -243,6 +254,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   const plan = v5 || orientation === 'Vertical' ? null : activeSectionPlan(p)
   if (plan && plan.sections.length > 0) writeSectionSheets(w, plan)
   const sizes = v5 ? new Map() : textSizeRules(s) // change 15: text sizes (only when one is changed)
+  const leaders = leaderStyle(s)
   if (sizes.size > 0) {
     writeTextSizes(w, [...sizes].map(([layer, r]) =>
       r.mode === 'SCALE' ? `(list ${LispStr(layer)} "SCALE" ${LispNum(r.value)})` : `(list ${LispStr(layer)} "HEIGHT" ${LispNum(r.value)} ${r.base === null ? 'nil' : LispNum(r.base)})`))
@@ -270,6 +282,11 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   }
   w(`(setq SL_OVERLAY_ROTATION ${LispNum(0)})`)
   w(`(setq SL_ARROW_HEAD ${LispNum(s.arrowHeadSize)})`)
+  if (!v5) {
+    w(`(setq SL_ARROW_STYLE ${LispStr(s.directionArrowStyle)})`) // change 24: arrowheads on the direction arrows (leaders carry their own parts)
+    w(`(setq SL_X_ARROW_LEN ${s.xArrowLengthMode === 'Fixed' ? LispNum(s.xArrowLength) : 'nil'})`) // change 25: direction arrow lengths
+    w(`(setq SL_Y_ARROW_LEN ${s.yArrowLengthMode === 'Fixed' ? LispNum(s.yArrowLength) : 'nil'})`)
+  }
   w(`(setq SL_SMART_NOZZLES ${LispStr(YES(s.smartNozzleLabels))})`)
   w(`(setq SL_MIN_NOZZLE_DIA ${LispNum(s.minNozzleInsideLabelDiameter)})`)
   w(`(setq SL_NOZZLE_LEADER_LEN ${LispNum(s.nozzleLeaderLength)})`)
@@ -389,7 +406,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
       }
     } else {
       // Change 9: label positions worked out by the app (engine/labels.ts), same rules as SL_CircleSmart.
-      for (const l of shellNozzleLabels(p, scans).values()) w(`  ${nozzleAt(l, 'NOZZLES', 'NOZZLES')}`)
+      for (const l of shellNozzleLabels(p, scans).values()) w(`  ${nozzleAt(l, 'NOZZLES', 'NOZZLES', leaders)}`)
     }
   }
 
@@ -445,7 +462,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
       for (const [index, n] of p.headNozzles.entries()) {
         if (!n.include || !shouldShowHead(headMode, n.head)) continue
         if (placed) {
-          w(`  ${nozzleAt(placed.get(index)!, 'HEADS', 'HEAD_NOZZLE_TEXT')}`)
+          w(`  ${nozzleAt(placed.get(index)!, 'HEADS', 'HEAD_NOZZLE_TEXT', leaders)}`)
           continue
         }
         const [cx, cy] = center(n.head)

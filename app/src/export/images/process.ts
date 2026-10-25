@@ -128,9 +128,12 @@ export type FolderCheck =
     }
 
 /** Looks at the target Processed_Images folder before anything is written. */
-export function checkTargetFolder(fileNames: readonly string[], markerFileText: string | null, jobId: string, plan: ProcessPlan): FolderCheck {
+export function checkTargetFolder(fileNames: readonly string[], markerFileText: string | null, jobId: string, plan: ProcessPlan, jobName = ''): FolderCheck {
   const marker = markerFileText === null ? null : parseMarker(markerFileText)
-  if (marker && marker.jobId !== jobId) return { kind: 'otherJob', marker }
+  // The same job name with another ID is the same job opened again (e.g. the Excel file imported a second time): the
+  // folder is its own. The replace question still applies to images already there.
+  const sameName = marker !== null && jobName.trim() !== '' && marker.jobName.trim().toLowerCase() === jobName.trim().toLowerCase()
+  if (marker && marker.jobId !== jobId && !sameName) return { kind: 'otherJob', marker }
   const present = new Set(fileNames.map((n) => n.toLowerCase()))
   const existing = plan.jobs.map((j) => j.outName).filter((n) => present.has(n.toLowerCase()))
   const others = fileNames.filter((n) => n.toLowerCase() !== MARKER_FILE.toLowerCase())

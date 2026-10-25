@@ -25,6 +25,7 @@ export const SETTING_GROUPS = [
   { id: 'textStyles', step: 'Drawing', title: 'Text sizes and colors', intro: 'One row per kind of text (each has its own CAD layer). Automatic is the size the drawing has always used.' },
   { id: 'rulers', step: 'Drawing', title: 'Rulers and labels', intro: 'Rulers along the shell, reference labels and direction arrows.' },
   { id: 'nozzleLabels', step: 'Drawing', title: 'Nozzle labels', intro: 'When a nozzle label goes inside its circle, and how long the leaders are.' },
+  { id: 'leaders', step: 'Drawing', title: 'Leaders and arrows', intro: 'The shape of nozzle leaders (shell, head and across the seam) and the arrowheads on leaders and on the X and Y direction arrows.' },
   { id: 'legendTitle', step: 'Drawing', title: 'Legend and title block', intro: 'The legend, the coverage figure and the title block.' },
   { id: 'headsDrawing', step: 'Drawing', title: 'Head views', intro: 'How the head views are drawn. Which heads are shown, and their names, are on the Field data step.' },
   { id: 'showHide', step: 'Drawing', title: 'Show or hide', intro: 'What the drawing includes (the legend and title block are above). In CAD the AB... commands turn the same groups on and off.' },
@@ -296,6 +297,9 @@ function layerColor<K extends string>(key: K, name: string, color: number, weigh
 export const LINE_WEIGHTS = ['0.09', '0.13', '0.18', '0.25', '0.35', '0.50', '0.70'] as const
 /** Drawing step "Colors": CAD's own colors (default), or the softer shades the app used before. */
 export const COLOR_STYLES = ['Exact CAD colors', 'Softer for screens'] as const
+export const LEADER_SHAPES = ['Straight', 'Elbow', 'Curved'] as const
+export const ARROWHEAD_STYLES = ['Closed filled', 'Open', 'Dot', 'None'] as const
+export const DIRECTION_ARROW_STYLES = ['Closed filled', 'Open', 'None'] as const
 
 // Only for the return types above.
 const weightChoice = () => choice(LINE_WEIGHTS, { excelLabel: '', excelSheet: PS, name: '', description: '', default: '0.25', step: 'Drawing', level: 'Basic' })
@@ -563,9 +567,63 @@ export const SETTINGS = {
     v5: 'Not read by the VBA. App: planned feature (to be designed).',
   }),
   arrowHeadSize: num({
-    excelLabel: 'Arrow Head Size', excelSheet: PS, name: 'Arrow head size',
-    description: 'Size of direction arrow heads.',
-    units: 'in', greaterThan: 0, default: 3, group: 'rulers', step: 'Drawing', level: 'Advanced',
+    excelLabel: 'Arrow Head Size', excelSheet: PS, name: 'Direction arrow size',
+    description: 'Size of the arrowheads on the X and Y direction arrows (and the 12 o\'clock arrows on the head views).',
+    units: 'in', greaterThan: 0, default: 3, group: 'leaders', step: 'Drawing', level: 'Advanced',
+  }),
+  xArrowLengthMode: choice(['Automatic', 'Fixed'], {
+    excelLabel: 'X Arrow Length Mode', excelSheet: PS, onSheet: false, name: 'X direction arrow length',
+    description: 'Automatic: the X direction arrow is as long as its wording (at least 14 in). Fixed: you set its length.',
+    default: 'Automatic', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 always sizes the arrow to its wording.',
+  }),
+  xArrowLength: num({
+    excelLabel: 'X Arrow Length', excelSheet: PS, onSheet: false, name: 'X arrow length',
+    description: 'Length of the X direction arrow (shaft and head). On a section sheet it never runs past 70% of the drawing side.',
+    units: 'in', greaterThan: 0, default: 28, group: 'leaders', step: 'Drawing', level: 'Basic',
+    showWhen: { section: 'settings', key: 'xArrowLengthMode', values: ['Fixed'] },
+  }),
+  yArrowLengthMode: choice(['Automatic', 'Fixed'], {
+    excelLabel: 'Y Arrow Length Mode', excelSheet: PS, onSheet: false, name: 'Y direction arrow length',
+    description: 'Automatic: the Y direction arrow is as long as its wording (at least 14 in). Fixed: you set its length.',
+    default: 'Automatic', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 always sizes the arrow to its wording.',
+  }),
+  yArrowLength: num({
+    excelLabel: 'Y Arrow Length', excelSheet: PS, onSheet: false, name: 'Y arrow length',
+    description: 'Length of the Y direction arrow (shaft and head). On a section sheet it never runs past 70% of the drawing side.',
+    units: 'in', greaterThan: 0, default: 28, group: 'leaders', step: 'Drawing', level: 'Basic',
+    showWhen: { section: 'settings', key: 'yArrowLengthMode', values: ['Fixed'] },
+  }),
+  leaderShape: choice(LEADER_SHAPES, {
+    excelLabel: 'Leader Shape', excelSheet: PS, onSheet: false, name: 'Leader shape',
+    description: 'Straight: one line from the nozzle to its label. Elbow: an angled line from the nozzle, then a short horizontal landing, with the label at the end of the landing (like a CAD multileader). Curved: a smooth curve from the nozzle edge to the label. Applies to shell, head and across-the-seam nozzles.',
+    default: 'Elbow', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 always draws a straight line.',
+  }),
+  leaderLandingLength: num({
+    excelLabel: 'Leader Landing Length', excelSheet: PS, onSheet: false, name: 'Elbow landing length',
+    description: 'Length of the short horizontal landing between the angled line and the label.',
+    units: 'in', greaterThan: 0, default: 2, group: 'leaders', step: 'Drawing', level: 'Advanced',
+    showWhen: { section: 'settings', key: 'leaderShape', values: ['Elbow'] },
+  }),
+  arrowheadStyle: choice(ARROWHEAD_STYLES, {
+    excelLabel: 'Arrowhead Style', excelSheet: PS, onSheet: false, name: 'Leader arrowhead',
+    description: 'The head drawn on nozzle leaders, at the nozzle: Closed filled (a solid triangle), Open (two short lines), Dot (a small filled dot) or None.',
+    default: 'Closed filled', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 draws no head on leaders.',
+  }),
+  directionArrowStyle: choice(DIRECTION_ARROW_STYLES, {
+    excelLabel: 'Direction Arrow Style', excelSheet: PS, onSheet: false, name: 'Direction arrowhead',
+    description: 'The head on the X and Y direction arrows (and the 12 o\'clock arrows on the head views): Closed filled (a solid triangle), Open (two short lines, as in the Excel version) or None.',
+    default: 'Closed filled', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 draws open heads.',
+  }),
+  leaderArrowSize: num({
+    excelLabel: 'Leader Arrow Size', excelSheet: PS, onSheet: false, name: 'Leader arrowhead size',
+    description: 'Length of the arrowhead (or width of the dot) on nozzle leaders.',
+    units: 'in', greaterThan: 0, default: 1.5, group: 'leaders', step: 'Drawing', level: 'Advanced',
+    showWhen: { section: 'settings', key: 'arrowheadStyle', values: ['Closed filled', 'Open', 'Dot'] },
   }),
 
   // VESSEL / REFERENCE INDICATORS (display options; the labels themselves are in VESSEL_FIELDS)
