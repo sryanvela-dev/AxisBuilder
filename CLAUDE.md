@@ -140,7 +140,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   in `app/src/data/projectFile.ts`. Format 2 (Phase 3d) adds `jobId` (random, stable per job; format 1 files get
   one when opened). Format 3 (Phase 3f-1) only adds settings (text sizes and colors, line colors); older files open
   with their defaults. Format 4 (Phase 3f-2) adds `noWrap` (shell nozzles, objects, scans) and `acrossSeam` (scans),
-  both false by default. Format 5 (Phase 5b) adds `labelOverrides` (labels moved by hand); older files have none.
+  both false by default. Format 5 (Phase 5b) adds `labelOverrides` (labels moved by hand); older files have none. Format 6 (Phase 5c) adds `area`
+  on shell and head MUT rows (MUT areas drawn in the preview); older files have none.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -269,6 +270,22 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   intersection, center, perpendicular, align, on; Shift free, Ctrl ortho; visual frame), `ui/preview/drawingTool.ts` (tool
   interface that `DrawingView` routes the pointer to; pan stays: empty-space drag, middle drag, Space+drag),
   `SnapMarker.tsx`. One undo step per drop; a run of nudges on one label is one step.
+- MUT areas (Phase 5c, `app/docs/preview.md` "Drawing mode: MUT areas"): "MUT areas" in the preview, the second drawing-mode
+  tool (`ui/areaToolContext.ts` holds which tool is on and what it is doing, so a MUT row's Area column, `ui/AreaCell.tsx`,
+  can start it). Draw area (corners snap to the real lines via `areaGeometry` + `findSnap`; Shift free, Ctrl ortho; the
+  first corner / Enter / right-click closes; Backspace, Esc; typed `X, Y` or `@dX, dY`; `ui/preview/areaDraw.ts`), Pick
+  inside (`pickInside`, `engine/polygon.ts enclosingBoundary`), drag / add / remove corners, delete the area (the row
+  stays); one undo step each (`data/mutAreaEdits.ts`: a blank shell X / Y gets the area's center, a blank head clock the
+  center's clock and Custom %). With no MUT row selected a new row is made on the shell or on the head the first corner is
+  in. Stored on the row (`area`): shell in logical inches (may run past the seam, wraps like scans), head in head radii
+  (u toward 3, v toward 12 o'clock), so it follows sorting, renames, deletes and a moving right panel. `engine/mutAreas.ts`
+  `mutAreaLayouts` (cached per project) gives the pieces, the ID's spot (centroid if it fits, else the most open spot, else
+  outside with a leader; movable as a `shellMut` / `headMut` label override, `headMut` joined `MOVABLE_LABEL_LISTS`), the
+  hatch lines with islands (scans, objects, nozzles, nozzle labels, its own label) and `coverageArea`; drawn instead of the
+  MUT point on MANUAL_UT_HATCH (layer group 'mut', "MUT areas"). Coverage adds the shell areas' hatched part
+  (`coveragePercent(p, counted, mutCoverageArea(p))`; head areas never; compat v5.0 unchanged). .lsp (app change 28): plain
+  `SL_Line`s and `SL_Text`. Review warns about bad areas (`mutAreaProblems`), never blocking. Setting "Show Min T under the
+  MUT ID" (off). The geometry is the app's own (`engine/polygon.ts`), no clipping library.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -699,3 +716,12 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Follow-up (feature/drawing-mode, user): object labels back to Automatic by default (sized to fit), reference
   labels default to Fixed 3 in; every app fingerprint refreshed. Label overlap warnings now say the job can still be
   exported that way.
+- 2026-10-25 – Web app Phase 5c (branch feature/mut-areas, user request): MUT areas drawn in the preview. Project file format 6
+  (`area` on shell and head MUT rows, migration from 5). New `engine/polygon.ts` (area, clipping, scanline hatch and exact
+  hatched area with islands, label spot, enclosed boundary for Pick inside; written in the app, no library),
+  `engine/mutAreas.ts`, `data/mutAreaEdits.ts`; UI `ui/preview/MutAreas.tsx`, `ui/preview/areaDraw.ts`,
+  `ui/areaToolContext.ts`, `ui/AreaCell.tsx` (Area column). Drawn in the preview, Sheets view, PDF (layer "MUT areas"),
+  report images and the .lsp (app change 28: plain lines and SL_Text); coverage adds the shell areas' hatched part. New
+  setting "Show Min T under the MUT ID" (off). The sample job gets MUT areas (M4-M6 on the shell, one across the seam, M7
+  on the west head), so its fingerprint was refreshed; the golden jobs' are unchanged; compat v5.0 unchanged. Not yet
+  checked in DraftSight/AutoCAD. No VBA or workbook changes.

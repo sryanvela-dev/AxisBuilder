@@ -69,6 +69,7 @@ export const APP_CHANGES = [
   'Text sizes and layer colors can be set per text layer and for the main layers (Drawing step); defaults change nothing.',
   'Ruler axis direction labels, reference labels and nozzle leaders have their own layers (TEXTRESIZE and the AB... toggles know them).',
   'A bigger legend or title block is drawn bigger as a whole, and the head views and title block move up to make room.',
+  'MUT areas drawn in the app are drawn as plain lines (outline and hatch) with their ID; the coverage % counts their hatched part (shell only).',
 ] as const
 
 export interface ExportOptions {
