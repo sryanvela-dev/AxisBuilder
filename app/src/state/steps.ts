@@ -90,11 +90,14 @@ export function stepOfCheck(c: Check): StepId {
   return def ? STEP_OF_APP_STEP[def.step] : 'project'
 }
 
-/** Checks and typed-but-invalid values of one step, as issues. Errors and drafts block export. */
+/**
+ * Checks and typed-but-invalid values of one step, as issues. Errors and drafts block export. Label warnings (overlaps,
+ * moves that could not be used) are left out: they show under their row and on Review only (labelIssues).
+ */
 function stepIssues(job: Job, checks: Check[], step: StepId): Issue[] {
   const p = job.history.present
   const out: Issue[] = checks
-    .filter((c) => stepOfCheck(c) === step)
+    .filter((c) => stepOfCheck(c) === step && !c.label)
     .map((c) => ({ step, text: checkSentence(p, c), blocksExport: c.severity === 'error', check: c }))
   for (const d of Object.values(job.drafts)) {
     if (d.step === step) out.push({ step, text: `${d.where}: "${d.text}" is not stored. ${d.problem}`, blocksExport: true })
@@ -144,7 +147,8 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
   const drawing = status(p.vessel.length !== null && p.vessel.height !== null, stepIssues(job, checks, 'drawing'))
 
   const before = [project, fieldData, scans, images, drawing]
-  const open = before.flatMap((s) => s.issues)
+  const labelIssues: Issue[] = checks.filter((c) => c.label).map((c) => ({ step: stepOfCheck(c), text: checkSentence(p, c), blocksExport: false, check: c }))
+  const open = [...before.flatMap((s) => s.issues), ...labelIssues]
   const todo: Issue[] = []
   if (!scansStarted) todo.push({ step: 'scans', text: 'No AUT scans yet.', blocksExport: false })
   const anyStarted = before.some((s) => s.state !== 'notStarted')

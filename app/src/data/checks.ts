@@ -46,6 +46,11 @@ export interface Check {
   exportRule?: boolean
   /** One-click fixes (e.g. "Read 305 as 3 past the seam"). */
   actions?: CheckAction[]
+  /**
+   * A label that overlaps something or a move by hand that could not be used: shown under its row and on Review only,
+   * not in the list at the top of its step or in the step bar (user, 2026-10-25).
+   */
+  label?: boolean
 }
 
 /** The project with a check's one-click fix applied. */
@@ -244,7 +249,7 @@ export function checkProject(p: Project): Check[] {
   const reset = (list: ListKey, index: number): CheckAction => ({ label: 'Reset position', list, index, changes: {}, resetLabel: true })
   for (const c of notes.crowded) {
     out.push({
-      severity: 'warning', place: { kind: 'row', list: c.list, index: c.index, field: 'labelMode' },
+      severity: 'warning', label: true, place: { kind: 'row', list: c.list, index: c.index, field: 'labelMode' },
       text: c.moved ? `Label ${c.id} (moved by hand) overlaps ${c.overlaps}.` : `Label ${c.id} overlaps ${c.overlaps}.`,
       fix: c.moved
         ? 'It can still be exported this way. To clear it, move it to a clear spot in the drawing preview (Move labels), or reset it to be placed automatically.'
@@ -255,7 +260,7 @@ export function checkProject(p: Project): Check[] {
   // A hand placement that no longer makes sense: the label is placed automatically; nothing is blocked.
   for (const f of [...notes.fallbacks, ...textLabelFallbacks(p)]) {
     out.push({
-      severity: 'warning', place: { kind: 'row', list: f.list, index: f.index, field: f.list === 'shellNozzles' || f.list === 'headNozzles' ? 'labelMode' : 'id' },
+      severity: 'warning', label: true, place: { kind: 'row', list: f.list, index: f.index, field: f.list === 'shellNozzles' || f.list === 'headNozzles' ? 'labelMode' : 'id' },
       text: `Label ${f.id} was moved by hand, but ${f.why}, so it is placed automatically.`,
       fix: 'Move it again in the drawing preview (Move labels), or reset it to clear the old position.',
       actions: [reset(f.list, f.index)],
