@@ -10,7 +10,7 @@
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 
-export const CURRENT_SCHEMA_VERSION = 4
+export const CURRENT_SCHEMA_VERSION = 5
 
 /** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
 export function newJobId(): string {
@@ -177,6 +177,24 @@ export const scanImageSchema = z.strictObject({
   include,
 })
 
+/** Lists whose labels can be moved by hand in the drawing preview (Phase 5b). */
+export const MOVABLE_LABEL_LISTS = ['shellNozzles', 'headNozzles'] as const
+export type MovableLabelList = (typeof MOVABLE_LABEL_LISTS)[number]
+
+/**
+ * A label moved by hand in the drawing preview (format 5), keyed by its item's list and ID (not its row), so it
+ * survives sorting and inserted rows; renames and deletes are followed (data/overrides.ts). Measured as the drawing
+ * reads (right and up on the sheet, inches) from the nozzle's center (a nozzle across the seam: its main piece).
+ */
+export const labelOverrideSchema = z.strictObject({
+  list: z.enum(MOVABLE_LABEL_LISTS),
+  id: z.string(),
+  /** Label center as an offset from the nozzle center; 'inside' = inside the circle, no leader; null = automatic. */
+  label: z.union([z.strictObject({ dx: z.number(), dy: z.number() }), z.literal('inside')]).nullable().default(null),
+  /** Where the leader meets the circle, in degrees (0 = right, counter-clockwise as the drawing reads); null = automatic. */
+  tip: z.number().nullable().default(null),
+})
+
 // --- Whole file ------------------------------------------------------------------------------
 
 /** Plain names for lists and their fields, used in error messages and the docs. */
@@ -262,6 +280,8 @@ const projectFileShape = {
   headMut: z.array(headMutSchema).default([]),
   scans: z.array(scanSchema).default([]),
   scanImages: z.array(scanImageSchema).default([]),
+  /** Labels moved by hand in the drawing preview (format 5). */
+  labelOverrides: z.array(labelOverrideSchema).default([]),
 }
 
 // Repeated IDs are allowed in a file (v5.0 allowed them, and jobs are imported as they are);
@@ -371,3 +391,4 @@ export type HeadNozzle = z.output<typeof headNozzleSchema>
 export type HeadMut = z.output<typeof headMutSchema>
 export type Scan = z.output<typeof scanSchema>
 export type ScanImage = z.output<typeof scanImageSchema>
+export type LabelOverride = z.output<typeof labelOverrideSchema>
