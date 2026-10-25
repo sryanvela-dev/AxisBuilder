@@ -299,6 +299,7 @@ export const LINE_WEIGHTS = ['0.09', '0.13', '0.18', '0.25', '0.35', '0.50', '0.
 export const COLOR_STYLES = ['Exact CAD colors', 'Softer for screens'] as const
 export const LEADER_SHAPES = ['Straight', 'Elbow', 'Curved'] as const
 export const ARROWHEAD_STYLES = ['Closed filled', 'Open', 'Dot', 'None'] as const
+export const DIRECTION_ARROW_STYLES = ['Closed filled', 'Open', 'None'] as const
 
 // Only for the return types above.
 const weightChoice = () => choice(LINE_WEIGHTS, { excelLabel: '', excelSheet: PS, name: '', description: '', default: '0.25', step: 'Drawing', level: 'Basic' })
@@ -607,10 +608,16 @@ export const SETTINGS = {
     showWhen: { section: 'settings', key: 'leaderShape', values: ['Elbow'] },
   }),
   arrowheadStyle: choice(ARROWHEAD_STYLES, {
-    excelLabel: 'Arrowhead Style', excelSheet: PS, onSheet: false, name: 'Arrowhead',
-    description: 'The head drawn on nozzle leaders (at the nozzle) and on the X and Y direction arrows: Closed filled (a solid triangle), Open (two short lines), Dot (a small filled dot) or None.',
+    excelLabel: 'Arrowhead Style', excelSheet: PS, onSheet: false, name: 'Leader arrowhead',
+    description: 'The head drawn on nozzle leaders, at the nozzle: Closed filled (a solid triangle), Open (two short lines), Dot (a small filled dot) or None.',
     default: 'Closed filled', group: 'leaders', step: 'Drawing', level: 'Basic',
-    v5: 'App only. v5.0 draws open arrowheads on direction arrows and none on leaders.',
+    v5: 'App only. v5.0 draws no head on leaders.',
+  }),
+  directionArrowStyle: choice(DIRECTION_ARROW_STYLES, {
+    excelLabel: 'Direction Arrow Style', excelSheet: PS, onSheet: false, name: 'Direction arrowhead',
+    description: 'The head on the X and Y direction arrows (and the 12 o\'clock arrows on the head views): Closed filled (a solid triangle), Open (two short lines, as in the Excel version) or None.',
+    default: 'Closed filled', group: 'leaders', step: 'Drawing', level: 'Basic',
+    v5: 'App only. v5.0 draws open heads.',
   }),
   leaderArrowSize: num({
     excelLabel: 'Leader Arrow Size', excelSheet: PS, onSheet: false, name: 'Leader arrowhead size',

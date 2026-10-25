@@ -647,3 +647,10 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   tapered-polyline version failed with "Invalid parameter" before the entity was made; cause not found). `SL_ArrowHead` now makes
   Closed filled heads as a SOLID entity first (outline lines remain the fallback, with the one-time message box), so no
   message appears. Leader heads on nozzles still use the tapered polyline, which DraftSight accepted. Fingerprints refreshed.
+- 2026-10-25 – Fixes (feature/leaders-arrows, user): (1) Separate arrowhead settings: "Leader arrowhead" (Closed filled / Open / Dot / None,
+  nozzle leaders only) and new "Direction arrowhead" (Closed filled / Open / None, X and Y arrows and the head 12 o'clock arrows);
+  the .lsp's `SL_ARROW_STYLE` follows the direction one. In DraftSight the direction arrows are a SOLID entity (Closed) or two
+  LINEs (Open); the unused tapered-polyline head function is gone, so no message box. (2) Drawing step shortcuts scroll only the
+  step page (`ui/scrollPage.ts`), not the whole screen; the Field data shortcuts use it too. (3) The drawing preview is black like
+  CAD model space in light and dark mode (exact colors: 7 white; Softer for screens: the dark shades); the Sheets view stays
+  white paper. Fingerprints refreshed.

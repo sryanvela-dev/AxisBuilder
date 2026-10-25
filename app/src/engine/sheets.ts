@@ -126,7 +126,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const area = sheetArea(p)
   const vp = sheetViewport(ve - vs, C, o, area)
   const u = LETTER_AREA.h / 7.5 // SECTIONPAGES' paper unit (1 in): the same text sizes on every paper
-  const pen = new PaperPen(s.arrowheadStyle)
+  const pen = new PaperPen(s.directionArrowStyle)
   const mult = plan.rulerTextScale
   const lines = titleLines(p, false)
   const refs = drawnReferenceLabels(p) !== null ? sectionReferenceLabels(p) : []

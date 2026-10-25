@@ -1,6 +1,7 @@
 // The Project, Field data and Drawing steps: settings forms (from settings.ts) and the field data tables.
 
 import { FIELD_LISTS } from '../data/columns.ts'
+import { scrollPageTo } from './scrollPage.ts'
 import { formatNumber } from '../data/parse.ts'
 import { LIST_META } from '../data/schema.ts'
 import { SETTING_GROUPS, VESSEL_FIELDS } from '../data/settings.ts'
@@ -34,7 +35,7 @@ export function DrawingStep({ status }: StepProps) {
       <StepIssues status={status} />
       <nav className="list-nav" aria-label="Drawing settings">
         {SETTING_GROUPS.filter((g) => g.step === 'Drawing').map((g) => (
-          <button key={g.id} type="button" className="list-chip" onClick={() => document.getElementById(`group-${g.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>
+          <button key={g.id} type="button" className="list-chip" onClick={() => scrollPageTo(document.getElementById(`group-${g.id}`))}>
             {g.title}
           </button>
         ))}
@@ -135,7 +136,7 @@ export function FieldDataStep({ status }: StepProps) {
               key={list}
               type="button"
               className="list-chip"
-              onClick={() => document.getElementById(listElementId(list))?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
+              onClick={() => scrollPageTo(document.getElementById(listElementId(list)))}
             >
               {LIST_META[list].name} <span className="muted">({p[list].length})</span>
               {c.errors > 0 && <span className="kind kind-invalid">{c.errors}</span>}

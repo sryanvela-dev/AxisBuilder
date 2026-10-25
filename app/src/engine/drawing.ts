@@ -354,7 +354,7 @@ function headView(pen: Pen, o: Orientation, p: Project, cx: number, cy: number, 
   }
   if (p.settings.showHeadClockReferences) {
     const [dx, dy] = headVector(o, 0)
-    pen.arrow(cx + (r + 2) * dx, cy + (r + 2) * dy, cx + (r + 7) * dx, cy + (r + 7) * dy, p.settings.arrowHeadSize, 'HEADS', p.settings.arrowheadStyle)
+    pen.arrow(cx + (r + 2) * dx, cy + (r + 2) * dy, cx + (r + 7) * dx, cy + (r + 7) * dy, p.settings.arrowHeadSize, 'HEADS', p.settings.directionArrowStyle)
     pen.text(cx + (r + 10) * dx, cy + (r + 10) * dy, 1.7, lr, '12', 'HEAD_CLOCK_TEXT')
   }
   const [lx, ly] = o === 'Horizontal CW' ? [cx - r - 9, cy] : o === 'Horizontal CCW' ? [cx + r + 9, cy] : [cx, cy + r + 9]
@@ -476,7 +476,7 @@ export function buildDrawing(p: Project): Drawing {
       const labels = axisLabels(p)
       for (const c of rulerCalls({ ori, placement, rulerOffset: s.rulerOffset, vesselXLen: H, vesselYLen: L, spacing: s.rulerSpacing, xAxisLabel: labels.x, yAxisLabel: labels.y })) {
         const pen = new Pen()
-        ruler(pen, o, s.arrowHeadSize, s.arrowheadStyle, directionArrowLength(s, c.axis, c.label), c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
+        ruler(pen, o, s.arrowHeadSize, s.directionArrowStyle, directionArrowLength(s, c.axis, c.label), c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
         add(`ruler:${c.layer}`, null, pen, c.label)
       }
     }

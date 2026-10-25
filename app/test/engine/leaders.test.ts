@@ -163,8 +163,8 @@ describe('arrowheads', () => {
     expect(fills('HEAD_NOZZLE_LEADERS').length).toBeGreaterThan(0)
     expect(fills('X_AXIS')).toHaveLength(1)
     expect(fills('Y_AXIS')).toHaveLength(1)
-    // Open keeps the old three lines on the direction arrows; None draws only the shaft.
-    const open = buildDrawing(job({ arrowheadStyle: 'Open' }))
+    // Open keeps the old three lines on the direction arrows; a leader arrowhead of None draws only the leader line.
+    const open = buildDrawing(job({ directionArrowStyle: 'Open' }))
     expect(open.items.flatMap((i) => i.shapes).filter((s) => s.t === 'poly' && s.fill && s.layer === 'X_AXIS')).toHaveLength(0)
     const none = buildDrawing(job({ arrowheadStyle: 'None' }))
     expect(none.items.flatMap((i) => i.shapes).filter((s) => s.t === 'poly' && s.layer === 'NOZZLE_LEADERS')).toHaveLength(leaders.length)
@@ -341,5 +341,22 @@ describe('the app .lsp is well formed', () => {
     for (const shape of ['Straight', 'Elbow', 'Curved']) for (const arrowheadStyle of ['Closed filled', 'Open', 'Dot', 'None']) {
       expect(parenDepth(exportLsp(job({ leaderShape: shape, arrowheadStyle, makeSectionSheets: true }), OPTIONS))).toEqual({ end: 0, lowest: 0 })
     }
+  })
+})
+
+describe('leader and direction arrowheads are separate settings', () => {
+  const heads = (p: Project, layer: string) => buildDrawing(p).items.flatMap((i) => i.shapes).filter((s): s is Extract<Shape, { t: 'poly' }> => s.t === 'poly' && s.fill && s.layer === layer)
+  it('a Dot on the leaders leaves the X and Y arrows closed triangles', () => {
+    const p = job({ arrowheadStyle: 'Dot' })
+    expect(heads(p, 'NOZZLE_LEADERS')[0].pts).toHaveLength(16)
+    expect(heads(p, 'X_AXIS')[0].pts).toHaveLength(3)
+    expect(heads(p, 'Y_AXIS')[0].pts).toHaveLength(3)
+  })
+  it('the direction arrow style does not change the leaders, and the .lsp writes it for SL_Arrow', () => {
+    const p = job({ directionArrowStyle: 'Open' })
+    expect(heads(p, 'X_AXIS')).toHaveLength(0)
+    expect(heads(p, 'NOZZLE_LEADERS').length).toBeGreaterThan(0)
+    expect(exportLsp(p, OPTIONS)).toContain('(setq SL_ARROW_STYLE "Open")')
+    expect(exportLsp(job({ arrowheadStyle: 'Dot' }), OPTIONS)).toContain('(setq SL_ARROW_STYLE "Closed filled")')
   })
 })

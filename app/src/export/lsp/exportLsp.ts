@@ -283,7 +283,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   w(`(setq SL_OVERLAY_ROTATION ${LispNum(0)})`)
   w(`(setq SL_ARROW_HEAD ${LispNum(s.arrowHeadSize)})`)
   if (!v5) {
-    w(`(setq SL_ARROW_STYLE ${LispStr(s.arrowheadStyle)})`) // change 24: arrowheads on direction arrows and leaders
+    w(`(setq SL_ARROW_STYLE ${LispStr(s.directionArrowStyle)})`) // change 24: arrowheads on the direction arrows (leaders carry their own parts)
     w(`(setq SL_X_ARROW_LEN ${s.xArrowLengthMode === 'Fixed' ? LispNum(s.xArrowLength) : 'nil'})`) // change 25: direction arrow lengths
     w(`(setq SL_Y_ARROW_LEN ${s.yArrowLengthMode === 'Fixed' ? LispNum(s.yArrowLength) : 'nil'})`)
   }

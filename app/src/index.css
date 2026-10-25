@@ -1363,15 +1363,28 @@ table.grid.photos select {
 
 /* Drawing step "Colors" = Exact CAD colors (default): CAD's own colors on white, 7 black, in light and dark mode. */
 .preview-canvas.exact-colors {
-  --draw-bg: #ffffff;
-  --draw-7: #000000;
+  --draw-bg: #000000;
+  --draw-7: #ffffff;
   --draw-1: #ff0000;
   --draw-2: #ffff00;
   --draw-3: #00ff00;
   --draw-4: #00ffff;
   --draw-5: #0000ff;
   --draw-6: #ff00ff;
-  color: #1f2933;
+  color: #e4e7eb;
+}
+
+/* The drawing preview is CAD's model space: black, in light and dark mode. Softer colors use the dark theme's shades. */
+.preview-canvas:not(.exact-colors) {
+  --draw-bg: #0b1016;
+  --draw-7: #e4e7eb;
+  --draw-1: #ff6b6b;
+  --draw-2: #ffe14d;
+  --draw-4: #4fd6e0;
+  --draw-3: #5fd38a;
+  --draw-5: #6ea8ff;
+  --draw-6: #e07ae0;
+  color: #e4e7eb;
 }
 
 .preview-note {
