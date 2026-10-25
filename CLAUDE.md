@@ -626,3 +626,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   library's first menu (option 1 = SCANLAYOUT, which the master file never defines) and never reached the real AXISBUILDER menu or
   c:AXISDRAWING. The extra ")" is removed; new test: every golden job and every leader / arrowhead setting writes balanced
   parentheses (app and v5.0). The earlier mapcar / distance change stays (harmless). Fingerprints refreshed. Please re-test in CAD.
+- 2026-10-25 – Fix (feature/leaders-arrows, user): in DraftSight the drawing stopped at the Y ruler's arrow with "AXISDRAWING stopped: Error:
+  Invalid parameter." (no X ruler, reference labels, heads, legend or title block). Cause not yet known (the leader arrowheads on
+  the nozzles drew). Arrowheads and leader parts are now made inside `vl-catch-all-apply`; if CAD refuses the entity, the same
+  shape is drawn with LINE / CIRCLE commands and one line "AxisBuilder: an arrowhead was drawn with lines (<reason>)" is printed,
+  so the drawing always completes. `SL_ArrowHead` / `SL_LeaderPart` are the guarded names (the entity code is `...Make`).
+  Fingerprints refreshed. The printed reason tells what DraftSight objects to.
