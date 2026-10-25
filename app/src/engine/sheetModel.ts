@@ -37,6 +37,8 @@ export type PrimShape =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number }
   | { t: 'rect'; x: number; y: number; w: number; h: number }
   | { t: 'circle'; cx: number; cy: number; r: number }
+  /** Open polyline, or with fill a closed polygon filled with the color (arrowheads, dots). */
+  | { t: 'poly'; pts: [number, number][]; fill: boolean }
   /** Counter-clockwise from a0 to a1 degrees. */
   | { t: 'arc'; cx: number; cy: number; r: number; a0: number; a1: number }
   /** CAD text: h = capital height, rot degrees counter-clockwise, MC = middle centre, ML = middle left. */
@@ -105,6 +107,8 @@ function primBox(p: Prim): Box {
       return [p.x - pad, p.y - pad, p.x + p.w + pad, p.y + p.h + pad]
     case 'circle':
       return [p.cx - p.r - pad, p.cy - p.r - pad, p.cx + p.r + pad, p.cy + p.r + pad]
+    case 'poly':
+      return boxOf(p.pts, pad)
     case 'arc': {
       const pts: [number, number][] = [p.a0, p.a1].map((a) => [p.cx + p.r * Math.cos((a * Math.PI) / 180), p.cy + p.r * Math.sin((a * Math.PI) / 180)])
       for (let a = Math.ceil(p.a0 / 90) * 90; a <= p.a1; a += 90) pts.push([p.cx + p.r * Math.cos((a * Math.PI) / 180), p.cy + p.r * Math.sin((a * Math.PI) / 180)])
@@ -201,6 +205,8 @@ function shapePrim(s: Shape, P: (x: number, y: number) => [number, number], k: n
       const [cx, cy] = P(s.cx, s.cy)
       return { t: 'circle', cx, cy, r: s.r * k, ...base }
     }
+    case 'poly':
+      return { t: 'poly', pts: s.pts.map(([x, y]) => P(x, y)), fill: s.fill, ...base }
     case 'arc': {
       const [cx, cy] = P(s.cx, s.cy)
       return { t: 'arc', cx, cy, r: s.r * k, a0: s.a0 + off, a1: s.a1 + off, ...base }
@@ -292,6 +298,7 @@ function paperPrim(s: PaperShape, ax: number, ay: number, styleOf: (layer: strin
   const base = { layer: s.layer, group: (PANEL_LAYERS.has(s.layer) ? 'panel' : 'sheet') as PrimGroup, style: styleOf(s.layer) }
   if (s.t === 'line') return { t: 'line', x1: s.x1 + ax, y1: s.y1 + ay, x2: s.x2 + ax, y2: s.y2 + ay, ...base }
   if (s.t === 'rect') return { t: 'rect', x: s.x + ax, y: s.y + ay, w: s.w, h: s.h, ...base }
+  if (s.t === 'poly') return { t: 'poly', pts: s.pts.map(([x, y]): [number, number] => [x + ax, y + ay]), fill: s.fill, ...base }
   return { t: 'text', x: s.x + ax, y: s.y + ay, h: s.h, rot: s.rot, text: s.text, just: s.just, ...base }
 }
 
@@ -346,6 +353,8 @@ export function primOps(p: Prim): PathOp[] {
       return [...arcOps(p.cx, p.cy, p.r, 0, 360), ['Z']]
     case 'arc':
       return arcOps(p.cx, p.cy, p.r, p.a0, p.a1 >= p.a0 ? p.a1 : p.a1 + 360)
+    case 'poly':
+      return [...p.pts.map((q, i): PathOp => [i === 0 ? 'M' : 'L', q[0], q[1]]), ...(p.fill ? [['Z'] as PathOp] : [])]
     default:
       return []
   }
@@ -371,7 +380,7 @@ function arcOps(cx: number, cy: number, r: number, a0: number, a1: number): Path
 }
 
 export type DrawStep =
-  | { kind: 'path'; layer: string; group: PrimGroup; style: PrimStyle; ops: PathOp[] }
+  | { kind: 'path'; layer: string; group: PrimGroup; style: PrimStyle; ops: PathOp[]; /** Filled with the color too (closed arrowheads). */ fill: boolean }
   | { kind: 'text'; prim: TextPrim }
   | { kind: 'image'; prim: ImagePrim }
 
@@ -385,8 +394,9 @@ export function drawSteps(prims: readonly Prim[]): DrawStep[] {
     else if (p.t === 'image') out.push({ kind: 'image', prim: p })
     else {
       const last = out[out.length - 1]
-      if (last && last.kind === 'path' && last.group === p.group && sameStyle(last.style, p.style)) last.ops.push(...primOps(p))
-      else out.push({ kind: 'path', layer: p.layer, group: p.group, style: p.style, ops: primOps(p) })
+      const fill = p.t === 'poly' && p.fill
+      if (last && last.kind === 'path' && last.group === p.group && last.fill === fill && sameStyle(last.style, p.style)) last.ops.push(...primOps(p))
+      else out.push({ kind: 'path', layer: p.layer, group: p.group, style: p.style, ops: primOps(p), fill })
     }
   }
   return out

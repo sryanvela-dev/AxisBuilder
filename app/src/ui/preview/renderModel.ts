@@ -27,6 +27,8 @@ export interface RenderPath {
   d: string
   /** 1 = solid; hatch layers and the centerline get their transparency. */
   opacity: number
+  /** Closed arrowheads: filled with the color too. */
+  fill?: boolean
 }
 
 export interface RenderText {
@@ -96,6 +98,7 @@ export function buildRenderModel(d: Drawing): RenderModel {
     const circles: RenderItem['circles'] = []
     const texts: RenderText[] = []
     const images: RenderItem['images'] = []
+    const filled = new Map<string, string[]>()
     const path = (layer: string, seg: string) => {
       const list = byLayer.get(layer)
       if (list) list.push(seg)
@@ -118,6 +121,16 @@ export function buildRenderModel(d: Drawing): RenderModel {
           grow(s.cx - s.r, s.cy - s.r)
           grow(s.cx + s.r, s.cy + s.r)
           break
+        case 'poly': {
+          const seg = s.pts.map((q, i) => `${i === 0 ? 'M' : 'L'}${n(q[0])} ${n(q[1])}`).join('') + (s.fill ? 'Z' : '')
+          if (s.fill) {
+            const list = filled.get(s.layer)
+            if (list) list.push(seg)
+            else filled.set(s.layer, [seg])
+          } else path(s.layer, seg)
+          for (const q of s.pts) grow(q[0], q[1])
+          break
+        }
         case 'arc': {
           // In logical axes, so the arc turns counter-clockwise like CAD's (SVG sweep 1 = increasing angle).
           const rad = Math.PI / 180
@@ -144,10 +157,13 @@ export function buildRenderModel(d: Drawing): RenderModel {
           break
       }
     }
-    const paths = [...byLayer].map(([layer, segs]) => ({
+    const paths: RenderPath[] = [...byLayer].map(([layer, segs]) => ({
       layer, group: groupOfLayer(layer), color: colorOf(layer), d: segs.join(''),
       opacity: TRANSPARENT_LAYERS.includes(layer) ? hatchOpacity : layer === 'CENTERLINE' ? centerlineOpacity : 1,
     }))
+    for (const [layer, segs] of filled) {
+      paths.push({ layer, group: groupOfLayer(layer), color: colorOf(layer), d: segs.join(''), opacity: 1, fill: true })
+    }
     return { key: item.key, item, paths, circles, texts, images, selectable: item.source !== null }
   })
   if (!Number.isFinite(minX)) [minX, minY, maxX, maxY] = [0, 0, 100, 100]

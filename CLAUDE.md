@@ -595,3 +595,15 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   only when width and height fit; every drawn scan avoided (not only photos); crowded labels try longer leaders,
   then are placed with a Review warning ("Label N4 overlaps scan 12", `crowdedLabels`). No golden job's labels move
   (default and 2x nozzle text, `npm run labels:report`), so no fingerprint changed for 6-8. compat v5.0 unchanged.
+- 2026-10-24 – Web app Phase 5a (branch feature/leaders-arrows, user request): leader and arrow styling. Drawing step group
+  "Leaders and arrows": leader shape Straight / Elbow (default: angled segment from the nozzle, 2 in horizontal landing, label
+  at its end, centred on it) / Curved; arrowhead Closed filled (default) / Open / Dot / None; leader arrowhead size 1.5 in;
+  "Arrow head size" renamed Direction arrow size (3 in) and moved into the group. Applies to shell, head and across-the-seam
+  nozzle leaders and to the X and Y direction arrows (and the head 12 o'clock arrows). `engine/leaders.ts` (paths worked out as
+  the drawing reads, landings horizontal in all orientations; heads; segment / box tests); `engine/labels.ts` keeps label and
+  whole leader clear (scans, objects, nozzles, labels, leaders), label alone as a fallback before the Review warning; new
+  `poly` shape (open or filled) through the preview, Sheets view, PDF (fill + stroke) and report images. .lsp (app only):
+  `SL_NozzleAt` takes parts (polyline, solid triangle as a tapered LWPOLYLINE, dot), `SL_Arrow` uses `SL_ARROW_STYLE`.
+  Approved app output change (app change 24, phase2-notes): every app .lsp fingerprint refreshed; at 1x text 18 of 18 outside
+  labels moved in REF1 and its variants, 11 of 11 in REF2, 1 of 1 in REF3 / REF4 (inside labels unchanged); none crowded at 1x,
+  one new at 2x text in REF1 and its variants. compat v5.0 unchanged. Not yet checked in DraftSight/AutoCAD.

@@ -62,8 +62,8 @@ describe('layers the app adds', () => {
     expect(shapesOn(d, 'Y_AXIS_LABEL_TEXT').length).toBeGreaterThan(0)
     expect(shapesOn(d, 'REFERENCE_TEXT')).toHaveLength(5)
     expect(out.match(/\(SL_RulerTextRotX\) "[^"]*" "REFERENCE_TEXT"\)/g)).toHaveLength(5)
-    expect(shapesOn(d, 'NOZZLE_LEADERS').length).toBe(sample().shellNozzles.filter((n) => n.include && n.id).length)
-    expect(shapesOn(d, 'HEAD_NOZZLE_LEADERS').length).toBeGreaterThan(0)
+    expect(shapesOn(d, 'NOZZLE_LEADERS').filter((s) => s.t === 'poly' && !s.fill).length).toBe(sample().shellNozzles.filter((n) => n.include && n.id).length)
+    expect(shapesOn(d, 'HEAD_NOZZLE_LEADERS').filter((s) => s.t === 'poly' && !s.fill).length).toBeGreaterThan(0)
     // The ruler numbers and the nozzle circles stay where they were.
     expect(shapesOn(d, 'X_RULER_TEXT').every((s) => s.t === 'text' && /"$/.test(s.text))).toBe(true)
     expect(shapesOn(d, 'NOZZLES').every((s) => s.t === 'circle')).toBe(true)

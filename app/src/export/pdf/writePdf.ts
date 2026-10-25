@@ -13,7 +13,7 @@ import fontkit from '@pdf-lib/fontkit'
 import {
   LineCapStyle, LineJoinStyle, PDFDict, PDFDocument, PDFHexString, PDFName, PDFOperator, PDFOperatorNames, PDFRef, appendBezierCurve, clip,
   closePath, concatTransformationMatrix, degrees, drawObject, endMarkedContent, endPath, lineTo, moveTo, popGraphicsState, pushGraphicsState,
-  rectangle, rgb, setGraphicsState, setLineCap, setLineJoin, setLineWidth, setStrokingRgbColor, stroke, type PDFFont, type PDFImage, type PDFPage,
+  rectangle, rgb, setGraphicsState, setLineCap, setLineJoin, setLineWidth, setFillingRgbColor, setStrokingRgbColor, fillAndStroke, stroke, type PDFFont, type PDFImage, type PDFPage,
 } from 'pdf-lib'
 import { printRgb } from '../../engine/aci.ts'
 import { LAYER_GROUPS } from '../../engine/drawing.ts'
@@ -169,7 +169,8 @@ class PageWriter {
       else if (o[0] === 'C') ops.push(appendBezierCurve(round(o[1]), round(o[2]), round(o[3]), round(o[4]), round(o[5]), round(o[6])))
       else ops.push(closePath())
     }
-    ops.push(stroke(), popGraphicsState())
+    if (s.fill) ops.push(setFillingRgbColor(r / 255, g / 255, b / 255), fillAndStroke(), popGraphicsState())
+    else ops.push(stroke(), popGraphicsState())
     this.page.pushOperators(...ops)
   }
 

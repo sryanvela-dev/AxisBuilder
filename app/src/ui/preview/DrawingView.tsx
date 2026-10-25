@@ -195,7 +195,7 @@ export const DrawingItemView = memo(function DrawingItemView(p: {
           )
         })}
         {paths.map((x) => (
-          <path key={x.layer} d={x.d} style={x.opacity < 1 ? { ...colorStyle(x.color), opacity: x.opacity } : colorStyle(x.color)} />
+          <path key={x.fill ? `${x.layer}:fill` : x.layer} className={x.fill ? 'filled' : undefined} d={x.d} style={x.opacity < 1 ? { ...colorStyle(x.color), opacity: x.opacity } : colorStyle(x.color)} />
         ))}
         {circles.map((x, i) => (
           <circle key={i} cx={x.cx} cy={x.cy} r={x.r} style={colorStyle(x.color)} />

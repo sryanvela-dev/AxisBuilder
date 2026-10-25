@@ -33,7 +33,7 @@ describe('ruler end numbers', () => {
     for (const { name, project } of goldenJobs()) {
       const d = buildDrawing(project)
       for (const it of d.items.filter((i) => i.key.startsWith('ruler:'))) {
-        const ticks = it.shapes.filter((s) => s.t === 'line').length - 1 - 3 // minus the ruler line and the arrow's 3 lines
+        const ticks = it.shapes.filter((s) => s.t === 'line').length - 1 - 1 // minus the ruler line and the arrow's shaft (its head is a polygon)
         const numbers = it.shapes.filter((s) => s.t === 'text' && /^\d+"$/.test(s.text)).map((s) => (s.t === 'text' ? s.text : ''))
         if (numbers.length < ticks) (dropped[name] ??= []).push(`${it.key}: ${ticks - numbers.length} left out, last ${numbers.slice(-2).join(', ')}`)
       }

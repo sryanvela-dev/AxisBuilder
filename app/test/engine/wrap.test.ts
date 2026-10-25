@@ -87,7 +87,7 @@ describe('nozzle circles', () => {
     const l = shellNozzleLabels(p, drawnScans(p)).get(0)!
     expect([l.x, l.arcs!.length]).toEqual([0, 2])
     expect(l.leader).not.toBeNull()
-    expect(l.leader![0]).toBeGreaterThanOrEqual(0)
+    expect(l.leader![0][0]).toBeGreaterThanOrEqual(0)
     expect(l.tx).toBeGreaterThan(3)
     // One number, on one leader (the other half has none).
     expect(buildDrawing(p).items.find((i) => i.key === 'shellNozzles:0')!.shapes.filter((s) => s.t === 'text')).toHaveLength(1)

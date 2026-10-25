@@ -22,10 +22,13 @@ import {
 } from './layout.ts'
 import { LETTER_AREA, paperAlong, sheetArea, sheetViewport, type Section, type SectionPlan } from './sections.ts'
 import { capTextWidth } from './textMetrics.ts'
+import { arrowheadParts, dotPolygon, type ArrowStyle, type Pt } from './leaders.ts'
 
 export type PaperShape =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number; layer: string }
   | { t: 'rect'; x: number; y: number; w: number; h: number; layer: string }
+  /** Open polyline, or with fill a closed filled polygon (an arrowhead). */
+  | { t: 'poly'; pts: Pt[]; fill: boolean; layer: string }
   /** rot in degrees counter-clockwise; MC = centered, ML = left end at x. */
   | { t: 'text'; x: number; y: number; h: number; rot: number; text: string; just: 'MC' | 'ML'; layer: string }
 
@@ -53,6 +56,10 @@ export interface SheetPage {
 
 class PaperPen {
   shapes: PaperShape[] = []
+  readonly arrowStyle: ArrowStyle
+  constructor(arrowStyle: ArrowStyle) {
+    this.arrowStyle = arrowStyle
+  }
   line(x1: number, y1: number, x2: number, y2: number, layer: string) {
     this.shapes.push({ t: 'line', x1, y1, x2, y2, layer })
   }
@@ -70,11 +77,11 @@ class PaperPen {
     if (!(len > 1e-6)) return
     const ux = dx / len
     const uy = dy / len
-    const px = -uy
-    const py = ux
     this.line(x1, y1, x2, y2, layer)
-    this.line(x2, y2, x2 - size * ux - 0.55 * size * px, y2 - size * uy - 0.55 * size * py, layer)
-    this.line(x2, y2, x2 - size * ux + 0.55 * size * px, y2 - size * uy + 0.55 * size * py, layer)
+    for (const part of arrowheadParts(this.arrowStyle, size, [x2, y2], [ux, uy])) {
+      if (part.k === 'dot') this.shapes.push({ t: 'poly', pts: dotPolygon(part.c, part.d), fill: true, layer })
+      else this.shapes.push({ t: 'poly', pts: part.pts, fill: part.k === 'fill', layer })
+    }
   }
   /** SL_PaperHatchRect: 45-degree lines. */
   hatch(x: number, y: number, w: number, h: number, step: number, layer: string) {
@@ -120,7 +127,7 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   const area = sheetArea(p)
   const vp = sheetViewport(ve - vs, C, o, area)
   const u = LETTER_AREA.h / 7.5 // SECTIONPAGES' paper unit (1 in): the same text sizes on every paper
-  const pen = new PaperPen()
+  const pen = new PaperPen(s.arrowheadStyle)
   const mult = plan.rulerTextScale
   const lines = titleLines(p, false)
   const refs = drawnReferenceLabels(p) !== null ? sectionReferenceLabels(p) : []

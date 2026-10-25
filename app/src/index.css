@@ -1411,6 +1411,10 @@ svg.drawing:active {
   cursor: grabbing;
 }
 
+svg.drawing path.filled {
+  fill: var(--c);
+}
+
 svg.drawing path,
 svg.drawing circle {
   fill: none;

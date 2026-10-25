@@ -26,6 +26,7 @@ import {
   ucaseTrim,
 } from './layout.ts'
 import { headNozzleLabels, shellNozzleLabels, type NozzleLabel } from './labels.ts'
+import { arrowheadParts, dotPolygon, leaderParts, leaderStyle, type ArrowStyle, type LeaderPart, type LeaderStyle, type Pt } from './leaders.ts'
 import { rulerCalls, type RulerCall } from './rulers.ts'
 import { headVector, readableRot, rulerTextRotX, rulerTextRotY, type Orientation } from './transform.ts'
 import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from './styles.ts'
@@ -47,6 +48,8 @@ export type Shape =
   | { t: 'circle'; cx: number; cy: number; r: number; layer: string }
   /** Arc from a0 to a1 degrees, counter-clockwise (a nozzle wrapped across the seam). */
   | { t: 'arc'; cx: number; cy: number; r: number; a0: number; a1: number; layer: string }
+  /** Open polyline (a leader), or with fill a closed filled polygon (a closed arrowhead, a dot). */
+  | { t: 'poly'; pts: Pt[]; fill: boolean; layer: string }
   /** rot = the logical rotation passed to SL_Text (the drawing adds the orientation's rotation). */
   | { t: 'text'; x: number; y: number; h: number; rot: number; text: string; just: 'MC' | 'ML'; layer: string }
   /** from / to: the part of the photo shown (0..1 across its width; a scan wrapped across the seam). */
@@ -144,6 +147,16 @@ class Pen {
   arc(cx: number, cy: number, r: number, a0: number, a1: number, layer: string) {
     this.shapes.push({ t: 'arc', cx, cy, r, a0, a1, layer })
   }
+  poly(pts: Pt[], fill: boolean, layer: string) {
+    this.shapes.push({ t: 'poly', pts, fill, layer })
+  }
+  /** Leader or arrowhead parts (engine/leaders.ts): a dot is drawn as a filled polygon. */
+  parts(parts: LeaderPart[], layer: string) {
+    for (const part of parts) {
+      if (part.k === 'dot') this.poly(dotPolygon(part.c, part.d), true, layer)
+      else this.poly(part.pts, part.k === 'fill', layer)
+    }
+  }
   text(x: number, y: number, h: number, rot: number, text: string, layer: string, just: 'MC' | 'ML' = 'MC') {
     this.shapes.push({ t: 'text', x, y, h, rot, text, just, layer: textLayer(layer) })
   }
@@ -171,19 +184,16 @@ class Pen {
       if (x2 > x1) this.line(x + x1, y + y1, x + x2, y + y2, layer)
     }
   }
-  /** SL_Arrow */
-  arrow(x1: number, y1: number, x2: number, y2: number, ah: number, layer: string) {
+  /** SL_Arrow (app: the arrowhead style from the Drawing step; Open is v5.0's). */
+  arrow(x1: number, y1: number, x2: number, y2: number, ah: number, layer: string, style: ArrowStyle) {
     const dx = x2 - x1
     const dy = y2 - y1
     const len = Math.sqrt(dx * dx + dy * dy)
     if (!(len > 0.0001)) return
     const ux = dx / len
     const uy = dy / len
-    const px = -uy
-    const py = ux
     this.line(x1, y1, x2, y2, layer)
-    this.line(x2, y2, x2 - ah * ux - 0.55 * ah * px, y2 - ah * uy - 0.55 * ah * py, layer)
-    this.line(x2, y2, x2 - ah * ux + 0.55 * ah * px, y2 - ah * uy + 0.55 * ah * py, layer)
+    this.parts(arrowheadParts(style, ah, [x2, y2], [ux, uy]), layer)
   }
 }
 
@@ -222,14 +232,14 @@ function wrappedRect(pen: Pen, o: Orientation, pieces: XPiece[], y: number, h: n
 }
 
 /** SL_NozzleAt / SL_NozzleArcsAt: circle (or its arcs across the seam), leader and label where engine/labels.ts placed them. */
-function nozzleAt(pen: Pen, o: Orientation, l: NozzleLabel, layer: string, textLayer: string) {
+function nozzleAt(pen: Pen, o: Orientation, l: NozzleLabel, layer: string, textLayer: string, ls: LeaderStyle) {
   if (l.arcs) {
     for (const a of l.arcs) {
       if (a.arc) pen.arc(a.cx, a.cy, a.r, a.arc[0], a.arc[1], layer)
       else pen.circle(a.cx, a.cy, a.r, layer)
     }
   } else pen.circle(l.x, l.y, l.r, layer)
-  if (l.leader) pen.line(l.leader[0], l.leader[1], l.leader[2], l.leader[3], layer === 'NOZZLES' ? 'NOZZLE_LEADERS' : 'HEAD_NOZZLE_LEADERS')
+  if (l.leader) pen.parts(leaderParts(l.leader, ls), layer === 'NOZZLES' ? 'NOZZLE_LEADERS' : 'HEAD_NOZZLE_LEADERS')
   if (l.txt !== '') pen.text(l.tx, l.ty, l.th, readableRot(o), l.txt, textLayer)
 }
 
@@ -245,7 +255,7 @@ export function rulerNumberFits(pos: number, length: number, numberH: number): b
 }
 
 /** SL_RulerX / SL_RulerY and their orientation variants (one function, axis and tick side from the call). */
-function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall, numberH: number) {
+function ruler(pen: Pen, o: Orientation, arrowHead: number, arrowStyle: ArrowStyle, c: RulerCall, numberH: number) {
   const inch = (v: number) => `${Math.round(v)}"`
   const numbered = (pos: number) => rulerNumberFits(pos, c.length, numberH)
   const arrLen = Math.max(14, c.label.length * 2.5 * 0.6)
@@ -268,7 +278,7 @@ function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall, number
       if (numbered(pos)) pen.text(c.x0 + pos, c.y0 + sd * 5, 1.8, rot, inch(pos), c.layer)
     }
     pen.text(c.x0 + mid, c.y0 + sd * 10, 2.5, rot, c.label, 'X_AXIS_LABEL_TEXT')
-    pen.arrow(c.x0 + mid - arrLen / 2, c.y0 + sd * 15.5, c.x0 + mid + arrLen / 2, c.y0 + sd * 15.5, arrowHead, c.layer)
+    pen.arrow(c.x0 + mid - arrLen / 2, c.y0 + sd * 15.5, c.x0 + mid + arrLen / 2, c.y0 + sd * 15.5, arrowHead, c.layer, arrowStyle)
   } else {
     const rot = rulerTextRotY(o)
     pen.line(c.x0, c.y0, c.x0, c.y0 + c.length, c.layer)
@@ -277,7 +287,7 @@ function ruler(pen: Pen, o: Orientation, arrowHead: number, c: RulerCall, number
       if (numbered(pos)) pen.text(c.x0 + sd * 5.5, c.y0 + pos, 1.8, rot, inch(pos), c.layer)
     }
     pen.text(c.x0 + sd * 11, c.y0 + mid, 2.5, rot, c.label, 'Y_AXIS_LABEL_TEXT')
-    pen.arrow(c.x0 + sd * 16.5, c.y0 + mid - arrLen / 2, c.x0 + sd * 16.5, c.y0 + mid + arrLen / 2, arrowHead, c.layer)
+    pen.arrow(c.x0 + sd * 16.5, c.y0 + mid - arrLen / 2, c.x0 + sd * 16.5, c.y0 + mid + arrLen / 2, arrowHead, c.layer, arrowStyle)
   }
 }
 
@@ -345,7 +355,7 @@ function headView(pen: Pen, o: Orientation, p: Project, cx: number, cy: number, 
   }
   if (p.settings.showHeadClockReferences) {
     const [dx, dy] = headVector(o, 0)
-    pen.arrow(cx + (r + 2) * dx, cy + (r + 2) * dy, cx + (r + 7) * dx, cy + (r + 7) * dy, p.settings.arrowHeadSize, 'HEADS')
+    pen.arrow(cx + (r + 2) * dx, cy + (r + 2) * dy, cx + (r + 7) * dx, cy + (r + 7) * dy, p.settings.arrowHeadSize, 'HEADS', p.settings.arrowheadStyle)
     pen.text(cx + (r + 10) * dx, cy + (r + 10) * dy, 1.7, lr, '12', 'HEAD_CLOCK_TEXT')
   }
   const [lx, ly] = o === 'Horizontal CW' ? [cx - r - 9, cy] : o === 'Horizontal CCW' ? [cx + r + 9, cy] : [cx, cy + r + 9]
@@ -365,6 +375,7 @@ export function buildDrawing(p: Project): Drawing {
     if (pen.shapes.length) items.push({ key, source, shapes: pen.shapes, info })
   }
   const step = s.autHatchScale
+  const leaders = leaderStyle(s)
   const sized = L !== null && H !== null && L > 0 && H > 0
   const complete = (...v: (number | null)[]) => v.every((n) => n !== null && Number.isFinite(n))
 
@@ -421,7 +432,7 @@ export function buildDrawing(p: Project): Drawing {
       const l = labels.get(index)
       if (!l) return
       const pen = new Pen()
-      nozzleAt(pen, o, l, 'NOZZLES', 'NOZZLES')
+      nozzleAt(pen, o, l, 'NOZZLES', 'NOZZLES', leaders)
       add(`shellNozzles:${index}`, { list: 'shellNozzles', index, id: n.id }, pen, `${n.id}: diameter ${fmt(n.diameter!)} in at X ${fmt(n.x!)}, Y ${fmt(n.y!)}${n.minT !== null ? `, min. T ${n.minT}` : ''}`)
     })
   }
@@ -466,7 +477,7 @@ export function buildDrawing(p: Project): Drawing {
       const labels = axisLabels(p)
       for (const c of rulerCalls({ ori, placement, rulerOffset: s.rulerOffset, vesselXLen: H, vesselYLen: L, spacing: s.rulerSpacing, xAxisLabel: labels.x, yAxisLabel: labels.y })) {
         const pen = new Pen()
-        ruler(pen, o, s.arrowHeadSize, c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
+        ruler(pen, o, s.arrowHeadSize, s.arrowheadStyle, c, sizedHeight(textSizeRules(s), textLayer(c.layer), 1.8))
         add(`ruler:${c.layer}`, null, pen, c.label)
       }
     }
@@ -505,7 +516,7 @@ export function buildDrawing(p: Project): Drawing {
         const l = labels.get(index)
         if (!l) return
         const pen = new Pen()
-        nozzleAt(pen, o, l, 'HEADS', 'HEAD_NOZZLE_TEXT')
+        nozzleAt(pen, o, l, 'HEADS', 'HEAD_NOZZLE_TEXT', leaders)
         add(`headNozzles:${index}`, { list: 'headNozzles', index, id: n.id }, pen, `${n.id} (${n.head}): diameter ${fmt(n.diameter!)} in at ${n.clock ?? '?'} o'clock`)
       })
     }

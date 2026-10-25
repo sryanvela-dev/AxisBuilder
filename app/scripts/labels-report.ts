@@ -13,7 +13,7 @@ const golden = join(dirname(fileURLToPath(import.meta.url)), '..', 'test', 'gold
 const jobs = process.argv.slice(2).length ? process.argv.slice(2) : ['REF1', 'REF2']
 const r1 = (n: number) => (Math.round(n * 10) / 10).toFixed(1)
 const line = (l: NozzleLabel) => {
-  const where = l.leader ? `outside at ${r1(l.tx)}, ${r1(l.ty)}, leader ${r1(Math.hypot(l.leader[2] - l.leader[0], l.leader[3] - l.leader[1]))}` : 'inside'
+  const where = l.leader ? `outside at ${r1(l.tx)}, ${r1(l.ty)}, leader ${r1(l.leader.slice(1).reduce((n, q, i) => n + Math.hypot(q[0] - l.leader![i][0], q[1] - l.leader![i][1]), 0))}` : 'inside'
   return `${l.txt.padEnd(8)} ${where}${(l as { crowded?: string }).crowded ? `  OVERLAPS ${(l as { crowded?: string }).crowded}` : ''}`
 }
 for (const job of jobs) {
