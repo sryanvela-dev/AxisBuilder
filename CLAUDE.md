@@ -130,6 +130,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
   `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
+  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -289,6 +290,16 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (`coveragePercent(p, counted, mutCoverageArea(p))`; head areas never; compat v5.0 unchanged). .lsp (app change 28): plain
   `SL_Line`s and `SL_Text`. Review warns about bad areas (`mutAreaProblems`), never blocking. Setting "Show Min T under the
   MUT ID" (off). The geometry is the app's own (`engine/polygon.ts`), no clipping library.
+- DXF export, model space (Phase 7a, `app/docs/dxf-export.md`): "Make DXF" on the Export step writes
+  `<job> - AUT Coverage.dxf` (`dxfFileName`) from `buildDrawing` (`export/dxf/exportDxf.ts`), placed as the .lsp places
+  it (SL_tf = `toVisual`, SL_rot for text and arcs, whole-degree text rotation), by the app's own R2000 writer
+  (`export/dxf/dxfFile.ts`: LINE, LWPOLYLINE, CIRCLE, ARC, TEXT MC/ML, SOLID arrowheads, donut dots, IMAGE + IMAGEDEF +
+  reactors; layers = `SETUP_LAYERS` (SL_SetupLayers, test-checked) + app layers, with color, standard line weight,
+  AcCmTransparency xdata, off when hidden in the preview; style Standard / Arial). Images: the processed images
+  (`ui/exportImages.tsx` brings them up to date for both .lsp and DXF and reads PNG sizes), linked
+  `.\Processed_Images\<name>`; none when "Use scan images" is off. Scripts: `dxf:check` / `dxf:write`
+  (`test/export/dxfOutput.sha256.json`), `dxf:report -- --out "<folder>"`, `dxfpath:test -- "<folder>"` (both outside the
+  repo, never committed). Section sheets / paper space are 7b.
 - Overlay images: read `app/docs/overlay-image-scaling.md` before building the image step. Decided with the user:
   keep each photo's own resolution and correct only its shape to the scan's width:height (no fixed 40 px/in), then
   insert exactly as v5.0 does (attach at scan width, same insert points and rotations). Photos are only the scan area
@@ -742,3 +753,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   show under their row and on Review only, not in the list at the top of the step, the step bar count or the Before export
   banner (`stepIssues` leaves them out; `stepStatuses` adds them to Review). Never blocking, as before.
 - 2026-10-25 – Phase 5c .lsp (MUT areas, app change 28) tested in DraftSight by the user: works. Not yet run in AutoCAD.
+- 2026-10-25 – Web app Phase 7a (branch feature/dxf-export, user request): DXF of the drawing in model space. New
+  `export/dxf/dxfFile.ts` (R2000 writer, written in the app) and `export/dxf/exportDxf.ts` (from `buildDrawing`, placed as
+  the .lsp: SL_tf, SL_rot); "Make DXF" on the Export step (`ui/exportDxf.tsx`; image processing shared with Make CAD
+  drawing in `ui/exportImages.tsx`); dot arrowheads keep their center and size on the drawing shape (`dot`) for the
+  DXF's donuts. Scripts dxf:check / dxf:write / dxf:report / dxfpath:test. The .lsp (compat and app fingerprints), the PDF
+  and the report images are unchanged. Not yet opened in DraftSight / AutoCAD. No VBA or workbook changes.
