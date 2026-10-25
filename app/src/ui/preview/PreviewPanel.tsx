@@ -18,6 +18,9 @@ import { activeSectionPlan, sectionPlanItems } from '../../engine/sections.ts'
 import { usePhotoThumbs } from './usePhotoThumbs.ts'
 import { setPreviewPrefs, usePreviewPrefs, type PreviewPrefs } from './previewPrefs.ts'
 import { useMoveLabels } from './MoveLabels.tsx'
+import { useMutAreas } from './MutAreas.tsx'
+import { hasMutAreas } from '../../engine/mutAreas.ts'
+import { useAreaTool } from '../areaToolContext.ts'
 
 export function PreviewPanel() {
   const app = useApp()
@@ -52,11 +55,14 @@ export function PreviewPanel() {
     const d = drawing
     return buildRenderModel(plan ? { ...d, items: [...d.items, ...sectionPlanItems(project, plan)] } : d)
   }, [project, plan, drawing])
+  // Drawing mode: move labels and leader ends (MoveLabels.tsx), or draw and edit MUT areas (MutAreas.tsx). A MUT row's
+  // Draw area button switches the MUT areas tool on from the table, which brings the drawing back from the sheets.
+  const { tool: mode, setTool: setMode } = useAreaTool()
   const [sheets, setSheets] = useState(false)
-  const showSheets = sheets && project.vessel.length !== null && project.vessel.height !== null
-  // Drawing mode: move nozzle labels and their leader ends (MoveLabels.tsx).
-  const [moving, setMoving] = useState(false)
-  const move = useMoveLabels(moving && !showSheets && prefs.open, project, drawing)
+  const showSheets = sheets && mode !== 'areas' && project.vessel.length !== null && project.vessel.height !== null
+  const move = useMoveLabels(mode === 'labels' && !showSheets && prefs.open, project, drawing)
+  const areas = useMutAreas(mode === 'areas' && !showSheets && prefs.open, project)
+  const tool = move.tool ?? areas.tool
   const hidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const thumbs = usePhotoThumbs(project, photos.photoFolder, prefs.open && !hidden.has('images'))
 
@@ -116,14 +122,21 @@ export function PreviewPanel() {
           <button type="button" className="btn btn-small" onClick={() => view.current?.fit()} title="Show the whole drawing" disabled={showSheets}>
             Fit
           </button>
-          <button type="button" className={`btn btn-small${move.tool ? ' btn-primary' : ''}`} onClick={() => setMoving(!moving)} aria-pressed={!!move.tool}
+          <button type="button" className={`btn btn-small${move.tool ? ' btn-primary' : ''}`} onClick={() => setMode(mode === 'labels' ? null : 'labels')} aria-pressed={!!move.tool}
             disabled={showSheets} title="Move nozzle labels and their leader ends by dragging them">
             Move labels
+          </button>
+          <button type="button" className={`btn btn-small${areas.tool ? ' btn-primary' : ''}`} onClick={() => setMode(mode === 'areas' ? null : 'areas')} aria-pressed={!!areas.tool}
+            disabled={showSheets} title="Draw MUT areas on the shell or the head views, and edit their corners">
+            MUT areas
           </button>
           {(
             <button type="button" className={`btn btn-small${showSheets ? ' btn-primary' : ''}`} onClick={() => {
                 // The sheets open full size, so they are big enough to read; closing full size keeps them.
-                if (!showSheets) setFull(true)
+                if (!showSheets) {
+                  setFull(true)
+                  setMode(null)
+                }
                 setSheets(!showSheets)
               }} aria-pressed={showSheets}
               title="Flip through the sheets as they will print (the PDF)">
@@ -141,7 +154,7 @@ export function PreviewPanel() {
         </span>
       </div>
       <div className="layer-toggles" role="group" aria-label="Layers">
-        {LAYER_GROUPS.filter((g) => g.id !== 'sections' || plan).map((g) => (
+        {LAYER_GROUPS.filter((g) => (g.id !== 'sections' || plan) && (g.id !== 'mut' || hasMutAreas(project))).map((g) => (
           <label key={g.id} className={`layer-chip${hidden.has(g.id) ? ' off' : ''}`}>
             <input type="checkbox" checked={!hidden.has(g.id)} onChange={() => toggle(g.id)} />
             {g.id === 'images' ? 'Photos' : g.name}
@@ -149,6 +162,7 @@ export function PreviewPanel() {
         ))}
       </div>
       {move.status}
+      {areas.status}
       <div className={`preview-canvas${showSheets ? ' sheets' : project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>
         {showSheets ? (
           <SheetsView drawing={drawing} plan={plan} project={project} hidden={hidden} thumbs={thumbs} />
@@ -162,15 +176,16 @@ export function PreviewPanel() {
           thumbs={thumbs}
           onPick={pick}
           fitKey={`${job.id}|${project.vessel.orientation}|${vesselMissing}`}
-          tool={move.tool}
+          tool={tool}
         />
         )}
         {move.menu}
+        {areas.menu}
         {vesselMissing && <p className="preview-note">Enter the shell length and circumference to see the whole drawing.</p>}
       </div>
       <details className="preview-diff" hidden={showSheets}>
         <summary className="muted">
-          {move.tool
+          {tool
             ? 'Drag empty space, middle-drag or Space+drag to move the view, wheel to zoom. Where it can differ from CAD'
             : 'Drag to move, wheel to zoom, click an item to go to its row. Where it can differ from CAD'}
         </summary>

@@ -32,12 +32,19 @@ const SAMPLE: ProjectInput = {
   shellMut: [
     { id: 'M1', x: 10, y: 10, minT: 0.48 },
     { id: 'M2', x: 180, y: 230, minT: 0.47 },
+    // MUT areas (Phase 5c): around nozzle N1 (left unhatched), over a scan edge and weld C2, across the seam.
+    { id: 'M4', x: 97, y: 32, minT: 0.46, area: [[84, 18], [110, 18], [110, 44], [84, 44]] },
+    { id: 'M5', x: 76, y: 92, minT: 0.45, area: [[62, 80], [86, 80], [90, 104], [62, 104]] },
+    { id: 'M6', x: 1, y: 157.5, minT: 0.49, area: [[-6, 150], [8, 150], [8, 165], [-6, 165]] },
   ],
   headNozzles: [
     { head: 'HEAD 1', id: 'N3', diameter: 2, clock: '12', radiusPosition: 'HALF' },
     { head: 'HEAD 2', id: 'N4', diameter: 3, clock: '6', radiusPosition: 'CENTER' },
   ],
-  headMut: [{ head: 'HEAD 1', id: 'M3', clock: '3', radiusPosition: 'OUTER', minT: 0.5 }],
+  headMut: [
+    { head: 'HEAD 1', id: 'M3', clock: '3', radiusPosition: 'OUTER', minT: 0.5 },
+    { head: 'HEAD 2', id: 'M7', clock: '4', radiusPosition: 'HALF', minT: 0.44, area: [[0.2, -0.25], [0.7, -0.25], [0.7, 0.35], [0.2, 0.35]] },
+  ],
   scans: [
     { id: 'SCAN 1', xStart: 0, xStop: 24, yStart: 0, yStop: 48 },
     { id: 'SCAN 2', xStart: 24, xStop: 48, yStart: 0, yStop: 48 },

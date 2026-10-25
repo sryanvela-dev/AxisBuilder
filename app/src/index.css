@@ -2005,3 +2005,56 @@ svg.sheet-model path {
   margin: 4px 10px;
   font-size: 0.8em;
 }
+
+/* MUT areas tool (Phase 5c): the shape being drawn, the selected area's outline, its + handles. */
+svg.drawing .area-draft {
+  stroke: #ffd54f;
+  stroke-width: 2;
+}
+
+svg.drawing .area-close-guide {
+  stroke: #ffd54f;
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+svg.drawing .area-selected {
+  stroke-dasharray: 6 3;
+}
+
+svg.drawing .area-plus {
+  stroke: #4fc3f7;
+  stroke-width: 2;
+}
+
+.area-status .area-coords {
+  font-variant-numeric: tabular-nums;
+}
+
+.area-status .area-typed {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.area-status .area-typed input {
+  width: 9em;
+}
+
+.area-status .area-message {
+  margin: 0;
+}
+
+.area-cell {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* The status line keeps one height while the tool goes from step to step, so the drawing doesn't jump under the cursor. */
+.move-status.area-status {
+  min-height: 5.2em;
+  align-content: flex-start;
+}

@@ -2,7 +2,7 @@
 // data/columns.ts. Type to change a cell; Tab or Enter moves on, Enter past the last cell adds a row.
 // Problems show under the row: values not stored, checks (errors and warnings) and import notes.
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { applyCheckAction, checksAt, type Check, type CheckAction } from '../data/checks.ts'
 import { isMovableList, resetOverride, rowOverride } from '../data/overrides.ts'
 import { wrapNote } from '../engine/wrapNotes.ts'
@@ -34,10 +34,10 @@ type Item = Record<string, unknown>
 const itemsOf = (p: Project, list: TableListKey) => p[list] as Item[]
 const withItems = (p: Project, list: TableListKey, items: Item[]) => ({ ...p, [list]: items }) as Project
 
-/** A read-only column worked out from the row, e.g. a scan's width. */
+/** A read-only column worked out from the row, e.g. a scan's width (or a MUT row's area, with its buttons). */
 export interface DerivedColumn {
   title: string
-  value: (item: Item) => string
+  value: (item: Item, index: number) => ReactNode
 }
 
 export interface DataTableProps {
@@ -253,7 +253,7 @@ function Row(props: {
         ))}
         {props.derived.map((d) => (
           <td key={d.title} className="num col-derived">
-            {d.value(item)}
+            {d.value(item, index)}
           </td>
         ))}
         <td className="row-actions">

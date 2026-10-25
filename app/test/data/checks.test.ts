@@ -123,10 +123,10 @@ describe('checks', () => {
     expect(errors(none)).toEqual([])
     expect(warnings(none).map((c) => c.text)).toEqual([
       '2 are on HEAD 1 and HEAD 2, but Head views is NONE, so they are not drawn.',
-      '1 is on HEAD 1, but Head views is NONE, so it is not drawn.',
+      '2 are on HEAD 1 and HEAD 2, but Head views is NONE, so they are not drawn.',
     ])
     const one = checkFields({ ...p, settings: { ...p.settings, headViewMode: 'HEAD 1' } })
-    expect(warnings(one).map((c) => c.text)).toEqual(['1 is on HEAD 2, but Head views is HEAD 1, so it is not drawn.'])
+    expect(warnings(one).map((c) => c.text)).toEqual(['1 is on HEAD 2, but Head views is HEAD 1, so it is not drawn.', '1 is on HEAD 2, but Head views is HEAD 1, so it is not drawn.'])
   })
 
   it('a blank project name is a warning only', () => {

@@ -17,6 +17,7 @@ import { ExportStep } from './exportStep.tsx'
 import { FoldersContext } from './foldersContext.ts'
 import { PreviewPanel } from './preview/PreviewPanel.tsx'
 import { SelectionContext, type Selected } from './selectionContext.ts'
+import { AreaToolContext, IDLE, type AreaPhase, type PreviewTool } from './areaToolContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
 
 /** Steps that show the drawing preview beside their page. */
@@ -49,6 +50,18 @@ export function JobScreen() {
   const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
   const [selected, setSelected] = useState<Selected | null>(null)
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected])
+  // The preview's tool, and what the MUT areas tool is doing (a MUT row's Draw area button starts it; Phase 5c).
+  const [previewTool, setPreviewTool] = useState<PreviewTool>(null)
+  const [areaPhase, setAreaPhase] = useState<AreaPhase>(IDLE)
+  const areaApi = useMemo(() => ({
+    tool: previewTool,
+    setTool: (t: PreviewTool) => {
+      setPreviewTool(t)
+      if (t !== 'areas') setAreaPhase(IDLE)
+    },
+    phase: areaPhase,
+    setPhase: setAreaPhase,
+  }), [previewTool, areaPhase])
   // Every step opens at its top (the page area would otherwise keep the last step's scroll position).
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
@@ -59,6 +72,7 @@ export function JobScreen() {
     <ChecksContext.Provider value={checks}>
     <FoldersContext.Provider value={folders}>
     <SelectionContext.Provider value={selection}>
+    <AreaToolContext.Provider value={areaApi}>
       <div className="job">
         <TopBar />
         <nav className="stepbar" aria-label="Steps">
@@ -119,6 +133,7 @@ export function JobScreen() {
           ) : null}
         </footer>
       </div>
+    </AreaToolContext.Provider>
     </SelectionContext.Provider>
     </FoldersContext.Provider>
     </ChecksContext.Provider>
