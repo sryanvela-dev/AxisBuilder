@@ -639,3 +639,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   hollow). The nozzle leaders' solid heads drew, the straight horizontal arrow did not; the only difference is `expt` of a
   zero difference in `SL_ArrowSolid` (a horizontal or vertical head), so the width is now `sqrt(dx*dx + dy*dy)`. Fingerprints
   refreshed; test bans `expt`. Please re-test: the direction arrows should now be solid.
+- 2026-10-25 – Follow-up (feature/leaders-arrows, user): the `expt` change did not cure DraftSight's "Invalid parameter" on the direction arrow
+  heads. A refused closed head is now retried as a plain SOLID entity (`SL_ArrowHeadSolidEnt`) before the line outline, and the
+  once-per-load message box also lists the polyline entity the file tried to make (`SL_LAST`, `SL_Describe`) and whether the
+  SOLID worked, so the data DraftSight objects to is visible. Fingerprints refreshed.
