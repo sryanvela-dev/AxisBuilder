@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { copyId, newItem, nextId, setCell } from '../../src/data/columns.ts'
 import { buildPastedRows, guessMapping, matchHeader, parseClipboardTable } from '../../src/data/paste.ts'
 import { createEmptyProject } from '../../src/data/projectFile.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 describe('clipboard text from Excel', () => {
   it('splits tabs and lines, handles quoted cells, drops blank lines', () => {

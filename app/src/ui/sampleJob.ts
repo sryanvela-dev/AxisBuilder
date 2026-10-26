@@ -1,7 +1,12 @@
-// A made-up sample job for trying the app (Start screen > Open sample job). Not a real vessel,
-// client or inspector. It has no photos linked, so the Images step has something to do.
+// A made-up sample job for trying the app (Start screen > Open sample job). Not a real vessel, client or inspector.
+// It shows every feature a new inspector should see (test/ui/sampleJob.test.ts): scans with made-up photos
+// (ui/samplePhotos.ts, made when the job opens), shell and head nozzles on both heads, a moved label, a nozzle and a
+// scan wrapping across the seam, shell and head MUT areas, and section sheets ready to switch on (off by default).
 
 import { CURRENT_SCHEMA_VERSION, projectFileSchema, type Project, type ProjectInput } from '../data/schema.ts'
+
+/** File names of the made-up photos (ui/samplePhotos.ts draws them): scan number n -> S<n>.png (S# naming as v5.0). */
+export const samplePhotoName = (n: number) => `S${n}.png`
 
 const SAMPLE: ProjectInput = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -16,7 +21,8 @@ const SAMPLE: ProjectInput = {
     revision: '0',
   },
   vessel: { orientation: 'Horizontal CW', length: 240, height: 188.5 },
-  settings: { headViewMode: 'BOTH', head1Label: 'EAST HEAD', head2Label: 'WEST HEAD' },
+  // Section sheets stay off; switched on, the shell splits into two sheets.
+  settings: { headViewMode: 'BOTH', head1Label: 'EAST HEAD', head2Label: 'WEST HEAD', sectionSplit: 'Number of sections', sectionCount: 2 },
   circWelds: [
     { id: 'C1', y: 0 },
     { id: 'C2', y: 96 },
@@ -27,6 +33,8 @@ const SAMPLE: ProjectInput = {
     { id: 'N1', diameter: 12, x: 94, y: 30, minT: 0.5 },
     { id: 'N2', diameter: 4, x: 20, y: 150 },
     { id: 'MW', diameter: 24, x: 140, y: 200 },
+    // Across the circumference seam (X = 0 = 188.5): drawn as two arcs.
+    { id: 'N5', diameter: 10, x: 186, y: 150 },
   ],
   objects: [{ id: 'SADDLE A', x: 120, y: 40, circWidth: 60, length: 8 }],
   shellMut: [
@@ -52,7 +60,12 @@ const SAMPLE: ProjectInput = {
     { id: 'SCAN 4', xStart: 0, xStop: 24, yStart: 48, yStop: 96 },
     { id: 'SCAN 5', xStart: 24, xStop: 48, yStart: 48, yStop: 96 },
     { id: 'SCAN 6', xStart: 48, xStop: 72, yStart: 48, yStop: 96 },
+    // Past the seam: X stop 200 is 11.5 on the other side, so the scan is drawn in two pieces (photo split in two).
+    { id: 'SCAN 7', xStart: 176, xStop: 200, yStart: 96, yStop: 144 },
   ],
+  scanImages: [1, 2, 3, 4, 5, 6, 7].map((n) => ({ scanId: `SCAN ${n}`, imageFile: samplePhotoName(n) })),
+  // Moved by hand (Move labels in the preview): the manway's label sits up and to the right on its leader.
+  labelOverrides: [{ list: 'shellNozzles', id: 'MW', label: { dx: 26, dy: 16 } }],
 }
 
 export function sampleProject(): Project {

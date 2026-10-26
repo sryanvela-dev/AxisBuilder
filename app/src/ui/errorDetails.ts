@@ -1,15 +1,25 @@
-// Text for "Copy error details": what broke and where, never the job's data.
+// Text for "Copy error details" and "Report a problem": what broke and where, never the job's data.
 
 declare const __APP_VERSION__: string
 
+export const appVersion = (): string => (typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown')
+const browserName = (): string => (typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent)
+
+let last: string | null = null
+
+/** The details of the last error the app showed (null when none since it was opened). */
+export function lastErrorDetails(): string | null {
+  return last
+}
+
 export function errorDetails(error: unknown, where: string, componentStack?: string | null): string {
   const err = error instanceof Error ? error : new Error(String(error))
-  return [
+  last = [
     'AxisBuilder error report',
     `Time: ${new Date().toISOString()}`,
-    `App version: ${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown'}`,
+    `App version: ${appVersion()}`,
     `Screen: ${where}`,
-    `Browser: ${typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent}`,
+    `Browser: ${browserName()}`,
     '',
     `${err.name}: ${err.message}`,
     err.stack ?? '',
@@ -17,6 +27,20 @@ export function errorDetails(error: unknown, where: string, componentStack?: str
   ]
     .join('\n')
     .trim()
+  return last
+}
+
+/** "Report a problem" from the Help guide: version, browser and where you are, plus the last error if there was one. */
+export function problemDetails(where: string): string {
+  return [
+    'AxisBuilder problem report',
+    `Time: ${new Date().toISOString()}`,
+    `App version: ${appVersion()}`,
+    `Screen: ${where}`,
+    `Browser: ${browserName()}`,
+    '',
+    last ? `Last error:\n${last}` : 'No error shown since the app was opened.',
+  ].join('\n')
 }
 
 /** Copies text to the clipboard. Returns false when the browser refuses. */

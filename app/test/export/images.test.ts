@@ -3,7 +3,8 @@ import { excelSize, fitSize } from '../../src/export/images/fit.ts'
 import { MARKER_FILE, markerText, parseMarker } from '../../src/export/images/marker.ts'
 import { checkTargetFolder, planProcessing, processedFolderName, runProcessing, type ProcessIO } from '../../src/export/images/process.ts'
 import type { Project } from '../../src/data/schema.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 /** Photo sizes like the reference jobs (screen captures) and a few odd ones. */
 const PHOTOS: [number, number][] = [[1915, 957], [1532, 767], [1687, 562], [1341, 442], [800, 1200], [1000, 1000], [37, 23]]

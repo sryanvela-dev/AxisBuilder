@@ -3,6 +3,9 @@
 
 import { LIST_META, type ListKey } from '../data/schema.ts'
 import { useApp } from './appContext.ts'
+import { appVersion } from './errorDetails.ts'
+import { HelpButton } from './HelpGuide.tsx'
+import { Wordmark } from './logo.tsx'
 import { WorkbookReportTable } from './reports.tsx'
 
 function when(ms: number): string {
@@ -17,9 +20,15 @@ export function StartScreen() {
   if (app.pendingImport) return <ImportReview />
   return (
     <main className="start">
-      <header className="start-header">
-        <h1>AxisBuilder</h1>
-        <p className="muted">AUT coverage layouts for pressure vessels and tanks. Everything stays on this computer; it works offline.</p>
+      <header className="start-hero">
+        <h1 className="start-logo">
+          <Wordmark />
+        </h1>
+        <p className="start-tagline">AUT scan coverage drawings for pressure vessels and tanks, from the field form to the finished PDF.</p>
+        <p className="muted start-meta">
+          Version {appVersion()} · Works offline · Your jobs stay on this computer
+        </p>
+        <HelpButton where="Start screen" className="btn start-help" />
       </header>
 
       {app.recoveries.length > 0 && (
@@ -48,9 +57,9 @@ export function StartScreen() {
 
       <div className="start-grid">
         <section className="start-actions" aria-label="Start">
-          <button type="button" className="start-card" onClick={app.newJob}>
+          <button type="button" className="start-card start-card-main" onClick={app.newJob}>
             <strong>New job</strong>
-            <span>Start with an empty job.</span>
+            <span>Start with an empty job and fill it in step by step.</span>
           </button>
           <button type="button" className="start-card" onClick={() => void app.openFromDisk()}>
             <strong>Open job</strong>
@@ -62,13 +71,13 @@ export function StartScreen() {
           </button>
           <button type="button" className="start-card" onClick={() => void app.openSample()}>
             <strong>Open sample job</strong>
-            <span>A made-up job to try things out.</span>
+            <span>A made-up job that shows every feature. Try things out; nothing is saved unless you save it.</span>
           </button>
           {app.busy && <p className="muted">{app.busy}</p>}
         </section>
 
-        <section className="recent" aria-label="Recent jobs">
-          <h2>Recent jobs</h2>
+        <section className="recent" aria-labelledby="recent-title">
+          <h2 id="recent-title">Recent jobs</h2>
           {app.recent.length === 0 ? (
             <p className="muted">Jobs you open or save appear here.</p>
           ) : (
@@ -78,11 +87,11 @@ export function StartScreen() {
                   <button type="button" className="recent-open" onClick={() => void app.openRecent(r)}>
                     <strong>{r.title}</strong>
                     <span className="muted">
-                      {r.fileName} - {when(r.openedAt)}
+                      {r.fileName} · opened {when(r.openedAt)}
                       {r.handle ? '' : ' (you pick the file again)'}
                     </span>
                   </button>
-                  <button type="button" className="btn btn-small" onClick={() => void app.forgetRecent(r)} aria-label={`Remove ${r.title} from the list`}>
+                  <button type="button" className="btn btn-small" onClick={() => void app.forgetRecent(r)} aria-label={`Remove ${r.title} from the list`} title="Remove from this list (the file is not deleted)">
                     Remove
                   </button>
                 </li>

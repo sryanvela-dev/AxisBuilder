@@ -9,7 +9,8 @@ import { rulerCalls } from '../../src/engine/rulers.ts'
 import { headVector, toLogical, toVisual, type Orientation } from '../../src/engine/transform.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { LispNum } from '../../src/export/lsp/vbaFormat.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const golden = join(import.meta.dirname, '..', 'golden')
 const jobs = readdirSync(golden, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
