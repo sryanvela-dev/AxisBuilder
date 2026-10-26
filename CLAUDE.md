@@ -762,3 +762,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Phase 7a DXF checked in DraftSight by the user: every REF job's DXF opens and looks right, the (made-up)
   scan images show, so the app's relative image path (.\Processed_Images\...) works there. The image-path kit was not
   run (moving the folder is untested). Not yet checked in AutoCAD.
+- 2026-10-25 – Phase 7a DXF: AutoCAD refused the first file ("Did not receive PlotStyleName", LAYER table); fixed (every
+  layer's 390 -> the Normal plot style placeholder in ACAD_PLOTSTYLENAME, classes for LAYOUT / ACDBDICTIONARYWDFLT /
+  ACDBPLACEHOLDER). The REF DXFs then opened and worked in both AutoCAD and DraftSight (user).

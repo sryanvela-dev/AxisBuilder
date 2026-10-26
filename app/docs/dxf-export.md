@@ -86,7 +86,10 @@ drawing started from another template (an SHX font as Standard) shows the .lsp's
 - DraftSight (user, 2026-10-25): every REF job's DXF opens and looks right, with the images (made-up pictures from
   `dxf:report`) in place, so the relative path the app writes (`.\Processed_Images\...`) works. The image-path test kit
   was not run, so whether the images are still found after the folder is moved is not checked yet.
-- AutoCAD: not yet.
+- AutoCAD (user, 2026-10-25): the first file was refused ("Did not receive PlotStyleName" in the LAYER table: an R2000
+  layer must point at a plot style). Every layer now points at the "Normal" placeholder in ACAD_PLOTSTYLENAME, and the
+  LAYOUT and plot style objects are declared as classes. After that, the REF DXFs open and work in AutoCAD and
+  DraftSight.
 
 ## What differs from the .lsp drawing
 
