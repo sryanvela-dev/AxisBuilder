@@ -109,7 +109,7 @@ Website-first rewrite of AxisBuilder: an installable web app (PWA) that works of
 visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app must match its output.
 - Stack: Vite + React + TypeScript (strict mode), vite-plugin-pwa (Workbox service worker precaches the
   whole build; `registerType: 'autoUpdate'`, so new versions apply automatically when online), Vitest.
-  Planned hosting: Cloudflare Pages (serves `app/dist`).
+  Hosting: Cloudflare Pages (serves `app/dist`), prepared but not deployed; settings, updates and Cloudflare Access in `app/docs/hosting.md`.
 - Encoding: the cp1252/CRLF rules above apply only to `src/*.bas`. Everything under `/app` is UTF-8.
 - Folders:
   - `app/src/data/` – project file schema, importers (.xlsm, AUT CSV, images)
@@ -130,7 +130,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
   `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
-  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit).
+  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit), `icons` (the logo files and app icons, see Polish).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -322,6 +322,18 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   names exist; the importer renames repeated names ("N1" -> "N1 (2)") and lists each rename in its report. Nozzle names
   are the exception (user, 2026-10-25, `REPEATS_ALLOWED` in schema.ts): they may repeat, the importer keeps them, Review
   warns, export goes on.
+- Polish and rollout (Phase 6): logo = "AXISBUILDER" with the X replaced by a curve-stitched X (option D in
+  `app/docs/logo-examples.html`). `npm run icons` (`scripts/gen-icons.ts`, raster in `scripts/iconRaster.ts`, no library)
+  writes `src/assets/logo/` (wordmark-light/-dark.svg: letters as outlines from the bundled Archivo Black, OFL, X as lines;
+  icon.svg) and `public/` (favicon.svg, pwa-192/512, maskable-512, apple-touch-icon 180); `test/ui/logo.test.ts` fails when
+  they are out of date. On screen: `ui/logo.tsx` (`Wordmark` on the start screen, `BrandMark` in the top bar). Help button
+  (top bar and start screen) opens the quick guide (`ui/HelpGuide.tsx`, words in `ui/helpText.ts`). Report a problem
+  (`ui/ReportProblem.tsx`, guide and error screen): copies `problemDetails` / `errorDetails` (`errorDetails.ts` remembers the
+  last error; never job data) and opens an email to `SUPPORT_EMAIL` (`ui/support.ts`, the one place). Icon-only buttons need
+  `title` + `aria-label` (`test/ui/tooltips.test.ts` reads the screens' source). Sample job (`ui/sampleJob.ts`) shows every
+  feature (`test/ui/sampleJob.test.ts`); its made-up photos are drawn when it opens (`ui/samplePhotos.ts`, given to the
+  photo folder in JobScreen). Tests written against the earlier sample use `test/fixtures/olderSample.ts`. First-user
+  test sheet: `app/docs/first-user-test.md`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -765,3 +777,16 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Phase 7a DXF: AutoCAD refused the first file ("Did not receive PlotStyleName", LAYER table); fixed (every
   layer's 390 -> the Normal plot style placeholder in ACAD_PLOTSTYLENAME, classes for LAYOUT / ACDBDICTIONARYWDFLT /
   ACDBPLACEHOLDER). The REF DXFs then opened and worked in both AutoCAD and DraftSight (user).
+- 2026-10-25 – Web app Phase 6 (branch feature/polish-rollout, user request, run unattended): polish and rollout. Logo
+  (option D): wordmark with the curve-stitched X 2.2 times the cap height, letters as outlines from Archivo Black (OFL,
+  `src/assets/logo/`), app icon (X at 90% of a dark rounded square, 9 threads per quarter), favicon and PWA icons from
+  `npm run icons`; manifest theme color #1d2733. Start screen: wordmark, one-line description, version, Help, New job
+  marked as the main action, recent jobs in a card. Job top bar: icon + name, Help. Quick guide (steps, export files,
+  keys, Report a problem). Report a problem on the guide and the error screen (copies the details, opens an email to the
+  support address). Tooltips: corner table close button (the rest already had them); test reads every screen's buttons.
+  Sample job: made-up photos, SCAN 7 and nozzle N5 across the seam, MW label moved, section split ready (2 sections,
+  still off); only the sample's .lsp and DXF fingerprints changed (golden jobs unchanged, compat v5.0 unchanged).
+  Hosting prepared, not deployed: `app/public/_headers`, `app/.nvmrc`, `app/docs/hosting.md`; built app checked offline
+  after the first visit (preview server stopped, sample job still opens). `app/docs/first-user-test.md`. The dropped
+  Phase 5d work (CAD check kit) was committed on its own branch feature/cad-check-kit, not merged. No VBA or workbook
+  changes.
