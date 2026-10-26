@@ -50,8 +50,8 @@ export type Shape =
   | { t: 'circle'; cx: number; cy: number; r: number; layer: string }
   /** Arc from a0 to a1 degrees, counter-clockwise (a nozzle wrapped across the seam). */
   | { t: 'arc'; cx: number; cy: number; r: number; a0: number; a1: number; layer: string }
-  /** Open polyline (a leader), or with fill a closed filled polygon (a closed arrowhead, a dot). */
-  | { t: 'poly'; pts: Pt[]; fill: boolean; layer: string }
+  /** Open polyline (a leader), or with fill a closed filled polygon (a closed arrowhead, a dot: its center and size kept for the DXF). */
+  | { t: 'poly'; pts: Pt[]; fill: boolean; layer: string; dot?: { c: Pt; d: number } }
   /** rot = the logical rotation passed to SL_Text (the drawing adds the orientation's rotation). */
   | { t: 'text'; x: number; y: number; h: number; rot: number; text: string; just: 'MC' | 'ML'; layer: string }
   /** from / to: the part of the photo shown (0..1 across its width; a scan wrapped across the seam). */
@@ -177,7 +177,7 @@ class Pen {
   /** Leader or arrowhead parts (engine/leaders.ts): a dot is drawn as a filled polygon. */
   parts(parts: LeaderPart[], layer: string) {
     for (const part of parts) {
-      if (part.k === 'dot') this.poly(dotPolygon(part.c, part.d), true, layer)
+      if (part.k === 'dot') this.shapes.push({ t: 'poly', pts: dotPolygon(part.c, part.d), fill: true, layer, dot: { c: part.c, d: part.d } })
       else this.poly(part.pts, part.k === 'fill', layer)
     }
   }
