@@ -5,7 +5,8 @@ import { reportTargets } from '../../src/data/reportTargets.ts'
 import { createEmptyProject } from '../../src/data/projectFile.ts'
 import { FIELD_TABLES, SETTING_GROUPS, groupFields, isFieldShown, type FieldDef, type SectionValues } from '../../src/data/settings.ts'
 import { importWorkbook } from '../../src/data/xlsmImport.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const allFields = FIELD_TABLES.flatMap((t) => Object.entries(t.fields as Record<string, FieldDef>).map(([key, def]) => ({ section: t.section, key, def })))
 

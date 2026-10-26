@@ -109,7 +109,7 @@ Website-first rewrite of AxisBuilder: an installable web app (PWA) that works of
 visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app must match its output.
 - Stack: Vite + React + TypeScript (strict mode), vite-plugin-pwa (Workbox service worker precaches the
   whole build; `registerType: 'autoUpdate'`, so new versions apply automatically when online), Vitest.
-  Planned hosting: Cloudflare Pages (serves `app/dist`).
+  Hosting: Cloudflare Pages (serves `app/dist`), prepared but not deployed; settings, updates and Cloudflare Access in `app/docs/hosting.md`.
 - Encoding: the cp1252/CRLF rules above apply only to `src/*.bas`. Everything under `/app` is UTF-8.
 - Folders:
   - `app/src/data/` – project file schema, importers (.xlsm, AUT CSV, images)
@@ -130,7 +130,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
   `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
-  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit).
+  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit), `icons` (the logo files and app icons, see Polish), `sample:make` (the sample job, see Polish).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -308,7 +308,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - Reference jobs for parity tests: `npm run convert:refjobs -- "<jobs folder>"` (`app/scripts/convert-reference-jobs.ts`
   + `fill-v5-workbook.ps1`) converts old job workbooks into copies of the v5.0 workbook via Excel COM (macros forced
   off, signature kept), copying the original cells found by `importWorkbook`, then re-imports and compares. The jobs
-  folder is outside the repo and holds real client data: never commit anything from it.
+  folder is outside the repo and holds real client data: never commit anything from it. One exception (user,
+  2026-10-26): the sample job, REF1's V-100 with its scan photos (`app/src/ui/sampleJobData.ts`, `app/public/sample-photos/`,
+  made by `npm run sample:make`), checked by the user: it holds no identifiers, so it may be committed, pushed and hosted.
 - Golden jobs: `app/test/golden/<JOB>/` (project.json + v5.0.lsp + README + golden.json), made anonymized with
   `npm run golden:make` (`app/scripts/make-golden.ts`; `--xlsm`, `--lsp` and `--set section.key=value` for variants
   generated after changing unsaved workbook settings). golden.json holds those overrides and the allowed renamed labels.
@@ -322,6 +324,19 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   names exist; the importer renames repeated names ("N1" -> "N1 (2)") and lists each rename in its report. Nozzle names
   are the exception (user, 2026-10-25, `REPEATS_ALLOWED` in schema.ts): they may repeat, the importer keeps them, Review
   warns, export goes on.
+- Polish and rollout (Phase 6): logo = "AXISBUILDER" with the X replaced by a curve-stitched X (option D in
+  `app/docs/logo-examples.html`). `npm run icons` (`scripts/gen-icons.ts`, raster in `scripts/iconRaster.ts`, no library)
+  writes `src/assets/logo/` (wordmark-light/-dark.svg: letters as outlines from the bundled Archivo Black, OFL, X as lines;
+  icon.svg) and `public/` (favicon.svg, pwa-192/512, maskable-512, apple-touch-icon 180); `test/ui/logo.test.ts` fails when
+  they are out of date. On screen: `ui/logo.tsx` (`Wordmark` on the start screen, `BrandMark` in the top bar). Help button
+  (top bar and start screen) opens the quick guide (`ui/HelpGuide.tsx`, words in `ui/helpText.ts`). Report a problem
+  (`ui/ReportProblem.tsx`, guide and error screen): copies `problemDetails` / `errorDetails` (`errorDetails.ts` remembers the
+  last error; never job data) and opens an email to `SUPPORT_EMAIL` (`ui/support.ts`, the one place). Icon-only buttons need
+  `title` + `aria-label` (`test/ui/tooltips.test.ts` reads the screens' source). Sample job = REF1's V-100 (user, 2026-10-26): `ui/sampleJobData.ts` and
+  `public/sample-photos/` (JPEGs, precached) made by `npm run sample:make -- "<job.axb>" "<photo folder>"` (client, unit,
+  inspector, notes and folder paths taken out); `ui/samplePhotos.ts` gives the photos to the photo folder in JobScreen;
+  `test/ui/sampleJob.test.ts` checks the features. Tests written against the earlier sample use `test/fixtures/olderSample.ts`. First-user
+  test sheet: `app/docs/first-user-test.md`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -765,3 +780,24 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-25 – Phase 7a DXF: AutoCAD refused the first file ("Did not receive PlotStyleName", LAYER table); fixed (every
   layer's 390 -> the Normal plot style placeholder in ACAD_PLOTSTYLENAME, classes for LAYOUT / ACDBDICTIONARYWDFLT /
   ACDBPLACEHOLDER). The REF DXFs then opened and worked in both AutoCAD and DraftSight (user).
+- 2026-10-25 – Web app Phase 6 (branch feature/polish-rollout, user request, run unattended): polish and rollout. Logo
+  (option D): wordmark with the curve-stitched X 2.2 times the cap height, letters as outlines from Archivo Black (OFL,
+  `src/assets/logo/`), app icon (X at 90% of a dark rounded square, 9 threads per quarter), favicon and PWA icons from
+  `npm run icons`; manifest theme color #1d2733. Start screen: wordmark, one-line description, version, Help, New job
+  marked as the main action, recent jobs in a card. Job top bar: icon + name, Help. Quick guide (steps, export files,
+  keys, Report a problem). Report a problem on the guide and the error screen (copies the details, opens an email to the
+  support address). Tooltips: corner table close button (the rest already had them); test reads every screen's buttons.
+  Sample job: made-up photos, SCAN 7 and nozzle N5 across the seam, MW label moved, section split ready (2 sections,
+  still off); only the sample's .lsp and DXF fingerprints changed (golden jobs unchanged, compat v5.0 unchanged).
+  Hosting prepared, not deployed: `app/public/_headers`, `app/.nvmrc`, `app/docs/hosting.md`; built app checked offline
+  after the first visit (preview server stopped, sample job still opens). `app/docs/first-user-test.md`. The dropped
+  Phase 5d work (CAD check kit) was committed on its own branch feature/cad-check-kit, not merged. No VBA or workbook
+  changes.
+- 2026-10-26 – Phase 6 follow-up (feature/polish-rollout, user): the sample job is now REF1's V-100 (the user's saved .axb) with
+  its 17 scan photos as JPEGs (964 KB, precached for offline), made by new `npm run sample:make`; client, unit, inspector,
+  notes and the two image folder paths are taken out (test). The drawn made-up photos are gone. Objects: a note under
+  the Objects table, tooltips on its X / Y titles (`LIST_NOTES`, `COLUMN_HINTS` in data/columns.ts) and a line in Help say
+  X and Y are the corner nearest 0, 0, not the center. Only the sample's .lsp and DXF fingerprints changed; tests that
+  used the Phase 6 sample now use test/fixtures/olderSample.ts.
+- 2026-10-26 – Docs (user): the V-100 sample job and its photos are the one exception to "never commit anything from the
+  reference jobs folder"; the user checked it holds no identifiers.

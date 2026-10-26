@@ -3,6 +3,7 @@
 
 import { Component, useState, type ErrorInfo, type ReactNode } from 'react'
 import { copyText, errorDetails } from './errorDetails.ts'
+import { ReportProblem } from './ReportProblem.tsx'
 
 interface Props {
   /** Shown in the error details, e.g. "Field data step". */
@@ -55,13 +56,14 @@ export function ErrorPanel(props: {
         Your work is safe. The job is still open and a copy is kept in this browser, so nothing has been lost. You can
         try again, or go to another step and come back.
       </p>
-      <p className="muted">If it keeps happening, copy the error details and send them to whoever looks after AxisBuilder.</p>
+      <p className="muted">If it keeps happening, use Report a problem: it copies the error details (no job data) and opens an email with them.</p>
       <div className="button-row">
         {props.onRetry && (
           <button type="button" className="btn btn-primary" onClick={props.onRetry}>
             Try again
           </button>
         )}
+        <ReportProblem details={() => props.details} />
         <button type="button" className="btn" onClick={async () => setCopied((await copyText(props.details)) ? 'yes' : 'no')}>
           Copy error details
         </button>

@@ -4,7 +4,8 @@ import type { Project } from '../../src/data/schema.ts'
 import type { ReportEntry } from '../../src/data/xlsmImport.ts'
 import { sessionReducer, type Job, type WorkbookImport } from '../../src/state/session.ts'
 import { nextStep, stepStatuses, whatsLeft } from '../../src/state/steps.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 function jobOf(project: Project, workbookImport: WorkbookImport | null = null): Job {
   return sessionReducer({ job: null }, { type: 'openJob', project, source: 'new', workbookImport }).job!

@@ -5,7 +5,8 @@ import { headNozzleLabels, shellNozzleLabels } from '../../src/engine/labels.ts'
 import { drawnScans, panelOf } from '../../src/engine/layout.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 /** v5.0's straight leaders (the default is Elbow) on a Vertical drawing: the spots these tests were written for (the app now places labels as the drawing reads). */

@@ -15,7 +15,8 @@ import type { Orientation } from '../../src/engine/transform.ts'
 import { nearestLineWeight, transparencyValue } from '../../src/export/dxf/dxfFile.ts'
 import { SETUP_LAYERS, exportDxf, fallbackPixels } from '../../src/export/dxf/exportDxf.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 import { computeDxfFingerprints } from './dxfFingerprints.ts'
 import { readDxf, handles, type DxfObject, type ParsedDxf } from './dxfRead.ts'
 import { goldenJobs } from './pdfJobs.ts'
@@ -131,7 +132,7 @@ describe('placed where the .lsp places it', () => {
 })
 
 describe('the app drawing in the DXF', () => {
-  const sample = goldenJobs().find((j) => j.name === 'sample')!.project
+  const sample = sampleProject()
 
   it('wrapped nozzles as arcs, turned like the .lsp (SL_ArcAt)', () => {
     const ref2 = goldenJobs().find((j) => j.name === 'REF2')!.project

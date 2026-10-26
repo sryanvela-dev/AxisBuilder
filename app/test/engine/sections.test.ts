@@ -8,7 +8,8 @@ import type { Project } from '../../src/data/schema.ts'
 import { paperAlong, parseRanges, sectionPlan, sectionPlanItems, sheetScale, sheetViewport, snapCandidates, type SectionPlan } from '../../src/engine/sections.ts'
 import { sheetPages } from '../../src/engine/sheets.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const OPTIONS = { processedImageFolder: 'X:\\img', generatedAt: new Date(2026, 0, 2, 3, 4, 5) }
 

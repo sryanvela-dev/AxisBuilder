@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="AxisBuilder">
+<clipPath id="ab-square"><rect width="100" height="100" rx="16"/></clipPath>
+<g clip-path="url(#ab-square)">
+<rect width="100" height="100" rx="16" fill="#1d2733"/>
+<path fill="none" stroke="#5b9bff" stroke-width="2.7" stroke-linecap="round" d="M50 50L95 5M45 45L90 10M40 40L85 15M35 35L80 20M30 30L75 25M25 25L70 30M20 20L65 35M15 15L60 40M10 10L55 45M5 5L50 50M50 50L95 95M55 45L90 90M60 40L85 85M65 35L80 80M70 30L75 75M75 25L70 70M80 20L65 65M85 15L60 60M90 10L55 55M95 5L50 50M50 50L5 95M55 55L10 90M60 60L15 85M65 65L20 80M70 70L25 75M75 75L30 70M80 80L35 65M85 85L40 60M90 90L45 55M95 95L50 50M50 50L5 5M45 55L10 10M40 60L15 15M35 65L20 20M30 70L25 25M25 75L30 30M20 80L35 35M15 85L40 40M10 90L45 45M5 95L50 50"/>
+<path fill="none" stroke="#5b9bff" stroke-width="5.2" stroke-linecap="round" d="M5 5L95 95M95 5L5 95"/>
+</g>
+</svg>

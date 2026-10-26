@@ -578,7 +578,7 @@ export function useMutAreas(on: boolean, project: Project, goToRow: (row: Row, i
     <div className="area-corner-panel" onPointerDown={(e) => e.stopPropagation()}>
       <div className="area-corner-head">
         <strong>{selItem.id} corners</strong>
-        <button type="button" className="icon-btn" aria-label="Close the corner table" onClick={() => setCornersOpen(false)}>✕</button>
+        <button type="button" className="icon-btn" aria-label="Close the corner table" title="Close the corner table" onClick={() => setCornersOpen(false)}>✕</button>
       </div>
       <table>
         <thead>

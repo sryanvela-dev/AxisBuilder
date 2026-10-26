@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react'
 import { resetAllOverrides } from '../data/overrides.ts'
-import { FIELD_LISTS } from '../data/columns.ts'
+import { FIELD_LISTS, LIST_NOTES } from '../data/columns.ts'
 import { scrollPageTo } from './scrollPage.ts'
 import { formatNumber } from '../data/parse.ts'
 import { LIST_META, type ShellMut } from '../data/schema.ts'
@@ -196,6 +196,7 @@ export function FieldDataStep({ status }: StepProps) {
             <h2 id={`list-title-${list}`}>
               {LIST_META[list].name} <span className="muted">({p[list].length})</span>
             </h2>
+            {LIST_NOTES[list] && <p className="muted list-note">{LIST_NOTES[list]}</p>}
             <DataTable list={list} step="fieldData" derived={list === 'shellMut' || list === 'headMut' ? [{ title: 'Area', value: (item, index) => <AreaCell list={list} index={index} item={item as unknown as ShellMut} /> }] : undefined} />
           </section>
         </div>

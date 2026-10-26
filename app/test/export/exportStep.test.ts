@@ -10,7 +10,8 @@ import { ExportBlockedError, exportLsp } from '../../src/export/lsp/exportLsp.ts
 import { lspBytes } from '../../src/export/lsp/lspBytes.ts'
 import { initialSession, sessionReducer, type Job } from '../../src/state/session.ts'
 import { reviewList, stepStatuses } from '../../src/state/steps.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const jobOf = (p: Project): Job => sessionReducer(initialSession, { type: 'openJob', project: p, source: 'sample' }).job!
 

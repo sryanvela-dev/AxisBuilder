@@ -10,7 +10,8 @@ import { initialSession, sessionReducer, type SessionAction, type SessionState }
 import { svgToLogical, visualToSvg } from '../../src/ui/preview/drawingTool.ts'
 import { hitLabel, labelBoxVisual, labelGhost, tipVisual } from '../../src/ui/preview/labelTool.tsx'
 import { toSvg } from '../../src/ui/preview/renderModel.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const job = (o: Orientation): Project => {
   const p = sampleProject()

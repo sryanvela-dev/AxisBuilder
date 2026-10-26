@@ -1,12 +1,14 @@
 // The screen while a job is open: top bar (save, undo), step bar, "before export" banner, the
 // current step's page with the drawing preview beside it, and its main "Next" button.
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isDirty, jobTitle, type StepId } from '../state/session.ts'
 import { nextStep, stepInfo, stepStatuses, STEPS, whatsLeft, type StepState, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { ErrorBoundary } from './ErrorBoundary.tsx'
 import { FindSetting } from './FindSetting.tsx'
+import { HelpButton } from './HelpGuide.tsx'
+import { BrandMark } from './logo.tsx'
 import { Notices } from './Notices.tsx'
 import { checkProject } from '../data/checks.ts'
 import { ChecksContext } from './checksContext.ts'
@@ -19,6 +21,7 @@ import { PreviewPanel } from './preview/PreviewPanel.tsx'
 import { SelectionContext, type Selected } from './selectionContext.ts'
 import { AreaToolContext, IDLE, type AreaPhase, type PreviewTool } from './areaToolContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
+import { samplePhotoFolder } from './samplePhotos.ts'
 
 /** Steps that show the drawing preview beside their page. */
 const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images', 'drawing']
@@ -48,6 +51,12 @@ export function JobScreen() {
   const photos = useRememberedFolder('photos', 'read')
   const jobFolder = useRememberedFolder('job', 'readwrite', photos.handle)
   const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
+  // The sample job comes with made-up photos (until another photo folder is chosen).
+  const { status: photoStatus, useInputFolder: setPhotoFolder } = photos
+  const samplePhotos = job.source === 'sample' ? present.scanImages.map((l) => l.imageFile).join('|') : ''
+  useEffect(() => {
+    if (samplePhotos && photoStatus === 'none') setPhotoFolder(samplePhotoFolder(samplePhotos.split('|')))
+  }, [samplePhotos, photoStatus, setPhotoFolder])
   const [selected, setSelected] = useState<Selected | null>(null)
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected])
   // The preview's tool, and what the MUT areas tool is doing (a MUT row's Draw area button starts it; Phase 5c).
@@ -146,7 +155,7 @@ function TopBar() {
   const dirty = isDirty(job)
   return (
     <header className="topbar">
-      <span className="brand">AxisBuilder</span>
+      <BrandMark />
       <span className="job-name">
         <strong>{jobTitle(job)}</strong>
         <span className={dirty ? 'save-state unsaved' : 'save-state'}>
@@ -167,9 +176,10 @@ function TopBar() {
         <button type="button" className="btn" onClick={() => void app.save(true)} title="Save as a new file (Ctrl+Shift+S)">
           Save as...
         </button>
-        <button type="button" className="btn" onClick={() => void app.closeJob()}>
+        <button type="button" className="btn" onClick={() => void app.closeJob()} title="Close this job and go back to the start screen (asks first if there are unsaved changes)">
           Close job
         </button>
+        <HelpButton where={`${stepInfo(job.step).title} step`} />
       </span>
     </header>
   )

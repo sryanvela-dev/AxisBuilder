@@ -8,7 +8,8 @@ import { computeRightPanelLayout, panelOf } from '../../src/engine/layout.ts'
 import { toVisual, type Orientation } from '../../src/engine/transform.ts'
 import { APP_LIBRARY_PATCHES } from '../../src/export/lsp/appLibrary.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 const OPTIONS = { processedImageFolder: 'X:\\img', generatedAt: new Date(2026, 0, 2, 3, 4, 5) }

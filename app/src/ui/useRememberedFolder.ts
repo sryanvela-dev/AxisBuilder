@@ -118,7 +118,7 @@ export function useRememberedFolder(kind: FolderKind, mode: 'read' | 'readwrite'
 
   if (inputFolder) {
     return {
-      status: 'ready', name: inputFolder.name, handle: null, files: inputFolder.names, photoFolder, canPick: false,
+      status: 'ready', name: inputFolder.name, handle: null, files: inputFolder.names, photoFolder, canPick: hasPicker(),
       choose, allow, refresh, useInputFolder: setInputFolder,
     }
   }

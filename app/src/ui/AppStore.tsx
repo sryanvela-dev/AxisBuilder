@@ -241,7 +241,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const openSample = useCallback(async () => {
     const { sampleProject } = await import('./sampleJob.ts')
     dispatch({ type: 'openJob', project: sampleProject(), source: 'sample' })
-    setNotice({ kind: 'info', text: 'This is a made-up sample job. Save it under a new name if you want to keep your changes.' })
+    setNotice({ kind: 'info', text: 'This is the sample job (a real vessel with the client and names taken out). Save it under a new name if you want to keep your changes.' })
   }, [])
 
   const importExcel = useCallback(async () => {
