@@ -19,8 +19,8 @@ export default defineConfig({
       manifest: {
         name: 'AxisBuilder',
         short_name: 'AxisBuilder',
-        description: 'AUT scan coverage layouts for pressure vessels and tanks',
-        theme_color: '#1f3a5f',
+        description: 'AUT scan coverage drawings for pressure vessels and tanks',
+        theme_color: '#1d2733',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
