@@ -96,7 +96,7 @@ export function writeDxf(d: DxfDrawing): string {
     tVport: handle(), tLtype: handle(), tLayer: handle(), tStyle: handle(), tView: handle(), tUcs: handle(), tAppid: handle(), tDimstyle: handle(), tBlockRecord: handle(),
     vport: handle(), ltByBlock: handle(), ltByLayer: handle(), ltContinuous: handle(), style: handle(), appAcad: handle(), appTransp: handle(), dimstyle: handle(),
     brModel: handle(), brPaper: handle(), blkModel: handle(), endModel: handle(), blkPaper: handle(), endPaper: handle(),
-    root: handle(), groups: handle(), layouts: handle(), layoutModel: handle(), layoutPaper: handle(), imageDict: handle(), imageVars: handle(),
+    root: handle(), groups: handle(), plotStyles: handle(), plotNormal: handle(), layouts: handle(), layoutModel: handle(), layoutPaper: handle(), imageDict: handle(), imageVars: handle(),
   }
   const layerHandles = d.layers.map(() => handle())
   const entityHandles = d.entities.map(() => handle())
@@ -145,17 +145,20 @@ export function writeDxf(d: DxfDrawing): string {
   hv('$HANDSEED', 5, seed)
   endsec()
 
-  // --- CLASSES (the image objects)
+  // --- CLASSES (the objects that are not built into R12: layouts, the plot style dictionary, the image objects)
   section('CLASSES')
-  const cls = (name: string, cpp: string, proxy: number, entity: number) => {
+  const cls = (name: string, cpp: string, proxy: number, entity: number, app = 'ISM') => {
     pair(0, 'CLASS')
     pair(1, name)
     pair(2, cpp)
-    pair(3, 'ISM')
+    pair(3, app)
     int(90, proxy)
     int(280, 0)
     int(281, entity)
   }
+  cls('ACDBDICTIONARYWDFLT', 'AcDbDictionaryWithDefault', 0, 0, 'ObjectDBX Classes')
+  cls('ACDBPLACEHOLDER', 'AcDbPlaceHolder', 0, 0, 'ObjectDBX Classes')
+  cls('LAYOUT', 'AcDbLayout', 0, 0, 'ObjectDBX Classes')
   cls('RASTERVARIABLES', 'AcDbRasterVariables', 0, 0)
   cls('IMAGEDEF', 'AcDbRasterImageDef', 0, 0)
   cls('IMAGEDEF_REACTOR', 'AcDbRasterImageDefReactor', 1, 0)
@@ -210,6 +213,8 @@ export function writeDxf(d: DxfDrawing): string {
     pair(6, 'Continuous')
     if (!l.plot) int(290, 0)
     int(370, l.lineWeight)
+    // AutoCAD refuses an R2000 layer without its plot style (the Normal placeholder below).
+    pair(390, H.plotNormal)
     if (l.transparency > 0) {
       pair(1001, 'AcCmTransparency')
       int(1071, transparencyValue(l.transparency))
@@ -243,6 +248,7 @@ export function writeDxf(d: DxfDrawing): string {
     int(71, 0)
   })
   record('DIMSTYLE', H.dimstyle, H.tDimstyle, 'AcDbDimStyleTableRecord', 'Standard', 105)
+  pair(340, H.style)
   pair(0, 'ENDTAB')
 
   table('BLOCK_RECORD', H.tBlockRecord, 2)
@@ -383,8 +389,27 @@ export function writeDxf(d: DxfDrawing): string {
       pair(350, eh)
     }
   }
-  dict(H.root, '0', [['ACAD_GROUP', H.groups], ['ACAD_IMAGE_DICT', H.imageDict], ['ACAD_IMAGE_VARS', H.imageVars], ['ACAD_LAYOUT', H.layouts]])
+  dict(H.root, '0', [['ACAD_GROUP', H.groups], ['ACAD_IMAGE_DICT', H.imageDict], ['ACAD_IMAGE_VARS', H.imageVars], ['ACAD_LAYOUT', H.layouts], ['ACAD_PLOTSTYLENAME', H.plotStyles]])
   dict(H.groups, H.root, [])
+  // The plot style names: "Normal" only, the default every layer points at.
+  pair(0, 'ACDBDICTIONARYWDFLT')
+  pair(5, H.plotStyles)
+  pair(102, '{ACAD_REACTORS')
+  pair(330, H.root)
+  pair(102, '}')
+  pair(330, H.root)
+  pair(100, 'AcDbDictionary')
+  int(281, 1)
+  pair(3, 'Normal')
+  pair(350, H.plotNormal)
+  pair(100, 'AcDbDictionaryWithDefault')
+  pair(340, H.plotNormal)
+  pair(0, 'ACDBPLACEHOLDER')
+  pair(5, H.plotNormal)
+  pair(102, '{ACAD_REACTORS')
+  pair(330, H.plotStyles)
+  pair(102, '}')
+  pair(330, H.plotStyles)
   dict(H.layouts, H.root, [['Layout1', H.layoutPaper], ['Model', H.layoutModel]])
   const imageName = (f: string) => f.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '')
   dict(H.imageDict, H.root, files.map((f): [string, string] => [imageName(f), defHandles.get(f)!]))

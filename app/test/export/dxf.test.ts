@@ -64,7 +64,13 @@ describe('the DXF of every golden job and the sample', () => {
       const objects = d.sections.get('OBJECTS')!
       const root = objects[0]
       expect(root.type).toBe('DICTIONARY')
-      expect(root.all(3)).toEqual(['ACAD_GROUP', 'ACAD_IMAGE_DICT', 'ACAD_IMAGE_VARS', 'ACAD_LAYOUT'])
+      expect(root.all(3)).toEqual(['ACAD_GROUP', 'ACAD_IMAGE_DICT', 'ACAD_IMAGE_VARS', 'ACAD_LAYOUT', 'ACAD_PLOTSTYLENAME'])
+      // Every layer names its plot style (AutoCAD refuses the file without it), the Normal placeholder.
+      const normal = objects.find((o) => o.type === 'ACDBPLACEHOLDER')!.get(5)
+      for (const l of tables.filter((t) => t.type === 'LAYER')) expect(l.get(390)).toBe(normal)
+      // Every object type outside R12 is declared as a class.
+      const classes = new Set(d.sections.get('CLASSES')!.map((c) => c.get(1)))
+      for (const t of ['LAYOUT', 'ACDBDICTIONARYWDFLT', 'ACDBPLACEHOLDER', 'RASTERVARIABLES', 'IMAGEDEF', 'IMAGEDEF_REACTOR', 'IMAGE']) expect(classes.has(t)).toBe(true)
       expect(objects.filter((o) => o.type === 'LAYOUT').map((o) => o.all(1).at(-1))).toEqual(['Model', 'Layout1'])
       // Per layer: as many entities as the drawing's shapes make.
       const expected = new Map<string, number>()
