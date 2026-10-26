@@ -308,7 +308,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - Reference jobs for parity tests: `npm run convert:refjobs -- "<jobs folder>"` (`app/scripts/convert-reference-jobs.ts`
   + `fill-v5-workbook.ps1`) converts old job workbooks into copies of the v5.0 workbook via Excel COM (macros forced
   off, signature kept), copying the original cells found by `importWorkbook`, then re-imports and compares. The jobs
-  folder is outside the repo and holds real client data: never commit anything from it.
+  folder is outside the repo and holds real client data: never commit anything from it. One exception (user,
+  2026-10-26): the sample job, REF1's V-100 with its scan photos (`app/src/ui/sampleJobData.ts`, `app/public/sample-photos/`,
+  made by `npm run sample:make`), checked by the user: it holds no identifiers, so it may be committed, pushed and hosted.
 - Golden jobs: `app/test/golden/<JOB>/` (project.json + v5.0.lsp + README + golden.json), made anonymized with
   `npm run golden:make` (`app/scripts/make-golden.ts`; `--xlsm`, `--lsp` and `--set section.key=value` for variants
   generated after changing unsaved workbook settings). golden.json holds those overrides and the allowed renamed labels.
@@ -797,3 +799,5 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   the Objects table, tooltips on its X / Y titles (`LIST_NOTES`, `COLUMN_HINTS` in data/columns.ts) and a line in Help say
   X and Y are the corner nearest 0, 0, not the center. Only the sample's .lsp and DXF fingerprints changed; tests that
   used the Phase 6 sample now use test/fixtures/olderSample.ts.
+- 2026-10-26 – Docs (user): the V-100 sample job and its photos are the one exception to "never commit anything from the
+  reference jobs folder"; the user checked it holds no identifiers.
