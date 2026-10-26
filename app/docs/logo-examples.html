@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AxisBuilder Logo Examples 2</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#ffffff; --ink:#1d2733; --muted:#5b6673; --line:#d9dde3; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#14181d; --card:#1d232b; --ink:#eef1f5; --muted:#9aa5b1; --line:#2c343e; } }
+  :root[data-theme="dark"] { --bg:#14181d; --card:#1d232b; --ink:#eef1f5; --muted:#9aa5b1; --line:#2c343e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Segoe UI", system-ui, sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.lead { color:var(--muted); margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px; }
+  .card h2 { font-size:15px; margin:0 0 4px; }
+  .card p { color:var(--muted); font-size:13px; margin:0 0 16px; }
+  .row { display:flex; flex-wrap:wrap; gap:20px; align-items:center; }
+  .panel { border-radius:10px; padding:22px 26px; display:flex; align-items:center; max-width:100%; overflow:hidden; }
+  .on-light { background:#fff; border:1px solid #e3e6ea; --ink:#1d2733; --accent:#1f5fbf; }
+  .on-dark { background:#111820; --ink:#eef1f5; --accent:#5b9bff; }
+  .word { font-family:"Arial Black","Segoe UI Black",Arial,sans-serif; font-weight:900; color:var(--ink);
+          display:inline-flex; align-items:center; white-space:nowrap; line-height:1; }
+  .word .t { display:inline-block; }
+  .word svg { overflow:visible; flex:none; }
+  .lg { font-size:54px; } .md { font-size:30px; } .sm { font-size:17px; }
+  .stack { display:inline-flex; flex-direction:column; align-items:stretch; }
+  .stack .builder { font-family:"Arial Black","Segoe UI Black",Arial,sans-serif; font-weight:900; color:var(--ink);
+                    text-align:center; letter-spacing:0.38em; margin-right:-0.38em; }
+  .icon { width:72px; height:72px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#1d2733; --accent:#5b9bff; }
+  .icon svg { width:52px; height:52px; }
+  .icon.small { width:32px; height:32px; border-radius:7px; } .icon.small svg { width:24px; height:24px; }
+  .tag { font-size:12px; color:var(--muted); }
+  .note { font-size:13px; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>AxisBuilder logo examples 2</h1>
+  <p class="lead">All based on option 3 (blue stitched X with the axes drawn), with the X made bigger so the stitching shows. Light and dark, large and small, a two-line version and the app icon.</p>
+  <div id="cards"></div>
+  <p class="note">Letters are Arial Black for these examples; the final logo turns them into shapes. The icon uses fewer, thicker lines so it stays clear when small.</p>
+</main>
+<script>
+function stitch(cx, cy, a, b, n) {
+  let d = '';
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    d += `M${(cx + (a[0] - cx) * t).toFixed(2)} ${(cy + (a[1] - cy) * t).toFixed(2)}L${(cx + (b[0] - cx) * u).toFixed(2)} ${(cy + (b[1] - cy) * u).toFixed(2)}`;
+  }
+  return d;
+}
+// The X in a W x H box; the two diagonals are the axes, origin in the middle; all four quarters stitched.
+function xSvg({ w = 100, h = 90, n = 12, stroke = 2.4, axis = 2.2 }) {
+  const c = [w / 2, h / 2], TL = [0, 0], TR = [w, 0], BR = [w, h], BL = [0, h];
+  const d = [[TL, TR], [TR, BR], [BR, BL], [BL, TL]].map(([a, b]) => stitch(c[0], c[1], a, b, n)).join('');
+  return `<svg viewBox="-3 -3 ${w + 6} ${h + 6}" style="width:${(w / 100).toFixed(3)}em;height:${(h / 100).toFixed(3)}em" aria-hidden="true">` +
+    `<path d="${d}" stroke="var(--accent)" stroke-width="${stroke}" stroke-linecap="round" fill="none"/>` +
+    `<path d="M0 0L${w} ${h}M${w} 0L0 ${h}" stroke="var(--accent)" stroke-width="${stroke * axis}" stroke-linecap="round"/></svg>`;
+}
+// size: X height as a multiple of the letters' cap height (0.72 em). shift: X raised (em) from centered on the letters.
+function word(o, cls) {
+  const cap = 72, h = cap * o.size, w = h * o.ratio;
+  const x = xSvg({ w, h, n: o.n, stroke: o.stroke, axis: o.axis });
+  const lift = o.shift ? `style="transform:translateY(${-o.shift}em)"` : '';
+  return `<span class="word ${cls}" role="img" aria-label="AxisBuilder"><span class="t">A</span><span ${lift} style="margin:0 ${o.gap}em;display:inline-flex;${o.shift ? `transform:translateY(${-o.shift}em)` : ''}">${x}</span><span class="t">${o.two ? 'IS' : 'ISBUILDER'}</span></span>`;
+}
+function iconSvg(o) {
+  return xSvg({ w: 100, h: 100, n: 9, stroke: 3.2, axis: 1.9 }).replace(/style="[^"]*"/, 'style="width:90%;height:90%"');
+}
+
+const options = [
+  { name: 'A. Option 3 as it was', text: 'For comparison: the X the same height as the letters.',
+    size: 1.0, ratio: 1.1, n: 10, stroke: 3, axis: 1.6, gap: 0.03 },
+  { name: 'B. X 1.4 times as tall', text: 'Sticks out above and below the letters by the same amount; wider too, so the curves have room.',
+    size: 1.4, ratio: 1.05, n: 12, stroke: 2.6, axis: 1.8, gap: 0.06 },
+  { name: 'C. X 1.8 times as tall', text: 'The X is clearly the mark; the word still reads as one name.',
+    size: 1.8, ratio: 1.0, n: 14, stroke: 2.4, axis: 2.0, gap: 0.08 },
+  { name: 'D. X 2.2 times as tall', text: 'As big as it can go on one line. The stitching is easy to see even at the medium size.',
+    size: 2.2, ratio: 0.95, n: 16, stroke: 2.2, axis: 2.2, gap: 0.1 },
+  { name: 'E. Wide X, 1.6 times as tall', text: 'Wider than tall, so the left and right curves get more room, like the chart lying on its side.',
+    size: 1.6, ratio: 1.35, n: 14, stroke: 2.4, axis: 2.0, gap: 0.08 },
+];
+
+const cards = document.getElementById('cards');
+options.forEach(o => {
+  const stack = `<span class="stack"><span class="word md">${word({ ...o, two: true }, '').replace('class="word "', 'class="word" style="font-size:inherit"')}</span><span class="builder" style="font-size:15px">BUILDER</span></span>`;
+  cards.insertAdjacentHTML('beforeend', `
+    <section class="card">
+      <h2>${o.name}</h2>
+      <p>${o.text}</p>
+      <div class="row">
+        <div class="panel on-light">${word(o, 'lg')}</div>
+        <div class="panel on-dark">${word(o, 'lg')}</div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="panel on-light">${word(o, 'md')}</div>
+        <div class="panel on-light">${word(o, 'sm')}</div>
+        <div class="panel on-light">${stack}</div>
+        <div class="panel on-light" style="gap:12px"><div class="icon">${iconSvg(o)}</div><div class="icon small">${iconSvg(o)}</div><span class="tag">app icon</span></div>
+      </div>
+    </section>`);
+});
+
+// Two-line version with a big X spanning both lines.
+const big = xSvg({ w: 120, h: 130, n: 16, stroke: 2.2, axis: 2.2 });
+cards.insertAdjacentHTML('beforeend', `
+  <section class="card">
+    <h2>F. Two lines, X spanning both</h2>
+    <p>"A" and "IS" on the first line, "BUILDER" under them, and one big X as tall as both lines. The most room for the stitching.</p>
+    <div class="row">
+      ${['on-light', 'on-dark'].map(bg => `
+      <div class="panel ${bg}">
+        <span class="word" style="font-size:46px;align-items:center">
+          <span class="t" style="align-self:flex-start">A</span>
+          <span style="margin:0 0.06em;display:inline-flex">${big}</span>
+          <span style="display:inline-flex;flex-direction:column;gap:0.12em"><span class="t">IS</span><span class="t" style="font-size:0.62em;letter-spacing:0.08em">BUILDER</span></span>
+        </span>
+      </div>`).join('')}
+    </div>
+  </section>`);
+</script>
+</body>
+</html>
