@@ -81,6 +81,13 @@ drawing started from another template (an SHX font as Standard) shows the .lsp's
 - "Use scan images" off: no images (the .lsp would try to attach images that were never made).
 - IMAGEFRAME: the RASTERVARIABLES frame follows "Show image frames".
 
+## Checked in CAD
+
+- DraftSight (user, 2026-10-25): every REF job's DXF opens and looks right, with the images (made-up pictures from
+  `dxf:report`) in place, so the relative path the app writes (`.\Processed_Images\...`) works. The image-path test kit
+  was not run, so whether the images are still found after the folder is moved is not checked yet.
+- AutoCAD: not yet.
+
 ## What differs from the .lsp drawing
 
 - Text font: Arial (above); the .lsp uses whatever the drawing's Standard style is.

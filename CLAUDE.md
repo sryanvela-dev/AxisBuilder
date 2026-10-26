@@ -759,3 +759,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   drawing in `ui/exportImages.tsx`); dot arrowheads keep their center and size on the drawing shape (`dot`) for the
   DXF's donuts. Scripts dxf:check / dxf:write / dxf:report / dxfpath:test. The .lsp (compat and app fingerprints), the PDF
   and the report images are unchanged. Not yet opened in DraftSight / AutoCAD. No VBA or workbook changes.
+- 2026-10-25 – Phase 7a DXF checked in DraftSight by the user: every REF job's DXF opens and looks right, the (made-up)
+  scan images show, so the app's relative image path (.\Processed_Images\...) works there. The image-path kit was not
+  run (moving the folder is untested). Not yet checked in AutoCAD.
