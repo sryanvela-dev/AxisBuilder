@@ -71,7 +71,7 @@ export function StartScreen() {
           </button>
           <button type="button" className="start-card" onClick={() => void app.openSample()}>
             <strong>Open sample job</strong>
-            <span>A made-up job that shows every feature. Try things out; nothing is saved unless you save it.</span>
+            <span>A finished job with photos that shows every feature. Try things out; nothing is saved unless you save it.</span>
           </button>
           {app.busy && <p className="muted">{app.busy}</p>}
         </section>

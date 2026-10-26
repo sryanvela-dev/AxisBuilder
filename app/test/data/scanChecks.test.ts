@@ -5,7 +5,8 @@ import { syncScanImages, TABLE_COLUMNS } from '../../src/data/columns.ts'
 import { buildPastedRows, guessMapping, parseClipboardTable } from '../../src/data/paste.ts'
 import { photoState, setPhotoLink } from '../../src/data/photos.ts'
 import type { Project, Scan } from '../../src/data/schema.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const scan = (id: string, xStart: number, xStop: number, yStart: number, yStop: number, include = true): Scan => ({ id, xStart, xStop, yStart, yStop, include, noWrap: false, acrossSeam: false })
 

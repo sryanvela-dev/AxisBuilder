@@ -12,7 +12,8 @@ import {
 import { drawSteps, mainSheet } from '../../src/engine/sheetModel.ts'
 import { readableRot, toVisual, type Orientation } from '../../src/engine/transform.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 import { jobPdf, goldenJobs } from '../export/pdfJobs.ts'
 import { PDFArray, PDFDocument, PDFRawStream, PDFStream, decodePDFRawStream } from 'pdf-lib'
 import { AUTOMATIC_TEXT } from '../automaticText.ts'

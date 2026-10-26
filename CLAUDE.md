@@ -130,7 +130,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
   `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
-  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit), `icons` (the logo files and app icons, see Polish).
+  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit), `icons` (the logo files and app icons, see Polish), `sample:make` (the sample job, see Polish).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -330,9 +330,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (top bar and start screen) opens the quick guide (`ui/HelpGuide.tsx`, words in `ui/helpText.ts`). Report a problem
   (`ui/ReportProblem.tsx`, guide and error screen): copies `problemDetails` / `errorDetails` (`errorDetails.ts` remembers the
   last error; never job data) and opens an email to `SUPPORT_EMAIL` (`ui/support.ts`, the one place). Icon-only buttons need
-  `title` + `aria-label` (`test/ui/tooltips.test.ts` reads the screens' source). Sample job (`ui/sampleJob.ts`) shows every
-  feature (`test/ui/sampleJob.test.ts`); its made-up photos are drawn when it opens (`ui/samplePhotos.ts`, given to the
-  photo folder in JobScreen). Tests written against the earlier sample use `test/fixtures/olderSample.ts`. First-user
+  `title` + `aria-label` (`test/ui/tooltips.test.ts` reads the screens' source). Sample job = REF1's V-100 (user, 2026-10-26): `ui/sampleJobData.ts` and
+  `public/sample-photos/` (JPEGs, precached) made by `npm run sample:make -- "<job.axb>" "<photo folder>"` (client, unit,
+  inspector, notes and folder paths taken out); `ui/samplePhotos.ts` gives the photos to the photo folder in JobScreen;
+  `test/ui/sampleJob.test.ts` checks the features. Tests written against the earlier sample use `test/fixtures/olderSample.ts`. First-user
   test sheet: `app/docs/first-user-test.md`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
@@ -790,3 +791,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   after the first visit (preview server stopped, sample job still opens). `app/docs/first-user-test.md`. The dropped
   Phase 5d work (CAD check kit) was committed on its own branch feature/cad-check-kit, not merged. No VBA or workbook
   changes.
+- 2026-10-26 – Phase 6 follow-up (feature/polish-rollout, user): the sample job is now REF1's V-100 (the user's saved .axb) with
+  its 17 scan photos as JPEGs (964 KB, precached for offline), made by new `npm run sample:make`; client, unit, inspector,
+  notes and the two image folder paths are taken out (test). The drawn made-up photos are gone. Objects: a note under
+  the Objects table, tooltips on its X / Y titles (`LIST_NOTES`, `COLUMN_HINTS` in data/columns.ts) and a line in Help say
+  X and Y are the corner nearest 0, 0, not the center. Only the sample's .lsp and DXF fingerprints changed; tests that
+  used the Phase 6 sample now use test/fixtures/olderSample.ts.

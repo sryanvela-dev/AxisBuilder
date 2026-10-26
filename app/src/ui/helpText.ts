@@ -9,7 +9,8 @@ export const GUIDE_STEPS: Record<StepId, string> = {
     'circumference, orientation, axis directions, reference labels and which heads are drawn.',
   fieldData:
     'What the field form says: circ welds, long seams, shell and head nozzles, objects such as saddles and pads, and ' +
-    'MUT readings. Type into the tables or paste rows from Excel. A value that is missing or not valid is marked, and ' +
+    'MUT readings (an object\'s X and Y are its corner nearest 0, 0, not its center). Type into the tables or paste ' +
+    'rows from Excel. A value that is missing or not valid is marked, and ' +
     'the export waits until it is fixed.',
   scans:
     'Import the AUT CSV (the button, or drop the file on the page). Scans with start and stop the wrong way round, ' +

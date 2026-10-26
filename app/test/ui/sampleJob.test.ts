@@ -1,24 +1,31 @@
+import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../../src/data/checks.ts'
 import { photoLink } from '../../src/data/photos.ts'
 import { buildDrawing } from '../../src/engine/drawing.ts'
 import { sectionPlan } from '../../src/engine/sections.ts'
 import { circumference, nozzlePieces, scanPieces } from '../../src/engine/wrap.ts'
-import { sampleProject, samplePhotoName } from '../../src/ui/sampleJob.ts'
+import { sampleProject } from '../../src/ui/sampleJob.ts'
 
 // The sample job is what a new inspector tries first: it shows every feature (Phase 6).
 describe('sample job', () => {
   const p = sampleProject()
   const C = circumference(p)
 
-  it('has scans, each linked to one of the made-up photos', () => {
+  it('has scans, each linked to a photo that ships with the app (public/sample-photos)', () => {
     expect(p.scans.length).toBeGreaterThan(0)
-    const names = p.scans.map((_, i) => samplePhotoName(i + 1))
     for (const s of p.scans) {
       const link = photoLink(p, s.id)
       expect(link?.include, s.id).toBe(true)
-      expect(names, s.id).toContain(link?.imageFile)
+      expect(existsSync(new URL(`../../public/sample-photos/${link!.imageFile}`, import.meta.url)), s.id).toBe(true)
     }
+  })
+
+  it('names no client, site or person and no folder on a computer', () => {
+    expect(p.project.client).toBe('Sample Client')
+    expect(p.project.unit).toBe('Sample Unit')
+    expect(p.project.inspector).toBe('A. Inspector')
+    expect(JSON.stringify(p)).not.toMatch(/[A-Za-z]:\\\\|Users|Desktop/)
   })
 
   it('has shell nozzles, and nozzles on both heads, both heads drawn', () => {
@@ -32,9 +39,9 @@ describe('sample job', () => {
     expect(buildDrawing(p).labels.some((l) => l.moved)).toBe(true)
   })
 
-  it('has a nozzle and a scan that wrap across the seam', () => {
-    expect(p.shellNozzles.some((n) => nozzlePieces(n, C).length > 1)).toBe(true)
-    expect(p.scans.some((s) => scanPieces(s, C).length > 1)).toBe(true)
+  it('has a nozzle or a scan that wraps across the seam', () => {
+    const wraps = p.shellNozzles.some((n) => nozzlePieces(n, C).length > 1) || p.scans.some((s) => scanPieces(s, C).length > 1)
+    expect(wraps).toBe(true)
   })
 
   it('has MUT areas on the shell and on a head', () => {

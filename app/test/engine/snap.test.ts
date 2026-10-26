@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { buildDrawing } from '../../src/engine/drawing.ts'
 import { circleCircle, findSnap, segmentCircle, snapGeometry, type SnapGeom } from '../../src/engine/snap.ts'
 import { toVisual } from '../../src/engine/transform.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 // A 100 x 50 box, a diagonal through it and a circle of radius 10 at (50, 25).
 const G: SnapGeom = {

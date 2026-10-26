@@ -9,6 +9,7 @@ import { wrapNote } from '../engine/wrapNotes.ts'
 import {
   TABLE_COLUMNS,
   columnName,
+  COLUMN_HINTS,
   columnTitle,
   copyId,
   formatCell,
@@ -114,7 +115,7 @@ export function DataTable({ list, step, derived = [], afterEdit }: DataTableProp
               <tr>
                 <th className="num" aria-label="Row">#</th>
                 {cols.map((c) => (
-                  <th key={c.key} className={`col-${c.kind}`}>
+                  <th key={c.key} className={`col-${c.kind}`} title={COLUMN_HINTS[list]?.[c.key]}>
                     {columnTitle(list, c)}
                   </th>
                 ))}

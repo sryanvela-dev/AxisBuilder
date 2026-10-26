@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { checkProject, checkSentence, checksAt, type Check } from '../../src/data/checks.ts'
 import { openProject } from '../../src/data/projectFile.ts'
 import { findDuplicateIds, findMissingData, type Project } from '../../src/data/schema.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const golden = join(import.meta.dirname, '..', 'golden')
 const goldenJobs = readdirSync(golden, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)

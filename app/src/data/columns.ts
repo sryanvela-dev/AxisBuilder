@@ -91,6 +91,21 @@ export const ITEM_SCHEMAS: Record<TableListKey, z.ZodType> = {
   scans: scanSchema,
 }
 
+/** A short note shown under a list's title on the Field data step. */
+export const LIST_NOTES: Partial<Record<TableListKey, string>> = {
+  objects:
+    'X and Y are the object\'s corner nearest 0, 0 (its lowest X and lowest Y), not its center. ' +
+    'From that corner it runs its circ. width around the shell and its length along it.',
+}
+
+/** Tooltips on column titles, by list and column. */
+export const COLUMN_HINTS: Partial<Record<TableListKey, Record<string, string>>> = {
+  objects: {
+    x: 'X of the corner nearest 0, 0 (the lowest X of the object), not its center.',
+    y: 'Y of the corner nearest 0, 0 (the lowest Y of the object), not its center.',
+  },
+}
+
 /** Column title with units, e.g. "Diameter (in)". */
 export function columnTitle(list: TableListKey, col: ColumnSpec): string {
   const name = (LIST_META[list].fields as Record<string, string>)[col.key]

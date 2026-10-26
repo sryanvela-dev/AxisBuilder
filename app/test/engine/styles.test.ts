@@ -10,7 +10,8 @@ import { appLayerSetup, panelScales, sizedHeight, textSizeRules } from '../../sr
 import { TEXTRESIZE_LAYERS } from '../../src/export/lsp/appLibrary.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { buildRenderModel } from '../../src/ui/preview/renderModel.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 import { AUTOMATIC_TEXT } from '../automaticText.ts'
 
 /** The sample job with every kind of text drawn (weld labels, reference labels and the head 12 o'clock marker on). */

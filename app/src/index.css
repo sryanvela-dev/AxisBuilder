@@ -2310,3 +2310,7 @@ svg.drawing .area-plus {
 .area-corner-panel .area-corner-selected td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
+
+.list-note {
+  margin: -4px 0 8px;
+}

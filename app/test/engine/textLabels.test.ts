@@ -10,7 +10,8 @@ import { textLabelSpecs } from '../../src/engine/textLabels.ts'
 import { toVisual, type Orientation } from '../../src/engine/transform.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { LispNum } from '../../src/export/lsp/vbaFormat.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
 const ORIENTATIONS: Orientation[] = ['Vertical', 'Horizontal CW', 'Horizontal CCW']
 

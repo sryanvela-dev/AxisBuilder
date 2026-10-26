@@ -4,7 +4,8 @@ import { toVisual, type Orientation } from '../../src/engine/transform.ts'
 import type { ListKey, Project } from '../../src/data/schema.ts'
 import { STEP_OF_LIST } from '../../src/state/steps.ts'
 import { buildRenderModel, svgMatrix, toSvg } from '../../src/ui/preview/renderModel.ts'
-import { sampleProject } from '../../src/ui/sampleJob.ts'
+// The sample as it was when these tests were written (test/fixtures/olderSample.ts).
+import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 import { itemKey } from '../../src/ui/selectionContext.ts'
 
 const ORIENTATIONS: Orientation[] = ['Vertical', 'Horizontal CW', 'Horizontal CCW']
