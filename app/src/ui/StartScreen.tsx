@@ -6,6 +6,7 @@ import { useApp } from './appContext.ts'
 import { appVersion } from './errorDetails.ts'
 import { HelpButton } from './HelpGuide.tsx'
 import { Wordmark } from './logo.tsx'
+import { ThemeSwitch } from './ThemeSwitch.tsx'
 import { WorkbookReportTable } from './reports.tsx'
 
 function when(ms: number): string {
@@ -28,7 +29,10 @@ export function StartScreen() {
         <p className="muted start-meta">
           Version {appVersion()} · Works offline · Your jobs stay on this computer
         </p>
-        <HelpButton where="Start screen" className="btn start-help" />
+        <div className="start-top">
+          <ThemeSwitch />
+          <HelpButton where="Start screen" />
+        </div>
       </header>
 
       {app.recoveries.length > 0 && (

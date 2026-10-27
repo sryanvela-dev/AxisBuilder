@@ -8,6 +8,19 @@
     <meta name="theme-color" content="#1d2733" />
     <meta name="description" content="AxisBuilder - AUT scan coverage drawings for pressure vessels and tanks" />
     <title>AxisBuilder</title>
+    <script>
+      // The theme before the first paint (same key and rule as src/ui/theme.ts), so a dark screen never flashes white.
+      ;(function () {
+        var c = 'auto'
+        try {
+          c = localStorage.getItem('axisbuilder:theme') || 'auto'
+        } catch (e) {}
+        var dark = c === 'dark' || (c !== 'light' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches)
+        var t = dark ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', t)
+        document.documentElement.style.colorScheme = t
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

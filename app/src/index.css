@@ -1,49 +1,53 @@
+/* Soft light colors, then the dark ones. data-theme on <html> is the resolved theme (ui/theme.ts, set before the first
+   paint by the script in index.html), so the dark colors are written once. */
 :root {
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.4;
+  color-scheme: light;
   color: #1f2933;
-  background: #f5f7fa;
-  --surface: #ffffff;
-  --page-bg: #f5f7fa;
-  --muted: #5b6876;
-  --line: #d3dce6;
+  background: #e6e9ee;
+  --surface: #f1f3f6;
+  --page-bg: #e6e9ee;
+  --input-bg: #f8f9fb;
+  --muted: #55616e;
+  --line: #c6ced8;
   --accent: #1f3a5f;
   --accent-hover: #2b4f80;
   --accent-text: #ffffff;
   --error: #b42318;
-  --ok: #1e7b45;
-  --ok-bg: #e3f5ea;
-  --warn: #8a5a00;
-  --warn-bg: #fff3cd;
-  --kind-invalid: #fde8e8;
-  --kind-review: #fff6c2;
-  --kind-changed: #e3f0ff;
-  --kind-other: #eef1f4;
+  --ok: #1b6e3e;
+  --ok-bg: #d5eddd;
+  --warn: #7d5100;
+  --warn-bg: #f6e8bd;
+  --kind-invalid: #f5dcdc;
+  --kind-review: #f3e9b0;
+  --kind-changed: #d6e5f7;
+  --kind-other: #e2e6eb;
   --focus: #3b82f6;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #e4e7eb;
-    background: #10161d;
-    --surface: #18212b;
-    --page-bg: #10161d;
-    --muted: #9aa5b1;
-    --line: #2f3b47;
-    --accent: #7fa7d9;
-    --accent-hover: #9dbde6;
-    --accent-text: #10161d;
-    --error: #ff8a80;
-    --ok: #7fd6a0;
-    --ok-bg: #173826;
-    --warn: #f3c969;
-    --warn-bg: #3d3214;
-    --kind-invalid: #4a1f1f;
-    --kind-review: #4a4216;
-    --kind-changed: #1d3352;
-    --kind-other: #26313c;
-  }
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  color: #e4e7eb;
+  background: #10161d;
+  --surface: #18212b;
+  --page-bg: #10161d;
+  --input-bg: #18212b;
+  --muted: #9aa5b1;
+  --line: #2f3b47;
+  --accent: #7fa7d9;
+  --accent-hover: #9dbde6;
+  --accent-text: #10161d;
+  --error: #ff8a80;
+  --ok: #7fd6a0;
+  --ok-bg: #173826;
+  --warn: #f3c969;
+  --warn-bg: #3d3214;
+  --kind-invalid: #4a1f1f;
+  --kind-review: #4a4216;
+  --kind-changed: #1d3352;
+  --kind-other: #26313c;
 }
 
 * {
@@ -172,12 +176,13 @@ h3 {
 
 input[type='text'],
 input[type='date'],
+input[type='search'],
 select {
   font: inherit;
   min-height: 40px;
   padding: 6px 10px;
   color: inherit;
-  background: var(--surface);
+  background: var(--input-bg);
   border: 1px solid var(--line);
   border-radius: 6px;
   width: 100%;
@@ -242,10 +247,58 @@ input[aria-invalid='true'] {
   font-size: 0.9rem;
 }
 
-.start-help {
+.start-top {
   position: absolute;
   top: 8px;
   right: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Theme: Auto · Light · Dark (ui/ThemeSwitch.tsx). */
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.theme-switch-title {
+  padding: 0 8px 0 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.theme-switch button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.theme-switch button:hover:not([aria-checked='true']) {
+  background: var(--kind-other);
+}
+
+.theme-switch button[aria-checked='true'] {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.theme-switch button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 .start-grid {
@@ -959,6 +1012,18 @@ td.num {
   margin-top: 16px;
 }
 
+.help-theme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.help-theme p {
+  flex: 1 1 240px;
+}
+
 .report-note {
   align-self: center;
 }
@@ -985,6 +1050,10 @@ td.num {
   width: 100%;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.8rem;
+  color: inherit;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }
 
 @media (max-width: 1100px) {
@@ -1042,7 +1111,7 @@ td.num {
   font: inherit;
   padding: 6px 10px;
   color: inherit;
-  background: var(--surface);
+  background: var(--input-bg);
   border: 1px solid var(--line);
   border-radius: 6px;
   width: 100%;
@@ -1285,7 +1354,7 @@ table.grid input[type='checkbox'] {
   width: 100%;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.85rem;
-  background: var(--surface);
+  background: var(--input-bg);
   color: inherit;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1408,17 +1477,15 @@ table.grid.photos select {
   --draw-6: #b02ab0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --draw-bg: #0b1016;
-    --draw-7: #e4e7eb;
-    --draw-1: #ff6b6b;
-    --draw-2: #ffe14d;
-    --draw-4: #4fd6e0;
-    --draw-3: #5fd38a;
-    --draw-5: #6ea8ff;
-    --draw-6: #e07ae0;
-  }
+:root[data-theme='dark'] {
+  --draw-bg: #0b1016;
+  --draw-7: #e4e7eb;
+  --draw-1: #ff6b6b;
+  --draw-2: #ffe14d;
+  --draw-4: #4fd6e0;
+  --draw-3: #5fd38a;
+  --draw-5: #6ea8ff;
+  --draw-6: #e07ae0;
 }
 
 .preview {
@@ -2032,7 +2099,7 @@ table.text-styles tbody th {
 
 .find-results li.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
 }
 
 .find-results li.active .muted {

@@ -3,15 +3,12 @@
 import iconUrl from '../assets/logo/icon.svg'
 import wordmarkDark from '../assets/logo/wordmark-dark.svg'
 import wordmarkLight from '../assets/logo/wordmark-light.svg'
+import { useTheme } from './theme.ts'
 
-/** "AXISBUILDER" with the stitched X, in the light or dark colors to suit the theme. */
+/** "AXISBUILDER" with the stitched X, in the light or dark colors of the app's theme (ui/theme.ts). */
 export function Wordmark({ className }: { className?: string }) {
-  return (
-    <picture className={className}>
-      <source srcSet={wordmarkDark} media="(prefers-color-scheme: dark)" />
-      <img src={wordmarkLight} alt="AxisBuilder" />
-    </picture>
-  )
+  const { theme } = useTheme()
+  return <img className={className} src={theme === 'dark' ? wordmarkDark : wordmarkLight} alt="AxisBuilder" />
 }
 
 /** The small version for the job screen's top bar: the icon and the name. */
