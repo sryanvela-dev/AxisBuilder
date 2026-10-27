@@ -337,7 +337,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   inspector, notes and folder paths taken out); `ui/samplePhotos.ts` gives the photos to the photo folder in JobScreen;
   `test/ui/sampleJob.test.ts` checks the features. Tests written against the earlier sample use `test/fixtures/olderSample.ts`. First-user
   test sheet: `app/docs/first-user-test.md`.
-  Theme (user, 2026-10-27): "Theme: Auto · Light · Dark" at the top right of the start screen (`ui/ThemeSwitch.tsx`, a radio group),
+  Theme (user, 2026-10-27): "Theme: Auto · Light · Dark" at the top right of the start screen and in the Help guide (`ui/ThemeSwitch.tsx`, a radio group),
   logic in `ui/theme.ts` (`useTheme`, `createThemeStore`): Auto follows prefers-color-scheme live, the choice is kept per browser
   in localStorage `axisbuilder:theme` (bad or blocked storage = Auto), the resolved theme goes on `<html>` as `data-theme` +
   `color-scheme`; the inline script in `index.html` sets it before the first paint. `index.css` has the soft light colors in
@@ -815,3 +815,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   browser, set before the first paint by `index.html`; dark CSS now keyed on `data-theme` instead of prefers-color-scheme;
   `color-scheme` set so scrollbars and native controls match; wordmark follows the theme (was a `<picture>` media query).
   Help guide has a Theme line. .lsp and DXF fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-27 – Theme follow-up (feature/theme-switch, user approved both suggestions): the Theme switch is also in the Help
+  guide, so it can be changed inside a job; the highlighted Find a setting result uses `--accent-text` (dark mode: dark text on
+  the light-blue highlight, about 7:1, was white at about 2.4:1; light mode unchanged).

@@ -1012,6 +1012,18 @@ td.num {
   margin-top: 16px;
 }
 
+.help-theme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.help-theme p {
+  flex: 1 1 240px;
+}
+
 .report-note {
   align-self: center;
 }
@@ -2087,7 +2099,7 @@ table.text-styles tbody th {
 
 .find-results li.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
 }
 
 .find-results li.active .muted {

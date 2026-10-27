@@ -80,4 +80,4 @@ export const GUIDE_KEYS: { where: string; keys: [string, string][] }[] = [
 
 /** The theme switch, one line. */
 export const GUIDE_THEME =
-  'Theme (start screen, top right): Auto follows the Windows light or dark setting; Light or Dark keeps that one in this browser.'
+  'Theme (here, or at the top right of the start screen): Auto follows the Windows light or dark setting; Light or Dark keeps that one in this browser.'

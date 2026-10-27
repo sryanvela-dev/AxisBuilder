@@ -6,6 +6,7 @@ import { STEPS } from '../state/steps.ts'
 import { appVersion, problemDetails } from './errorDetails.ts'
 import { GUIDE_FILES, GUIDE_KEYS, GUIDE_STEPS, GUIDE_THEME } from './helpText.ts'
 import { ReportProblem } from './ReportProblem.tsx'
+import { ThemeSwitch } from './ThemeSwitch.tsx'
 
 /** where: the screen, for the problem report (e.g. "Start screen", "Drawing step"). */
 export function HelpButton({ where, className = 'btn' }: { where: string; className?: string }) {
@@ -85,7 +86,10 @@ function HelpGuide({ where, onClose }: { where: string; onClose: () => void }) {
             </table>
           ))}
           <p className="muted">Every setting has a short description under it; Find a setting in the top bar finds one by name.</p>
-          <p className="muted">{GUIDE_THEME}</p>
+          <div className="help-theme">
+            <ThemeSwitch />
+            <p className="muted">{GUIDE_THEME}</p>
+          </div>
           <h3>Something not right?</h3>
           <p>
             Report a problem copies the app version, the browser, the screen and the last error (no job data, no client
