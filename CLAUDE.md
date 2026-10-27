@@ -337,6 +337,12 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   inspector, notes and folder paths taken out); `ui/samplePhotos.ts` gives the photos to the photo folder in JobScreen;
   `test/ui/sampleJob.test.ts` checks the features. Tests written against the earlier sample use `test/fixtures/olderSample.ts`. First-user
   test sheet: `app/docs/first-user-test.md`.
+  Theme (user, 2026-10-27): "Theme: Auto · Light · Dark" at the top right of the start screen (`ui/ThemeSwitch.tsx`, a radio group),
+  logic in `ui/theme.ts` (`useTheme`, `createThemeStore`): Auto follows prefers-color-scheme live, the choice is kept per browser
+  in localStorage `axisbuilder:theme` (bad or blocked storage = Auto), the resolved theme goes on `<html>` as `data-theme` +
+  `color-scheme`; the inline script in `index.html` sets it before the first paint. `index.css` has the soft light colors in
+  `:root` (page #e6e9ee, panels #f1f3f6, text boxes `--input-bg` #f8f9fb) and the dark ones once under `:root[data-theme='dark']`
+  (no prefers-color-scheme media queries; `test/ui/theme.test.ts`). The wordmark follows the app theme.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -801,3 +807,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   used the Phase 6 sample now use test/fixtures/olderSample.ts.
 - 2026-10-26 – Docs (user): the V-100 sample job and its photos are the one exception to "never commit anything from the
   reference jobs folder"; the user checked it holds no identifiers.
+- 2026-10-27 – Web app (branch feature/theme-switch, user request): softer light mode and a Theme switch. Light colors: page
+  #e6e9ee, panels #f1f3f6, lines #c6ced8, muted text #55616e, new `--input-bg` #f8f9fb for text boxes, selects and text areas
+  (also the Find a setting box and the error-details box, which used the browser's white); ok / warn / report-kind colors
+  toned down (REVIEW yellow #f3e9b0 still stands out). Dark colors unchanged. All text at least WCAG AA (muted text 5.20:1 on
+  the page, 5.69:1 on panels). Theme Auto / Light / Dark on the start screen (`ui/theme.ts`, `ui/ThemeSwitch.tsx`), kept per
+  browser, set before the first paint by `index.html`; dark CSS now keyed on `data-theme` instead of prefers-color-scheme;
+  `color-scheme` set so scrollbars and native controls match; wordmark follows the theme (was a `<picture>` media query).
+  Help guide has a Theme line. .lsp and DXF fingerprints unchanged. No VBA or workbook changes.
