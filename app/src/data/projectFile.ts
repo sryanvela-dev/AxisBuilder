@@ -5,6 +5,7 @@
 
 import type { z } from 'zod'
 import { fieldDef } from './settings.ts'
+import { describeReportPath } from '../report/schema.ts'
 import {
   CURRENT_SCHEMA_VERSION,
   LIST_META,
@@ -34,6 +35,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   4: (data) => ({ ...data, schemaVersion: 5 }),
   // Format 6 adds MUT areas drawn in the preview (`area` on shell and head MUT rows); older files have none.
   5: (data) => ({ ...data, schemaVersion: 6 }),
+  // Format 7 adds the AUT report (`report`, null = none) and two shared job fields, Location and Equipment name
+  // (blank by default). Older files have no report.
+  6: (data) => ({ ...data, schemaVersion: 7, report: null }),
 }
 
 export interface OpenOptions {
@@ -168,6 +172,10 @@ function describePath(path: readonly PropertyKey[], input: unknown): { prefix: s
     return { prefix: `${meta.name}, item ${second + 1}${idText}: `, field }
   }
 
+  if (first === 'report') {
+    if (second === undefined) return { prefix: '', field: 'Report' }
+    return describeReportPath(path.slice(1), getAt(input, ['report']))
+  }
   if (first === 'schemaVersion') return { prefix: '', field: 'schemaVersion' }
   if (first === 'jobId') return { prefix: '', field: 'Job ID' }
   return { prefix: 'Project file: ', field: path.map(String).join('.') }

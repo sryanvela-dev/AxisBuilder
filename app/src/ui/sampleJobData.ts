@@ -4,7 +4,7 @@
 import type { ProjectInput } from '../data/schema.ts'
 
 export const SAMPLE_DATA = {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "project": {
     "projectName": "V-100",
     "drawingTitle": "AUT Corrosion Mapping",

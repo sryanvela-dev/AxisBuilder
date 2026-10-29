@@ -82,14 +82,24 @@ export function syncLabelOverrides(prev: Project, next: Project): Project {
       out.push(o)
       continue
     }
-    const i = rowOf(before, o.id, o.occurrence)
-    let j = i >= 0 ? after.indexOf(before[i]) : -1
-    if (j < 0 && i >= 0 && before.length === after.length && !before.includes(after[i])) j = i
-    if (j < 0) j = rowOf(after, o.id, o.occurrence)
-    if (j < 0) continue
-    const moved = { ...o, id: after[j].id, occurrence: occurrenceOf(after, j) }
+    const to = followRow(before, after, o.id, o.occurrence)
+    if (!to) continue
+    const moved = { ...o, ...to }
     if (out.some((x) => same(x, moved.list, moved.id, moved.occurrence))) continue
     out.push(moved.id === o.id && moved.occurrence === o.occurrence ? o : moved)
   }
   return out.length === next.labelOverrides.length && out.every((o, i) => o === next.labelOverrides[i]) ? next : { ...next, labelOverrides: out }
+}
+
+/**
+ * Where a row keyed by ID + occurrence went after an edit (see syncLabelOverrides), or null when it is gone. Also used
+ * by the report's linked readings (report/sync.ts).
+ */
+export function followRow(before: Rows, after: Rows, id: string, occurrence: number): { id: string; occurrence: number } | null {
+  const i = rowOf(before, id, occurrence)
+  let j = i >= 0 ? after.indexOf(before[i]) : -1
+  if (j < 0 && i >= 0 && before.length === after.length && !before.includes(after[i])) j = i
+  if (j < 0) j = rowOf(after, id, occurrence)
+  if (j < 0) return null
+  return { id: after[j].id, occurrence: occurrenceOf(after, j) }
 }
