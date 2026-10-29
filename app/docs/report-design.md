@@ -577,3 +577,32 @@ but the first build must not block it. Proposed (for review):
 
 Status: report-only jobs, coverage per template and the Piping template stay future work; components are in the first
 build (4.0).
+
+---
+
+## R1 as built (2026-10-29, branch feature/report-r1)
+
+Built: project file format 7 (`report`, shared fields `location` and `equipmentName`), `src/report/schema.ts`,
+`report.ts`, `sync.ts`, `templates/` (types, registry, `generic.ts`), `calc/`, `scansheetImport.ts`, `checks.ts`
+(see `src/report/README.md`). Golden jobs, compat v5.0 and the .lsp / DXF fingerprints unchanged.
+
+Where the build fills in or differs from the design above:
+- **Data details.** Scan results also keep `csvNomT`, `csvWallRemain` and `calculated` (which values were worked out).
+  Readings point at their drawing row with `link` (shell / head MUT) or `nozzle` (shell / head nozzle), each list + ID +
+  occurrence; a linked row's ID, Min 'T', notes and area are the drawing's. The job's scan increments are
+  `calibration.increments`. `options.ladder.cutoffs` is null for the template's own. Summary text blocks can be
+  switched on and off like the scope's (`text.summary.blocks`). Optional cover fields are `job.coverExtras`.
+- **Linked readings appear automatically**: every shell and head MUT row gets its reading row when the report starts
+  and when a MUT row is added; a deleted MUT row takes its reading with it; a deleted nozzle leaves its reading, unlinked.
+- **Ladder at the printed value**: wall loss is banded at its two printed decimals, so a printed 5.00% is never Minor.
+- **Pitting forms** come after the surface, with a picked cause as well: "Moderate I.D. pitting corrosion detected."
+- **Shell nominal from the CSV**: a blank shell nominal is filled from the scansheet when every row gives the same
+  Nom. 'T' (listed in the import report).
+- **CSV rows with no drawing scan** (matched by scan number) are listed and not imported; the report keeps results only
+  for scans the job has.
+- **Paste column guess**: by header, else in the CSV's column order (no guess from the values yet).
+- **Pipe walls**: B36.10M / B36.19M, NPS 1/2-24, every schedule; checked value by value against Wikipedia "Nominal Pipe
+  Size" (which reproduces both standards), with the standard's own inch rounding (0.438, not 0.437). Not yet checked
+  against a paper copy of the standards. Sch 120 below NPS 4 and XXS above NPS 12 are not in B36.10M and are left out.
+- **Not in R1**: renaming "Component" to "Equipment ID" and printing Location and Unit in the title block (the separate
+  drawing-side step in section 11); the summary values for the text blocks (R4).
