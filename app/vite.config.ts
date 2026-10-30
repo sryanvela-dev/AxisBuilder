@@ -2,11 +2,18 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
+import { reportEnabledFor } from './src/featureFlags.ts'
 
 // https://vite.dev/config/
-export default defineConfig({
-  // App version for error reports (ui/errorDetails.ts).
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+export default defineConfig(({ command }) => ({
+  define: {
+    // App version for error reports (ui/errorDetails.ts).
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    // The AUT report (src/featureFlags.ts): on in dev, tests and Pages previews; off in the production build of main.
+    __REPORT_ENABLED__: JSON.stringify(
+      reportEnabledFor({ command, test: process.env.VITEST !== undefined, pagesBranch: process.env.CF_PAGES_BRANCH, override: process.env.VITE_REPORT }),
+    ),
+  },
   // The PDF writer (pdf-lib + fontkit, about 1.1 MB) is its own chunk, loaded only when a PDF is made.
   build: { chunkSizeWarningLimit: 1200 },
   plugins: [
@@ -38,4 +45,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+}))

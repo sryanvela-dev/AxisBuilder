@@ -45,6 +45,26 @@ Preview deployments: every other branch and pull request gets its own preview ad
 To roll back: Deployments > an earlier deployment > Rollback. Browsers move to it on their next online visit, like
 any other update.
 
+## 3a. Work not yet released: the AUT report
+
+The AUT report screens (Drawing | Report switch, "Start the AUT report") are switched by `REPORT_ENABLED`
+(`app/src/featureFlags.ts`), decided when the app is built:
+
+| Build | Report |
+|---|---|
+| `npm run dev`, the tests | on |
+| Pages preview (any branch but `main`, read from `CF_PAGES_BRANCH`) | on |
+| Pages production (`main`), and a local `npm run build` | off |
+
+- **See the report on a preview link:** push the branch (e.g. `feature/report-r2`); its preview address
+  (`<branch>.<project>.pages.dev`) has the report. The production address doesn't.
+- **Turn it on for everyone:** either set the variable `VITE_REPORT` = `1` for the Production environment (Pages >
+  Settings > Variables and secrets) and redeploy, or change `reportEnabledFor` so the production build is on too (the
+  lasting way, once the report is released). `VITE_REPORT` = `0` turns it off on a preview.
+- Locally: `VITE_REPORT=1 npm run build` (in Git Bash) builds with the report on.
+- A job file with a report opens and saves the same with the switch off: the report data is kept, only the screens are
+  hidden.
+
 ## 4. Who can open it: Cloudflare Access (Sean or IT)
 
 The app holds no client data on the server (jobs stay on each computer), but it should only be open to Integrity EPC
