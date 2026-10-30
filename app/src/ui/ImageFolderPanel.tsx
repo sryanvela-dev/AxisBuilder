@@ -1,12 +1,11 @@
-// Matching photos to scans (Images step): check the naming format against example thumbnails,
-// pick a file for scans with several candidates, confirm replacing photos already chosen, then save
-// the choices into the project. The folder comes from the Images step. Files are read in this browser
-// only (names, plus thumbnails on screen); nothing is uploaded.
+// Matching image files to scans by scan number: the scan photos (Images step) and the report's data-page
+// screenshots (report AUT results). Check the naming format against example thumbnails, pick a file for scans with
+// several candidates, confirm replacing files already chosen, then hand the choices to the caller to save. The folder
+// comes from the step. Files are read in this browser only (names, plus thumbnails on screen); nothing is uploaded.
 
 import { useEffect, useMemo, useState } from 'react'
-import type { Project } from '../data/schema.ts'
 import type { PhotoFolder } from './photoFolder.ts'
-import { applyImageChoices, matchScanImages, resolveImageFile, type ScanMatchStatus } from '../data/imageMatch.ts'
+import { matchScanImages, resolveImageFile, startPattern, type ScanMatchStatus, type ScanToMatch } from '../data/imageMatch.ts'
 
 const STATUS_LABEL: Record<ScanMatchStatus, string> = { matched: 'Matched', choose: 'Choose', noMatch: 'No match' }
 const STATUS_KIND: Record<ScanMatchStatus, string> = { matched: 'changed', choose: 'review', noMatch: 'invalid' }
@@ -39,16 +38,33 @@ function ThumbImage({ folder, name }: { folder: PhotoFolder; name: string | null
   return url ? <img className="thumb" src={url} alt={name} loading="lazy" /> : <span className="thumb thumb-empty" />
 }
 
-export function ImageFolderPanel({ project, folder, onApply, onClose }: { project: Project; folder: PhotoFolder; onApply: (p: Project) => void; onClose: () => void }) {
-  const [pattern, setPattern] = useState<string | undefined>(undefined)
+/** What is matched: scan photos or the report's data-page screenshots (only the words differ). */
+export type MatchWhat = 'photo' | 'screenshot'
+
+export function ImageFolderPanel(props: {
+  /** Each scan with the file it has now. */
+  scans: readonly ScanToMatch[]
+  folder: PhotoFolder
+  /** Saves the chosen file per scan ID (scans not in the map keep theirs). */
+  onSave: (choices: ReadonlyMap<string, string>) => void
+  onClose: () => void
+  what?: MatchWhat
+  /**
+   * A naming format the folder may also hold that is not this kind (the report's data-page screenshots when matching
+   * overlay photos): matching starts on another format that covers the scans, and the list marks it.
+   */
+  otherFormat?: { pattern: string; what: string } | null
+}) {
+  const { folder, onClose } = props
+  const noun = props.what === 'screenshot' ? 'screenshot' : 'photo'
+  const other = props.otherFormat ?? null
+  const [pattern, setPattern] = useState<string | undefined>(() => startPattern(matchScanImages(props.scans, folder.names), other?.pattern))
+  const avoided = pattern !== undefined && other !== null
   const [picks, setPicks] = useState<Map<string, string>>(new Map())
   const [confirming, setConfirming] = useState<{ scanId: string; from: string; to: string }[] | null>(null)
   const [saved, setSaved] = useState('')
 
-  const current = useMemo(() => {
-    const links = new Map(project.scanImages.map((l) => [l.scanId.toLowerCase(), l.imageFile]))
-    return project.scans.map((s) => ({ id: s.id, imageFile: links.get(s.id.toLowerCase()) }))
-  }, [project])
+  const current = props.scans
 
   const result = useMemo(
     () => matchScanImages(current, folder.names, pattern ? { pattern } : {}),
@@ -95,17 +111,17 @@ export function ImageFolderPanel({ project, folder, onApply, onClose }: { projec
       const f = finalFile(m.scanId)
       if (f && !keep.has(m.scanId)) choices.set(m.scanId, f)
     }
-    onApply(applyImageChoices(project, choices))
+    props.onSave(choices)
     setConfirming(null)
     const skipped = result.scans.length - choices.size
-    setSaved(`Photos saved for ${choices.size} scan(s)` + (skipped ? `; ${skipped} left as they were.` : '.'))
+    setSaved(`${noun === 'photo' ? 'Photos' : 'Screenshots'} saved for ${choices.size} scan(s)` + (skipped ? `; ${skipped} left as they were.` : '.'))
     onClose()
   }
 
   return (
     <section className="match-panel">
       <div className="group-head">
-        <h2>Match photos to scans</h2>
+        <h2>Match {noun}s to scans</h2>
         <button type="button" className="btn btn-small" onClick={onClose}>
           Close without saving
         </button>
@@ -115,7 +131,7 @@ export function ImageFolderPanel({ project, folder, onApply, onClose }: { projec
         <>
           {result.nothingFits && (
             <div className="notice notice-error" role="alert">
-              <strong>No photos in this folder match your scans.</strong> Check that you picked the right folder.
+              <strong>No {noun}s in this folder match your scans.</strong> Check that you picked the right folder.
               {folder.names.length > 0 && (
                 <span className="muted">
                   {' '}
@@ -129,7 +145,11 @@ export function ImageFolderPanel({ project, folder, onApply, onClose }: { projec
           {result.patterns.length > 0 && (
             <>
               <h3>1. Naming format (# = scan number)</h3>
-              {result.needsPatternChoice && (
+              {avoided ? (
+                <p className="muted">
+                  The "{other!.pattern}" files are {other!.what}, so the other format is selected. Check its example.
+                </p>
+              ) : result.needsPatternChoice && (
                 <p className="muted">Several formats found. The one covering the most scans is selected; check its example.</p>
               )}
               <div className="formats">
@@ -144,6 +164,7 @@ export function ImageFolderPanel({ project, folder, onApply, onClose }: { projec
                     <Thumb folder={folder} name={p.example} />
                     <span>
                       <strong>{p.pattern}</strong>
+                      {other && p.pattern.toLowerCase() === other.pattern.toLowerCase() && <span className="muted"> ({other.what})</span>}
                       <br />
                       <span className="muted">
                         {p.scanCount} of {result.scans.length} scans, {p.fileCount} file(s), e.g. {p.example}
@@ -235,7 +256,7 @@ export function ImageFolderPanel({ project, folder, onApply, onClose }: { projec
           ) : (
             <div className="actions">
               <button type="button" className="button" onClick={onUse} disabled={unresolved > 0 || result.nothingFits}>
-                Use these photos
+                Use these {noun}s
               </button>
               {unresolved > 0 && <span className="muted">Pick a file (or Skip) for {unresolved} scan(s) first.</span>}
               {saved && <span>{saved}</span>}

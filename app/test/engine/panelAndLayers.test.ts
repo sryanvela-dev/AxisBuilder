@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Project } from '../../src/data/schema.ts'
 import { buildDrawing, groupOfLayer, type Drawing, type Shape } from '../../src/engine/drawing.ts'
-import { computeRightPanelLayout, panelOf } from '../../src/engine/layout.ts'
+import { computeRightPanelLayout, panelOf, titleLines } from '../../src/engine/layout.ts'
 import { toVisual, type Orientation } from '../../src/engine/transform.ts'
 import { APP_LIBRARY_PATCHES } from '../../src/export/lsp/appLibrary.ts'
 import { exportLsp } from '../../src/export/lsp/exportLsp.ts'
@@ -96,11 +96,16 @@ describe('right panel', () => {
     it('moves the head views and title block up to make room', () => {
       const a = panelOf(normal).panel
       const b = panelOf(big).panel
-      // Legend twice as big: 36 in more room above it. Title block 1.5 times: 6 x 3.4 x 0.5 more.
+      // Legend twice as big: 36 in more room above it. Title block 1.5 times: (lines - 1) x 3.4 x 0.5 more (the
+      // sample has a Unit, so eight lines in the app).
+      const lines = titleLines(normal, false).length
+      expect(lines).toBe(8)
       expect(visualY(b.head1X, b.head1Y) - visualY(a.head1X, a.head1Y)).toBeCloseTo(36, 6)
-      expect(visualY(b.titleX, b.titleY) - visualY(a.titleX, a.titleY)).toBeCloseTo(36 + 10.2, 6)
-      // The compat layout is unchanged.
-      expect(panelOf(big, true).panel).toEqual(a)
+      expect(visualY(b.titleX, b.titleY) - visualY(a.titleX, a.titleY)).toBeCloseTo(36 + (lines - 1) * 3.4 * 0.5, 6)
+      // The compat layout is unchanged by the sizes, and its heads sit where the app's do at the default sizes.
+      const v5 = panelOf(big, true).panel
+      expect(v5).toEqual(panelOf(normal, true).panel)
+      expect([v5.head1X, v5.head1Y, v5.head2X, v5.head2Y]).toEqual([a.head1X, a.head1Y, a.head2X, a.head2Y])
     })
 
     it('draws the whole legend scaled from its bottom-left corner, in the preview and the .lsp', () => {

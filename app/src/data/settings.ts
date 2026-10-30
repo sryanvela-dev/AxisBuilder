@@ -327,8 +327,8 @@ export const PROJECT_FIELDS = {
     v5: 'Blank prints "AUT COVERAGE MAP".',
   }),
   component: text({
-    excelLabel: 'Component', excelSheet: DI, name: 'Component',
-    description: 'Vessel or equipment ID printed in the title block.',
+    excelLabel: 'Component', excelSheet: DI, name: 'Equipment ID',
+    description: "The company's number or name for the equipment (e.g. V-200), printed in the title block and on the AUT report.",
     default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   equipmentName: text({
@@ -339,13 +339,13 @@ export const PROJECT_FIELDS = {
   }),
   location: text({
     excelLabel: 'Location', excelSheet: DI, onSheet: false, name: 'Location',
-    description: 'The facility the equipment is at (e.g. a plant name). Printed on the AUT report.',
+    description: 'The facility the equipment is at (e.g. a plant name). Printed in the title block and on the AUT report.',
     default: '', group: 'job', step: 'Project', level: 'Basic',
     v5: 'App only (format 7).',
   }),
   unit: text({
     excelLabel: 'Unit', excelSheet: DI, name: 'Unit',
-    description: 'Unit, area or facility printed in the title block.',
+    description: 'The section of the facility, if known. Printed in the title block only when filled.',
     default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
   client: text({

@@ -75,6 +75,31 @@ export function namingPattern(fileName: string): string | null {
   return base.slice(0, m.index) + '#' + base.slice(m.index + m[0].length)
 }
 
+/** The naming pattern most of these files share (ignoring case; the first seen wins a tie), or null when none has one. */
+export function commonPattern(fileNames: readonly (string | null | undefined)[]): string | null {
+  const counts = new Map<string, { pattern: string; n: number }>()
+  for (const f of fileNames) {
+    const pattern = f ? namingPattern(f.trim()) : null
+    if (pattern === null) continue
+    const c = counts.get(pattern.toLowerCase()) ?? { pattern, n: 0 }
+    c.n++
+    counts.set(pattern.toLowerCase(), c)
+  }
+  let best: { pattern: string; n: number } | null = null
+  for (const c of counts.values()) if (!best || c.n > best.n) best = c
+  return best?.pattern ?? null
+}
+
+/**
+ * The naming pattern to start matching with when files of another kind share the folder (the report's data-page
+ * screenshots next to the overlay photos): the best pattern covering scans that isn't `avoid`. Undefined (the automatic
+ * choice) when the automatic choice isn't `avoid`, or no other pattern covers any scan.
+ */
+export function startPattern(result: ImageMatchResult, avoid: string | null | undefined): string | undefined {
+  if (!avoid || result.chosenPattern?.toLowerCase() !== avoid.toLowerCase()) return undefined
+  return result.patterns.find((p) => p.scanCount > 0 && p.pattern.toLowerCase() !== avoid.toLowerCase())?.pattern
+}
+
 /**
  * v5.0 ResolveSourceImagePath, on a list of names: the exact file, else base name + .png, .jpg,
  * .jpeg in that order. Case-insensitive, like Windows. Returns the file name found, or null.

@@ -1,0 +1,289 @@
+// The Report workspace (report design section 5): its own step bar with done / needs attention / not started, a
+// "before export" banner, the current step's page and one "Next" button, in the same look as the drawing's. No preview
+// beside the steps yet (the Pages view is R3). Shared by every step: the report folders and this computer's saved lists.
+
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { emptySavedLists, loadSavedLists, storeSavedLists, type SavedLists } from '../../report/savedLists.ts'
+import {
+  REPORT_STEPS,
+  nextReportStep,
+  reportReviewList,
+  reportStepInfo,
+  reportStepStatuses,
+  reportWhatsLeft,
+  type ReportIssue,
+  type ReportReviewGroup,
+  type ReportStepStatus,
+} from '../../state/reportSteps.ts'
+import type { ReportStepId } from '../../state/session.ts'
+import type { StepState } from '../../state/steps.ts'
+import { useApp } from '../appContext.ts'
+import { ErrorBoundary } from '../ErrorBoundary.tsx'
+import { Notices } from '../Notices.tsx'
+import { useRememberedFolder } from '../useRememberedFolder.ts'
+import { CalibrationStep } from './CalibrationStep.tsx'
+import { ManualStep } from './ManualStep.tsx'
+import { jumpToReport } from './places.ts'
+import { ReportContext, type ReportShared } from './reportContext.ts'
+import { ResultsStep } from './ResultsStep.tsx'
+import { SetupStep } from './SetupStep.tsx'
+
+const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
+const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
+
+export type ReportStepProps = { status: ReportStepStatus }
+
+const PAGES: Record<ReportStepId, (props: ReportStepProps) => React.JSX.Element> = {
+  setup: SetupStep,
+  calibration: CalibrationStep,
+  results: ResultsStep,
+  manual: ManualStep,
+  pages: ComingLater,
+  summary: ComingLater,
+  reportReview: ReportReviewStep,
+  reportExport: ComingLater,
+}
+
+/** This computer's saved lists, loaded once and written back on every change. */
+function useSavedLists() {
+  const app = useApp()
+  const store = app.browserStore
+  const [lists, setLists] = useState<SavedLists>(emptySavedLists)
+  const current = useRef(lists)
+  useEffect(() => {
+    let alive = true
+    void loadSavedLists(store).then((l) => {
+      if (alive) {
+        current.current = l
+        setLists(l)
+      }
+    })
+    return () => {
+      alive = false
+    }
+  }, [store])
+  const changeLists = useCallback((change: (l: SavedLists) => SavedLists) => {
+    const next = change(current.current)
+    if (next === current.current) return
+    current.current = next
+    setLists(next)
+    void storeSavedLists(store, next).catch(() => {})
+  }, [store])
+  return { lists, changeLists }
+}
+
+export function ReportWorkspace() {
+  const app = useApp()
+  const job = app.state.job!
+  const statuses = useMemo(() => reportStepStatuses(job), [job])
+  const step = job.reportStep
+  const Page = PAGES[step]
+  const next = nextReportStep(step)
+  const photos = useRememberedFolder('reportPhotos', 'read')
+  const screenshots = useRememberedFolder('screenshots', 'read')
+  const { lists, changeLists } = useSavedLists()
+  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists }), [photos, screenshots, lists, changeLists])
+  const page = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    page.current?.scrollTo(0, 0)
+    window.scrollTo(0, 0)
+  }, [step])
+  const go = (s: ReportStepId) => app.dispatch({ type: 'goToReportStep', step: s })
+  return (
+    <ReportContext.Provider value={shared}>
+      <nav className="stepbar stepbar-report" aria-label="Report steps">
+        <ol>
+          {REPORT_STEPS.map((s, i) => {
+            const st = statuses[s.id]
+            return (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={`step step-${st.state}${s.id === step ? ' step-current' : ''}`}
+                  aria-current={s.id === step ? 'step' : undefined}
+                  onClick={() => go(s.id)}
+                  title={`${s.title}: ${s.later ? 'coming later' : STATE_TEXT[st.state]}`}
+                >
+                  <span className="step-icon" aria-hidden="true">
+                    {STATE_ICON[st.state]}
+                  </span>
+                  <span className="step-text">
+                    <span className="step-title">
+                      {i + 1}. {s.title}
+                    </span>
+                    <span className="step-state">
+                      <span className="visually-hidden">{STATE_TEXT[st.state]}: </span>
+                      {st.short}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
+      </nav>
+      <Banner statuses={statuses} />
+      <Notices />
+      <div className="work">
+        <main className="page" ref={page}>
+          <ErrorBoundary key={step} where={`Report ${reportStepInfo(step).title} step`} onLeave={{ label: 'Go to the report Review step', action: () => go('reportReview') }}>
+            <header className="page-header">
+              <h1>{reportStepInfo(step).title}</h1>
+              <p className="muted">{reportStepInfo(step).intro}</p>
+            </header>
+            <Page status={statuses[step]} />
+          </ErrorBoundary>
+        </main>
+      </div>
+      <footer className="page-footer">
+        <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>
+        {next ? (
+          <button type="button" className="btn btn-primary btn-large" onClick={() => go(next)}>
+            Next: {reportStepInfo(next).title}
+          </button>
+        ) : null}
+      </footer>
+    </ReportContext.Provider>
+  )
+}
+
+function Banner({ statuses }: { statuses: Record<ReportStepId, ReportStepStatus> }) {
+  const app = useApp()
+  const left = reportWhatsLeft(statuses)
+  const go = (s: ReportStepId) => app.dispatch({ type: 'goToReportStep', step: s })
+  if (left.length === 0) {
+    return (
+      <div className="banner banner-ready" role="status">
+        Nothing left to fix in the report data so far.
+      </div>
+    )
+  }
+  const shown = left.slice(0, 4)
+  return (
+    <div className="banner" role="status">
+      <span className="banner-label">Before the report:</span>
+      {shown.map((l) => (
+        <button key={l.text} type="button" className="banner-item" onClick={() => go(l.step)}>
+          {l.text}
+        </button>
+      ))}
+      {left.length > shown.length && (
+        <button type="button" className="banner-item" onClick={() => go('reportReview')}>
+          and {left.length - shown.length} more
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** What is open on a report step; each item jumps to its row. */
+export function ReportStepIssues({ status }: { status: ReportStepStatus }) {
+  if (status.issues.length === 0) return null
+  const fix = status.issues.filter((i) => i.blocksExport)
+  const check = status.issues.filter((i) => !i.blocksExport)
+  const item = (i: ReportIssue, n: number) => (
+    <li key={`${n}:${i.text}`}>
+      {i.check ? (
+        <button type="button" className="link-btn" onClick={() => jumpToReport(i.check!.place)}>
+          {i.text}
+        </button>
+      ) : (
+        i.text
+      )}
+    </li>
+  )
+  return (
+    <section className="issues" aria-label="Open items">
+      <details open={status.issues.length <= 6}>
+        <summary>
+          {fix.length > 0 && <span className="kind kind-invalid">{fix.length} to fix before the report</span>}{' '}
+          {check.length > 0 && <span className="kind kind-review">{check.length} to check</span>}{' '}
+          <span className="muted">(click one to go to it)</span>
+        </summary>
+        <ul>
+          {fix.slice(0, 50).map(item)}
+          {fix.length > 50 && <li>...and {fix.length - 50} more.</li>}
+          {check.slice(0, 50).map(item)}
+        </ul>
+      </details>
+    </section>
+  )
+}
+
+function ComingLater() {
+  const app = useApp()
+  const step = app.state.job!.reportStep
+  return (
+    <p className="coming-soon">
+      Coming later: {reportStepInfo(step).intro} {step === 'reportExport' ? 'The report PDF comes with the next part of the report work.' : ''}
+    </p>
+  )
+}
+
+function ReviewGroups({ groups, kind }: { groups: ReportReviewGroup[]; kind: 'error' | 'warning' }) {
+  const app = useApp()
+  const goTo = (i: ReportIssue) => {
+    app.dispatch({ type: 'goToReportStep', step: i.step })
+    const place = i.check?.place
+    if (place) window.setTimeout(() => jumpToReport(place), 60)
+  }
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.step} className="review-group">
+          <h3>{reportStepInfo(g.step).title}</h3>
+          <ul className="review-list">
+            {g.issues.map((i, n) => (
+              <li key={`${n}:${i.text}`}>
+                <span className={`kind ${kind === 'error' ? 'kind-invalid' : 'kind-review'}`}>{kind === 'error' ? 'Fix' : 'Check'}</span>
+                <span className="review-text">
+                  {i.text}
+                  {i.fix && <span className="muted"> {i.fix}</span>}
+                </span>
+                <button type="button" className="btn btn-small" onClick={() => goTo(i)} title={i.check ? 'Go to the row' : `Go to ${reportStepInfo(i.step).title}`}>
+                  Go to
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  )
+}
+
+/** Every open report check: errors first, then warnings, grouped by step (the full R4 list comes later). */
+function ReportReviewStep({ status }: ReportStepProps) {
+  const { errors, warnings } = reportReviewList(status)
+  const nErrors = errors.reduce((a, g) => a + g.issues.length, 0)
+  const nWarnings = warnings.reduce((a, g) => a + g.issues.length, 0)
+  return (
+    <>
+      {nErrors + nWarnings === 0 ? (
+        <div className="notice notice-ready" role="status">
+          <p>
+            <strong>Nothing is open</strong> in the report data entered so far.
+          </p>
+        </div>
+      ) : (
+        <>
+          {nErrors > 0 && (
+            <section aria-labelledby="report-review-errors">
+              <h2 id="report-review-errors">To fix before the report ({nErrors})</h2>
+              <p className="muted">The report PDF can't be made until these are fixed.</p>
+              <ReviewGroups groups={errors} kind="error" />
+            </section>
+          )}
+          {nWarnings > 0 && (
+            <section aria-labelledby="report-review-warnings">
+              <h2 id="report-review-warnings">Worth checking ({nWarnings})</h2>
+              <p className="muted">These don't stop the report.</p>
+              <ReviewGroups groups={warnings} kind="warning" />
+            </section>
+          )}
+        </>
+      )}
+      <p className="coming-soon">More checks come with the Photos and pages, Summary and Export steps (cover fields, photos, screenshots, edited text).</p>
+    </>
+  )
+}

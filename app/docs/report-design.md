@@ -1,6 +1,6 @@
 # AUT Report Module: Generic AUT design (for review)
 
-Status: **reviewed by the user 2026-10-28 (answers in section 11); design complete. Phase R1 built on feature/report-r1 (2026-10-29, see "R1 as built" at the end).** This repo copy is the one to update; the original and the files it names (`Style_Sample/`, `References/`, `claude/LWN_Neck_Schedules.csv`, the spec and decisions docs) are in the design folder outside the repo (they hold client material).
+Status: **reviewed by the user 2026-10-28 (answers in section 11); design complete. Phase R1 built on feature/report-r1 (2026-10-29, see "R1 as built" at the end); Phase R2 (the workspace screens) on feature/report-r2 ("R2 as built").** This repo copy is the one to update; the original and the files it names (`Style_Sample/`, `References/`, `claude/LWN_Neck_Schedules.csv`, the spec and decisions docs) are in the design folder outside the repo (they hold client material).
 Background: the design folder's `AUT_Report_Module_Spec.md` (original spec) and `AUT_Report_Design_Decisions.md` (decisions; they win over
 the spec). Where this design differs from either, it says so.
 
@@ -606,3 +606,54 @@ Where the build fills in or differs from the design above:
   against a paper copy of the standards. Sch 120 below NPS 4 and XXS above NPS 12 are not in B36.10M and are left out.
 - **Not in R1**: renaming "Component" to "Equipment ID" and printing Location and Unit in the title block (the separate
   drawing-side step in section 11); the summary values for the text blocks (R4).
+
+## R2 as built (2026-10-29, branch feature/report-r2)
+
+Built: the Report workspace (Drawing | Report in the top bar, "Start the AUT report" on the drawing's Export step), its
+step bar, banner and Next button, the Setup, Calibration, AUT results and Manual UT steps, a first Review, and saved lists.
+All behind `REPORT_ENABLED` (`src/featureFlags.ts`: on in dev, tests and Pages previews, off in the production build of
+`main`; `VITE_REPORT` overrides; see `docs/hosting.md` 3a). Code: `src/state/reportSteps.ts`, `src/report/edits.ts`,
+`src/report/savedLists.ts`, `src/report/readingPaste.ts`, `src/ui/report/`. Golden jobs, compat v5.0 and the .lsp / DXF
+fingerprints unchanged; no project file format change.
+
+Where the build fills in or differs from the design above:
+- **No Pages view beside the steps yet** (R3); Photos and pages, Summary and Export show "Coming later". Review lists the
+  checks R1 has (components, scans, readings) plus values typed but not stored; the full section 9 list is R4.
+- **The start screen's job card** has no "Start a report" button yet (the Export step has it).
+- **Workspace and report step** are session state like the drawing step: not saved, not undone. A job opens on the drawing.
+  Find a setting and every drawing Go to switch back to the drawing. Undoing "Start the AUT report" shows the drawing.
+- **Shared fields** are shown read-only on Setup with "Edit on the Project step" (client, location, Equipment ID, equipment
+  name and type, unit, date, procedure, material, circumference, length).
+- **Components**: the Y band is one box ("0 to 96"); it shows for shell courses (and any component that has one). Removing a
+  component that scans or readings picked asks first; they go back to automatic.
+- **Sections**: a renamed title equal to the template's (or blank) goes back to the template's. Sections "on when any exist"
+  say so until the user switches them.
+- **Optional cover fields**: Unit (from the Project step), Coordinates and Cost center (typed on Setup); the reviewer has its
+  own switch.
+- **Scansheet import**: the import report is shown on the step (not kept in the session). When positions differ, a table asks
+  per scan: keep the drawing's (default) or use the file's; then one undo step. The paste dialog shows the same report and
+  how many rows match before "Use these rows".
+- **Results table** lists every drawing scan, also those taken out of the report (dimmed, so they can be put back). Readings
+  left blank show the worked-out number as a placeholder; increments blank show the job's.
+- **Screenshots**: matched with the drawing's `ImageFolderPanel` (now given the scans and a save callback). Choosing the
+  data-page naming format in that panel is the "data page vs overlay" choice; telling the Images step which format is the
+  overlay was left out (suggested improvement).
+- **Manual UT**: a linked row's name, area (when drawn) and Min 'T' are the drawing's; Min 'T' typed here is written to the
+  drawing MUT row. Changing a row's nominal mode or pipe size clears a wall chosen by hand. Rows can be moved, report rows
+  deleted (a linked row is deleted on Field data).
+- **Add nozzle readings**: the pipe size comes from the nozzle's diameter when it is an NPS (4 -> NPS 4) or an NPS outside
+  diameter (4.5 -> NPS 4); otherwise the user picks it. Positions remembered in this browser (localStorage).
+- **Pasted readings** become report rows; a pasted nominal makes the row custom, else it uses its component's nominal.
+- **Saved lists**: string lists are suggestions under the box (HTML datalist); a value is added when the box is left. A few
+  built-in values are always offered (the template's examination type, N / E / S / W / Top / Bottom, Longitudinal / Shear, the
+  two N/A reasons named in 4.4) but never stored. Record lists: "Pick saved..." and "Save to list" beside each record. The
+  dialog edits and deletes values and records, exports `AxisBuilder saved lists.json` and imports one (adds, never deletes).
+- **Approved after the click-through (user, 2026-10-29)**: a scan with neither Min 'T' nor readings gets one check, "has no
+  results yet" (the two separate checks stay when only one is missing); reading checks name the row with its position
+  ("N2 North has no nominal."); the Manual UT table fits a laptop screen: Avg / Max 'T' and area share one "MUT scan" column
+  (shown only when a row is a MUT scan) and the N/A reason moved into the row's details.
+- **Data pages and overlays in one folder (approved, user 2026-10-29)**: when the drawing's photo folder holds the report's
+  data-page screenshot files themselves, Match photos on the Images step starts on the other naming format (the data-page
+  one is marked "the report's data-page screenshots"; the tech can still pick any). Kept in separate folders, or named
+  alike in different folders, nothing changes: the automatic choice as before (`commonPattern`, `startPattern` in
+  `data/imageMatch.ts`; `ImageFolderPanel` `otherFormat`).

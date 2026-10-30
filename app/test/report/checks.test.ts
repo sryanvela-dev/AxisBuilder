@@ -52,7 +52,10 @@ describe('report checks', () => {
       ...r,
       scanResults: r.scanResults.map((s) => (s.scanId === 'SCAN 2' ? { ...s, minT: null, readings: null } : s.scanId === 'SCAN 3' ? { ...s, minT: null, inReport: false } : s)),
     }))
-    expect(texts(p)).toEqual(["error: SCAN 2 has no Min 'T'.", 'error: SCAN 2 has no readings.'])
+    expect(texts(p)).toEqual(['error: SCAN 2 has no results yet.'])
+    // One of the two missing: that one is named.
+    const q = clean((r) => ({ ...r, scanResults: r.scanResults.map((s) => (s.scanId === 'SCAN 2' ? { ...s, minT: null } : s)) }))
+    expect(texts(q)).toEqual(["error: SCAN 2 has no Min 'T'."])
   })
 
   it('works readings out from the increments instead of asking for them', () => {
@@ -103,6 +106,7 @@ describe('report checks', () => {
         reading({ name: 'N2', nominalMode: 'pipe', minT: 0.3 }),
         reading({ name: 'N3', nominalMode: 'pipe', pipeSize: '4' }),
         reading({ name: 'N4', nominalMode: 'pipe', pipeSize: '4', minT: 0.3 }),
+        reading({ name: 'N6', location: 'North', nominalMode: 'custom', minT: 0.3 }),
         reading({ name: 'N5', nominalMode: 'custom', na: 'Repad' }),
         ...r.readings,
       ],
@@ -111,6 +115,7 @@ describe('report checks', () => {
       'N1 has no nominal. Type the nominal.',
       'N2 has no nominal. Enter the pipe size, or switch the row to a custom nominal.',
       'N3 has no nominal. Enter a reading so a wall can be suggested, or pick one.',
+      'N6 North has no nominal. Type the nominal.',
     ])
   })
 })

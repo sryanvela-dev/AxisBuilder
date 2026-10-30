@@ -22,6 +22,9 @@ import { SelectionContext, type Selected } from './selectionContext.ts'
 import { AreaToolContext, IDLE, type AreaPhase, type PreviewTool } from './areaToolContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
 import { samplePhotoFolder } from './samplePhotos.ts'
+import { REPORT_ENABLED } from '../featureFlags.ts'
+import { reportStepInfo } from '../state/reportSteps.ts'
+import { ReportWorkspace } from './report/ReportWorkspace.tsx'
 
 /** Steps that show the drawing preview beside their page. */
 const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images', 'drawing']
@@ -47,6 +50,8 @@ export function JobScreen() {
   const checks = useMemo(() => ({ checks: checkProject(present), workbookImport: job.workbookImport }), [present, job.workbookImport])
   const step = job.step
   const Page = PAGES[step]
+  // The Report workspace (src/featureFlags.ts): shown once the job has a report and the user switched to it.
+  const reportShown = REPORT_ENABLED && job.workspace === 'report' && present.report !== null
   const next = nextStep(step)
   const photos = useRememberedFolder('photos', 'read')
   const jobFolder = useRememberedFolder('job', 'readwrite', photos.handle)
@@ -84,6 +89,12 @@ export function JobScreen() {
     <AreaToolContext.Provider value={areaApi}>
       <div className="job">
         <TopBar />
+        {reportShown ? (
+          <ErrorBoundary where="Report workspace" onLeave={{ label: 'Back to the drawing', action: () => app.dispatch({ type: 'setWorkspace', workspace: 'drawing' }) }}>
+            <ReportWorkspace />
+          </ErrorBoundary>
+        ) : (
+        <>
         <nav className="stepbar" aria-label="Steps">
           <ol>
             {STEPS.map((s, i) => {
@@ -141,6 +152,8 @@ export function JobScreen() {
             </button>
           ) : null}
         </footer>
+        </>
+        )}
       </div>
     </AreaToolContext.Provider>
     </SelectionContext.Provider>
@@ -163,6 +176,7 @@ function TopBar() {
         </span>
       </span>
       <FindSetting />
+      {REPORT_ENABLED && job.history.present.report !== null && <WorkspaceSwitch />}
       <span className="topbar-actions">
         <button type="button" className="btn" onClick={app.undo} disabled={!app.canUndo} title={app.undoLabel ? `Undo: ${app.undoLabel} (Ctrl+Z)` : 'Nothing to undo'}>
           Undo
@@ -179,9 +193,27 @@ function TopBar() {
         <button type="button" className="btn" onClick={() => void app.closeJob()} title="Close this job and go back to the start screen (asks first if there are unsaved changes)">
           Close job
         </button>
-        <HelpButton where={`${stepInfo(job.step).title} step`} />
+        <HelpButton where={REPORT_ENABLED && job.workspace === 'report' ? `Report ${reportStepInfo(job.reportStep).title} step` : `${stepInfo(job.step).title} step`} />
       </span>
     </header>
+  )
+}
+
+/** Drawing | Report: which workspace the job shows (once it has a report). */
+function WorkspaceSwitch() {
+  const app = useApp()
+  const ws = app.state.job!.workspace
+  const item = (w: 'drawing' | 'report', label: string) => (
+    <button type="button" className={`seg${ws === w ? ' seg-on' : ''}`} aria-pressed={ws === w} onClick={() => app.dispatch({ type: 'setWorkspace', workspace: w })}
+      title={w === 'drawing' ? 'The drawing: Project to Export' : 'The AUT report: Setup to Export'}>
+      {label}
+    </button>
+  )
+  return (
+    <span className="segmented" role="group" aria-label="Workspace">
+      {item('drawing', 'Drawing')}
+      {item('report', 'Report')}
+    </span>
   )
 }
 

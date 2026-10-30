@@ -2,7 +2,9 @@
 // scan uses (with the processed file name it gets).
 
 import { useState, type ChangeEvent } from 'react'
-import { pieceImageName, processedImageNames } from '../data/imageMatch.ts'
+import { applyImageChoices, commonPattern, pieceImageName, processedImageNames } from '../data/imageMatch.ts'
+import { REPORT_ENABLED } from '../featureFlags.ts'
+import type { Project } from '../data/schema.ts'
 import { drawnScans } from '../engine/layout.ts'
 import { circumference, isWrapped, scanPieces } from '../engine/wrap.ts'
 import { PHOTO_STATE_TEXT, imageFiles, photoLink, photoState, setPhotoLink, type PhotoState } from '../data/photos.ts'
@@ -74,6 +76,19 @@ export function FolderBar(props: { folder: RememberedFolder; label: string; choo
   )
 }
 
+/**
+ * The report's data-page screenshots, when they are in this very folder (some techs keep data pages and overlays
+ * together, others apart): their naming format, so photo matching starts on the other one. Null when none of the
+ * report's screenshot files is here.
+ */
+function dataPagesIn(p: Project, names: readonly string[]): { pattern: string; what: string } | null {
+  if (!REPORT_ENABLED || !p.report) return null
+  const here = new Set(names.map((n) => n.toLowerCase()))
+  const files = p.report.scanResults.flatMap((r) => (r.dataImage && here.has(r.dataImage.trim().toLowerCase()) ? [r.dataImage] : []))
+  const pattern = commonPattern(files)
+  return pattern === null ? null : { pattern, what: 'the report’s data-page screenshots' }
+}
+
 export function PhotoPanel({ photos }: { photos: RememberedFolder }) {
   const app = useApp()
   const { checks } = useJobChecks()
@@ -112,10 +127,11 @@ export function PhotoPanel({ photos }: { photos: RememberedFolder }) {
       {showMatch && folder && (
         <ImageFolderPanel
           key={`${folder.name}|${folder.names.length}|${p.scans.map((s) => s.id).join('|')}`}
-          project={p}
+          scans={p.scans.map((s) => ({ id: s.id, imageFile: p.scanImages.find((l) => l.scanId.toLowerCase() === s.id.toLowerCase())?.imageFile }))}
           folder={folder}
-          onApply={(next) => app.edit('Match photos to scans', () => next)}
+          onSave={(choices) => app.edit('Match photos to scans', (q) => applyImageChoices(q, choices))}
           onClose={() => setMatching(false)}
+          otherFormat={dataPagesIn(p, folder.names)}
         />
       )}
 

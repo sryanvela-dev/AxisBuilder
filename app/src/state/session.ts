@@ -15,6 +15,19 @@ import { canRedo, canUndo, createHistory, endGroup, record, redo, undo, type His
 export const STEP_IDS = ['project', 'fieldData', 'scans', 'images', 'drawing', 'review', 'export'] as const
 export type StepId = (typeof STEP_IDS)[number]
 
+/** The Report workspace's steps (report design section 5). */
+export const REPORT_STEP_IDS = ['setup', 'calibration', 'results', 'manual', 'pages', 'summary', 'reportReview', 'reportExport'] as const
+export type ReportStepId = (typeof REPORT_STEP_IDS)[number]
+/** A step of either workspace. */
+export type AnyStepId = StepId | ReportStepId
+
+/** Drawing (Project ... Export) or Report (Setup ... Export); shown once the job has a report. */
+export type Workspace = 'drawing' | 'report'
+
+export function isReportStep(step: AnyStepId): step is ReportStepId {
+  return (REPORT_STEP_IDS as readonly string[]).includes(step)
+}
+
 export type JobSource = 'new' | 'file' | 'import' | 'sample' | 'recovery'
 
 /** A file handle from the File System Access API (Edge/Chrome). Kept loose so tests can fake it. */
@@ -54,7 +67,8 @@ export interface WorkbookImport {
 export interface Draft {
   text: string
   problem: string
-  step: StepId
+  /** The step whose page holds the box (drawing or report). */
+  step: AnyStepId
   /** Where it is, e.g. "Shell nozzles, row 3 (N3), Diameter". */
   where: string
 }
@@ -70,6 +84,10 @@ export interface Job {
   workbookImport: WorkbookImport | null
   autImport: { fileName: string; result: AutImportResult } | null
   step: StepId
+  /** Which workspace is shown; like `step`, not in the file or the undo history. A job opens on the drawing. */
+  workspace: Workspace
+  /** The current step of the Report workspace. */
+  reportStep: ReportStepId
   /** Typed values that are not valid yet, by box (see draftKey). The first undo (or any redo) clears them. */
   drafts: Record<string, Draft>
 }
@@ -100,7 +118,11 @@ export type SessionAction =
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'saved'; project: Project; file: JobFile }
+  /** Goes to a drawing step (and back to the Drawing workspace). */
   | { type: 'goToStep'; step: StepId }
+  /** Goes to a report step (and to the Report workspace). */
+  | { type: 'goToReportStep'; step: ReportStepId }
+  | { type: 'setWorkspace'; workspace: Workspace }
   | { type: 'setAutImport'; fileName: string; result: AutImportResult }
   | { type: 'markReportChecked'; step: StepId }
 
@@ -122,6 +144,8 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
         workbookImport: action.workbookImport ?? null,
         autImport: null,
         step: action.step ?? 'project',
+        workspace: 'drawing',
+        reportStep: 'setup',
         drafts: {},
       },
     }
@@ -130,6 +154,14 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
 
   const job = state.job
   if (!job) return state
+  const out = reduceJob(state, job, action)
+  // The report was taken away (e.g. undo of "Start the AUT report"): show the drawing again.
+  const j = out.job
+  if (j && j.workspace === 'report' && j.history.present.report === null) return { job: { ...j, workspace: 'drawing' } }
+  return out
+}
+
+function reduceJob(state: SessionState, job: Job, action: Exclude<SessionAction, { type: 'openJob' } | { type: 'closeJob' }>): SessionState {
   switch (action.type) {
     case 'edit': {
       // Labels moved by hand follow renamed nozzles and go with deleted ones (data/overrides.ts); so do the report's
@@ -166,7 +198,13 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
     case 'saved':
       return { job: { ...job, savedProject: action.project, file: action.file } }
     case 'goToStep':
-      return job.step === action.step ? state : { job: { ...job, step: action.step } }
+      return job.step === action.step && job.workspace === 'drawing' ? state : { job: { ...job, step: action.step, workspace: 'drawing' } }
+    case 'goToReportStep':
+      if (job.history.present.report === null) return state
+      return job.reportStep === action.step && job.workspace === 'report' ? state : { job: { ...job, reportStep: action.step, workspace: 'report' } }
+    case 'setWorkspace':
+      if (action.workspace === 'report' && job.history.present.report === null) return state
+      return job.workspace === action.workspace ? state : { job: { ...job, workspace: action.workspace } }
     case 'setAutImport':
       return { job: { ...job, autImport: { fileName: action.fileName, result: action.result } } }
     case 'markReportChecked': {

@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Parsed } from '../data/parse.ts'
-import type { StepId } from '../state/session.ts'
+import type { AnyStepId } from '../state/session.ts'
 import { useApp } from './appContext.ts'
 
 export interface EditBoxOptions<T> {
@@ -16,7 +16,8 @@ export interface EditBoxOptions<T> {
   commit: (value: T) => string | null
   /** Key of the box (drafts and the undo group). */
   boxKey: string
-  step: StepId
+  /** The step whose page holds the box (a drawing or a report step). */
+  step: AnyStepId
   /** Where the box is, for the step's list of problems. */
   where: string
 }

@@ -81,7 +81,7 @@ const STARTS: Record<SectionName, Start> = {
   headNozzles: { match: /^ {2};; Head nozzles/ },
   headMut: { match: /^ {2};; Head MUT points/ },
   legend: { match: /^ {2}\(SL_Legend / },
-  titleBlock: { match: /^ {2}\(SL_TitleBlock / },
+  titleBlock: { match: /^ {2}\(SL_TitleBlock(Lines)? / },
   drawFinish: { match: /^ {2}\(command "ZOOM"/ },
   visibility: { match: /^;; Layer visibility controls/ },
   layerGroups: { match: /^;; Grouped visibility controls/ },

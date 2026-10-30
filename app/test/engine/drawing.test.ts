@@ -97,7 +97,7 @@ describe.each(jobs)('engine against the exported .lsp: %s', (job) => {
     const { panel } = panelOf(p)
     const legend = calls(lsp, 'SL_Legend')
     expect(legend.map((c) => c.slice(0, 2))).toEqual(p.settings.showLegendOnOverlay ? [[N(panel.legendX), N(panel.legendY)]] : [])
-    const title = calls(lsp, 'SL_TitleBlock')
+    const title = calls(lsp, 'SL_TitleBlockLines')
     expect(title.map((c) => c.slice(0, 2))).toEqual(p.settings.showTitleBlockOnOverlay ? [[N(panel.titleX), N(panel.titleY)]] : [])
     expect(d.items.some((i) => i.key === 'legend')).toBe(p.settings.showLegendOnOverlay)
     const lspRulers = lsp.split('\r\n').filter((l) => l.startsWith('  (SL_Ruler')).map((l) => l.trim().split(' ')[0].slice(1))

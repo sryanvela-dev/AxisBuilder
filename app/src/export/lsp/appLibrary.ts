@@ -418,15 +418,17 @@ export function writeScaledLegend(w: (line: string) => void, scale: string): voi
   w('')
 }
 
-/** A bigger (or smaller) title block: v5.0's SL_TitleBlock with the line spacing times SL_TITLE_SCALE. */
-export function writeScaledTitleBlock(w: (line: string) => void, scale: string): void {
-  w(';; The title block at the size chosen in the app (Drawing step): the lines spread with the text.')
+/**
+ * The app's title block (change 29): v5.0's SL_TitleBlock taking its lines as one list (seven or eight: Unit only when
+ * filled), with the line spacing times SL_TITLE_SCALE (change 18; 1 at the default size).
+ */
+export function writeTitleBlockLines(w: (line: string) => void, scale: string): void {
+  w(';; The title block (app): its lines as a list; the lines spread with the text size chosen in the app.')
   w(`(setq SL_TITLE_SCALE ${scale})`)
-  w('(defun SL_TitleBlock (x y title component unit client inspector dte rev / lr lineH orient lines i tx ty)')
+  w('(defun SL_TitleBlockLines (x y lines / lr lineH orient i tx ty)')
   w('  (setq lr (SL_ReadableRot))')
   w('  (setq lineH (* 3.4 SL_TITLE_SCALE))')
   w('  (setq orient (strcase SL_ORIENTATION))')
-  w('  (setq lines (list title component unit client inspector dte rev))')
   w('  (setq i 0)')
   w('  (foreach txt lines')
   w('    (if (/= txt "")')

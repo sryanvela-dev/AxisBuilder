@@ -358,6 +358,24 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `importAutCsv`, so one import feeds the drawing too). `report/checks.ts`: report checks (not in the UI until R4). No
   screens or PDF yet (R2-R4). The reference report job (REF5) stays outside the repo; `test/fixtures/report/` holds
   only what the user cleared.
+- Report workspace (Phase R2, `app/src/ui/report/`, design section 5): behind `REPORT_ENABLED` (`app/src/featureFlags.ts`, set
+  in `vite.config.ts` `define`: on for `npm run dev`, tests and Pages previews (`CF_PAGES_BRANCH` not `main`), off for the production
+  build of `main`; `VITE_REPORT=1` / `0` overrides; `app/docs/hosting.md` 3a). Every report screen, button and switch checks it; the data is
+  kept either way. Top bar Drawing | Report switch once the job has a report; "Start the AUT report" on the drawing's Export step (one undo
+  step). Session (`state/session.ts`): `workspace` and `reportStep` on the Job (not in the file or the undo history, like `step`),
+  `REPORT_STEP_IDS` (setup, calibration, results, manual, pages, summary, reportReview, reportExport), `goToReportStep` / `setWorkspace`;
+  `goToStep` goes back to the drawing (Find a setting, Go to); the report removed by undo shows the drawing; drafts may sit on a report step
+  (`AnyStepId`). `state/reportSteps.ts`: titles, `reportStepStatuses` (checkReport: component -> Setup, scan -> AUT results, reading ->
+  Manual UT, plus report drafts; Photos and pages, Summary, Export "Coming later"), `reportReviewList`, `reportWhatsLeft`. `report/edits.ts`:
+  every report change as a pure function (start, template, value by path, list items, components, sections, cover extras, scan results,
+  data images, readings, linked Min 'T' written to the drawing MUT row, `addNozzleReadings` with `npsForDiameter`). Screens:
+  `ReportWorkspace.tsx` (step bar, banner, Next, Review), `boxes.tsx` (`ReportBox` / `ReportSelect` / `ReportCheckbox` on `useEditBox`,
+  `field` / `cell-field` markup, lengths with fractions, saved-list suggestions), Setup, Calibration, AUT results (scansheet.csv import / drop,
+  `ScansheetPasteDialog`, position choice, results table, `CommentPicks`, screenshots through `ImageFolderPanel`, which now takes `scans`
+  + `onSave`), Manual UT (`ManualDialogs.tsx`: Add nozzle readings, positions remembered in localStorage `axisbuilder:nozzlePositions`;
+  paste via `report/readingPaste.ts`). Report folders `FolderKind` 'reportPhotos' and 'screenshots'. Saved lists (`report/savedLists.ts`,
+  `ui/report/SavedListsUi.tsx`): this browser's storage key `savedLists`, string lists as suggestions (a value typed once joins), record lists
+  with "Pick saved..." / "Save to list", dialog with edit, delete, export / import a file (merge, never deletes). No Pages view yet (R3).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -843,3 +861,13 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   checks (`scanOverlaps` moved out of data/checks.ts and shared). Golden jobs, compat v5.0 and the .lsp / DXF
   fingerprints unchanged. No VBA or workbook changes.
 - 2026-10-29 – REF5 scan sheet cleared by the user for the repo: `app/test/fixtures/report/ref5-scansheet.csv` (scan names, positions and thicknesses only) and `app/test/report/ref5Scansheet.test.ts` (totals of its printed report). `.gitignore` adds `Claude outputs/`.
+- 2026-10-29 – AUT report Phase R2 (branch feature/report-r2, user request): the Report workspace screens behind the new `REPORT_ENABLED`
+  flag (on in dev, tests and Pages previews, off in production; hosting.md 3a). Drawing | Report switch, Start the AUT report, report step bar
+  and banner, Setup, Calibration, AUT results (scansheet import / paste, positions choice, results, comment picks, screenshots), Manual UT
+  (linked MUT rows, report rows, nominal modes and pipe suggestion, N/A, nozzle readings, paste), a first Review; saved lists per computer
+  with file export / import. New `report/edits.ts`, `report/savedLists.ts`, `report/readingPaste.ts`, `state/reportSteps.ts`, `ui/report/`.
+  `ImageFolderPanel` takes scans + a save callback; `.page` is `position: relative` (hidden labels made the window scroll). No project file
+  format change. Golden jobs, compat v5.0, .lsp / DXF fingerprints unchanged (as refreshed in 1e81dbb). No VBA or workbook changes.
+  Approved follow-ups (user): one "has no results yet" check per scan with neither value, reading checks name the position, Manual UT
+  table narrower (one MUT scan column, N/A reason in the details). Images step photo matching starts on the other naming format
+  when the photo folder holds the report's data-page screenshot files (separate folders: unchanged).

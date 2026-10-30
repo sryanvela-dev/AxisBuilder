@@ -107,7 +107,7 @@ export interface Panel {
  * bigger takes that much more room, and what is above it moves up. 1 and 1 give v5.0's layout.
  */
 export function computeRightPanelLayout(ori: string, placement: string, vesselHeight: number, vesselLength: number,
-  headDia: number, headMode: string, scales: { legend: number; title: number } = { legend: 1, title: 1 }): Panel {
+  headDia: number, headMode: string, scales: { legend: number; title: number } = { legend: 1, title: 1 }, titleLineCount = 7): Panel {
   // RightPanelExtraForRightRuler
   const extra = (ori === 'VERTICAL' || ori === 'HORIZONTAL CW') &&
     (placement === 'RIGHT' || placement === 'TOP + RIGHT' || placement === 'BOTTOM + RIGHT') ? 15 : 0
@@ -118,7 +118,7 @@ export function computeRightPanelLayout(ori: string, placement: string, vesselHe
   const r = headDia / 2
   const headGap = 14
   const legendClearance = 18
-  const titleBlockHeight = 6 * 3.4 * scales.title
+  const titleBlockHeight = (titleLineCount - 1) * 3.4 * scales.title
   const titleClearance = 16
   const legendVisualBottom = panelBottom
   const legendVisualTop = legendVisualBottom + 36 * scales.legend
@@ -181,7 +181,7 @@ export function computeRightPanelLayout(ori: string, placement: string, vesselHe
 export function panelOf(p: Project, v5 = false): { headDia: number; panel: Panel } {
   const headDia = headViewDiameter(p.settings.headViewSize, p.vessel.height!)
   const panel = computeRightPanelLayout(orientationKey(p), p.settings.rulerPlacement.toUpperCase().trim(), p.vessel.height!, p.vessel.length!, headDia,
-    p.settings.headViewMode, v5 ? undefined : panelScales(p.settings))
+    p.settings.headViewMode, v5 ? undefined : panelScales(p.settings), titleLines(p, v5).length)
   return { headDia, panel }
 }
 
@@ -259,11 +259,24 @@ function displayDate(iso: string): string {
 }
 
 /**
- * The seven title block lines (GetDrawingInfoValue: blank title -> "AUT COVERAGE MAP"). The date is
- * v5.0's m/d/yy, or Oct-22-2026 in the app (change 10).
+ * The title block lines (GetDrawingInfoValue: blank title -> "AUT COVERAGE MAP"). The date is v5.0's m/d/yy, or
+ * Oct-22-2026 in the app (change 10). v5.0: seven lines (COMPONENT, UNIT). App (change 29, user 2026-10-29):
+ * EQUIPMENT ID, LOCATION, then UNIT only when it is filled, so seven or eight lines.
  */
 export function titleLines(p: Project, v5: boolean): string[] {
   const i = p.project
+  if (!v5) {
+    return [
+      i.drawingTitle.trim() === '' ? 'AUT COVERAGE MAP' : i.drawingTitle,
+      `EQUIPMENT ID: ${i.component}`,
+      `LOCATION: ${i.location}`,
+      ...(i.unit.trim() === '' ? [] : [`UNIT: ${i.unit}`]),
+      `CLIENT: ${i.client}`,
+      `INSPECTOR: ${i.inspector}`,
+      `DATE: ${formatDate(i.date)}`,
+      `REV: ${i.revision}`,
+    ]
+  }
   return [
     i.drawingTitle.trim() === '' ? 'AUT COVERAGE MAP' : i.drawingTitle,
     `COMPONENT: ${i.component}`,
