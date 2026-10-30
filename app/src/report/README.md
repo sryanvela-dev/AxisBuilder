@@ -15,6 +15,11 @@ Phase R1 (data, templates, calculations, import; no screens or PDF yet):
   table and nominal pick (`pipeWalls.ts`), text block filling (`textFill.ts`).
 - `scansheetImport.ts`: the AUT Solutions scansheet.csv and pasted scan sheets (positions through the drawing's AUT
   CSV import).
-- `checks.ts`: checks on the report data (not shown in the app until R4).
+- `checks.ts`: checks on the report data (shown on the report steps and their Review since R2; the full list in R4).
 
-Later phases add `pageModel.ts`, `pages/`, `pdf/` (R3) and the screens in `ui/report/` (R2).
+Phase R2 (the Report workspace screens, in `ui/report/`):
+- `edits.ts`: every report change the screens make, as a pure function of the project (one undo step each).
+- `savedLists.ts`: saved lists per computer (browser storage, never in the .axb), with file export / import.
+- `readingPaste.ts`: manual readings pasted from Excel (column match, report rows only).
+
+Later phases add `pageModel.ts`, `pages/`, `pdf/` (R3).

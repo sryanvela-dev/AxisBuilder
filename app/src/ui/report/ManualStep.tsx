@@ -121,7 +121,7 @@ function ReadingTableRow(props: {
   const r = row.reading
   const i = row.index
   const key = `report.reading.${i}`
-  const label = row.name || `Row ${i + 1}`
+  const label = [row.name || `Row ${i + 1}`, r.location.trim()].filter(Boolean).join(' ')
   const w = (f: string) => `Manual UT, ${label}, ${f}`
   const set = (change: Partial<Omit<Reading, 'link'>>) => (q: typeof p) => setReading(q, i, change)
   const drawing = linkedRow(p, r)

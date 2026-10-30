@@ -24,6 +24,9 @@ import {
 import { pickWithInput } from '../../state/projectFiles.ts'
 import { useReport } from './reportContext.ts'
 
+/** "a transducer", "an examiner", "an AUT system". */
+const an = (w: string) => `${/^[aeiou]/i.test(w) ? 'an' : 'a'} ${w}`
+
 /** "Pick saved..." (fills every field of the record) and "Save to list" (adds the current values). */
 export function RecordPicker<K extends RecordListId>(props: { list: K; current: object; onPick: (rec: SavedRecord<K>) => void; label?: string; pickOnly?: boolean }) {
   const { savedLists, changeLists } = useReport()
@@ -37,7 +40,7 @@ export function RecordPicker<K extends RecordListId>(props: { list: K; current: 
       <select
         value=""
         aria-label={`Pick a saved ${meta.one}${props.label ? ` for ${props.label}` : ''}`}
-        title={saved.length ? `Fill in a ${meta.one} saved on this computer` : `No ${meta.one} saved on this computer yet`}
+        title={saved.length ? `Fill in ${an(meta.one)} saved on this computer` : `No ${meta.one} saved on this computer yet`}
         disabled={saved.length === 0}
         onChange={(e) => {
           const i = Number(e.target.value)
@@ -124,7 +127,7 @@ export function SavedListsDialog({ onClose }: { onClose: () => void }) {
             return (
               <section key={id}>
                 <h3>{meta.name} <span className="muted">({recs.length})</span></h3>
-                {recs.length === 0 ? <p className="muted">None yet. Use "Save to list" next to a {meta.one}.</p> : (
+                {recs.length === 0 ? <p className="muted">None yet. Use "Save to list" next to {an(meta.one)}.</p> : (
                   <ul className="saved-list">
                     {recs.map((r, i) => (
                       <li key={i}>
