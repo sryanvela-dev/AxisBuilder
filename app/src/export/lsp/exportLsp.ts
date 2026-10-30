@@ -38,7 +38,7 @@ import { areaTextLines, hasMutAreas, mutAreaLayouts, mutCoverageArea, type MutAr
 import type { Orientation } from '../../engine/transform.ts'
 import { writeSectionSheets } from './sectionSheets.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
-import { patchLibraryLine, writeAppLibrary, writeImageFinder, writeWrapLibrary, writeScaledLegend, writeScaledTitleBlock, writeTextSizes } from './appLibrary.ts'
+import { patchLibraryLine, writeAppLibrary, writeImageFinder, writeWrapLibrary, writeScaledLegend, writeTitleBlockLines, writeTextSizes } from './appLibrary.ts'
 import { circumference, isWrapped, labelPieceIndex, nozzlePieces, objectPieces, scanPieces, type XPiece } from '../../engine/wrap.ts'
 import { appLayerSetup, panelScales, textSizeRules } from '../../engine/styles.ts'
 import {
@@ -306,7 +306,7 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // Change 18: a bigger legend or title block scales as a whole; the right panel makes room (engine/layout.ts).
   const scales = v5 ? { legend: 1, title: 1 } : panelScales(s)
   if (scales.legend !== 1) writeScaledLegend(w, LispNum(scales.legend))
-  if (scales.title !== 1) writeScaledTitleBlock(w, LispNum(scales.title))
+  if (!v5) writeTitleBlockLines(w, LispNum(scales.title))
 
   // Job settings
   w(`(setq SL_ORIENTATION ${LispStr(orientation)})`)
@@ -559,7 +559,9 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   }
   if (s.showTitleBlockOnOverlay) {
     w('')
-    w(`  (SL_TitleBlock ${LispNum(panel.titleX)} ${LispNum(panel.titleY)} ${titleLines(p, v5).map(LispStr).join(' ')})`)
+    w(v5
+      ? `  (SL_TitleBlock ${LispNum(panel.titleX)} ${LispNum(panel.titleY)} ${titleLines(p, v5).map(LispStr).join(' ')})`
+      : `  (SL_TitleBlockLines ${LispNum(panel.titleX)} ${LispNum(panel.titleY)} (list ${titleLines(p, v5).map(LispStr).join(' ')}))`)
   }
 
   // Finish

@@ -100,7 +100,9 @@ describe('text types', () => {
     // The MUT area outline layer only for a job with a MUT area.
     expect(appLayerSetup(s, true)).toContainEqual(['MANUAL_UT', 7])
     expect(panelScales(s)).toEqual({ legend: 1, title: 1 })
-    expect(lsp(fullSample())).not.toMatch(/SL_LEGEND_SCALE|SL_TITLE_SCALE/)
+    expect(lsp(fullSample())).not.toMatch(/SL_LEGEND_SCALE/)
+    // The app's title block (change 29) is always written, at scale 1.
+    expect(lsp(fullSample())).toContain('(setq SL_TITLE_SCALE 1.)')
     expect(lsp(fullSample())).not.toContain('SL_TEXT_SIZES')
   })
 })
