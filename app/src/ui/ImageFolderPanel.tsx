@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { PhotoFolder } from './photoFolder.ts'
-import { matchScanImages, resolveImageFile, type ScanMatchStatus, type ScanToMatch } from '../data/imageMatch.ts'
+import { matchScanImages, resolveImageFile, startPattern, type ScanMatchStatus, type ScanToMatch } from '../data/imageMatch.ts'
 
 const STATUS_LABEL: Record<ScanMatchStatus, string> = { matched: 'Matched', choose: 'Choose', noMatch: 'No match' }
 const STATUS_KIND: Record<ScanMatchStatus, string> = { matched: 'changed', choose: 'review', noMatch: 'invalid' }
@@ -49,10 +49,17 @@ export function ImageFolderPanel(props: {
   onSave: (choices: ReadonlyMap<string, string>) => void
   onClose: () => void
   what?: MatchWhat
+  /**
+   * A naming format the folder may also hold that is not this kind (the report's data-page screenshots when matching
+   * overlay photos): matching starts on another format that covers the scans, and the list marks it.
+   */
+  otherFormat?: { pattern: string; what: string } | null
 }) {
   const { folder, onClose } = props
   const noun = props.what === 'screenshot' ? 'screenshot' : 'photo'
-  const [pattern, setPattern] = useState<string | undefined>(undefined)
+  const other = props.otherFormat ?? null
+  const [pattern, setPattern] = useState<string | undefined>(() => startPattern(matchScanImages(props.scans, folder.names), other?.pattern))
+  const avoided = pattern !== undefined && other !== null
   const [picks, setPicks] = useState<Map<string, string>>(new Map())
   const [confirming, setConfirming] = useState<{ scanId: string; from: string; to: string }[] | null>(null)
   const [saved, setSaved] = useState('')
@@ -138,7 +145,11 @@ export function ImageFolderPanel(props: {
           {result.patterns.length > 0 && (
             <>
               <h3>1. Naming format (# = scan number)</h3>
-              {result.needsPatternChoice && (
+              {avoided ? (
+                <p className="muted">
+                  The "{other!.pattern}" files are {other!.what}, so the other format is selected. Check its example.
+                </p>
+              ) : result.needsPatternChoice && (
                 <p className="muted">Several formats found. The one covering the most scans is selected; check its example.</p>
               )}
               <div className="formats">
@@ -153,6 +164,7 @@ export function ImageFolderPanel(props: {
                     <Thumb folder={folder} name={p.example} />
                     <span>
                       <strong>{p.pattern}</strong>
+                      {other && p.pattern.toLowerCase() === other.pattern.toLowerCase() && <span className="muted"> ({other.what})</span>}
                       <br />
                       <span className="muted">
                         {p.scanCount} of {result.scans.length} scans, {p.fileCount} file(s), e.g. {p.example}

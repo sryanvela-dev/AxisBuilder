@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  commonPattern,
+  startPattern,
   defaultImageName,
   defaultProcessedName,
   matchScanImages,
@@ -165,5 +167,26 @@ describe('processed image names (app)', () => {
     expect([...names.values()]).toEqual([
       'SCAN_1_FIT.png', 'SCAN01_FIT.png', 'NORTH_FIT.png', 'a_b_FIT.png', 'A_B_2_FIT.png', 'scan_1_2_FIT.png',
     ])
+  })
+})
+
+describe('data pages and overlays in one folder (report)', () => {
+  const scans = [{ id: 'SCAN 1' }, { id: 'SCAN 2' }, { id: 'SCAN 3' }]
+  const folder = ['Scan 1.png', 'Scan 2.png', 'Scan 3.png', 'S1.png', 'S2.png', 'S3.png', 'notes.txt']
+
+  it('finds the pattern most of the chosen files share', () => {
+    expect(commonPattern(['Scan 1.png', 'scan 2.PNG', 'S3.png', null, ''])).toBe('Scan #')
+    expect(commonPattern([null, 'notes.txt'])).toBeNull()
+  })
+
+  it('starts on the other format when the automatic one holds the data pages', () => {
+    const auto = matchScanImages(scans, folder)
+    expect(auto.chosenPattern).toBe('Scan #')
+    expect(startPattern(auto, 'scan #')).toBe('S#')
+    // Nothing to avoid, or the automatic choice is already another format: automatic.
+    expect(startPattern(auto, null)).toBeUndefined()
+    expect(startPattern(auto, 'S#')).toBeUndefined()
+    // Only the data-page format covers the scans: keep it.
+    expect(startPattern(matchScanImages(scans, ['Scan 1.png', 'Scan 2.png']), 'Scan #')).toBeUndefined()
   })
 })

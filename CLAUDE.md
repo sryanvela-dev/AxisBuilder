@@ -869,4 +869,5 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   `ImageFolderPanel` takes scans + a save callback; `.page` is `position: relative` (hidden labels made the window scroll). No project file
   format change. Golden jobs, compat v5.0, .lsp / DXF fingerprints unchanged (as refreshed in 1e81dbb). No VBA or workbook changes.
   Approved follow-ups (user): one "has no results yet" check per scan with neither value, reading checks name the position, Manual UT
-  table narrower (one MUT scan column, N/A reason in the details).
+  table narrower (one MUT scan column, N/A reason in the details). Images step photo matching starts on the other naming format
+  when the photo folder holds the report's data-page screenshot files (separate folders: unchanged).

@@ -652,3 +652,8 @@ Where the build fills in or differs from the design above:
   results yet" (the two separate checks stay when only one is missing); reading checks name the row with its position
   ("N2 North has no nominal."); the Manual UT table fits a laptop screen: Avg / Max 'T' and area share one "MUT scan" column
   (shown only when a row is a MUT scan) and the N/A reason moved into the row's details.
+- **Data pages and overlays in one folder (approved, user 2026-10-29)**: when the drawing's photo folder holds the report's
+  data-page screenshot files themselves, Match photos on the Images step starts on the other naming format (the data-page
+  one is marked "the report's data-page screenshots"; the tech can still pick any). Kept in separate folders, or named
+  alike in different folders, nothing changes: the automatic choice as before (`commonPattern`, `startPattern` in
+  `data/imageMatch.ts`; `ImageFolderPanel` `otherFormat`).
