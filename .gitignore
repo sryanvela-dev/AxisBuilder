@@ -36,3 +36,6 @@ dist/
 
 # Claude Code: per-user local settings (launch.json stays shared)
 .claude/settings.local.json
+
+# Claude session notes and design drafts (kept locally, not in the repo)
+Claude outputs/

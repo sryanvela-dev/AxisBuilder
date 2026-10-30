@@ -842,3 +842,4 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   in words, B36.10M / B36.19M pipe walls NPS 1/2-24 and the nominal pick), scansheet.csv import and partial paste, report
   checks (`scanOverlaps` moved out of data/checks.ts and shared). Golden jobs, compat v5.0 and the .lsp / DXF
   fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-29 – REF5 scan sheet cleared by the user for the repo: `app/test/fixtures/report/ref5-scansheet.csv` (scan names, positions and thicknesses only) and `app/test/report/ref5Scansheet.test.ts` (totals of its printed report). `.gitignore` adds `Claude outputs/`.
