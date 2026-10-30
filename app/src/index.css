@@ -626,6 +626,8 @@ input[aria-invalid='true'] {
 }
 
 .page {
+  /* Holds its absolutely placed children (visually hidden labels), so they never make the window scroll. */
+  position: relative;
   flex: 1;
   min-width: 0;
   overflow-y: auto;
@@ -634,6 +636,10 @@ input[aria-invalid='true'] {
 
 .page > * {
   max-width: 1320px;
+}
+
+.page > .dialog-backdrop {
+  max-width: none;
 }
 
 .page-header {
@@ -2380,4 +2386,194 @@ svg.drawing .area-plus {
 
 .list-note {
   margin: -4px 0 8px;
+}
+
+/* --- AUT report workspace (Phase R2, ui/report/) ------------------------------------------------ */
+
+.stepbar-report ol {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+/* Drawing | Report switch in the job top bar */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.seg {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.seg + .seg {
+  border-left: 1px solid var(--line);
+}
+
+.seg:hover:not(.seg-on) {
+  background: var(--kind-other);
+}
+
+.seg-on {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.facts-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px 20px;
+}
+
+.facts-grid .fact {
+  display: grid;
+  gap: 2px;
+}
+
+.record-picker {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.record-picker select {
+  max-width: 260px;
+}
+
+.flag {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.file-pick-row {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.file-pick-row select {
+  max-width: 280px;
+}
+
+.comment-picks {
+  margin: 4px 0 8px;
+}
+
+.comment-text {
+  display: inline-block;
+  min-width: 220px;
+  max-width: 340px;
+}
+
+.wall-loss {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ladder-amber {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.ladder-red {
+  color: var(--error);
+  font-weight: 700;
+}
+
+table.grid tr.row-details > td {
+  background: var(--page-bg);
+  padding: 4px 12px 12px;
+}
+
+table.grid tr.row-out td {
+  opacity: 0.6;
+}
+
+.results-table .cell-field input[type='text'],
+.readings-table .cell-field input[type='text'] {
+  width: 84px;
+}
+
+.readings-table td:nth-child(2) .cell-field input[type='text'],
+.results-table td:nth-child(3) .cell-field input[type='text'],
+.readings-table td:nth-child(3) .cell-field input[type='text'],
+.readings-table td:nth-child(10) .cell-field input[type='text'] {
+  width: 130px;
+}
+
+.nominal-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.cell-pair {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px 16px;
+}
+
+.saved-lists {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.saved-list {
+  margin: 4px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.saved-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.saved-list .saved-value {
+  flex: 1;
+  min-width: 200px;
+}
+
+.saved-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.saved-edit-field {
+  display: grid;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+
+.saved-edit-field input {
+  width: 140px;
+}
+
+.report-components .cell-field input[type='text'] {
+  width: 130px;
+}
+
+.report-sections .cell-field input[type='text'] {
+  width: 220px;
 }

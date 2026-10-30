@@ -17,6 +17,8 @@ import { writeFile, okToReplace } from './writeFiles.ts'
 import { bringImagesUpToDate } from './exportImages.tsx'
 import { ExportDxfPanel } from './exportDxf.tsx'
 import { ExportPdfPanel } from './exportPdf.tsx'
+import { REPORT_ENABLED } from '../featureFlags.ts'
+import { startReport } from '../report/edits.ts'
 
 type StepProps = { status: StepStatus }
 
@@ -84,7 +86,32 @@ export function ExportStep({ status }: StepProps) {
       <ExportDxfPanel disabled={blocked > 0 || !ready} />
       <LspPanel disabled={blocked > 0 || !ready} />
       <SettingsGroup group="export" step="export" />
+      {REPORT_ENABLED && <ReportStart />}
     </>
+  )
+}
+
+/** "Start the AUT report" (one undo step, then the report's Setup), or the way back to a report already started. */
+function ReportStart() {
+  const app = useApp()
+  const has = app.state.job!.history.present.report !== null
+  return (
+    <section className="export-card">
+      <h2>AUT report</h2>
+      <p className="muted">
+        {has
+          ? 'This job has an AUT report. Switch with Drawing | Report at the top.'
+          : 'The AUT report is made in this job too: it reads the job fields, scans, MUT rows and coverage from the drawing, so nothing is entered twice.'}
+      </p>
+      <div className="button-row">
+        <button type="button" className="btn btn-primary" onClick={() => {
+          if (!has) app.edit('Start the AUT report', (p) => startReport(p))
+          app.dispatch({ type: 'goToReportStep', step: 'setup' })
+        }}>
+          {has ? 'Open the AUT report' : 'Start the AUT report'}
+        </button>
+      </div>
+    </section>
   )
 }
 

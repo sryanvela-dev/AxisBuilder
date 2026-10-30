@@ -1,10 +1,11 @@
-// Folders remembered per job in the browser (IndexedDB, not the .axb): the photo folder and the job
+// Folders remembered per job in the browser (IndexedDB, not the .axb): the photo folder, the report's folders and the job
 // folder that Processed_Images is written into. Edge/Chrome keep the folder handle, so reopening the
 // job needs one "allow" click instead of picking the folder again.
 
 import type { KeyValueStore } from './storage.ts'
 
-export type FolderKind = 'photos' | 'job'
+/** 'reportPhotos' and 'screenshots' are the report's (photos and cover photo, data-page and calibration screenshots). */
+export type FolderKind = 'photos' | 'job' | 'reportPhotos' | 'screenshots'
 
 /** A folder from the File System Access API. Kept loose so tests can fake it. */
 export interface DirectoryHandleLike {
