@@ -2,11 +2,17 @@
 // by hand: flagged), form, cause, surface, mid-wall indication, and a free-text comment instead of the built one
 // (flagged). The choices and their wording come from the job's template.
 
+import { useState } from 'react'
 import type { Project } from '../../data/schema.ts'
+import { setPicksForAll } from '../../report/edits.ts'
+import { useApp } from '../appContext.ts'
 import type { BuiltComment, CommentPicks as Picks } from '../../report/calc/ladder.ts'
 import type { LadderDef } from '../../report/templates/types.ts'
 import type { ReportStepId } from '../../state/session.ts'
 import { Flag, ReportBox, ReportSelect } from './boxes.tsx'
+
+/** "Keep each" in the for-all choices (no choice id is this). */
+const KEEP = '\u0000keep'
 
 export function CommentPicks(props: {
   ladder: LadderDef
@@ -67,4 +73,49 @@ export function CommentText({ comment }: { comment: BuiltComment | null }) {
 export function WallLoss({ value, color }: { value: number | null; color: string | null }) {
   if (value === null) return <span className="muted">–</span>
   return <span className={`wall-loss ladder-${color ?? 'normal'}`}>{value.toFixed(2)}%</span>
+}
+
+/**
+ * One form and cause for every scan and every manual reading at once (one undo step); each row can still be changed on
+ * its own afterwards. "Keep each" leaves that pick as it is on every row.
+ */
+export function PicksForAll({ ladder }: { ladder: LadderDef }) {
+  const app = useApp()
+  const p = app.state.job!.history.present
+  const [form, setForm] = useState(KEEP)
+  const [cause, setCause] = useState(KEEP)
+  const [done, setDone] = useState('')
+  const rows = p.scans.length + (p.report?.readings.length ?? 0)
+  const chosen = form !== KEEP || cause !== KEEP
+  function apply() {
+    const picks = { ...(form !== KEEP && { form }), ...(cause !== KEEP && { cause }) }
+    app.edit('Set form and cause for all', (q) => setPicksForAll(q, picks))
+    setDone(`Set on ${p.scans.length} scans and ${p.report?.readings.length ?? 0} manual readings. Change any row on its own, or Ctrl+Z to undo.`)
+    setForm(KEEP)
+    setCause(KEEP)
+  }
+  return (
+    <div className="picks-for-all">
+      <span className="field-label">For every scan and manual reading:</span>
+      <label>
+        <span className="muted">Form </span>
+        <select value={form} onChange={(e) => { setForm(e.target.value); setDone('') }}>
+          <option value={KEEP}>Keep each</option>
+          {ladder.forms.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </label>
+      <label>
+        <span className="muted">Cause </span>
+        <select value={cause} onChange={(e) => { setCause(e.target.value); setDone('') }}>
+          <option value={KEEP}>Keep each</option>
+          {ladder.causes.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </label>
+      <button type="button" className="btn" disabled={!chosen || rows === 0} onClick={apply}
+        title="Sets the form and cause on every scan (AUT results) and every manual reading (Manual UT)">
+        Apply to all
+      </button>
+      {done && <span className="muted" role="status">{done}</span>}
+    </div>
+  )
 }

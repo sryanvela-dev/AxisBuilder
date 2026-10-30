@@ -94,6 +94,8 @@ export type ScansheetReportKind =
   | 'position'
   /** A row with no matching scan in the drawing, or a drawing scan the file lacks. */
   | 'unmatched'
+  /** A start larger than its stop, swapped (as the drawing draws it). */
+  | 'swapped'
   | 'note'
 
 export interface ScansheetReportEntry {
@@ -202,7 +204,22 @@ function readScansheet(project: Project, rows: readonly string[][], mapping: Sca
     // Lines of the made-up CSV are row index + 1; give back the original line numbers.
     for (const e of aut.report) report.push({ ...e, row: e.row === null ? null : (lines[e.row - 1] ?? e.row) })
     if (!aut.ok) return { ok: false, mode, scans: [], rows: [], positionDiffs: [], report }
-    csvScans = aut.scans
+    // Starts larger than their stops are swapped, as the drawing draws them (user, 2026-10-29). Across the seam the CSV
+    // runs past the circumference or below 0 instead, so a reversed X is never a scan across the seam.
+    csvScans = aut.scans.map((s) => {
+      const flipX = s.xStart !== null && s.xStop !== null && s.xStart > s.xStop
+      const flipY = s.yStart !== null && s.yStop !== null && s.yStart > s.yStop
+      if (!flipX && !flipY) return s
+      const line = lines[rows.findIndex((r, i) => i > 0 && normalizeScanName(r[col.get('name')!] ?? '') === s.id)] ?? null
+      const what = [flipX && `X ${s.xStart} to ${s.xStop}`, flipY && `Y ${s.yStart} to ${s.yStop}`].filter(Boolean).join(', ')
+      report.push({ row: line, column: flipX ? 'X-Start' : 'Y-Start', value: what, kind: 'swapped',
+        message: `Scan ${s.id}: start larger than stop (${what}); swapped, as the drawing draws it.` })
+      return {
+        ...s,
+        ...(flipX && { xStart: s.xStop, xStop: s.xStart }),
+        ...(flipY && { yStart: s.yStop, yStop: s.yStart }),
+      }
+    })
   }
 
   // Results, per row.
@@ -260,7 +277,9 @@ function readScansheet(project: Project, rows: readonly string[][], mapping: Sca
     used.add(idKey(scan.id))
     r.scanId = scan.id
     const read = csvByName.get(idKey(r.name))
-    if (mode === 'match' && read && POSITION_KEYS.some((k) => !same(read[k], scan[k]))) {
+    // A drawing scan stored with a start above its stop is the same position as the swapped one in the file.
+    const drawn = unreversed(scan)
+    if (mode === 'match' && read && POSITION_KEYS.some((k) => !same(read[k], drawn[k]))) {
       positionDiffs.push({ scanId: scan.id, csv: pick(read), drawing: pick(scan) })
       report.push({ row: r.row, column: 'X-Start', value: posText(read), kind: 'position',
         message: `Scan ${scan.id}: the drawing has ${posText(scan)}, the ${source === 'csv' ? 'file' : 'paste'} ${posText(read)}. Choose which to keep.` })
@@ -325,6 +344,13 @@ function readScansheet(project: Project, rows: readonly string[][], mapping: Sca
 }
 
 const same = (a: number | null, b: number | null) => a === b || (a !== null && b !== null && Math.abs(a - b) < 1e-6)
+/** The scan with a start above its stop swapped (X only when it is not marked across the seam). */
+function unreversed(s: Scan): Scan {
+  const flipX = !s.acrossSeam && s.xStart !== null && s.xStop !== null && s.xStart > s.xStop
+  const flipY = s.yStart !== null && s.yStop !== null && s.yStart > s.yStop
+  if (!flipX && !flipY) return s
+  return { ...s, ...(flipX && { xStart: s.xStop, xStop: s.xStart }), ...(flipY && { yStart: s.yStop, yStop: s.yStart }) }
+}
 const pick = (s: Scan) => ({ xStart: s.xStart, xStop: s.xStop, yStart: s.yStart, yStop: s.yStop })
 const posText = (s: Pick<Scan, 'xStart' | 'xStop' | 'yStart' | 'yStop'>) => `X ${s.xStart} to ${s.xStop}, Y ${s.yStart} to ${s.yStop}`
 
@@ -348,6 +374,12 @@ export function applyScansheet(project: Project, imp: ScansheetImport, options: 
   if (imp.mode === 'match' && options.useFilePositions?.size) {
     const diffs = new Map(imp.positionDiffs.map((d) => [idKey(d.scanId), d]))
     p = { ...p, scans: p.scans.map((s) => (options.useFilePositions!.has(s.id) && diffs.has(idKey(s.id)) ? { ...s, ...diffs.get(idKey(s.id))!.csv } : s)) }
+  }
+  // Matched drawing scans stored with a start above the stop are swapped too, so both sides agree with the file.
+  if (imp.mode === 'match') {
+    const matched = new Set(imp.rows.flatMap((x) => (x.scanId === null ? [] : [idKey(x.scanId)])))
+    const scans = p.scans.map((sc) => (matched.has(idKey(sc.id)) ? unreversed(sc) : sc))
+    if (scans.some((sc, i) => sc !== p.scans[i])) p = { ...p, scans }
   }
   let report: Report = p.report ?? createReport(p)
   if (options.fillNominal !== false) report = fillShellNominal(report, imp)

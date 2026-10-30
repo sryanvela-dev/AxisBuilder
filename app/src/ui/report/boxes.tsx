@@ -4,7 +4,7 @@
 // (`cell-field`). Thicknesses and lengths take fractions like the drawing (parseLength). A box with a saved list shows
 // its suggestions, and a new value typed once joins the list (design 4.10).
 
-import { useId, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { formatNumber, parseLength, parseNumber, type Parsed } from '../../data/parse.ts'
 import type { Project } from '../../data/schema.ts'
 import { addString, suggestions, type StringListId } from '../../report/savedLists.ts'
@@ -104,7 +104,6 @@ export function ReportBox(props: BoxProps) {
     step: props.step,
     where: props.where ?? props.label,
   })
-  const listId = props.list ? `${id}-list` : undefined
   const onBlur = () => {
     box.onBlur()
     const list = props.list
@@ -122,24 +121,122 @@ export function ReportBox(props: BoxProps) {
   }
   const input = props.multiline ? (
     <textarea {...common} rows={2} />
+  ) : props.list ? (
+    <ComboInput common={common} options={suggestions(shared.savedLists, props.list)} label={props.where ?? props.label}
+      onPick={(v) => {
+        box.onChange(v)
+        app.dispatch({ type: 'endEditGroup' })
+        const list = props.list!
+        shared.changeLists((l) => addString(l, list, v))
+      }} />
   ) : (
-    <input {...common} type="text" list={listId} inputMode={NUMBERS.includes(kind) ? 'decimal' : undefined} autoComplete="off" spellCheck={kind === 'text' || kind === 'optText'} />
+    <input {...common} type="text" inputMode={NUMBERS.includes(kind) ? 'decimal' : undefined} autoComplete="off" spellCheck={kind === 'text' || kind === 'optText'} />
   )
+  return <Frame {...props} id={id} problem={box.problem} note={box.note} input={input} />
+}
+
+/**
+ * A text box that is also a dropdown (a saved list): the arrow, a click in the empty box or Arrow down shows the whole
+ * list to pick from; typing filters it, and a value not in the list can still be typed (it joins the list when the box
+ * is left). The list is placed over the page (fixed), so a table's scroll area never cuts it off.
+ */
+function ComboInput(props: {
+  common: React.InputHTMLAttributes<HTMLInputElement> & { value: string }
+  options: readonly string[]
+  label: string
+  onPick: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [filter, setFilter] = useState(false)
+  const [active, setActive] = useState(-1)
+  const [place, setPlace] = useState<{ top: number; left: number; width: number } | null>(null)
+  const wrap = useRef<HTMLSpanElement>(null)
+  const text = props.common.value
+  const shown = filter && text.trim() !== '' ? props.options.filter((o) => o.toLowerCase().includes(text.trim().toLowerCase())) : props.options
+  const show = (byTyping: boolean) => {
+    const r = wrap.current?.getBoundingClientRect()
+    if (r) setPlace({ top: r.bottom + 2, left: r.left, width: r.width })
+    setFilter(byTyping)
+    setActive(-1)
+    setOpen(true)
+  }
+  // The list follows nothing on scroll: close it instead of leaving it behind.
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
+  const pick = (v: string) => {
+    props.onPick(v)
+    setOpen(false)
+  }
   return (
-    <Frame {...props} id={id} problem={box.problem} note={box.note}
-      input={
-        <>
-          {input}
-          {props.list && (
-            <datalist id={listId}>
-              {suggestions(shared.savedLists, props.list).map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          )}
-        </>
-      }
-    />
+    <span className="combo" ref={wrap}>
+      <input
+        {...props.common}
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        autoComplete="off"
+        onChange={(e) => {
+          props.common.onChange?.(e)
+          show(true)
+        }}
+        onClick={() => {
+          if (text === '' && !open) show(false)
+        }}
+        onBlur={(e) => {
+          setOpen(false)
+          props.common.onBlur?.(e)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            if (!open) show(false)
+            else setActive((a) => Math.min(shown.length - 1, a + 1))
+          } else if (e.key === 'ArrowUp' && open) {
+            e.preventDefault()
+            setActive((a) => Math.max(0, a - 1))
+          } else if (e.key === 'Enter' && open && active >= 0 && shown[active]) {
+            e.preventDefault()
+            pick(shown[active])
+          } else if (e.key === 'Escape' && open) {
+            e.stopPropagation()
+            setOpen(false)
+          }
+        }}
+      />
+      <button type="button" className="combo-arrow" tabIndex={-1} disabled={props.common.disabled} aria-label={`Show the list for ${props.label}`} title="Show the list"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          if (open) setOpen(false)
+          else {
+            show(false)
+            wrap.current?.querySelector('input')?.focus()
+          }
+        }}>
+        ▾
+      </button>
+      {open && place && shown.length > 0 && (
+        <ul className="combo-list" role="listbox" style={{ top: place.top, left: place.left, minWidth: place.width }}>
+          {shown.map((o, i) => (
+            <li key={o} role="option" aria-selected={o === text} className={i === active ? 'combo-active' : undefined}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                pick(o)
+              }}>
+              {o}
+            </li>
+          ))}
+        </ul>
+      )}
+    </span>
   )
 }
 

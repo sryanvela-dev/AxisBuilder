@@ -32,7 +32,7 @@ describe('string lists', () => {
     const l = addString(emptySavedLists(), 'naReason', 'Insulated')
     expect(suggestions(l, 'naReason')).toEqual(['Insulated', 'U-Bolt Obstruction', 'Repad'])
     expect(addString(l, 'naReason', 'repad')).toBe(l)
-    expect(suggestions(l, 'examinationType')).toEqual(['Corrosion Mapping Examination'])
+    expect(suggestions(l, 'examinationType')[0]).toBe('Corrosion Mapping Examination')
   })
 
   it('renames and removes', () => {

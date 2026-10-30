@@ -20,6 +20,7 @@ import {
   sectionTitle,
   setCoverExtra,
   setDataImages,
+  setPicksForAll,
   setReading,
   setReadingMinT,
   setReportValue,
@@ -159,6 +160,23 @@ describe('scan results', () => {
   it('sets data images for many scans at once', () => {
     const p = setDataImages(started(), new Map([['SCAN 2', 'Scan 2.png'], ['SCAN 1', 'Scan 1.png']]))
     expect(p.report!.scanResults.map((r) => [r.scanId, r.dataImage])).toEqual([['SCAN 1', 'Scan 1.png'], ['SCAN 2', 'Scan 2.png']])
+  })
+})
+
+describe('form and cause for all', () => {
+  it('sets every scan (results made where missing) and every reading; each can still be changed after', () => {
+    let p = addReportReading(started(), { name: 'N1' })
+    p = setScanResult(p, 'SCAN 2', { form: 'pitting', cause: 'erosion' })
+    p = setPicksForAll(p, { form: 'localized', cause: 'corrosion' })
+    expect(p.report!.scanResults).toHaveLength(p.scans.length)
+    expect(p.report!.scanResults.every((r) => r.form === 'localized' && r.cause === 'corrosion')).toBe(true)
+    expect(p.report!.readings.every((r) => r.form === 'localized' && r.cause === 'corrosion')).toBe(true)
+    // Only the cause: forms stay as they are.
+    p = setScanResult(p, 'SCAN 1', { form: 'general' })
+    p = setPicksForAll(p, { cause: '' })
+    expect(p.report!.scanResults[0]).toMatchObject({ form: 'general', cause: '' })
+    expect(setPicksForAll(p, {})).toBe(p)
+    expect(setPicksForAll(p, { cause: '' })).toBe(p)
   })
 })
 

@@ -2603,3 +2603,107 @@ table.grid tr.row-out td {
 .readings-table .nominal-cell select {
   max-width: 175px;
 }
+
+.picks-for-all {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+/* A text box that is also a dropdown (report saved lists, ui/report/boxes.tsx ComboInput) */
+.combo {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.combo input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 30px;
+}
+
+.combo-arrow {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 28px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0 6px 6px 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.combo-arrow:hover:not(:disabled) {
+  color: inherit;
+  background: var(--kind-other);
+}
+
+.combo-list {
+  position: fixed;
+  z-index: 30;
+  max-height: 260px;
+  max-width: 420px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+}
+
+.combo-list li {
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.combo-list li:hover,
+.combo-list li.combo-active {
+  background: var(--kind-changed);
+}
+
+.combo-list li[aria-selected='true'] {
+  font-weight: 600;
+}
+
+/* A picture picked as a file (report cover photo, calibration screenshot; ui/report/PhotoPick.tsx) */
+.photo-pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.photo-pick-img {
+  display: block;
+  width: 220px;
+  height: 150px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--kind-other);
+}
+
+.photo-pick-side {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+.photo-pick-name {
+  overflow-wrap: anywhere;
+}

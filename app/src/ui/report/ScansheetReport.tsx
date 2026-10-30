@@ -10,6 +10,7 @@ const KIND: Partial<Record<ScansheetReportKind, { label: string; css: string }>>
   mismatch: { label: 'Differs', css: 'review' },
   position: { label: 'Position', css: 'review' },
   unmatched: { label: 'Not matched', css: 'review' },
+  swapped: { label: 'Swapped', css: 'changed' },
   note: { label: 'Note', css: 'other' },
 }
 

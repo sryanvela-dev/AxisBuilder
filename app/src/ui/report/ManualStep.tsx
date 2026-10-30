@@ -13,7 +13,7 @@ import { linkedRow, readingComponent } from '../../report/report.ts'
 import { NOMINAL_MODES, READING_TYPES, type NominalMode, type Reading } from '../../report/schema.ts'
 import { useApp } from '../appContext.ts'
 import { Flag, ReportBox, ReportSelect, RowMessages, type Message } from './boxes.tsx'
-import { CommentPicks, CommentText, WallLoss } from './CommentPicks.tsx'
+import { CommentPicks, CommentText, PicksForAll, WallLoss } from './CommentPicks.tsx'
 import { NozzleReadingsDialog, ReadingPasteDialog } from './ManualDialogs.tsx'
 import { reportPlaceId } from './places.ts'
 import { ReportStepIssues, type ReportStepProps } from './ReportWorkspace.tsx'
@@ -55,6 +55,7 @@ export function ManualStep({ status }: ReportStepProps) {
         </button>
         <SavedListsButton />
       </div>
+      {rows.length > 0 && <PicksForAll ladder={ladder} />}
       {rows.length === 0 ? (
         <p className="muted">No readings yet. MUT rows on the drawing's Field data step appear here by themselves; add your own readings above.</p>
       ) : (

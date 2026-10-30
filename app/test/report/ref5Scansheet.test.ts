@@ -25,7 +25,10 @@ describe('REF5 scansheet.csv', () => {
     const p = createEmptyProject()
     const imp = importScansheet(CSV, { ...p, vessel: { ...p.vessel, length: 400, height: 400 } })
     expect(imp.ok).toBe(true)
-    expect(imp.report.filter((e) => e.kind !== 'note')).toEqual([])
+    expect(imp.report.filter((e) => e.kind !== 'note' && e.kind !== 'swapped')).toEqual([])
+    // Two scans were recorded with X start above X stop; they are swapped as the drawing draws them.
+    expect(imp.report.filter((e) => e.kind === 'swapped').map((e) => e.value)).toEqual(['X 187 to 156', 'X 180 to 162'])
+    expect(imp.scans.find((s) => s.id === 'SCAN 4')).toMatchObject({ xStart: 156, xStop: 187 })
     const q = job()
     expect(q.scans).toHaveLength(17)
     expect(q.report!.components[0].nominal).toBe(0.736)

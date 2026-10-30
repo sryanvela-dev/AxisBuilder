@@ -16,7 +16,7 @@ import { plural } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
 import { ImageFolderPanel } from '../ImageFolderPanel.tsx'
 import { Flag, ReportBox, ReportCheckbox, ReportSelect, RowMessages, type Message } from './boxes.tsx'
-import { CommentPicks, CommentText, WallLoss } from './CommentPicks.tsx'
+import { CommentPicks, CommentText, PicksForAll, WallLoss } from './CommentPicks.tsx'
 import { FilePick, ReportFolderBar } from './FilePick.tsx'
 import { reportPlaceId } from './places.ts'
 import { useReport } from './reportContext.ts'
@@ -205,6 +205,7 @@ export function ResultsStep({ status }: ReportStepProps) {
               Wall loss is worked out from Min 'T' and the component's nominal{report.options.tempCorrection.on ? ', after temperature correction' : ''}. Open a row
               for the comment picks, increments and screenshot.
             </p>
+            <PicksForAll ladder={ladder} />
             <div className="table-wrap">
               <table className="grid results-table">
                 <thead>

@@ -871,3 +871,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Approved follow-ups (user): one "has no results yet" check per scan with neither value, reading checks name the position, Manual UT
   table narrower (one MUT scan column, N/A reason in the details). Images step photo matching starts on the other naming format
   when the photo folder holds the report's data-page screenshot files (separate folders: unchanged).
+- 2026-10-29 – Report R2 review fixes (branch feature/report-r2-review, user notes): Setup edits the shared job fields in place (`SettingFieldFor`);
+  saved-list boxes are dropdowns you can type in (`ComboInput`) with built-in lists from the old IEPC AUT Report workbook (no names or
+  procedure numbers); cover photo and calibration screenshot picked as a file (`state/files.ts`, `ui/report/PhotoPick.tsx`); scansheet
+  import swaps reversed starts and stops; one form and cause for all scans and readings (`setPicksForAll`). Drawing outputs unchanged.

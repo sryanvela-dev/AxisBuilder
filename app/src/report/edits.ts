@@ -243,6 +243,21 @@ export function setDataImages(p: Project, choices: ReadonlyMap<string, string>):
   return out
 }
 
+/**
+ * One form and / or cause for every drawing scan and every manual reading at once (user, 2026-10-29); each can still be
+ * changed on its own afterwards. A pick left undefined is not touched. Results are made for scans that have none.
+ */
+export function setPicksForAll(p: Project, picks: { form?: string; cause?: string }): Project {
+  const change = { ...(picks.form !== undefined && { form: picks.form }), ...(picks.cause !== undefined && { cause: picks.cause }) }
+  if (!p.report || Object.keys(change).length === 0) return p
+  let out = p
+  for (const s of p.scans) out = setScanResult(out, s.id, change)
+  out.report!.readings.forEach((_, i) => {
+    out = setReading(out, i, change)
+  })
+  return out
+}
+
 // --- Manual readings (design 4.4) --------------------------------------------------------------------
 
 const newReading = (fields: Partial<Reading> = {}): Reading => ({ ...readingSchema.parse({}), ...fields })

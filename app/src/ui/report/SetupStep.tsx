@@ -3,8 +3,7 @@
 // sections are in the report (4.8) and the cover photo.
 
 import { Fragment } from 'react'
-import { formatNumber } from '../../data/parse.ts'
-import { PROJECT_FIELDS } from '../../data/settings.ts'
+import { SettingFieldFor } from '../SettingsForm.tsx'
 import {
   ADDABLE_KINDS,
   KIND_NAMES,
@@ -29,9 +28,8 @@ import { TEMPLATES, templateOf } from '../../report/templates/registry.ts'
 import { plural } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
 import { Flag, ReportBox, ReportCheckbox, ReportSelect, RowMessages, type Message } from './boxes.tsx'
-import { FilePick, ReportFolderBar } from './FilePick.tsx'
+import { PhotoPick } from './PhotoPick.tsx'
 import { reportPlaceId } from './places.ts'
-import { useReport } from './reportContext.ts'
 import { ReportStepIssues, type ReportStepProps } from './ReportWorkspace.tsx'
 import { RecordPicker, SavedListsButton } from './SavedListsUi.tsx'
 
@@ -45,7 +43,6 @@ export function SetupStep({ status }: ReportStepProps) {
   const p = app.state.job!.history.present
   const report = p.report!
   const template = templateOf(report.templateId)
-  const shown = (v: unknown) => (v === null || v === undefined || v === '' ? <span className="muted">(blank)</span> : String(v))
   return (
     <>
       <ReportStepIssues status={status} />
@@ -67,28 +64,13 @@ export function SetupStep({ status }: ReportStepProps) {
         <div className="group-head">
           <div>
             <h2>From the job</h2>
-            <p className="muted">Shared with the drawing: change them on the Project step and both follow.</p>
+            <p className="muted">Shared with the drawing: a change here is a change on the Project step too (and the other way round).</p>
           </div>
-          <button type="button" className="btn btn-small" onClick={() => app.goToStep('project')}>
-            Edit on the Project step
-          </button>
         </div>
-        <dl className="facts facts-grid">
-          {SHARED_FIELDS.map((k) => (
-            <div key={k} className="fact">
-              <dt>{PROJECT_FIELDS[k].name}</dt>
-              <dd>{shown(p.project[k])}</dd>
-            </div>
-          ))}
-          <div className="fact">
-            <dt>Circumference</dt>
-            <dd>{p.vessel.height === null ? shown(null) : `${formatNumber(p.vessel.height)} in`}</dd>
-          </div>
-          <div className="fact">
-            <dt>Length</dt>
-            <dd>{p.vessel.length === null ? shown(null) : `${formatNumber(p.vessel.length)} in`}</dd>
-          </div>
-        </dl>
+        <div className="field-grid">
+          <SettingFieldFor section="project" keys={SHARED_FIELDS} step="project" />
+          <SettingFieldFor section="vessel" keys={['height', 'length']} step="project" />
+        </div>
       </section>
 
       <section className="settings-group">
@@ -120,7 +102,7 @@ export function SetupStep({ status }: ReportStepProps) {
         <div className="group-head">
           <div>
             <h2>Cover photo</h2>
-            <p className="muted">One photo from the report photo folder. No photo: the cover closes up the space.</p>
+            <p className="muted">Pick the photo itself, whatever it is called. No photo: the cover closes up the space.</p>
           </div>
         </div>
         <CoverPhoto />
@@ -165,10 +147,10 @@ function Examiners() {
               {job.techs.map((t, i) => (
                 <tr key={i}>
                   <td>
-                    <ReportBox compact label="Name" where={`Examiner ${i + 1}, name`} value={t.name} set={(q, v: string) => setReportValue(q, ['job', 'techs', i, 'name'], v)} boxKey={`report.job.techs.${i}.name`} step={STEP} />
+                    <ReportBox compact label="Name" where={`Examiner ${i + 1}, name`} value={t.name} list="examinerName" set={(q, v: string) => setReportValue(q, ['job', 'techs', i, 'name'], v)} boxKey={`report.job.techs.${i}.name`} step={STEP} />
                   </td>
                   <td>
-                    <ReportBox compact label="Title" where={`Examiner ${i + 1}, title`} value={t.title} set={(q, v: string) => setReportValue(q, ['job', 'techs', i, 'title'], v)} boxKey={`report.job.techs.${i}.title`} step={STEP} />
+                    <ReportBox compact label="Title" where={`Examiner ${i + 1}, title`} value={t.title} list="examinerTitle" set={(q, v: string) => setReportValue(q, ['job', 'techs', i, 'title'], v)} boxKey={`report.job.techs.${i}.title`} step={STEP} />
                   </td>
                   <td>
                     <RecordPicker list="examiners" current={t} label={`examiner ${i + 1}`}
@@ -201,8 +183,8 @@ function Examiners() {
           boxKey="report.job.reviewer" step={STEP} help="A reviewer line on the cover (off by default)." />
         {reviewer && (
           <>
-            <ReportBox label="Reviewer name" value={reviewer.name} set={(q, v: string) => setReportValue(q, ['job', 'reviewer', 'name'], v)} boxKey="report.job.reviewer.name" step={STEP} />
-            <ReportBox label="Reviewer title" value={reviewer.title} set={(q, v: string) => setReportValue(q, ['job', 'reviewer', 'title'], v)} boxKey="report.job.reviewer.title" step={STEP} />
+            <ReportBox label="Reviewer name" list="examinerName" value={reviewer.name} set={(q, v: string) => setReportValue(q, ['job', 'reviewer', 'name'], v)} boxKey="report.job.reviewer.name" step={STEP} />
+            <ReportBox label="Reviewer title" list="examinerTitle" value={reviewer.title} set={(q, v: string) => setReportValue(q, ['job', 'reviewer', 'title'], v)} boxKey="report.job.reviewer.title" step={STEP} />
             <div className="field">
               <span className="field-label">Saved list</span>
               <RecordPicker list="examiners" current={reviewer} label="the reviewer" onPick={(rec) => app.edit('Pick a saved reviewer', (q) => setReportValue(q, ['job', 'reviewer'], { name: rec.name, title: rec.title }))} />
@@ -407,12 +389,6 @@ function Sections() {
 
 function CoverPhoto() {
   const app = useApp()
-  const { photos } = useReport()
   const report = app.state.job!.history.present.report!
-  return (
-    <>
-      <ReportFolderBar folder={photos} label="Report photo folder" />
-      <FilePick label="Cover photo" folder={photos} value={report.coverPhoto} set={(q, f) => setReportValue(q, ['coverPhoto'], f)} />
-    </>
-  )
+  return <PhotoPick label="Cover photo" slot="coverPhoto" value={report.coverPhoto} set={(q, f) => setReportValue(q, ['coverPhoto'], f)} />
 }

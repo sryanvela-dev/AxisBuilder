@@ -11,6 +11,7 @@ import {
   SETTINGS,
   SETTING_GROUPS,
   TEXT_TYPES,
+  fieldDef,
   groupFields,
   isFieldShown,
   type FieldDef,
@@ -132,6 +133,23 @@ export function SettingsGroup({ group, step }: { group: SettingGroupId; step: St
 }
 
 type FieldProps = { field: GroupField; step: StepId; compact?: boolean }
+
+/** The box of one setting by its section and key, wherever it is wanted (the report's Setup shows the shared job fields). */
+export function SettingFieldFor({ section, keys, step }: { section: FieldSection; keys: readonly string[]; step: StepId }) {
+  const fields = keys.flatMap((key) => groupFieldsOf(section, key))
+  return (
+    <>
+      {fields.map((f) => (
+        <SettingField key={`${f.section}.${f.key}`} field={f} step={step} />
+      ))}
+    </>
+  )
+}
+
+function groupFieldsOf(section: FieldSection, key: string): GroupField[] {
+  const def = fieldDef(section, key) as GroupField['def'] | undefined
+  return def ? [{ section, key, def }] : []
+}
 
 function SettingField(props: FieldProps) {
   const { def } = props.field
