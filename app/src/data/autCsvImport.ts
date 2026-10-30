@@ -117,7 +117,7 @@ export function parseCsv(text: string): CsvRecord[] {
 // --- Import ----------------------------------------------------------------------------------
 
 /** v5.0 NormalizeHeader: lower case without spaces, - _ . ' and ". */
-function headerKey(h: string): string {
+export function headerKey(h: string): string {
   return h.trim().toLowerCase().replace(/[-_ .'"]/g, '')
 }
 

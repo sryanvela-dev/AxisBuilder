@@ -340,7 +340,32 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
 
   const mode = p.settings.overlapDetection
   if (mode === 'OFF') return
-  // Each scan as drawn: in pieces when it runs across the seam, so overlaps across the seam count too.
+  const setting = SETTINGS.overlapDetection.name
+  for (const { a, b, area } of scanOverlaps(p)) {
+    out.push({
+      severity: mode === 'BLOCK' ? 'error' : 'warning', place: { kind: 'row', list: 'scans', index: b.index, field: 'id' },
+      text: `Overlaps ${a.id} (row ${a.index + 1}) by ${formatNumber(area)} sq in.`,
+      fix: mode === 'BLOCK'
+        ? `"${setting}" is BLOCK, so export stops. Correct the positions, untick Include on one of them, or set the check to WARN.`
+        : 'Fine for a rescan or extra coverage (the coverage % counts both). Otherwise check the positions.',
+    })
+  }
+}
+
+export interface ScanOverlap {
+  /** The earlier row. */
+  a: { id: string; index: number }
+  b: { id: string; index: number }
+  /** Overlapping area, sq in. */
+  area: number
+}
+
+/**
+ * Every pair of drawn scans (Include on, all four positions) that overlap, each scan as drawn: in pieces when it runs
+ * across the seam, so overlaps across the seam count too. Also used by the report's checks (report/checks.ts).
+ */
+export function scanOverlaps(p: Project): ScanOverlap[] {
+  const C = circumference(p)
   const drawn = drawnScans(p)
   const rects = p.scans
     .map((s, index) => ({ s, index }))
@@ -354,7 +379,7 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
         y0: Math.min(s.yStart!, s.yStop!), y1: Math.max(s.yStart!, s.yStop!),
       }
     })
-  const setting = SETTINGS.overlapDetection.name
+  const out: ScanOverlap[] = []
   for (let j = 1; j < rects.length; j++) {
     for (let i = 0; i < j; i++) {
       const a = rects[i]
@@ -363,15 +388,10 @@ function checkScans(p: Project, out: Check[], outside: Outside, lenName: string,
       for (const [a0, a1] of a.xs) for (const [b0, b1] of b.xs) w += Math.max(0, Math.min(a1, b1) - Math.max(a0, b0))
       const h = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0)
       if (w <= 0 || h <= 0) continue
-      out.push({
-        severity: mode === 'BLOCK' ? 'error' : 'warning', place: { kind: 'row', list: 'scans', index: b.index, field: 'id' },
-        text: `Overlaps ${a.id} (row ${a.index + 1}) by ${formatNumber(w * h)} sq in.`,
-        fix: mode === 'BLOCK'
-          ? `"${setting}" is BLOCK, so export stops. Correct the positions, untick Include on one of them, or set the check to WARN.`
-          : 'Fine for a rescan or extra coverage (the coverage % counts both). Otherwise check the positions.',
-      })
+      out.push({ a: { id: a.id, index: a.index }, b: { id: b.id, index: b.index }, area: w * h })
     }
   }
+  return out
 }
 
 /**

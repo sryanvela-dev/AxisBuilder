@@ -331,6 +331,18 @@ export const PROJECT_FIELDS = {
     description: 'Vessel or equipment ID printed in the title block.',
     default: '', group: 'job', step: 'Project', level: 'Basic',
   }),
+  equipmentName: text({
+    excelLabel: 'Equipment Name', excelSheet: DI, onSheet: false, name: 'Equipment name',
+    description: 'What the equipment is called, when that differs from its ID (e.g. "Inlet Separator"). Printed on the AUT report; optional.',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
+    v5: 'App only (format 7).',
+  }),
+  location: text({
+    excelLabel: 'Location', excelSheet: DI, onSheet: false, name: 'Location',
+    description: 'The facility the equipment is at (e.g. a plant name). Printed on the AUT report.',
+    default: '', group: 'job', step: 'Project', level: 'Basic',
+    v5: 'App only (format 7).',
+  }),
   unit: text({
     excelLabel: 'Unit', excelSheet: DI, name: 'Unit',
     description: 'Unit, area or facility printed in the title block.',

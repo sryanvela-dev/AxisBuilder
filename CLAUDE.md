@@ -118,6 +118,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   - `app/src/state/` – app state without React: undo history, session (open job), step status, project file
     open/save, recovery copy and recent jobs (IndexedDB)
   - `app/src/ui/` – screens, 2D/3D views
+  - `app/src/report/` – the AUT report module (see "AUT report" below)
   - `app/test/` – Vitest tests; `app/test/golden/` holds reference jobs and their v5.0 .lsp outputs for parity tests
   - `app/public/` – PWA icons and favicon (placeholders)
   - `app/docs/` – `settings-review.md`, generated from `app/src/data/settings.ts`; don't edit its tables by hand
@@ -142,7 +143,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   one when opened). Format 3 (Phase 3f-1) only adds settings (text sizes and colors, line colors); older files open
   with their defaults. Format 4 (Phase 3f-2) adds `noWrap` (shell nozzles, objects, scans) and `acrossSeam` (scans),
   both false by default. Format 5 (Phase 5b) adds `labelOverrides` (labels moved by hand); older files have none. Format 6 (Phase 5c) adds `area`
-  on shell and head MUT rows (MUT areas drawn in the preview); older files have none.
+  on shell and head MUT rows (MUT areas drawn in the preview); older files have none. Format 7 (Phase R1) adds `report`
+  (the AUT report, `app/src/report/schema.ts`; null = drawing-only job, older files open with null) and the shared
+  project fields `location` and `equipmentName` (blank).
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -343,6 +346,18 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `color-scheme`; the inline script in `index.html` sets it before the first paint. `index.css` has the soft light colors in
   `:root` (page #e6e9ee, panels #f1f3f6, text boxes `--input-bg` #f8f9fb) and the dark ones once under `:root[data-theme='dark']`
   (no prefers-color-scheme media queries; `test/ui/theme.test.ts`). The wordmark follows the app theme.
+- AUT report (Phase R1, `app/src/report/`, design `app/docs/report-design.md`, the repo copy to update): report data
+  under the project file's `report` key (components with their own nominals, report-only job fields, calibration, scan
+  results keyed by scan ID, manual readings linked to MUT rows by list + ID + occurrence, photos, pages, text,
+  sections, options), kept in step with the drawing by `syncReport` after every edit (`state/session.ts`). Templates are
+  data (`report/templates/`: types, registry, `generic.ts` Generic AUT; no code checks a template id). `report/calc/`:
+  wall loss per row against its own nominal, ladder 5 / 16 / 30 and the comment builder (design 4.3.1), temperature
+  correction, readings from increments, totals (weighted average, worst wall loss, per component), coverage from the
+  drawing's own `coveragePercent` / `mutCoverageArea`, numbers in words, pipe walls (`pipeWalls.ts`, B36.10M / B36.19M)
+  and the nozzle nominal pick. `report/scansheetImport.ts`: scansheet.csv and pasted scan sheets (positions through
+  `importAutCsv`, so one import feeds the drawing too). `report/checks.ts`: report checks (not in the UI until R4). No
+  screens or PDF yet (R2-R4). The reference report job (REF5) stays outside the repo; `test/fixtures/report/` holds
+  only what the user cleared.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -818,3 +833,13 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-27 – Theme follow-up (feature/theme-switch, user approved both suggestions): the Theme switch is also in the Help
   guide, so it can be changed inside a job; the highlighted Find a setting result uses `--accent-text` (dark mode: dark text on
   the light-blue highlight, about 7:1, was white at about 2.4:1; light mode unchanged).
+- 2026-10-29 – AUT report Phase R1 (branch feature/report-r1, user request): data, templates, calculations and the scan sheet
+  import; no screens or PDF. Design copied to `app/docs/report-design.md` (client names replaced; "R1 as built" at its end).
+  Project file format 7 (migration from 6): `report` (null by default) and the shared fields Location and Equipment name on
+  the Project step (Job information, blank). New `app/src/report/`: schema, createReport, syncReport (after every edit;
+  `followRow` and `scanRenames` shared with moved labels and scan photo links), template types / registry / Generic AUT,
+  calc (wall loss, ladder, comment builder, temperature correction, readings from increments, totals, coverage, numbers
+  in words, B36.10M / B36.19M pipe walls NPS 1/2-24 and the nominal pick), scansheet.csv import and partial paste, report
+  checks (`scanOverlaps` moved out of data/checks.ts and shared). Golden jobs, compat v5.0 and the .lsp / DXF
+  fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-29 – REF5 scan sheet cleared by the user for the repo: `app/test/fixtures/report/ref5-scansheet.csv` (scan names, positions and thicknesses only) and `app/test/report/ref5Scansheet.test.ts` (totals of its printed report). `.gitignore` adds `Claude outputs/`.

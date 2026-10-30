@@ -232,16 +232,24 @@ export function newItem(list: TableListKey, id: string, head: 'HEAD 1' | 'HEAD 2
  * Keeps the scan photo links in step with the scans after an edit of the scan table: a renamed scan
  * keeps its photo (rows are compared by position), a deleted scan's link is removed.
  */
+/**
+ * Scans renamed by an edit (old ID key -> new ID): the same number of scans with a different name in the same row.
+ * Shared with the report's scan results (report/sync.ts).
+ */
+export function scanRenames(prev: Project, next: Project): Map<string, string> {
+  const renamed = new Map<string, string>()
+  if (prev.scans.length !== next.scans.length) return renamed
+  prev.scans.forEach((s, i) => {
+    if (idKey(s.id) !== idKey(next.scans[i].id)) renamed.set(idKey(s.id), next.scans[i].id)
+  })
+  return renamed
+}
+
 export function syncScanImages(prev: Project, next: Project): Project {
   if (prev.scans === next.scans) return next
   let links = next.scanImages
-  if (prev.scans.length === next.scans.length) {
-    const renamed = new Map<string, string>()
-    prev.scans.forEach((s, i) => {
-      if (idKey(s.id) !== idKey(next.scans[i].id)) renamed.set(idKey(s.id), next.scans[i].id)
-    })
-    if (renamed.size > 0) links = links.map((l) => (renamed.has(idKey(l.scanId)) ? { ...l, scanId: renamed.get(idKey(l.scanId))! } : l))
-  }
+  const renamed = scanRenames(prev, next)
+  if (renamed.size > 0) links = links.map((l) => (renamed.has(idKey(l.scanId)) ? { ...l, scanId: renamed.get(idKey(l.scanId))! } : l))
   const ids = new Set(next.scans.map((s) => idKey(s.id)))
   links = links.filter((l) => ids.has(idKey(l.scanId)))
   return links.length === next.scanImages.length && links.every((l, i) => l === next.scanImages[i]) ? next : { ...next, scanImages: links }

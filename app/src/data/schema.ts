@@ -9,8 +9,9 @@
 
 import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
+import { reportSchema } from '../report/schema.ts'
 
-export const CURRENT_SCHEMA_VERSION = 6
+export const CURRENT_SCHEMA_VERSION = 7
 
 /** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
 export function newJobId(): string {
@@ -297,6 +298,8 @@ const projectFileShape = {
   scanImages: z.array(scanImageSchema).default([]),
   /** Labels moved by hand in the drawing preview (format 5). */
   labelOverrides: z.array(labelOverrideSchema).default([]),
+  /** The AUT report (format 7, report/schema.ts); null for a drawing-only job. */
+  report: reportSchema.nullable().default(null),
 }
 
 // Repeated IDs are allowed in a file (v5.0 allowed them, and jobs are imported as they are);
@@ -312,7 +315,26 @@ export const projectFileSchema = z.strictObject(projectFileShape).superRefine((f
       })
     }
   })
+  // Report rows point at drawing rows; report/sync.ts keeps them in step, so a file where they don't is damaged.
+  if (!file.report) return
+  file.report.scanResults.forEach((r, i) => {
+    if (!scanIds.has(idKey(r.scanId))) {
+      ctx.addIssue({ code: 'custom', path: ['report', 'scanResults', i, 'scanId'], message: `"${r.scanId}" does not match any AUT scan` })
+    }
+  })
+  file.report.readings.forEach((r, i) => {
+    for (const [key, ref] of [['link', r.link], ['nozzle', r.nozzle]] as const) {
+      if (ref && !hasRow(file[ref.list], ref.id, ref.occurrence)) {
+        ctx.addIssue({ code: 'custom', path: ['report', 'readings', i, key], message: `"${ref.id}" does not match any row of ${LIST_META[ref.list].name}` })
+      }
+    }
+  })
 })
+
+/** True when the list has an (occurrence + 1)-th row with this ID. */
+function hasRow(rows: readonly { id: string }[], id: string, occurrence: number): boolean {
+  return rows.filter((row) => idKey(row.id) === idKey(id)).length > occurrence
+}
 
 /** Lists that share one set of IDs: the heads are part of the vessel, so nozzle and MUT names never repeat. */
 export const ID_GROUPS: ListKey[][] = [
