@@ -71,6 +71,25 @@ export function pipeSize(nps: string): PipeSize | undefined {
   return PIPE_SIZES.find((s) => s.nps === nps)
 }
 
+/** The NPS as a number: "1-1/2" -> 1.5. */
+function npsValue(nps: string): number {
+  const m = /^(?:(\d+)-)?(\d+)(?:\/(\d+))?$/.exec(nps)
+  if (!m) return NaN
+  const whole = m[1] ? Number(m[1]) : 0
+  return m[3] ? whole + Number(m[2]) / Number(m[3]) : whole + Number(m[2])
+}
+
+/**
+ * The pipe size of a drawing nozzle from its diameter (inches): the NPS when the diameter is one (4 -> "4", 1.5 ->
+ * "1-1/2"), else the NPS whose outside diameter it is (4.5 -> "4"); null when it is neither (the user picks).
+ */
+export function npsForDiameter(diameter: number | null): string | null {
+  if (diameter === null || !(diameter > 0)) return null
+  const byNps = PIPE_SIZES.find((s) => Math.abs(npsValue(s.nps) - diameter) < 1e-6)
+  if (byNps) return byNps.nps
+  return PIPE_SIZES.find((s) => Math.abs(s.od - diameter) < 0.01)?.nps ?? null
+}
+
 /** "XS, 0.337 in"; a plain schedule number reads "Sch 160, 0.531 in". */
 export function wallLabel(w: PipeWall): string {
   const n = w.names[0]
