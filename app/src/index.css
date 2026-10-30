@@ -2510,15 +2510,14 @@ table.grid tr.row-out td {
 }
 
 .nominal-cell {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
   min-width: 175px;
+  max-width: 190px;
 }
 
-.mut-cell {
-  display: grid;
-  gap: 4px;
-}
 
 .check-grid {
   display: grid;
@@ -2625,7 +2624,7 @@ table.grid tr.row-out td {
 }
 
 .combo input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   padding-right: 30px;
 }
@@ -2706,4 +2705,42 @@ table.grid tr.row-out td {
 
 .photo-pick-name {
   overflow-wrap: anywhere;
+}
+
+/* A dropdown box in a table cell: room for its words beside the arrow. */
+.cell-field .combo input[type='text'] {
+  width: 170px;
+}
+
+.readings-table td:nth-child(3) .cell-field .combo input[type='text'] {
+  width: 130px;
+}
+
+/* Manual UT: a MUT scan's average, maximum and area on a slim line under its row */
+.readings-table tr.with-mut-line > td {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.readings-table tr.mut-line > td {
+  padding-top: 0;
+  padding-bottom: 8px;
+}
+
+.mut-line-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.mut-field {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.mut-field .cell-field input[type='text'] {
+  width: 76px;
 }

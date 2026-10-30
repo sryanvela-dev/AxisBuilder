@@ -31,8 +31,6 @@ export function ManualStep({ status }: ReportStepProps) {
   const rows = useMemo(() => readingRows(p, report, ladder), [p, report, ladder])
   const [open, setOpen] = useState<Set<number>>(new Set())
   const [dialog, setDialog] = useState<'nozzles' | 'paste' | null>(null)
-  // The MUT scan column (avg, max, area) only when a row is a MUT scan; N/A reasons sit in the details row.
-  const mutCols = rows.some((r) => r.reading.type === 'MUT scan')
   const clear = () => {
     app.dispatch({ type: 'clearDrafts', prefix: 'report.reading.' })
     setOpen(new Set())
@@ -69,7 +67,6 @@ export function ManualStep({ status }: ReportStepProps) {
                 <th>Component</th>
                 <th>Type</th>
                 <th>Min 'T' (in)</th>
-                {mutCols && <th title="MUT scans only: average and maximum thickness (in) and area (sq in)">MUT scan</th>}
                 <th>Nominal</th>
                 <th>Wall loss</th>
                 <th>Comment</th>
@@ -78,7 +75,7 @@ export function ManualStep({ status }: ReportStepProps) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <ReadingTableRow key={row.index} row={row} count={rows.length} mutCols={mutCols} open={open.has(row.index)} messages={messagesOf(row.index)} ladder={ladder}
+                <ReadingTableRow key={row.index} row={row} count={rows.length} open={open.has(row.index)} messages={messagesOf(row.index)} ladder={ladder}
                   onToggle={() => setOpen((s) => {
                     const n = new Set(s)
                     if (n.has(row.index)) n.delete(row.index)
@@ -108,7 +105,6 @@ export function ManualStep({ status }: ReportStepProps) {
 function ReadingTableRow(props: {
   row: ReadingRow
   count: number
-  mutCols: boolean
   open: boolean
   messages: Message[]
   ladder: ReturnType<typeof jobLadder>
@@ -131,10 +127,10 @@ function ReadingTableRow(props: {
   const severity = row.band === null ? null : props.ladder.severity[Math.min(row.band, props.ladder.severity.length - 1)].id
   const walls = pipeWallsFor(r.pipeSize)
   const drawnArea = r.link !== null && drawing?.area && drawing.area.length >= 3
-  const cols = props.mutCols ? 11 : 10
+  const cols = 10
   return (
     <Fragment>
-      <tr id={reportPlaceId({ kind: 'reading', index: i })} className={props.messages.length ? 'has-messages' : undefined}>
+      <tr id={reportPlaceId({ kind: 'reading', index: i })} className={[props.messages.length ? 'has-messages' : '', mutScan ? 'with-mut-line' : ''].filter(Boolean).join(' ') || undefined}>
         <td className="num row-no">{i + 1}</td>
         <td>
           {r.link ? (
@@ -168,23 +164,6 @@ function ReadingTableRow(props: {
             help={r.link ? "The drawing MUT row's Min 'T': changing it here changes the drawing too." : undefined}
             set={(q, v: number | null) => setReadingMinT(q, i, v)} boxKey={`${key}.minT`} step={STEP} />
         </td>
-        {props.mutCols && (
-          <td>
-            {mutScan ? (
-              <div className="mut-cell">
-                <ReportBox compact label="Avg 'T'" where={w("Avg 'T'")} kind="reading" value={r.avgT} placeholder="avg" set={(q, v: number | null) => set({ avgT: v })(q)} boxKey={`${key}.avgT`} step={STEP} />
-                <ReportBox compact label="Max 'T'" where={w("Max 'T'")} kind="reading" value={r.maxT} placeholder="max" set={(q, v: number | null) => set({ maxT: v })(q)} boxKey={`${key}.maxT`} step={STEP} />
-                {drawnArea ? (
-                  <span className="col-derived" title="The MUT area drawn in the preview">{fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in <Flag kind="other">drawn</Flag></span>
-                ) : (
-                  <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} placeholder="area" set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
-                )}
-              </div>
-            ) : (
-              <span className="muted not-used" title="MUT scans only">–</span>
-            )}
-          </td>
-        )}
         <td>
           <div className="nominal-cell">
           <ReportSelect compact label="Nominal from" where={w('nominal from')} value={r.nominalMode} options={NOMINAL_MODES.map((m) => ({ value: m, label: MODE_LABEL[m] }))}
@@ -224,6 +203,35 @@ function ReadingTableRow(props: {
             title={r.link ? 'A MUT row of the drawing: delete it on the Field data step' : 'Delete (Ctrl+Z brings it back)'}>×</button>
         </td>
       </tr>
+      {mutScan && (
+        // A MUT scan's average, maximum and area on a slim line under its row, so readings without them take no room.
+        <tr className={`mut-line${props.messages.length ? ' has-messages' : ''}`}>
+          <td />
+          <td colSpan={cols - 1}>
+            <div className="mut-line-fields">
+              <span className="muted">MUT scan:</span>
+              <span className="mut-field">
+                <span>Avg 'T'</span>
+                <ReportBox compact label="Avg 'T'" where={w("Avg 'T'")} kind="reading" value={r.avgT} units="in" set={(q, v: number | null) => set({ avgT: v })(q)} boxKey={`${key}.avgT`} step={STEP} />
+              </span>
+              <span className="mut-field">
+                <span>Max 'T'</span>
+                <ReportBox compact label="Max 'T'" where={w("Max 'T'")} kind="reading" value={r.maxT} units="in" set={(q, v: number | null) => set({ maxT: v })(q)} boxKey={`${key}.maxT`} step={STEP} />
+              </span>
+              <span className="mut-field">
+                <span>Area</span>
+                {drawnArea ? (
+                  <span title="The MUT area drawn in the preview">
+                    {fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in <Flag kind="other">drawn</Flag>
+                  </span>
+                ) : (
+                  <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} units="sq in" set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
+                )}
+              </span>
+            </div>
+          </td>
+        </tr>
+      )}
       <RowMessages messages={props.messages} colSpan={cols} />
       {props.open && (
         <tr className="row-details">

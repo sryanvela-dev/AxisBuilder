@@ -151,24 +151,33 @@ function ComboInput(props: {
   const [active, setActive] = useState(-1)
   const [place, setPlace] = useState<{ top: number; left: number; width: number } | null>(null)
   const wrap = useRef<HTMLSpanElement>(null)
+  const list = useRef<HTMLUListElement>(null)
   const text = props.common.value
   const shown = filter && text.trim() !== '' ? props.options.filter((o) => o.toLowerCase().includes(text.trim().toLowerCase())) : props.options
-  const show = (byTyping: boolean) => {
+  const measure = () => {
     const r = wrap.current?.getBoundingClientRect()
     if (r) setPlace({ top: r.bottom + 2, left: r.left, width: r.width })
+  }
+  const show = (byTyping: boolean) => {
+    measure()
     setFilter(byTyping)
     setActive(-1)
     setOpen(true)
   }
-  // The list follows nothing on scroll: close it instead of leaving it behind.
+  // The list stays under its box while the page or a table scrolls (it used to close, often before a pick could be
+  // made: focusing a box in a scrolled table scrolls it); scrolling the list itself changes nothing.
   useEffect(() => {
     if (!open) return
-    const close = () => setOpen(false)
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
+    const follow = (e: Event) => {
+      if (list.current && e.target instanceof Node && list.current.contains(e.target)) return
+      const r = wrap.current?.getBoundingClientRect()
+      if (r) setPlace({ top: r.bottom + 2, left: r.left, width: r.width })
+    }
+    window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', follow)
     return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', follow, true)
+      window.removeEventListener('resize', follow)
     }
   }, [open])
   const pick = (v: string) => {
@@ -218,13 +227,13 @@ function ComboInput(props: {
           if (open) setOpen(false)
           else {
             show(false)
-            wrap.current?.querySelector('input')?.focus()
+            wrap.current?.querySelector('input')?.focus({ preventScroll: true })
           }
         }}>
         ▾
       </button>
       {open && place && shown.length > 0 && (
-        <ul className="combo-list" role="listbox" style={{ top: place.top, left: place.left, minWidth: place.width }}>
+        <ul ref={list} className="combo-list" role="listbox" onMouseDown={(e) => e.preventDefault()} style={{ top: place.top, left: place.left, minWidth: place.width }}>
           {shown.map((o, i) => (
             <li key={o} role="option" aria-selected={o === text} className={i === active ? 'combo-active' : undefined}
               onMouseDown={(e) => {
