@@ -2716,31 +2716,19 @@ table.grid tr.row-out td {
   width: 130px;
 }
 
-/* Manual UT: a MUT scan's average, maximum and area on a slim line under its row */
-.readings-table tr.with-mut-line > td {
-  border-bottom: 0;
-  padding-bottom: 2px;
-}
-
-.readings-table tr.mut-line > td {
-  padding-top: 0;
-  padding-bottom: 8px;
-}
-
-.mut-line-fields {
+/* Manual UT: a MUT scan's area beside its type (Avg / Max 'T' are in the row's details) */
+.type-cell {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 18px;
-  align-items: center;
-  font-size: 0.9rem;
-}
-
-.mut-field {
-  display: inline-flex;
-  gap: 6px;
+  gap: 4px 8px;
   align-items: center;
 }
 
-.mut-field .cell-field input[type='text'] {
-  width: 76px;
+.type-area {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.type-cell .cell-field input[type='text'] {
+  width: 70px;
 }

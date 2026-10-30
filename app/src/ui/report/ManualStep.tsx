@@ -130,7 +130,7 @@ function ReadingTableRow(props: {
   const cols = 10
   return (
     <Fragment>
-      <tr id={reportPlaceId({ kind: 'reading', index: i })} className={[props.messages.length ? 'has-messages' : '', mutScan ? 'with-mut-line' : ''].filter(Boolean).join(' ') || undefined}>
+      <tr id={reportPlaceId({ kind: 'reading', index: i })} className={props.messages.length ? 'has-messages' : undefined}>
         <td className="num row-no">{i + 1}</td>
         <td>
           {r.link ? (
@@ -156,8 +156,19 @@ function ReadingTableRow(props: {
           )}
         </td>
         <td>
-          <ReportSelect compact label="Type" where={w('type')} value={r.type} options={READING_TYPES.map((t) => ({ value: t, label: t }))}
-            set={(q, v: Reading['type']) => set({ type: v })(q)} boxKey={`${key}.type`} step={STEP} />
+          <div className="type-cell">
+            <ReportSelect compact label="Type" where={w('type')} value={r.type} options={READING_TYPES.map((t) => ({ value: t, label: t }))}
+              set={(q, v: Reading['type']) => set({ type: v })(q)} boxKey={`${key}.type`} step={STEP} />
+            {/* A MUT scan's area beside its type: the drawn area, or typed in. Avg / Max 'T' are in Details. */}
+            {mutScan && (drawnArea ? (
+              <span className="type-area" title="The MUT area drawn in the preview">
+                {fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in
+              </span>
+            ) : (
+              <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} units="sq in" placeholder="area"
+                set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
+            ))}
+          </div>
         </td>
         <td>
           <ReportBox compact label="Min 'T'" where={w("Min 'T'")} kind="reading" value={r.link ? (drawing?.minT ?? null) : r.minT}
@@ -194,7 +205,7 @@ function ReadingTableRow(props: {
         <td className="num">{row.na !== null ? <span className="muted">N/A</span> : <WallLoss value={row.wallLoss} color={row.color} />}</td>
         <td className="col-comment">{row.na !== null ? <span className="muted">{row.na}</span> : <CommentText comment={row.comment} />}</td>
         <td className="row-actions">
-          <button type="button" className="btn btn-small" aria-expanded={props.open} onClick={props.onToggle} title="N/A reason and comment picks">
+          <button type="button" className="btn btn-small" aria-expanded={props.open} onClick={props.onToggle} title={mutScan ? "N/A reason, Avg / Max 'T' and comment picks" : 'N/A reason and comment picks'}>
             {props.open ? 'Close' : 'Details'}
           </button>
           <button type="button" className="icon-btn" onClick={() => props.onMove(-1)} disabled={i === 0} aria-label={`Move ${label} up`} title="Move up">↑</button>
@@ -203,35 +214,6 @@ function ReadingTableRow(props: {
             title={r.link ? 'A MUT row of the drawing: delete it on the Field data step' : 'Delete (Ctrl+Z brings it back)'}>×</button>
         </td>
       </tr>
-      {mutScan && (
-        // A MUT scan's average, maximum and area on a slim line under its row, so readings without them take no room.
-        <tr className={`mut-line${props.messages.length ? ' has-messages' : ''}`}>
-          <td />
-          <td colSpan={cols - 1}>
-            <div className="mut-line-fields">
-              <span className="muted">MUT scan:</span>
-              <span className="mut-field">
-                <span>Avg 'T'</span>
-                <ReportBox compact label="Avg 'T'" where={w("Avg 'T'")} kind="reading" value={r.avgT} units="in" set={(q, v: number | null) => set({ avgT: v })(q)} boxKey={`${key}.avgT`} step={STEP} />
-              </span>
-              <span className="mut-field">
-                <span>Max 'T'</span>
-                <ReportBox compact label="Max 'T'" where={w("Max 'T'")} kind="reading" value={r.maxT} units="in" set={(q, v: number | null) => set({ maxT: v })(q)} boxKey={`${key}.maxT`} step={STEP} />
-              </span>
-              <span className="mut-field">
-                <span>Area</span>
-                {drawnArea ? (
-                  <span title="The MUT area drawn in the preview">
-                    {fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in <Flag kind="other">drawn</Flag>
-                  </span>
-                ) : (
-                  <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} units="sq in" set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
-                )}
-              </span>
-            </div>
-          </td>
-        </tr>
-      )}
       <RowMessages messages={props.messages} colSpan={cols} />
       {props.open && (
         <tr className="row-details">
@@ -240,6 +222,14 @@ function ReadingTableRow(props: {
               <ReportBox label="Not measured (N/A)" where={w('N/A reason')} kind="optText" value={r.na} list="naReason" placeholder="measured"
                 set={(q, v: string | null) => set({ na: v })(q)} boxKey={`${key}.na`} step={STEP}
                 help="Blank = measured. A reason (e.g. U-Bolt Obstruction) is printed instead of the figures and the row is left out of them." />
+              {mutScan && (
+                <>
+                  <ReportBox label="Avg 'T'" where={w("Avg 'T'")} kind="reading" units="in" value={r.avgT} set={(q, v: number | null) => set({ avgT: v })(q)}
+                    boxKey={`${key}.avgT`} step={STEP} help="MUT scans only; rarely needed." />
+                  <ReportBox label="Max 'T'" where={w("Max 'T'")} kind="reading" units="in" value={r.maxT} set={(q, v: number | null) => set({ maxT: v })(q)}
+                    boxKey={`${key}.maxT`} step={STEP} help="MUT scans only; rarely needed." />
+                </>
+              )}
             </div>
             <CommentPicks ladder={props.ladder} picks={r} comment={row.comment} ladderSeverity={severity} name={label} step={STEP} boxKey={key}
               set={(q, change) => setReading(q, i, change)} />
