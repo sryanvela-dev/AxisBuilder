@@ -75,7 +75,7 @@ describe('report step statuses', () => {
     // Shell and heads have no nominal yet.
     expect(st.setup.state).toBe('attention')
     expect(st.setup.issues.map((i) => i.text)).toContain('Shell has no nominal thickness.')
-    expect(st.results.issues.some((i) => /has no Min 'T'/.test(i.text))).toBe(true)
+    expect(st.results.issues.some((i) => /has no results yet/.test(i.text))).toBe(true)
     expect(st.calibration.state).toBe('notStarted')
     expect(st.pages.short).toBe('Coming later')
     expect(st.summary.short).toBe('Coming later')

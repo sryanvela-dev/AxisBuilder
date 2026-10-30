@@ -31,6 +31,8 @@ export function ManualStep({ status }: ReportStepProps) {
   const rows = useMemo(() => readingRows(p, report, ladder), [p, report, ladder])
   const [open, setOpen] = useState<Set<number>>(new Set())
   const [dialog, setDialog] = useState<'nozzles' | 'paste' | null>(null)
+  // The MUT scan column (avg, max, area) only when a row is a MUT scan; N/A reasons sit in the details row.
+  const mutCols = rows.some((r) => r.reading.type === 'MUT scan')
   const clear = () => {
     app.dispatch({ type: 'clearDrafts', prefix: 'report.reading.' })
     setOpen(new Set())
@@ -66,10 +68,8 @@ export function ManualStep({ status }: ReportStepProps) {
                 <th>Component</th>
                 <th>Type</th>
                 <th>Min 'T' (in)</th>
-                <th title="MUT scans only">Avg / Max 'T'</th>
-                <th title="MUT scans only">Area (sq in)</th>
+                {mutCols && <th title="MUT scans only: average and maximum thickness (in) and area (sq in)">MUT scan</th>}
                 <th>Nominal</th>
-                <th title="Not measured: the reason is printed and the row is left out of the figures">N/A reason</th>
                 <th>Wall loss</th>
                 <th>Comment</th>
                 <th><span className="visually-hidden">Details, order and delete</span></th>
@@ -77,7 +77,7 @@ export function ManualStep({ status }: ReportStepProps) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <ReadingTableRow key={row.index} row={row} count={rows.length} open={open.has(row.index)} messages={messagesOf(row.index)} ladder={ladder}
+                <ReadingTableRow key={row.index} row={row} count={rows.length} mutCols={mutCols} open={open.has(row.index)} messages={messagesOf(row.index)} ladder={ladder}
                   onToggle={() => setOpen((s) => {
                     const n = new Set(s)
                     if (n.has(row.index)) n.delete(row.index)
@@ -107,6 +107,7 @@ export function ManualStep({ status }: ReportStepProps) {
 function ReadingTableRow(props: {
   row: ReadingRow
   count: number
+  mutCols: boolean
   open: boolean
   messages: Message[]
   ladder: ReturnType<typeof jobLadder>
@@ -129,6 +130,7 @@ function ReadingTableRow(props: {
   const severity = row.band === null ? null : props.ladder.severity[Math.min(row.band, props.ladder.severity.length - 1)].id
   const walls = pipeWallsFor(r.pipeSize)
   const drawnArea = r.link !== null && drawing?.area && drawing.area.length >= 3
+  const cols = props.mutCols ? 11 : 10
   return (
     <Fragment>
       <tr id={reportPlaceId({ kind: 'reading', index: i })} className={props.messages.length ? 'has-messages' : undefined}>
@@ -165,25 +167,23 @@ function ReadingTableRow(props: {
             help={r.link ? "The drawing MUT row's Min 'T': changing it here changes the drawing too." : undefined}
             set={(q, v: number | null) => setReadingMinT(q, i, v)} boxKey={`${key}.minT`} step={STEP} />
         </td>
-        <td>
-          {mutScan ? (
-            <span className="cell-pair">
-              <ReportBox compact label="Avg 'T'" where={w("Avg 'T'")} kind="reading" value={r.avgT} placeholder="avg" set={(q, v: number | null) => set({ avgT: v })(q)} boxKey={`${key}.avgT`} step={STEP} />
-              <ReportBox compact label="Max 'T'" where={w("Max 'T'")} kind="reading" value={r.maxT} placeholder="max" set={(q, v: number | null) => set({ maxT: v })(q)} boxKey={`${key}.maxT`} step={STEP} />
-            </span>
-          ) : (
-            <span className="muted not-used" title="MUT scans only">–</span>
-          )}
-        </td>
-        <td>
-          {!mutScan ? (
-            <span className="muted not-used" title="MUT scans only">–</span>
-          ) : drawnArea ? (
-            <span className="col-derived" title="The MUT area drawn in the preview">{fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} <Flag kind="other">drawn</Flag></span>
-          ) : (
-            <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
-          )}
-        </td>
+        {props.mutCols && (
+          <td>
+            {mutScan ? (
+              <div className="mut-cell">
+                <ReportBox compact label="Avg 'T'" where={w("Avg 'T'")} kind="reading" value={r.avgT} placeholder="avg" set={(q, v: number | null) => set({ avgT: v })(q)} boxKey={`${key}.avgT`} step={STEP} />
+                <ReportBox compact label="Max 'T'" where={w("Max 'T'")} kind="reading" value={r.maxT} placeholder="max" set={(q, v: number | null) => set({ maxT: v })(q)} boxKey={`${key}.maxT`} step={STEP} />
+                {drawnArea ? (
+                  <span className="col-derived" title="The MUT area drawn in the preview">{fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in <Flag kind="other">drawn</Flag></span>
+                ) : (
+                  <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} placeholder="area" set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
+                )}
+              </div>
+            ) : (
+              <span className="muted not-used" title="MUT scans only">–</span>
+            )}
+          </td>
+        )}
         <td>
           <div className="nominal-cell">
           <ReportSelect compact label="Nominal from" where={w('nominal from')} value={r.nominalMode} options={NOMINAL_MODES.map((m) => ({ value: m, label: MODE_LABEL[m] }))}
@@ -211,14 +211,10 @@ function ReadingTableRow(props: {
           )}
           </div>
         </td>
-        <td>
-          <ReportBox compact label="N/A reason" where={w('N/A reason')} kind="optText" value={r.na} list="naReason" placeholder="measured"
-            set={(q, v: string | null) => set({ na: v })(q)} boxKey={`${key}.na`} step={STEP} help="Blank = measured. A reason is printed instead of the figures." />
-        </td>
         <td className="num">{row.na !== null ? <span className="muted">N/A</span> : <WallLoss value={row.wallLoss} color={row.color} />}</td>
         <td className="col-comment">{row.na !== null ? <span className="muted">{row.na}</span> : <CommentText comment={row.comment} />}</td>
         <td className="row-actions">
-          <button type="button" className="btn btn-small" aria-expanded={props.open} onClick={props.onToggle} title="Comment picks">
+          <button type="button" className="btn btn-small" aria-expanded={props.open} onClick={props.onToggle} title="N/A reason and comment picks">
             {props.open ? 'Close' : 'Details'}
           </button>
           <button type="button" className="icon-btn" onClick={() => props.onMove(-1)} disabled={i === 0} aria-label={`Move ${label} up`} title="Move up">↑</button>
@@ -227,10 +223,15 @@ function ReadingTableRow(props: {
             title={r.link ? 'A MUT row of the drawing: delete it on the Field data step' : 'Delete (Ctrl+Z brings it back)'}>×</button>
         </td>
       </tr>
-      <RowMessages messages={props.messages} colSpan={13} />
+      <RowMessages messages={props.messages} colSpan={cols} />
       {props.open && (
         <tr className="row-details">
-          <td colSpan={13}>
+          <td colSpan={cols}>
+            <div className="field-grid">
+              <ReportBox label="Not measured (N/A)" where={w('N/A reason')} kind="optText" value={r.na} list="naReason" placeholder="measured"
+                set={(q, v: string | null) => set({ na: v })(q)} boxKey={`${key}.na`} step={STEP}
+                help="Blank = measured. A reason (e.g. U-Bolt Obstruction) is printed instead of the figures and the row is left out of them." />
+            </div>
             <CommentPicks ladder={props.ladder} picks={r} comment={row.comment} ladderSeverity={severity} name={label} step={STEP} boxKey={key}
               set={(q, change) => setReading(q, i, change)} />
             {drawing && drawing.notes && <p className="muted">Notes on the drawing row: {drawing.notes}</p>}

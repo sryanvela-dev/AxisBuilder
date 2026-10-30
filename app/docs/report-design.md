@@ -648,3 +648,7 @@ Where the build fills in or differs from the design above:
   built-in values are always offered (the template's examination type, N / E / S / W / Top / Bottom, Longitudinal / Shear, the
   two N/A reasons named in 4.4) but never stored. Record lists: "Pick saved..." and "Save to list" beside each record. The
   dialog edits and deletes values and records, exports `AxisBuilder saved lists.json` and imports one (adds, never deletes).
+- **Approved after the click-through (user, 2026-10-29)**: a scan with neither Min 'T' nor readings gets one check, "has no
+  results yet" (the two separate checks stay when only one is missing); reading checks name the row with its position
+  ("N2 North has no nominal."); the Manual UT table fits a laptop screen: Avg / Max 'T' and area share one "MUT scan" column
+  (shown only when a row is a MUT scan) and the N/A reason moved into the row's details.

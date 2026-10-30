@@ -46,8 +46,13 @@ export function checkReport(p: Project): ReportCheck[] {
       out.push({ severity: 'error', place, text: `${r.scan.id} has no component.`,
         fix: report.components.length === 0 ? 'Add a component (e.g. Shell) with its nominal.' : 'Pick the component it was scanned on.' })
     }
-    if (r.minT === null) out.push({ severity: 'error', place, text: `${r.scan.id} has no Min 'T'.`, fix: 'Import the scansheet, type it in, or take the scan out of the report.' })
-    if (r.readings === null) out.push({ severity: 'error', place, text: `${r.scan.id} has no readings.`, fix: 'Import the scansheet, or enter the readings or the scan increments.' })
+    // A scan with neither (nothing imported yet) gets one line, not two.
+    if (r.minT === null && r.readings === null) {
+      out.push({ severity: 'error', place, text: `${r.scan.id} has no results yet.`, fix: 'Import the scansheet, type them in, or take the scan out of the report.' })
+    } else {
+      if (r.minT === null) out.push({ severity: 'error', place, text: `${r.scan.id} has no Min 'T'.`, fix: 'Import the scansheet, type it in, or take the scan out of the report.' })
+      if (r.readings === null) out.push({ severity: 'error', place, text: `${r.scan.id} has no readings.`, fix: 'Import the scansheet, or enter the readings or the scan increments.' })
+    }
     // Crossing two shell-course / plate bands (when no component was picked).
     if (!r.result?.componentId) {
       const bands = bandsOf(report, r.scan)
@@ -78,7 +83,8 @@ export function checkReport(p: Project): ReportCheck[] {
   // Manual readings.
   for (const r of readingRows(p, report, ladder)) {
     const place = { kind: 'reading' as const, index: r.index }
-    const name = r.name || `Row ${r.index + 1}`
+    // With its position, so a nozzle's rows read apart ("N2 North").
+    const name = [r.name || `Row ${r.index + 1}`, r.reading.location.trim()].filter(Boolean).join(' ')
     if (r.na !== null) continue
     if (!r.component && r.reading.nominalMode === 'component') {
       out.push({ severity: 'error', place, text: `${name} has no component.`, fix: 'Pick the component it was measured on, or give it its own nominal.' })

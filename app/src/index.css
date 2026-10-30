@@ -2505,19 +2505,18 @@ table.grid tr.row-out td {
 
 .readings-table td:nth-child(2) .cell-field input[type='text'],
 .results-table td:nth-child(3) .cell-field input[type='text'],
-.readings-table td:nth-child(3) .cell-field input[type='text'],
-.readings-table td:nth-child(10) .cell-field input[type='text'] {
+.readings-table td:nth-child(3) .cell-field input[type='text'] {
   width: 130px;
 }
 
 .nominal-cell {
   display: grid;
   gap: 4px;
-  min-width: 150px;
+  min-width: 175px;
 }
 
-.cell-pair {
-  display: inline-flex;
+.mut-cell {
+  display: grid;
   gap: 4px;
 }
 
@@ -2576,4 +2575,31 @@ table.grid tr.row-out td {
 
 .report-sections .cell-field input[type='text'] {
   width: 220px;
+}
+
+.readings-table select,
+.results-table select {
+  max-width: 160px;
+}
+
+/* Manual UT fits a laptop screen: shorter name and location boxes, the row's tags under the name. */
+.readings-table td:nth-child(2) .cell-field input[type='text'],
+.readings-table td:nth-child(3) .cell-field input[type='text'] {
+  width: 104px;
+}
+
+.readings-table td:nth-child(2) .cell-input {
+  flex-wrap: wrap;
+}
+
+.readings-table .comment-text {
+  min-width: 180px;
+}
+
+.readings-table select {
+  max-width: 130px;
+}
+
+.readings-table .nominal-cell select {
+  max-width: 175px;
 }
