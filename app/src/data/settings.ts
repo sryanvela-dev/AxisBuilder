@@ -34,7 +34,8 @@ export const SETTING_GROUPS = [
   { id: 'exportSets', step: 'Export', title: 'What is exported', intro: 'Which layers the PDF and the report images show, and how the main sheet is turned.' },
   { id: 'pdf', step: 'Export', title: 'PDF', intro: 'How the PDF is made: the photo resolution and PDF layers.' },
   { id: 'reportImages', step: 'Export', title: 'Report images', intro: 'One JPEG per sheet for the inspection report, cropped tight to what is printed (as TightPDF did).' },
-  { id: 'export', step: 'Export', title: 'CAD program and checks', intro: 'Which CAD program the drawing file is for, and the checks before export.' },
+  { id: 'export', step: 'Export', title: 'Checks before export', intro: 'How strictly the data is checked before anything is exported.' },
+  { id: 'lspBackup', step: 'Export', title: 'CAD program', intro: 'Only for the backup .lsp: the CAD program it is written for. The DXF opens in either.' },
 ] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
 
 export type SettingGroupId = (typeof SETTING_GROUPS)[number]['id']
@@ -900,8 +901,8 @@ export const SETTINGS = {
   }),
   cadPlatform: choice(['DraftSight', 'AutoCAD'], {
     excelLabel: 'CAD Platform', excelSheet: PS, name: 'CAD program',
-    description: 'CAD program the .lsp is written for.',
-    default: 'DraftSight', group: 'export', step: 'Export', level: 'Basic',
+    description: 'CAD program the backup .lsp is written for. Not used by the PDF, report images or DXF.',
+    default: 'DraftSight', group: 'lspBackup', step: 'Export', level: 'Basic',
     v5: 'Set by the Home toggle. Anything other than AutoCAD means DraftSight.',
   }),
 

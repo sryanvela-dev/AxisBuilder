@@ -22,7 +22,7 @@ export const STEPS: readonly StepInfo[] = [
   { id: 'fieldData', title: 'Field data', intro: 'Welds, nozzles, objects and MUT readings from the field form, drawn over the scans.' },
   { id: 'drawing', title: 'Drawing', intro: 'How the drawing looks: text sizes and colors, rulers, legend, head views and what is shown.' },
   { id: 'review', title: 'Review', intro: 'Everything still open before the drawing can be made.' },
-  { id: 'export', title: 'Export', intro: 'Make the PDF and the report images, or the CAD drawing file.' },
+  { id: 'export', title: 'Export', intro: 'Make the PDF, the report images and the DXF.' },
 ]
 
 export function stepInfo(id: StepId): StepInfo {

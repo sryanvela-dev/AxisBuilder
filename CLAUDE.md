@@ -11,15 +11,27 @@ NOZZLEWRAP, OBJECTWRAP, visibility toggles, SECTIONPAGES) become app settings sh
 finished deliverable is a 2D PDF exported straight from the app's own sheets (the drawing and its section sheets),
 plus a DXF for anyone who wants to carry on in CAD for more functionality. The .lsp is an optional backup, not
 where new features go (updated by the user, 2026-10-23: e.g. section sheets matter in the app and the PDF, and
-later the DXF, not in the LISP). LISP stays as the bridge until PDF and DXF are proven. The geometry engine serves
-all of these.
+later the DXF, not in the LISP). The geometry engine serves all of these.
+**The .lsp is frozen as of 2026-10-31 (user):** it keeps working but gets no new features; no new features go into
+`export/lsp/`. New drawing features are built for the preview, Sheets, PDF, report images and DXF only; the DXF is the
+CAD route. The .lsp still follows the shared engine, so its fingerprints may change when the engine does (refresh them
+as today, only after an approved change). It is removed later (see "Later: removing the .lsp").
+
+### Later: removing the .lsp (not now)
+1. Remove the export and its UI (`export/lsp/`, the Backup section on the Export step, the `cadPlatform` setting).
+2. Port `engine/rulers.ts` off `PrintVisualRulers` (`library.generated.ts`) and `engine/layout.ts` off `vbaFormat`.
+3. Move the v5.0 parity proof to drawing / DXF checks (engine numbers against the golden jobs).
+4. Delete the LISP scripts and files: `gen:lsp-library`, the golden `.lsp` files, `imagepath:test`, the .lsp fingerprints.
+5. Update the docs (this file, `app/docs/phase2-notes.md`, `export/README.md`, the quick guide).
 
 ## Working rules
 Improvements over v5.0 are welcome. When you see a function or behaviour that would work better than v5.0,
 propose it. Don't change it silently. List proposals under "Suggested improvements" at the end of your summary:
 what, why it's better, and what it changes for the user or the drawing. The author decides. Approved changes go
 into the app's output only; compat 'v5.0' stays exact so the golden tests keep proving the port. Record approved
-changes in the Change log.
+changes in the Change log. Since the .lsp freeze (2026-10-31) new features are not added to `export/lsp/`, and the
+numbered app change list (`APP_CHANGES`, `app/docs/phase2-notes.md`) is closed at change 30: later drawing changes are
+recorded in the Change log against the preview / PDF / DXF only.
 
 ## Folder layout
 - `src/*.bas` – **master copy of all VBA code** (9 standard modules). Edit only these.
@@ -245,7 +257,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   "Write as" button, not a warning (`wrapNote`). Preview divider: `ui/preview/PreviewSplitter.tsx`.
 - Review and Export steps (Phase 4a): Review = `reviewList` (`state/steps.ts`, errors then warnings, grouped by step)
   with a Go to per item (`ui/goToIssue.ts`), "Ready to export" when nothing is open. Export (`ui/exportStep.tsx`): job
-  folder, the PDF / report images panel (`ui/exportPdf.tsx`), "Make CAD drawing (.lsp)" as the backup (processes
+  folder, the PDF / report images panel (`ui/exportPdf.tsx`), "Make CAD drawing (.lsp)" as the backup (frozen since 2026-10-31: in the closed "Backup: CAD drawing (.lsp)" section at the
+  bottom, `LspBackup`, with the CAD program setting, group `lspBackup`, which Find a setting opens via `ui/lspBackup.ts`; processes
   missing or out-of-date processed images first: `staleJobs` in `export/images/process.ts`; writes
   `<job> - AUT Coverage.lsp` in cp1252 with `lspBytes`, images found relative to the drawing: `relativeImages` option,
   `writeImageFinder` / `SL_AppInsertImage` in `appLibrary.ts`; then shows the CAD steps), CAD program and checks
@@ -986,7 +999,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-31 – Coverage and long summaries (feature/report-r4, user): coverage is the shell only, AUT and MUT apart. Report: the
   coverage sentence ends "of the <equipment type> shell"; new summary sentence "MUT areas coverage" (only with shell MUT areas,
   `when: mutArea>0`, fields mutCoveragePercent / mutCoverageArea / totalCoveragePercent) gives the MUT part and the drawing's total;
-  the coverage tile reads "AUT shell coverage; +x% MUT areas = y% total". Drawing (app change 29, approved): with shell MUT areas the
+  the coverage tile reads "AUT shell coverage; +x% MUT areas = y% total". Drawing (app change 30, approved): with shell MUT areas the
   legend line reads "Shell coverage (AUT + MUT): y%" (`coverageLabel` in engine/layout.ts; preview, sheets, PDF, .lsp, DXF); without,
   "Coverage: y%" as before; compat v5.0 unchanged; only the sample's .lsp and DXF fingerprints changed. Long Scope & Summary: the page
   flow no longer drops text silently past 6 pages (limit 20, then a note in the export summary); the Summary step says when it runs
@@ -1013,3 +1026,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   overlays (scans first, the overlay ones titled "... (overlay)") / Off (`report/schema.ts` enum, `sectionSets` and `overlaysUsable` in
   `report/pages/drawing.ts`). Section sheets now print on their own (before, only while Rollout drawing was ticked). Without scan
   images the overlay sets print nothing. No format change (older files keep their value). Test added; drawing outputs unchanged.
+- 2026-10-31 – .lsp frozen (feature/report-r4, user decision): it keeps working but gets no new features; the DXF is the CAD route, the
+  .lsp is removed later (End goal, "Later: removing the .lsp"). Export step: "Make CAD drawing (.lsp)" moved into a closed "Backup: CAD
+  drawing (.lsp)" section at the bottom (always starts closed; one line saying it is the old way and the DXF is the way into CAD); the
+  CAD program setting moved into it (new group `lspBackup`; the `export` group is now "Checks before export"); Find a setting opens the
+  section (`ui/lspBackup.ts`). The step intro, the job folder line, the DXF panel, the quick guide and first-user-test.md present the
+  PDF, report images and DXF as the outputs. App change numbers: the coverage legend change is app change 30 (29 is the title block);
+  both are now in `APP_CHANGES` and the phase2-notes table, which is closed at 30. Golden jobs, compat v5.0, .lsp and DXF fingerprints
+  unchanged. Test added.

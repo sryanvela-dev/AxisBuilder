@@ -22,7 +22,8 @@ don't help unless they are stuck for more than two minutes, and note where they 
 3. Import the AUT CSV and pick the photo folder.
 4. Enter the welds, nozzles and MUT readings from the form.
 5. Fix whatever Review lists.
-6. Make the PDF and the report images, and save the job.
+6. Make the PDF, the report images and the DXF, and save the job. (The .lsp at the bottom of Export is an old
+   backup that gets no new features; leave it out of the test.)
 
 ## What to watch for
 

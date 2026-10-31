@@ -320,7 +320,7 @@ export function countedScans(p: Project, scans: Scan[], v5: boolean): Scan[] {
 }
 
 /**
- * The legend's coverage line. With shell MUT areas (app only) the figure includes their hatched part, and says so; without,
+ * The legend's coverage line (app change 30). With shell MUT areas (app only) the figure includes their hatched part, and says so; without,
  * "Coverage: x%" as v5.0 prints it. Shell only: the heads are never counted.
  */
 export function coverageLabel(coverage: number | null, mutArea: number): string {

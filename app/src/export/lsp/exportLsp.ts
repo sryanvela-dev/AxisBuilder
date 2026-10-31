@@ -54,6 +54,8 @@ import { CStr, LispNum, LispStr } from './vbaFormat.ts'
 /**
  * Where the app's output deliberately differs from v5.0 (asked for by the user, 2026-10-22;
  * app/docs/phase2-notes.md). compat: 'v5.0' turns all of them off.
+ * Closed at app change 30 (2026-10-31): the .lsp is frozen (no new features); later drawing changes are recorded against
+ * the preview, Sheets, PDF, report images and DXF only.
  */
 export const APP_CHANGES = [
   'Coverage % and Total Scans are computed after reversed scans are flipped.',
@@ -71,6 +73,8 @@ export const APP_CHANGES = [
   'Ruler axis direction labels, reference labels and nozzle leaders have their own layers (TEXTRESIZE and the AB... toggles know them).',
   'A bigger legend or title block is drawn bigger as a whole, and the head views and title block move up to make room.',
   'MUT areas drawn in the app are drawn as plain lines (outline and hatch) with their ID; the coverage % counts their hatched part (shell only).',
+  'The title block prints Equipment ID, Location and (when filled) Unit (change 29).',
+  'With shell MUT areas the legend reads "Shell coverage (AUT + MUT): y%" (change 30).',
 ] as const
 
 export interface ExportOptions {
