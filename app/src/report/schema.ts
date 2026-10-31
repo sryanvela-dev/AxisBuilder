@@ -78,6 +78,15 @@ export const markStyleSchema = z.strictObject({
   /** Text size in points at print size (labels, badges). */
   textSize: z.number().gt(0).default(9),
   textColor: z.string().default('#ffffff'),
+  // Format 10 (R5, labels):
+  /** Bold text (headings, findings). */
+  bold: z.boolean().default(false),
+  /** The report's bundled fonts: Roboto (text) or Montserrat (headings). */
+  font: z.enum(['roboto', 'montserrat']).default('roboto'),
+  /** Opacity of a label's or badge's box background (slightly see-through reads well on any photo). */
+  bgOpacity: unit.default(0.9),
+  /** A thin contrasting outline round a label or badge box, and a halo round plain text, so it reads on any photo. */
+  halo: z.boolean().default(true),
 })
 
 const markBase = {
@@ -90,24 +99,34 @@ const markBase = {
   locked: z.boolean().default(false),
 }
 
+/** Turn of a box mark in degrees, clockwise, about its centre, in the picture's own pixels (format 10). */
+const angle = z.number().min(-360).max(360).default(0)
+/** Arrow ends, as the drawing's leaders (format 10). */
+export const ARROW_HEADS = ['closed', 'open', 'dot', 'none'] as const
+
 export const markSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('rect'), ...markBase, box: fracBox }),
-  z.strictObject({ kind: z.literal('ellipse'), ...markBase, box: fracBox }),
+  z.strictObject({ kind: z.literal('rect'), ...markBase, box: fracBox, angle }),
+  z.strictObject({ kind: z.literal('ellipse'), ...markBase, box: fracBox, angle }),
   /** Highlighter: freehand points, or a straight stroke (two points). */
   z.strictObject({ kind: z.literal('highlight'), ...markBase, points: z.array(point).min(2), straight: z.boolean().default(false) }),
   z.strictObject({ kind: z.literal('pen'), ...markBase, points: z.array(point).min(2) }),
   z.strictObject({ kind: z.literal('line'), ...markBase, from: point, to: point }),
-  z.strictObject({ kind: z.literal('arrow'), ...markBase, from: point, to: point }),
-  /** Text label or callout: centred at `at`, optional leader to `leader` with its end. */
+  z.strictObject({ kind: z.literal('arrow'), ...markBase, from: point, to: point, head: z.enum(ARROW_HEADS).default('closed') }),
+  /**
+   * Text label or callout: centred at `at`, optional leader to `leader` with its end. A live data label (format 10) has
+   * a `link` and a `template` with fields ("{scan} · Min {minT} in"); `text` holds the last filled text, so a label
+   * whose row was deleted still prints it (Review warns).
+   */
   z.strictObject({
     kind: z.literal('label'), ...markBase, at: point, text,
+    template: z.string().default(''),
     callout: z.enum(['rounded', 'square', 'pill', 'plain']).default('rounded'),
     leader: point.nullable().default(null),
     leaderEnd: z.enum(['arrow', 'dot', 'none']).default('arrow'),
   }),
   /** Numbered badge; `text` is its line in the key printed under the picture. */
   z.strictObject({ kind: z.literal('badge'), ...markBase, at: point, n: z.number().int().min(1), text }),
-  /** Removes the pixels in the PDF (R5); not drawn before then. */
+  /** Removes the pixels: the PDF and the Pages view get the picture with that area blacked out or blurred (R5). */
   z.strictObject({ kind: z.literal('redaction'), ...markBase, box: fracBox, mode: z.enum(['black', 'blur']).default('black') }),
 ])
 

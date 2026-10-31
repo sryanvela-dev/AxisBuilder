@@ -3,10 +3,13 @@
 
 import type { LayerGroup } from '../../engine/drawing.ts'
 import type { ReportStepId } from '../../state/reportStepIds.ts'
-import { imageKey, uprightSize, visibleAspect, type Bookmark, type ImageInfo, type ImageRef, type PageItem, type Rect, type ReportPage } from '../pageModel.ts'
-import type { ImageEdits } from '../schema.ts'
+import type { ImagePlace } from '../imageItems.ts'
+import { withLiveText } from '../liveLabels.ts'
+import { imageKey, uprightSize, visibleAspect, type Bookmark, type ImageInfo, type ImageRef, type PageItem, type Rect, type Redaction, type ReportPage } from '../pageModel.ts'
+import type { ImageEdits, Mark } from '../schema.ts'
+import { fitWithKey, keyItems } from './badgeKey.ts'
 import type { SectionDef } from '../templates/types.ts'
-import { CONTENT, CONTENT_PORTRAIT, FRAME, fitBox, frameItems, isPortrait, LETTER_LANDSCAPE, placeholder, type FrameContext, type PageSize } from './layout.ts'
+import { CONTENT, CONTENT_PORTRAIT, FRAME, frameItems, isPortrait, LETTER_LANDSCAPE, placeholder, type FrameContext, type PageSize } from './layout.ts'
 
 export interface BuildContext extends FrameContext {
   /** Size and orientation of a picture; null = not found or not readable (a placeholder prints). */
@@ -52,24 +55,39 @@ export function standardPage(c: BuildContext, def: SectionDef, label: string, ti
 export const content = (size: PageSize = LETTER_LANDSCAPE): Rect => ({ ...(isPortrait(size) ? CONTENT_PORTRAIT : CONTENT) })
 export { FRAME }
 
+/** The marks a picture prints over it (live labels filled from the data now) and its redactions (pixels removed). */
+export function printedMarks(c: BuildContext, edits: Pick<ImageEdits, 'markup'>): { marks: Mark[]; redactions: Redaction[] } {
+  const marks: Mark[] = []
+  const redactions: Redaction[] = []
+  for (const m of edits.markup) {
+    if (m.kind === 'redaction') redactions.push({ box: m.box, mode: m.mode })
+    else marks.push(withLiveText(c.p, m))
+  }
+  return { marks, redactions }
+}
+
 /**
- * A picture with its edits fitted into `area` (shape kept, never stretched), or the quiet placeholder when the file
- * can't be read. Returns the items and the box the picture took.
+ * A picture with its edits fitted into `area` (shape kept, never stretched), with its badge key under it, or the quiet
+ * placeholder when the file can't be read. Returns the items, the box the picture took and the bottom of picture + key.
  */
-export function placeImage(c: BuildContext, ref: ImageRef | null, edits: ImageEdits, area: Rect, missing: string, align: 'center' | 'top' = 'center', frame = false): { items: PageItem[]; box: Rect; found: boolean } {
+export function placeImage(c: BuildContext, ref: ImageRef | null, edits: ImageEdits, area: Rect, missing: string, align: 'center' | 'top' = 'center', frame = false, place?: ImagePlace): { items: PageItem[]; box: Rect; bottom: number; found: boolean } {
   const info = ref ? c.image(ref) : null
   if (!ref || !info) {
     if (ref) c.unread.push(ref.file)
     const box = align === 'top' ? { ...area, h: Math.min(area.h, area.w * 0.62) } : area
-    return { items: placeholder(box, missing), box, found: false }
+    return { items: placeholder(box, missing), box, bottom: box.y + box.h, found: false }
   }
   const upright = uprightSize(info)
-  const box = fitBox(visibleAspect(upright, edits.crop, edits.rotate), area, align)
-  const marks = edits.markup.filter((m) => m.kind !== 'redaction')
+  const { marks, redactions } = printedMarks(c, edits)
+  const autoLevels = edits.adjust.autoLevels
+  const fit = fitWithKey(visibleAspect(upright, edits.crop, edits.rotate), area, align, marks)
+  const box = fit.box
   const items: PageItem[] = [{
-    t: 'image', ref, ...box, upright, orientation: info.orientation, rotate: edits.rotate, crop: edits.crop, marks, key: imageKey(ref, edits.crop),
+    t: 'image', ref, ...box, upright, orientation: info.orientation, rotate: edits.rotate, crop: edits.crop, marks,
+    ...(autoLevels ? { autoLevels } : {}), ...(redactions.length ? { redactions } : {}), ...(place ? { place } : {}),
+    key: imageKey(ref, edits.crop, { autoLevels, redactions }),
   }]
   if (frame) items.push({ t: 'rect', ...box, fill: null, stroke: '#C9DAEA', width: 0.75, radius: 0 })
-  if (edits.markup.some((m) => m.kind === 'redaction')) c.notes.push(`${ref.file} has a redaction box: redaction comes in a later version, so it is not applied in this PDF.`)
-  return { items, box, found: true }
+  if (fit.key) items.push(...keyItems(fit.entries, fit.key.x, fit.key.y, fit.key.w))
+  return { items, box, bottom: fit.key ? fit.key.y + fit.key.h : box.y + box.h, found: true }
 }

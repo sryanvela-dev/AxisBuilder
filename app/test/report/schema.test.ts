@@ -17,7 +17,7 @@ function errorsFor(data: unknown): string[] {
 
 describe('project file format 7', () => {
   it('is the current format', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(9)
+    expect(CURRENT_SCHEMA_VERSION).toBe(10)
   })
 
   it('opens a format 6 file with no report and blank Location and Equipment name', () => {

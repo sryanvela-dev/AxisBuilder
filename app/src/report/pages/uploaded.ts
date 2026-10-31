@@ -6,9 +6,10 @@
 import type { PageItem, ReportPage } from '../pageModel.ts'
 import type { Upload } from '../schema.ts'
 import type { SectionDef } from '../templates/types.ts'
-import { content, placeImage, standardPage, stepOf, type BuildContext, type PageBuilder } from './common.ts'
-import { fitBox, LETTER_LANDSCAPE, LETTER_PORTRAIT, placeholder } from './layout.ts'
+import { content, placeImage, printedMarks, standardPage, stepOf, type BuildContext, type PageBuilder } from './common.ts'
+import { LETTER_LANDSCAPE, LETTER_PORTRAIT, placeholder } from './layout.ts'
 import { uprightSize, visibleAspect } from '../pageModel.ts'
+import { fitWithKey, keyItems } from './badgeKey.ts'
 
 const isPdf = (u: Upload) => /\.pdf$/i.test(u.file) || u.page !== null
 
@@ -18,11 +19,12 @@ const pageFor = (aspect: number | null) => (aspect !== null && aspect < 1 ? LETT
 function uploadPage(c: BuildContext, def: SectionDef, u: Upload): ReportPage {
   const title = u.title.trim() || def.title
   const label = u.title.trim() || u.file
+  const place = { kind: 'upload' as const, index: c.r.uploads.indexOf(u) }
   if (!isPdf(u)) {
     const ref = { source: 'uploads' as const, file: u.file }
     const info = c.image(ref)
     const size = pageFor(info ? visibleAspect(uprightSize(info), u.crop, u.rotate) : null)
-    return standardPage(c, def, label, title, '', placeImage(c, ref, u, content(size), 'Picture not found').items, size)
+    return standardPage(c, def, label, title, '', placeImage(c, ref, u, content(size), 'Picture not found', 'center', false, place).items, size)
   }
   const sizes = c.pdfPages(u.file)
   const size = sizes?.[(u.page ?? 1) - 1]
@@ -33,13 +35,19 @@ function uploadPage(c: BuildContext, def: SectionDef, u: Upload): ReportPage {
   const turned = u.rotate === 90 || u.rotate === 270
   const w = turned ? size.h : size.w
   const h = turned ? size.w : size.h
-  if (u.markup.length) c.notes.push(`Marks on ${u.file} page ${u.page ?? 1} print from R5 (markup over PDF pages).`)
+  // Marks over the page (R5); redaction can't remove what is on a PDF page without turning it into a picture, so the
+  // editor doesn't offer it there and any redaction mark is left out (Review says so).
+  const { marks } = printedMarks(c, u)
+  const extra = { ...(marks.length ? { marks } : {}), pageSize: size, place }
   if (u.frame === 'full') {
-    const item: PageItem = { t: 'pdfPage', file: u.file, page: u.page ?? 1, rotate: u.rotate, box: { x: 0, y: 0, w, h }, darken: u.adjust.darken }
+    const item: PageItem = { t: 'pdfPage', file: u.file, page: u.page ?? 1, rotate: u.rotate, box: { x: 0, y: 0, w, h }, darken: u.adjust.darken, ...extra }
     return { size: { w, h }, sectionId: def.id, step: stepOf(def), label, footer: 'number', items: [item] }
   }
   const page = pageFor(w / h)
-  return standardPage(c, def, label, title, '', [{ t: 'pdfPage', file: u.file, page: u.page ?? 1, rotate: u.rotate, box: fitBox(w / h, content(page)), darken: u.adjust.darken }], page)
+  const fit = fitWithKey(w / h, content(page), 'center', marks)
+  const items: PageItem[] = [{ t: 'pdfPage', file: u.file, page: u.page ?? 1, rotate: u.rotate, box: fit.box, darken: u.adjust.darken, ...extra }]
+  if (fit.key) items.push(...keyItems(fit.entries, fit.key.x, fit.key.y, fit.key.w))
+  return standardPage(c, def, label, title, '', items, page)
 }
 
 /** The pages of the given uploads. */

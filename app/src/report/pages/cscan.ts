@@ -62,7 +62,7 @@ export const buildCscans: PageBuilder = (c, def) => {
     const title = scanTitle(row.scan.id)
     const shotArea = { x: area.x, y: area.y, w: area.w - SIDE - 0.17, h: area.h }
     const ref = row.result?.dataImage ? { source: 'screenshots' as const, file: row.result.dataImage } : null
-    const shot = placeImage(c, ref, row.result?.dataImageEdits ?? NO_EDITS, shotArea, 'No screenshot', 'top', true)
+    const shot = placeImage(c, ref, row.result?.dataImageEdits ?? NO_EDITS, shotArea, 'No screenshot', 'top', true, row.result ? { kind: 'dataImage', scanId: row.result.scanId } : undefined)
     const items: PageItem[] = [...shot.items, ...cscanBoxes(row.comment?.text ?? '', scanStats(c, row), { x: area.x + area.w - SIDE, y: area.y, w: SIDE, h: area.h })]
     return standardPage(c, def, title, title, scanSubtitle(row), items)
   })

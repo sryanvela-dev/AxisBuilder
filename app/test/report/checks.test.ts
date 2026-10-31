@@ -231,8 +231,8 @@ describe('report checks, design 9 and 14 in full', () => {
       ],
     }))
     expect(texts(p)).toEqual([
-      'note: Photo 1 (a.jpg) has a redaction box: redaction comes in a later version, so the PDF does not hide that part yet.',
-      'warning: Photo 2 (b.jpg) has a label linked to SCAN 99, which is no longer in the drawing.',
+      'note: Photo 1 (a.jpg) has a redacted area: the PDF holds this picture with those pixels removed (blacked out or blurred), not covered.',
+      'warning: Photo 2 (b.jpg) has a live label linked to SCAN 99, which is no longer in the drawing: it prints its last text.',
       'note: Photo 3 (c.jpg): a mark is outside the crop, so it does not print.',
     ])
     expect(checkReport(p)[1].place).toEqual({ kind: 'picture', at: { kind: 'photo', index: 1 } })

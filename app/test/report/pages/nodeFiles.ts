@@ -1,6 +1,8 @@
 // The report PDF outside the browser (tests and npm run report:pdf): pictures read from folders on disk with their
 // size and EXIF orientation (embedded as they are; the placement applies orientation, turn and crop), the drawing's
-// scan photos cut and stretched with jpeg-js, the bundled fonts.
+// scan photos cut and stretched with jpeg-js, the bundled fonts. A picture with pixel edits (auto levels, redactions)
+// is decoded, turned upright, cut to its crop, changed with the app's own pixel code (report/imageProcess.ts) and
+// encoded again, as the browser does, so the redacted pixels never reach the PDF.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +14,7 @@ import type { Project } from '../../../src/data/schema.ts'
 import { photoNeeds, type SheetModel } from '../../../src/engine/sheetModel.ts'
 import { preparePhotos, type PhotoReader } from '../../../src/export/pdf/photos.ts'
 import type { ReportFontId } from '../../../src/report/fonts.ts'
+import { applyPixelEdits, cropPixels, hasPixelEdits, uprightPixels } from '../../../src/report/imageProcess.ts'
 import { readImageInfo } from '../../../src/report/imageInfo.ts'
 import { imageNeeds, type ImageInfo, type ImageRef, type ReportDocument } from '../../../src/report/pageModel.ts'
 import type { PreparedImage } from '../../../src/report/pdf/writeReportPdf.ts'
@@ -52,7 +55,14 @@ export function folderImages(folders: ReportFolders, extra: ReadonlyMap<string, 
     for (const n of imageNeeds(doc)) {
       const b = bytesOf(n.ref)
       const info = b ? readImageInfo(b) : null
-      if (b && info) out.set(n.key, { bytes: b, format: info.format, orientation: info.orientation, region: null })
+      if (!b || !info) continue
+      if (hasPixelEdits(n) && info.format === 'jpg') {
+        const raw = jpeg.decode(b, { useTArray: true })
+        const px = cropPixels(uprightPixels({ data: raw.data, width: raw.width, height: raw.height }, info.orientation), n.crop)
+        applyPixelEdits(px, n, n.crop ?? undefined)
+        const enc = jpeg.encode({ data: Buffer.from(px.data.buffer, px.data.byteOffset, px.data.byteLength), width: px.width, height: px.height }, 92)
+        out.set(n.key, { bytes: new Uint8Array(enc.data), format: 'jpg', orientation: 1, region: n.crop })
+      } else out.set(n.key, { bytes: b, format: info.format, orientation: info.orientation, region: null })
     }
     return out
   }

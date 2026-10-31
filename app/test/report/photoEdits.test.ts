@@ -37,13 +37,13 @@ describe('photo edits (Photos and pages, R3)', () => {
     expect(setPhotosPerPage(p, 'photos', 'auto')).toBe(p)
   })
 
-  it('Review lists a redaction box as coming in a later version, on the Photos and pages step', () => {
+  it('Review notes a redacted picture (the PDF removes the pixels), on the Photos and pages step', () => {
     const p = sampleWithReport((q) => {
       q.report!.photos = [{ file: 'a.jpg', caption: '', alone: false, crop: null, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup: [markSchema.parse({ id: 'r', kind: 'redaction', box: { x0: 0, y0: 0, x1: 0.2, y1: 0.2 } })] }]
     })
     const c = checkReport(p).find((x) => x.place.kind === 'picture')!
     expect(c.severity).toBe('note')
-    expect(c.text).toContain('redaction comes in a later version')
+    expect(c.text).toContain('with those pixels removed')
     expect(stepOfReportCheck(c)).toBe('pages')
   })
 })

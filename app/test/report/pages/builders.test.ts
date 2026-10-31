@@ -336,7 +336,7 @@ describe('report pages: picture orientation, turn and crop', () => {
     expect(at(0, 1)).toEqual([0, 0])
   })
 
-  it('marks come with the picture (redactions are left for R5 and noted); each picture is needed once at its largest size', () => {
+  it('marks come with the picture (redactions go to the pixels, R5); each picture is needed once at its largest size', () => {
     const p = sampleWithReport((q) => {
       q.report!.photos = [photo('1600x1200.jpg', { markup: [markSchema.parse({ id: 'a', kind: 'arrow', from: [0.1, 0.1], to: [0.5, 0.5] }), markSchema.parse({ id: 'r', kind: 'redaction', box: { x0: 0, y0: 0, x1: 0.2, y1: 0.2 } })] })]
       q.report!.coverPhoto = '1600x1200.jpg'
@@ -344,7 +344,8 @@ describe('report pages: picture orientation, turn and crop', () => {
     const d = build(p)
     const [img] = images(d.pages.find((x) => x.sectionId === 'photos')!)
     expect(img.marks.map((m) => m.kind)).toEqual(['arrow'])
-    expect(d.notes.some((n) => n.includes('redaction comes in a later version'))).toBe(true)
+    expect(img.redactions).toEqual([{ box: { x0: 0, y0: 0, x1: 0.2, y1: 0.2 }, mode: 'black' }])
+    expect(img.key).toContain('|r:b')
     const needs = imageNeeds(d).filter((n) => n.ref.file === '1600x1200.jpg')
     expect(needs).toHaveLength(2)
   })

@@ -90,11 +90,11 @@ export const buildPhotos: PageBuilder = (c, def, title) => {
     const items: PageItem[] = []
     group.forEach((k, m) => {
       const ph = photos[k]
-      const placed = placeImage(c, { source: 'photos', file: ph.file }, ph, boxes[m], 'Photo not found')
+      const placed = placeImage(c, { source: 'photos', file: ph.file }, ph, boxes[m], 'Photo not found', 'center', false, { kind: 'photo', index: k })
       items.push(...placed.items)
       if (ph.caption.trim()) {
         const w = Math.max(boxes[m].w, 2)
-        items.push(...textBlock(ph.caption.trim(), boxes[m].x + boxes[m].w / 2 - w / 2, boxes[m].y + boxes[m].h + 0.05, w, F.body, CAPTION, COLORS.text, { align: 'center', maxLines: 2, k: 1.3 }).items)
+        items.push(...textBlock(ph.caption.trim(), boxes[m].x + boxes[m].w / 2 - w / 2, placed.bottom + 0.05, w, F.body, CAPTION, COLORS.text, { align: 'center', maxLines: 2, k: 1.3 }).items)
       }
     })
     return standardPage(c, def, `${title} ${n + 1}`, title, '', items)

@@ -7,6 +7,7 @@
 import type { SheetModel } from '../engine/sheetModel.ts'
 import type { ReportStepId } from '../state/reportStepIds.ts'
 import type { ReportFontId } from './fonts.ts'
+import type { ImagePlace } from './imageItems.ts'
 import type { FracBox, Mark, Rotation } from './schema.ts'
 
 export type Color = string
@@ -28,6 +29,8 @@ export interface TextItem {
   size: number
   color: Color
   align: 'left' | 'center' | 'right'
+  /** A contrasting outline drawn under the letters (plain picture labels read on any photo); width in points. */
+  halo?: { color: Color; width: number }
 }
 
 export interface LineItem {
@@ -81,10 +84,22 @@ export interface ImageItem extends Rect {
   orientation: number
   rotate: Rotation
   crop: FracBox | null
-  /** Drawn marks (redactions are left out until R5), lowest z first. */
+  /** Drawn marks (redactions are not marks on the page: they are in `redactions`), lowest z first. */
   marks: Mark[]
-  /** Embedded once per key: same file, same crop. */
+  /** Auto brightness / contrast (levels stretched per channel) on the pixels, on screen and in the PDF. */
+  autoLevels?: boolean
+  /** Areas whose pixels are removed (black or blurred) before the picture is shown or embedded (R5). */
+  redactions?: Redaction[]
+  /** Which picture of the report this is (the markup editor finds its printed size and slot from it). */
+  place?: ImagePlace
+  /** Embedded once per key: same file, same crop, same pixel edits. */
   key: string
+}
+
+/** A redacted area of a picture, in its upright 0-1 fractions. */
+export interface Redaction {
+  box: FracBox
+  mode: 'black' | 'blur'
 }
 
 /** A drawing sheet (engine/sheetModel.ts) printed as vectors: `region` of the sheet (paper inches, y up) into `box`. */
@@ -105,6 +120,11 @@ export interface PdfPageItem {
   box: Rect
   /** Darken a faint page: the page printed this many more times over itself, multiplied (0 = as it is). */
   darken?: number
+  /** Marks over the page (R5), in fractions of the page as it is stored (before the turn); lowest z first. */
+  marks?: Mark[]
+  /** The page's own size (inches, unturned), the marks' frame. */
+  pageSize?: { w: number; h: number }
+  place?: ImagePlace
 }
 
 export type PathCmd = ['M', number, number] | ['L', number, number] | ['C', number, number, number, number, number, number] | ['Z']
@@ -122,6 +142,8 @@ export interface PathItem {
   /** Of the fill only (a highlighted box). */
   fillOpacity: number
   cap: 'round' | 'butt'
+  /** Multiplied onto what is under it (the highlighter: a marker on paper). */
+  blend?: 'multiply'
 }
 
 /** A clickable area that goes to another page of the report (the contents). */
@@ -252,15 +274,31 @@ export function storedToPage(item: Pick<ImageItem, 'x' | 'y' | 'w' | 'h' | 'crop
   return [x[0] - o[0], x[1] - o[1], y[0] - o[0], y[1] - o[1], o[0], o[1]]
 }
 
-/** The key a picture is embedded under: the same file with the same crop is embedded once. */
-export function imageKey(ref: ImageRef, crop: FracBox | null): string {
+/**
+ * The key a picture is embedded under: the same file with the same crop is embedded once. Pixel edits (auto levels,
+ * redactions) make it another picture.
+ */
+export function imageKey(ref: ImageRef, crop: FracBox | null, pixels: { autoLevels?: boolean; redactions?: readonly Redaction[] } = {}): string {
   const c = crop ? `${crop.x0},${crop.y0},${crop.x1},${crop.y1}` : 'all'
-  return `${ref.source}|${ref.file}|${c}`
+  const lv = pixels.autoLevels ? '|levels' : ''
+  const rd = pixels.redactions?.length ? `|r:${pixels.redactions.map((r) => `${r.mode[0]}${r.box.x0},${r.box.y0},${r.box.x1},${r.box.y1}`).join(';')}` : ''
+  return `${ref.source}|${ref.file}|${c}${lv}${rd}`
 }
 
 /** Every picture the document prints, with its largest printed size in inches (of the visible part, unturned). */
-export function imageNeeds(doc: Pick<ReportDocument, 'pages'>): { key: string; ref: ImageRef; crop: FracBox | null; orientation: number; printedW: number; printedH: number }[] {
-  const out = new Map<string, { key: string; ref: ImageRef; crop: FracBox | null; orientation: number; printedW: number; printedH: number }>()
+export interface ImageNeed {
+  key: string
+  ref: ImageRef
+  crop: FracBox | null
+  orientation: number
+  printedW: number
+  printedH: number
+  autoLevels: boolean
+  redactions: Redaction[]
+}
+
+export function imageNeeds(doc: Pick<ReportDocument, 'pages'>): ImageNeed[] {
+  const out = new Map<string, ImageNeed>()
   for (const page of doc.pages) {
     for (const it of page.items) {
       if (it.t !== 'image') continue
@@ -268,7 +306,7 @@ export function imageNeeds(doc: Pick<ReportDocument, 'pages'>): { key: string; r
       const w = turned ? it.h : it.w
       const h = turned ? it.w : it.h
       const had = out.get(it.key)
-      if (!had) out.set(it.key, { key: it.key, ref: it.ref, crop: it.crop, orientation: it.orientation, printedW: w, printedH: h })
+      if (!had) out.set(it.key, { key: it.key, ref: it.ref, crop: it.crop, orientation: it.orientation, printedW: w, printedH: h, autoLevels: it.autoLevels ?? false, redactions: it.redactions ?? [] })
       else if (w > had.printedW) out.set(it.key, { ...had, printedW: w, printedH: h })
     }
   }

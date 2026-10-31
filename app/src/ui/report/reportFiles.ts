@@ -7,6 +7,7 @@ import logoUrl from '../../assets/brand/integrity-epc-logo.png?url'
 import { readImageInfo } from '../../report/imageInfo.ts'
 import type { ImageInfo, ImageRef, ReportDocument } from '../../report/pageModel.ts'
 import { imageNeeds } from '../../report/pageModel.ts'
+import { applyPixelEdits, hasPixelEdits } from '../../report/imageProcess.ts'
 import type { PreparedImage } from '../../report/pdf/writeReportPdf.ts'
 import type { Report } from '../../report/schema.ts'
 import { recallFile, type FileSlot } from '../../state/files.ts'
@@ -115,8 +116,10 @@ export async function readPicture(file: File): Promise<ReadPicture | null> {
 }
 
 /**
- * The document's pictures ready for the PDF, each once: a picture already upright, uncut and not bigger than needed is
- * embedded as it is; any other is turned upright, cut to its crop and scaled to `dpi` of its largest printed size.
+ * The document's pictures ready for the PDF, each once: a picture already upright, uncut, not bigger than needed and
+ * without pixel edits is embedded as it is; any other is turned upright, cut to its crop and scaled to `dpi` of its
+ * largest printed size, then auto levels and redactions change its pixels (report/imageProcess.ts) before it is
+ * encoded, so a redacted area's original pixels never reach the PDF.
  */
 export async function preparePictures(doc: Pick<ReportDocument, 'pages'>, src: ReportFileSources, dpi: number, onProgress?: (done: number, total: number) => void): Promise<{ images: Map<string, PreparedImage>; missing: string[] }> {
   const needs = imageNeeds(doc)
@@ -140,7 +143,7 @@ export async function preparePictures(doc: Pick<ReportDocument, 'pages'>, src: R
       const ch = (c.y1 - c.y0) * uh
       const k = Math.min(1, (n.printedW * dpi) / cw, (n.printedH * dpi) / ch)
       // The logo is small and has a see-through background: always as it is.
-      if (n.ref.source === 'brand' || (info.orientation === 1 && !n.crop && k >= 0.95)) {
+      if (n.ref.source === 'brand' || (info.orientation === 1 && !n.crop && k >= 0.95 && !hasPixelEdits(n))) {
         images.set(n.key, { bytes, format: info.format, orientation: 1, region: null })
       } else {
         const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
@@ -153,6 +156,11 @@ export async function preparePictures(doc: Pick<ReportDocument, 'pages'>, src: R
           ctx.fillStyle = '#ffffff'
           ctx.fillRect(0, 0, w, h)
           ctx.drawImage(bmp, c.x0 * bmp.width, c.y0 * bmp.height, (c.x1 - c.x0) * bmp.width, (c.y1 - c.y0) * bmp.height, 0, 0, w, h)
+          if (hasPixelEdits(n)) {
+            const px = ctx.getImageData(0, 0, w, h)
+            applyPixelEdits(px, n, c)
+            ctx.putImageData(px, 0, 0)
+          }
           const jpeg = new Uint8Array(await (await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 })).arrayBuffer())
           images.set(n.key, { bytes: jpeg, format: 'jpg', orientation: 1, region: n.crop })
         } finally {
