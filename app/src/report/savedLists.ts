@@ -54,6 +54,24 @@ const RECORD_SCHEMAS = {
     track: z.boolean().nullable().default(null), armLength: t,
   }),
   blocks: z.strictObject({ name: t, thicknessRange: t, material: t }),
+  // Picture label styles (design 14 "Labels" 6, R5): what a label or badge looks like, applied in one click in the
+  // markup editor. Every field falls back to its default when a stored value can't be read, so one bad value never
+  // empties the list.
+  labelStyles: z.strictObject({
+    name: t,
+    kind: z.enum(['label', 'badge']).catch('label').default('label'),
+    callout: z.enum(['rounded', 'square', 'pill', 'plain']).catch('rounded').default('rounded'),
+    leaderEnd: z.enum(['arrow', 'dot', 'none']).catch('arrow').default('arrow'),
+    stroke: z.string().nullable().catch('#d62828').default('#d62828'),
+    fill: z.string().nullable().catch(null).default(null),
+    textColor: z.string().catch('#ffffff').default('#ffffff'),
+    textSize: z.number().gt(0).catch(9).default(9),
+    width: z.number().gt(0).catch(1.5).default(1.5),
+    bold: z.boolean().catch(false).default(false),
+    font: z.enum(['roboto', 'montserrat']).catch('roboto').default('roboto'),
+    bgOpacity: z.number().min(0).max(1).catch(0.9).default(0.9),
+    halo: z.boolean().catch(true).default(true),
+  }),
 }
 
 export const RECORD_LISTS: Record<RecordListId, { name: string; one: string; title: (r: Record<string, unknown>) => string }> = {
@@ -62,6 +80,7 @@ export const RECORD_LISTS: Record<RecordListId, { name: string; one: string; tit
   transducers: { name: 'Transducers', one: 'transducer', title: (r) => joined(r.maker, r.size, r.frequency, r.mode, r.serial && `S/N ${String(r.serial)}`) },
   scanners: { name: 'Scanners', one: 'scanner', title: (r) => joined(r.maker, r.model, r.serial && `S/N ${String(r.serial)}`) },
   blocks: { name: 'Calibration blocks', one: 'calibration block', title: (r) => joined(r.name, r.thicknessRange, r.material) },
+  labelStyles: { name: 'Picture label styles', one: 'label style', title: (r) => joined(r.name, r.kind === 'badge' ? 'badge' : r.callout && `${String(r.callout)} label`) },
 }
 
 function joined(...parts: unknown[]): string {
