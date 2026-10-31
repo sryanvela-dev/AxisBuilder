@@ -58,24 +58,27 @@ function useSavedLists() {
   const store = app.browserStore
   const [lists, setLists] = useState<SavedLists>(emptySavedLists)
   const current = useRef(lists)
+  // Nothing is written until the stored lists are read: a change made before that waits for them (writing then would
+  // put the empty starting lists over the saved ones).
+  const loaded = useRef<Promise<void> | null>(null)
   useEffect(() => {
     let alive = true
-    void loadSavedLists(store).then((l) => {
-      if (alive) {
-        current.current = l
-        setLists(l)
-      }
+    loaded.current = loadSavedLists(store).then((l) => {
+      current.current = l
+      if (alive) setLists(l)
     })
     return () => {
       alive = false
     }
   }, [store])
   const changeLists = useCallback((change: (l: SavedLists) => SavedLists) => {
-    const next = change(current.current)
-    if (next === current.current) return
-    current.current = next
-    setLists(next)
-    void storeSavedLists(store, next).catch(() => {})
+    void (loaded.current ?? Promise.resolve()).then(() => {
+      const next = change(current.current)
+      if (next === current.current) return
+      current.current = next
+      setLists(next)
+      void storeSavedLists(store, next).catch(() => {})
+    })
   }, [store])
   return { lists, changeLists }
 }

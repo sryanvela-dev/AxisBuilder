@@ -915,3 +915,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   "Make report PDF" on Export; `npm run report:pdf`. Photos markup design copied into `app/docs/report-design.md` (section 14), build plan
   R3 / R4 / R5, "R3 as built". The drawing PDF's sheet drawing moved into `drawSheetModel` (output unchanged). Golden jobs, compat
   v5.0, .lsp and DXF fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-31 – Fix (feature/report-r3, user: saved dropdown values had gone): saved lists were read all or nothing, so one value or list a
+  build could not read (e.g. a list another build added) emptied every list, and the next "+ Save" wrote the empty lists over the saved ones;
+  a save made before the lists were read did the same. Now read list by list and value by value, lists of another build are kept when
+  storing, and nothing is written before the stored lists are read (`report/savedLists.ts` readSavedLists / storeSavedLists, ReportWorkspace).
+  Built in, first in their lists: Painted (surface condition), Carbon Steel (block material), I.D. Notches and O.D. Notches (reflector).
