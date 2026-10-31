@@ -18,7 +18,8 @@ function pdfjs() {
 /** Opens a PDF for drawing its pages (the bytes are copied: pdf.js takes the buffer it is given). */
 export async function openPdf(bytes: Uint8Array): Promise<PDFDocumentProxy> {
   const m = await pdfjs()
-  return m.getDocument({ data: bytes.slice() }).promise
+  // wasmUrl: the decoders for scanned layers (fax / JBIG2 masks), JPEG 2000 and ICC colors (vite.config.ts pdfjsWasm).
+  return m.getDocument({ data: bytes.slice(), wasmUrl: new URL('/pdfjs-wasm/', location.href).href }).promise
 }
 
 /** One page as a picture (object URL, PNG), its longer side `maxSide` pixels. */

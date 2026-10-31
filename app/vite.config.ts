@@ -1,8 +1,33 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
 import { reportEnabledFor } from './src/featureFlags.ts'
+
+// pdf.js decodes scanned PDF layers (CCITT fax and JBIG2 masks), JPEG 2000 pictures and ICC colors with these WebAssembly
+// files, fetched from `wasmUrl` by their own names (ui/report/pdfPages.ts). Served as they are in dev, copied unhashed into
+// the build (and precached) under /pdfjs-wasm/. Without them pdf.js leaves those layers out: a scanned form shows its table
+// lines but none of its text.
+const PDFJS_WASM_FILES = ['jbig2.wasm', 'openjpeg.wasm', 'qcms_bg.wasm']
+
+function pdfjsWasm(): Plugin {
+  const source = (name: string) => readFileSync(new URL(`./node_modules/pdfjs-dist/wasm/${name}`, import.meta.url))
+  return {
+    name: 'axisbuilder-pdfjs-wasm',
+    configureServer(server) {
+      server.middlewares.use('/pdfjs-wasm/', (req, res, next) => {
+        const name = (req.url ?? '').replace(/^\//, '').split('?')[0]
+        if (!PDFJS_WASM_FILES.includes(name)) return next()
+        res.setHeader('Content-Type', 'application/wasm')
+        res.end(source(name))
+      })
+    },
+    generateBundle() {
+      for (const name of PDFJS_WASM_FILES) this.emitFile({ type: 'asset', fileName: `pdfjs-wasm/${name}`, source: source(name) })
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
@@ -18,6 +43,7 @@ export default defineConfig(({ command }) => ({
   build: { chunkSizeWarningLimit: 1200 },
   plugins: [
     react(),
+    pdfjsWasm(),
     VitePWA({
       // New versions install and take over as soon as they are downloaded.
       registerType: 'autoUpdate',
@@ -40,7 +66,7 @@ export default defineConfig(({ command }) => ({
       },
       workbox: {
         // Precache the whole build so the app runs offline after the first visit.
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png,jpg,ico,webmanifest,ttf}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,jpg,ico,webmanifest,ttf,wasm}'],
         cleanupOutdatedCaches: true,
       },
     }),

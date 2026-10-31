@@ -414,7 +414,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   sheet model, `headSheet` in `report/pages/custom.ts`; a part of the main sheet picked by dragging a box), `Uploads.tsx` (drop or
   pick pictures and PDFs, PDF page picker, file slot `upload:<name>`), `placeOptions.ts`. Uploaded PDFs: `report/pdfInfo.ts`
   (pdf-lib page sizes; locked / damaged -> the design's plain message), `ui/report/pdfPages.ts` (pdf.js, `pdfjs-dist`, lazy-loaded,
-  its worker precached: `mjs` added to the Workbox globPatterns), `useUploadPdfs` (pages drawn into the pictures map under
+  its worker precached: `mjs` added to the Workbox globPatterns; its WebAssembly decoders jbig2 / openjpeg / qcms served and copied
+  unhashed to `/pdfjs-wasm/` by the `pdfjsWasm` plugin in vite.config.ts and passed as `wasmUrl`, else scanned fax / JBIG2 layers are
+  left out on screen), `useUploadPdfs` (pages drawn into the pictures map under
   `pdfPageKey`, so PageSvg draws them). Export: `reportPdfName(job, client)` = `<job> - <client> - AUT Report.pdf`, uploaded PDFs
   read again and copied, summary of what was left out.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
@@ -996,3 +998,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   letter sheet instead of 55%); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
   `adjust.darken`, migration from 8): the PDF page is printed again over itself with blend mode Multiply, once or twice (stays vector;
   white stays white), the Pages view the same with mix-blend-mode; `setUploadDarken`. Tests added; drawing outputs unchanged.
+- 2026-10-31 – Fix (feature/report-r4, user: an uploaded scanned U-1A form showed only its table lines in the Pages view; Darken did not help):
+  the form's text is in CCITT fax stencils, which pdf.js 6 decodes only with its WebAssembly decoders, and the app never gave it
+  `wasmUrl`, so those layers were dropped on screen. The decoders (jbig2, openjpeg, qcms, about 450 KB) are now served in dev and copied
+  into the build under `/pdfjs-wasm/` and precached (`pdfjsWasm` in vite.config.ts); `openPdf` passes `wasmUrl`. The report PDF was not
+  affected (pdf-lib copies the page as it is). Test added; outputs unchanged.
