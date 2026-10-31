@@ -6,6 +6,7 @@ import type { ReportCheckPlace } from '../../report/checks.ts'
 export function reportPlaceId(place: ReportCheckPlace): string {
   if (place.kind === 'component') return `report-component-${place.id}`
   if (place.kind === 'scan') return `report-scan-${idKey(place.scanId).replace(/\s+/g, '_')}`
+  if (place.kind === 'picture') return place.at.kind === 'photo' ? `report-photo-${place.at.index}` : `report-picture-${place.at.kind}`
   return `report-reading-${place.index}`
 }
 

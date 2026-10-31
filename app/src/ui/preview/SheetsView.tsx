@@ -22,7 +22,7 @@ function pathData(ops: readonly PathOp[], H: number): string {
 }
 
 /** minW = one screen pixel in paper inches (thin lines never drawn fainter than a pixel); soft = softer colors. */
-function Step({ s, H, thumbs, minW, soft }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string>; minW: number; soft: boolean }) {
+export function Step({ s, H, thumbs, minW, soft }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string>; minW: number; soft: boolean }) {
   if (s.kind === 'path') {
     // Inline styles: the drawing view's CSS (theme colors, hairlines that keep their screen width) must not apply here.
     return <path d={pathData(s.ops, H)} style={{ fill: s.fill ? printCss(s.style.color, soft) : 'none', fillOpacity: s.style.opacity, stroke: printCss(s.style.color, soft), strokeWidth: Math.max(s.style.weight, minW), strokeOpacity: s.style.opacity, vectorEffect: 'none' }} />

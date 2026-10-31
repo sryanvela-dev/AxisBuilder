@@ -7,12 +7,15 @@ import { formatNumber } from '../data/parse.ts'
 import { idKey, type Project } from '../data/schema.ts'
 import { jobLadder, readingRows, scanRows } from './calc/results.ts'
 import { wallLossPercent } from './calc/ladder.ts'
+import { imageItems, type ImagePlace } from './imageItems.ts'
 import { bandsOf } from './report.ts'
 
 export type ReportCheckPlace =
   | { kind: 'component'; id: string }
   | { kind: 'scan'; scanId: string }
   | { kind: 'reading'; index: number }
+  /** A report picture (photo, cover, screenshot, ...): its place in the report. */
+  | { kind: 'picture'; at: ImagePlace }
 
 export interface ReportCheck {
   severity: 'error' | 'warning'
@@ -29,6 +32,14 @@ export function checkReport(p: Project): ReportCheck[] {
   if (!report) return []
   const out: ReportCheck[] = []
   const ladder = jobLadder(report)
+
+  // Redaction boxes need the pixels removed in the PDF (R5); until then they are not applied.
+  for (const it of imageItems(report)) {
+    if (it.file && it.edits.markup.some((m) => m.kind === 'redaction')) {
+      out.push({ severity: 'warning', place: { kind: 'picture', at: it.place }, text: `${it.file} has a redaction box: redaction comes in a later version, so the PDF does not hide that part yet.`,
+        fix: 'Leave the picture out until then if what it covers must not be seen.' })
+    }
+  }
 
   // A component with no nominal.
   for (const c of report.components) {

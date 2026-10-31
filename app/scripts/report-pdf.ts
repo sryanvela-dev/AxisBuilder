@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { openProject } from '../src/data/projectFile.ts'
 import type { Project } from '../src/data/schema.ts'
-import { exportBaseName } from '../src/export/files.ts'
+import { reportPdfName } from '../src/export/files.ts'
 import { buildReport } from '../src/report/pages/index.ts'
 import { writeReportPdf } from '../src/report/pdf/writeReportPdf.ts'
 import { sampleWithReport } from '../test/report/pages/fixture.ts'
@@ -58,7 +58,7 @@ const doc = buildReport({ project, image: files.image, pdfPages: () => null })
 const sheetPhotos = await sheetPhotosFor(project, doc, job ? arg('--drawing-photos') : samplePhotos, project.settings.pdfPhotoDpi)
 const bytes = await writeReportPdf({ doc, fonts: REPORT_FONTS, drawingFont: DRAWING_FONT, images: files.prepared(doc), sheetPhotos, pdfs: new Map() })
 mkdirSync(out, { recursive: true })
-const name = `${exportBaseName(project.project.projectName || 'Report')} - AUT Report.pdf`
+const name = reportPdfName(project.project.projectName || 'Report')
 writeFileSync(join(out, name), bytes)
 console.log(`${join(out, name)}: ${doc.pages.length} pages, ${(bytes.length / 1024 / 1024).toFixed(2)} MB`)
 for (const n of doc.notes) console.log(`  - ${n}`)

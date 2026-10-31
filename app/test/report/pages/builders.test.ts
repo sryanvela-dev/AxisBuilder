@@ -92,7 +92,7 @@ describe('report pages: the whole report', () => {
     const all = d.pages.map(pageText).join(' ')
     expect(all).toContain('No screenshot')
     expect(all).not.toMatch(/click/i)
-    expect(d.notes.some((n) => n.includes('Scan 1 has no data-page screenshot'))).toBe(true)
+    expect(d.notes.some((n) => n.includes('Scan 1 has no data-page screenshot yet'))).toBe(true)
   })
 
   it('drawings: the rollout and the scan overlay as vector sheets fitted in the content area', () => {

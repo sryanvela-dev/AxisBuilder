@@ -12,6 +12,14 @@ import { COLORS, F, ladderInk, lineHeight, rect, runItems, text, titledBox, wrap
 import { FIGURE_FIELDS, inch, pct, scanNumber, textParagraphs, textValues, thousands, type TextValues } from './values.ts'
 
 const SIZE = 9.5
+
+/** A text field in plain words, for the notes ("the transducer" for every transducer value). */
+function fieldWords(k: TextField): string {
+  if (k.startsWith('transducer')) return 'the transducer (Calibration)'
+  if (k === 'incrX' || k === 'incrY') return 'the scan increments (Calibration)'
+  const words: Partial<Record<TextField, string>> = { purpose: 'the purpose (Summary)', areaCovered: 'the area covered (Summary)', limitations: 'the limitations (Summary)', equipment: 'the Equipment ID', nominal: 'the nominal' }
+  return words[k] ?? k
+}
 const PARA_GAP = 0.09
 
 /** A paragraph as runs: the template's words plain, the filled-in figures bold and coloured. */
@@ -117,8 +125,9 @@ export const buildScopeSummary: PageBuilder = (c, def, title) => {
   const paras = (part: 'scope' | 'summary') => {
     const list = textParagraphs(c.p, c.r, c.t, part, tv)
     for (const p of list.filter((x) => !x.complete)) {
-      const missing = (p.template.match(/\{\w+\}/g) ?? []).filter((k) => tv.values[k.slice(1, -1) as TextField] === undefined)
-      c.notes.push(`${part === 'scope' ? 'Scope' : 'Summary'}: "${p.block?.label ?? 'text'}" left out until ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} filled in.`)
+      const keys = (p.template.match(/\{\w+\}/g) ?? []).map((k) => k.slice(1, -1) as TextField).filter((k) => tv.values[k] === undefined)
+      const missing = [...new Set(keys.map(fieldWords))]
+      c.notes.push(`${part === 'scope' ? 'Scope' : 'Summary'}: the "${p.block?.label ?? 'text'}" sentence is left out until ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} filled in.`)
     }
     return list.filter((x) => x.complete).map((x) => (x.block ? runsOf(x.template, tv) : [{ text: x.text, font: F.body, color: COLORS.text }]))
   }

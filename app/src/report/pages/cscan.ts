@@ -63,10 +63,14 @@ export const buildCscans: PageBuilder = (c, def) => {
     const shotArea = { x: area.x, y: area.y, w: area.w - SIDE - 0.17, h: area.h }
     const ref = row.result?.dataImage ? { source: 'screenshots' as const, file: row.result.dataImage } : null
     const shot = placeImage(c, ref, row.result?.dataImageEdits ?? NO_EDITS, shotArea, 'No screenshot', 'top', true)
-    if (!ref) c.notes.push(`${title} has no data-page screenshot ("No screenshot" prints).`)
     const items: PageItem[] = [...shot.items, ...cscanBoxes(row.comment?.text ?? '', scanStats(c, row), { x: area.x + area.w - SIDE, y: area.y, w: SIDE, h: area.h })]
     return standardPage(c, def, title, title, scanSubtitle(row), items)
   })
+  const none = rows.filter((r) => !r.result?.dataImage).map((r) => scanTitle(r.scan.id))
+  if (none.length) {
+    const who = none.length === rows.length ? 'No scan has a' : `${none.join(', ')} ${none.length === 1 ? 'has' : 'have'} no`
+    c.notes.push(`${who} data-page screenshot yet ("No screenshot" prints).`)
+  }
   const bookmarks: Bookmark[] = rows.map((r, i) => ({ title: scanTitle(r.scan.id), page: i, children: [] }))
   return { pages, bookmarks }
 }

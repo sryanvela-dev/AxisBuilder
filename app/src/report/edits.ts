@@ -8,13 +8,17 @@ import { npsForDiameter } from './calc/pipeWalls.ts'
 import { createReport, headComponentId, linkedRow } from './report.ts'
 import {
   componentSchema,
+  photoSchema,
   readingSchema,
   scanResultSchema,
   type Component,
   type ComponentKind,
   type NozzleListKey,
+  type Photo,
+  type PhotosPerPage,
   type Reading,
   type Report,
+  type Rotation,
   type ScanResult,
 } from './schema.ts'
 import { DEFAULT_TEMPLATE_ID, templateOf } from './templates/registry.ts'
@@ -390,4 +394,64 @@ export function addNozzleReadings(p: Project, nozzles: readonly NozzlePick[], po
   const at = reportRowsEnd(r.readings)
   const readings = [...r.readings.slice(0, at), ...rows, ...r.readings.slice(at)]
   return { project: { ...p, report: { ...r, readings } }, added: rows.length, skipped }
+}
+
+// --- Photos (R3: the photo list of the Photos and pages step) ---------------------------------------
+
+/** Adds photos by file name at the end; names already in the list are skipped. */
+export function addPhotos(p: Project, files: readonly string[]): Project {
+  return withReport(p, (r) => {
+    const have = new Set(r.photos.map((x) => x.file.toLowerCase()))
+    const add = files.filter((f, i) => f.trim() && !have.has(f.toLowerCase()) && files.findIndex((g) => g.toLowerCase() === f.toLowerCase()) === i)
+    return add.length ? { ...r, photos: [...r.photos, ...add.map((file) => photoSchema.parse({ file }))] } : r
+  })
+}
+
+export function setPhoto(p: Project, index: number, change: Partial<Pick<Photo, 'caption' | 'alone'>>): Project {
+  return withReport(p, (r) => {
+    const x = r.photos[index]
+    if (!x || Object.entries(change).every(([k, v]) => same(x[k as keyof Photo], v))) return r
+    return { ...r, photos: r.photos.map((ph, i) => (i === index ? { ...ph, ...change } : ph)) }
+  })
+}
+
+/** Turns a photo a quarter: right = clockwise, left = anticlockwise (on top of its phone orientation). */
+export function rotatePhoto(p: Project, index: number, dir: 'left' | 'right'): Project {
+  return withReport(p, (r) => {
+    const x = r.photos[index]
+    if (!x) return r
+    const rotate = (((x.rotate + (dir === 'right' ? 90 : 270)) % 360) as Rotation)
+    return { ...r, photos: r.photos.map((ph, i) => (i === index ? { ...ph, rotate } : ph)) }
+  })
+}
+
+export function removePhoto(p: Project, index: number): Project {
+  return withReport(p, (r) => (r.photos[index] ? { ...r, photos: r.photos.filter((_, i) => i !== index) } : r))
+}
+
+/** Moves a photo so it ends up at `to` (arrows or dragging, as Manual UT rows). */
+export function movePhotoTo(p: Project, from: number, to: number): Project {
+  return withReport(p, (r) => {
+    const n = r.photos.length
+    if (from < 0 || from >= n || to < 0 || to >= n || from === to) return r
+    const photos = r.photos.slice()
+    const [moved] = photos.splice(from, 1)
+    photos.splice(to, 0, moved)
+    return { ...r, photos }
+  })
+}
+
+/** Photos per page of a photo section; the template's own default removes the job's choice. */
+export function setPhotosPerPage(p: Project, sectionId: string, value: PhotosPerPage): Project {
+  return withReport(p, (r) => {
+    const def = sectionDef(r, sectionId)
+    const fallback = def?.options?.perPage
+    const isDefault = value === (fallback === 1 || fallback === 2 || fallback === 4 ? fallback : 'auto')
+    const own = r.options.photosPerPage
+    if (isDefault ? !(sectionId in own) : own[sectionId] === value) return r
+    const next = { ...own }
+    if (isDefault) delete next[sectionId]
+    else next[sectionId] = value
+    return { ...r, options: { ...r.options, photosPerPage: next } }
+  })
 }

@@ -4,8 +4,8 @@
 // gets the page to itself; a lone photo of either shape fills the page. "Own page" (alone) always prints alone.
 
 import { uprightSize, visibleAspect, type PageItem, type Rect } from '../pageModel.ts'
-import type { Photo, PhotosPerPage } from '../schema.ts'
-import { content, placeImage, standardPage, type BuildContext, type PageBuilder } from './common.ts'
+import type { Photo, PhotosPerPage, Report } from '../schema.ts'
+import { content, placeImage, standardPage, type PageBuilder } from './common.ts'
 import { COLORS, F, fitBox, textBlock } from './layout.ts'
 
 const GAP = 0.25
@@ -70,15 +70,16 @@ export function photoPages(photos: readonly { aspect: number; alone: boolean }[]
   return pages
 }
 
-export function perPageOf(c: BuildContext, sectionId: string, templateDefault: unknown): PhotosPerPage {
-  const own = c.r.options.photosPerPage[sectionId]
+/** Photos per page of a photo section: the job's choice, else the template's option, else Automatic. */
+export function perPageOf(r: Report, sectionId: string, templateDefault: unknown): PhotosPerPage {
+  const own = r.options.photosPerPage[sectionId]
   if (own !== undefined) return own
   return templateDefault === 1 || templateDefault === 2 || templateDefault === 4 ? templateDefault : 'auto'
 }
 
 export const buildPhotos: PageBuilder = (c, def, title) => {
   const area = content()
-  const perPage = perPageOf(c, def.id, def.options?.perPage)
+  const perPage = perPageOf(c.r, def.id, def.options?.perPage)
   const photos: (Photo & { aspect: number })[] = c.r.photos.map((ph) => {
     const info = c.image({ source: 'photos', file: ph.file })
     return { ...ph, aspect: info ? visibleAspect(uprightSize(info), ph.crop, ph.rotate) : 4 / 3 }
