@@ -1,11 +1,14 @@
-// Photos and pages, R3 minimum (design "Photos: markup, crop, labels"): the report's photos from the report photo
-// folder or picked as files, each with its thumbnail (phone orientation applied), caption, "own page", a quarter turn
-// left or right, moved by the arrows or by dragging the handle (as Manual UT rows), removed; and Photos per page of
-// each photo section. The crop tool, custom sheets, reference pages and markup come later (R4 / R5).
+// Photos and pages (design 5 step 5, 4.5 - 4.9, 14): the report's photos from the report photo folder or picked as
+// files, each with its thumbnail (phone orientation applied), caption, "own page", crop, a quarter turn left or right,
+// moved by the arrows or by dragging the handle (as Manual UT rows), removed; Photos per page of each photo section; the
+// drawings to include; custom sheets (CustomSheets.tsx); reference pages from pictures and PDFs (Uploads.tsx). Each part
+// has its section's "in the report" switch. Markup comes with R5.
 
 import { useMemo, useState } from 'react'
 import { IMAGE_EXTENSIONS } from '../../data/imageMatch.ts'
-import { addPhotos, dropTarget, movePhotoTo, removePhoto, rotatePhoto, setPhoto, setPhotosPerPage } from '../../report/edits.ts'
+import { addPhotos, dropTarget, movePhotoTo, removePhoto, rotatePhoto, sectionOn, sectionTitle, setPhoto, setPhotosPerPage, setReportValue, setSectionOn } from '../../report/edits.ts'
+import { activeSectionPlan } from '../../engine/sections.ts'
+import type { PageTypeId } from '../../report/templates/types.ts'
 import { PHOTOS_PER_PAGE, type PhotosPerPage } from '../../report/schema.ts'
 import { templateOf } from '../../report/templates/registry.ts'
 import { IMAGE_ACCEPT, rememberFile } from '../../state/files.ts'
@@ -14,6 +17,9 @@ import { plural } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
 import { Thumb } from '../ImageFolderPanel.tsx'
 import { ReportBox, ReportCheckbox, ReportSelect } from './boxes.tsx'
+import { CustomSheets } from './CustomSheets.tsx'
+import { CropButton } from './PictureWindow.tsx'
+import { Uploads } from './Uploads.tsx'
 import { ReportFolderBar } from './FilePick.tsx'
 import { perPageOf } from '../../report/pages/photos.ts'
 import { photoSlot, refKey } from './reportFiles.ts'
@@ -63,6 +69,7 @@ export function PhotosStep({ status }: ReportStepProps) {
       <ReportStepIssues status={status} />
       <section aria-labelledby="photos-head">
         <h2 id="photos-head">Photos</h2>
+        <SectionSwitch pageType="photos" />
         <p className="muted">
           Photos print in this order, each keeping its shape, with its caption under it. Phone photos stored sideways print upright; turn one by hand
           with ⟲ / ⟳. Files are linked by name, never copied into the job file.
@@ -87,14 +94,61 @@ export function PhotosStep({ status }: ReportStepProps) {
         ))}
         <PhotoTable />
       </section>
-      <section aria-labelledby="pages-later">
-        <h2 id="pages-later">More pages</h2>
-        <p className="coming-soon">
-          Coming later: cropping photos and marking them up (arrows, boxes, labels), custom sheets, reference pages from pictures or PDFs, and which drawings go
-          in. The Drawings section prints the rollout, the scan overlay and any section sheets for now.
-        </p>
+      <section aria-labelledby="drawings-head">
+        <h2 id="drawings-head">Drawings</h2>
+        <SectionSwitch pageType="drawing" />
+        <Drawings />
       </section>
+      <section aria-labelledby="sheets-head">
+        <h2 id="sheets-head">Custom sheets</h2>
+        <SectionSwitch pageType="custom" />
+        <CustomSheets />
+      </section>
+      <section aria-labelledby="uploads-head">
+        <h2 id="uploads-head">Reference pages</h2>
+        <SectionSwitch pageType="uploaded" />
+        <Uploads />
+      </section>
+      <p className="coming-soon">Coming later (R5): marking pictures up (arrows, boxes, labels, redaction).</p>
     </>
+  )
+}
+
+/** A section's "in the report" switch, on the part of the step that fills it (Review's "Go to" for an empty section lands here). */
+function SectionSwitch({ pageType }: { pageType: PageTypeId }) {
+  const app = useApp()
+  const report = app.state.job!.history.present.report!
+  const def = templateOf(report.templateId).sections.find((d) => d.pageType === pageType)
+  if (!def || !def.optional) return null
+  const own = report.sections[def.id]?.on
+  return (
+    <div id={`report-section-${def.id}`} className="section-switch">
+      <ReportCheckbox label={`"${sectionTitle(report, def)}" in the report`} value={sectionOn(report, def)}
+        help={def.defaultOn === 'whenAny' && own === undefined ? 'On as soon as there is something to print.' : undefined}
+        set={(q, on: boolean) => setSectionOn(q, def.id, on)} boxKey={`report.sections.${def.id}.on`} step={STEP} />
+    </div>
+  )
+}
+
+/** Which drawings the Drawings section prints (design 4.9 options.drawings). */
+function Drawings() {
+  const app = useApp()
+  const p = app.state.job!.history.present
+  const o = p.report!.options.drawings
+  const plan = activeSectionPlan(p)
+  const overlayUsable = p.settings.generateOverlayDrawing && p.scans.length > 0
+  return (
+    <div className="field-grid">
+      <ReportCheckbox label="Rollout drawing" value={o.rollout} help="The main sheet with the scans hatched (no photos)."
+        set={(q, v: boolean) => setReportValue(q, ['options', 'drawings', 'rollout'], v)} boxKey="report.options.drawings.rollout" step={STEP} />
+      <ReportCheckbox label="Scan overlay drawing" value={o.overlay} disabled={!overlayUsable}
+        help={overlayUsable ? 'The main sheet with the scan photos and outlines.' : 'Needs scans and "Use scan images" (Images step).'}
+        set={(q, v: boolean) => setReportValue(q, ['options', 'drawings', 'overlay'], v)} boxKey="report.options.drawings.overlay" step={STEP} />
+      <ReportSelect label="Section sheets" value={o.sections}
+        options={[{ value: 'as drawing', label: plan ? `As the drawing (${plan.sections.length} + overview)` : 'As the drawing (none now)' }, { value: 'off', label: 'Off' }]}
+        help="The overview and section sheets of the Drawing step's Section sheets, when they are on there."
+        set={(q, v: string) => setReportValue(q, ['options', 'drawings', 'sections'], v)} boxKey="report.options.drawings.sections" step={STEP} />
+    </div>
   )
 }
 
@@ -231,6 +285,7 @@ function PhotoTable() {
                 <span className="button-row row-buttons">
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a photo left', (q) => rotatePhoto(q, i, 'left'))} aria-label={`Turn ${label} left`} title="Turn left (a quarter, anticlockwise)">⟲</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a photo right', (q) => rotatePhoto(q, i, 'right'))} aria-label={`Turn ${label} right`} title="Turn right (a quarter, clockwise)">⟳</button>
+                  <CropButton small at={{ kind: 'photo', index: i }} picture={{ source: 'photos', file: ph.file }} name={`photo ${i + 1}`} />
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a photo', (q) => movePhotoTo(q, i, i - 1))} disabled={i === 0} aria-label={`Move ${label} up`} title="Move up">↑</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a photo', (q) => movePhotoTo(q, i, i + 1))} disabled={i === list.length - 1} aria-label={`Move ${label} down`} title="Move down">↓</button>
                   <button type="button" className="icon-btn icon-danger" onClick={() => app.edit('Remove a photo', (q) => removePhoto(q, i))} aria-label={`Remove ${label}`} title="Remove from the report (the file stays)">✕</button>

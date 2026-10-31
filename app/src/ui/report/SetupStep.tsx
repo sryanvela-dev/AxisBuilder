@@ -394,5 +394,10 @@ function Sections() {
 function CoverPhoto() {
   const app = useApp()
   const report = app.state.job!.history.present.report!
-  return <PhotoPick label="Cover photo" slot="coverPhoto" value={report.coverPhoto} set={(q, f) => setReportValue(q, ['coverPhoto'], f)} />
+  return (
+    <div id="report-picture-cover">
+      <PhotoPick label="Cover photo" slot="coverPhoto" value={report.coverPhoto} set={(q, f) => setReportValue(q, ['coverPhoto'], f)}
+        crop={report.coverPhoto ? { at: { kind: 'cover' }, picture: { source: 'cover', file: report.coverPhoto } } : undefined} />
+    </div>
+  )
 }

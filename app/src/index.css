@@ -3010,3 +3010,213 @@ svg.report-page .report-paper {
   background: var(--input-bg);
   white-space: pre-wrap;
 }
+
+.dialog:has(.compare-texts) {
+  width: min(880px, 100%);
+}
+
+/* --- Report Photos and pages: picture window, crop tool, custom sheets, reference pages -------- */
+
+.picture-window {
+  width: min(960px, 100%);
+}
+
+.crop-bar {
+  align-items: center;
+  margin: 8px 0;
+}
+
+.check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crop-stage {
+  max-width: 100%;
+  margin: 0 auto;
+  background: #1c232b;
+  touch-action: none;
+}
+
+.crop-stage svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.crop-shade {
+  fill: rgb(0 0 0 / 0.55);
+  pointer-events: none;
+}
+
+.crop-box {
+  fill: transparent;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  cursor: move;
+}
+
+.crop-box:focus-visible {
+  outline: none;
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+
+.crop-thirds line {
+  stroke: rgb(255 255 255 / 0.35);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.crop-handle {
+  fill: #ffffff;
+  stroke: #1f3a5f;
+  stroke-width: 1.5;
+}
+
+.crop-handle-nw,
+.crop-handle-se {
+  cursor: nwse-resize;
+}
+
+.crop-handle-ne,
+.crop-handle-sw {
+  cursor: nesw-resize;
+}
+
+.crop-handle-n,
+.crop-handle-s {
+  cursor: ns-resize;
+}
+
+.crop-handle-e,
+.crop-handle-w {
+  cursor: ew-resize;
+}
+
+.crop-info {
+  margin: 6px 0 0;
+}
+
+.view-crop-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 11 / 8.5;
+  max-height: 64vh;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.view-crop-stage > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.view-crop-overlay {
+  pointer-events: none;
+}
+
+.view-crop-overlay .crop-box {
+  stroke: #d62828;
+  stroke-width: 2;
+}
+
+.section-switch {
+  margin: 4px 0 8px;
+}
+
+.sheet-card {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.sheet-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.sheet-card-head .field-grid {
+  flex: 1;
+}
+
+.block-list {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.block-list > li {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.block-list > li.block-left-out {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.block-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.block-head .button-row {
+  margin: 0 0 0 auto;
+}
+
+.add-block {
+  align-items: center;
+}
+
+.pdf-page-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  max-height: 60vh;
+  overflow: auto;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pdf-page-picker label {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pdf-page-picker label.picked {
+  border-color: var(--accent);
+  background: var(--kind-changed);
+}
+
+.pdf-page-picker img,
+.pdf-page-empty {
+  max-width: 130px;
+  max-height: 170px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.pdf-page-empty {
+  display: grid;
+  place-items: center;
+  width: 110px;
+  height: 140px;
+  color: #7a8594;
+}

@@ -182,7 +182,10 @@ export function CalibrationStep({ status }: ReportStepProps) {
       </Group>
 
       <Group title="Dynamic calibration screenshot" intro="Pick the screenshot itself, whatever it is called.">
-        <PhotoPick label="Dynamic calibration screenshot" slot="dynamicImage" value={cal.dynamicImage} set={(q, f) => setReportValue(q, ['calibration', 'dynamicImage'], f)} />
+        <div id="report-picture-calibration">
+          <PhotoPick label="Dynamic calibration screenshot" slot="dynamicImage" value={cal.dynamicImage} set={(q, f) => setReportValue(q, ['calibration', 'dynamicImage'], f)}
+            crop={cal.dynamicImage ? { at: { kind: 'calibration' }, picture: { source: 'calibration', file: cal.dynamicImage } } : undefined} />
+        </div>
       </Group>
 
       <Group id="report-field-temperature" title="Temperature correction" intro="UT x (1.007 - 0.0001 x T°F), applied to Min 'T' and Avg 'T' before wall loss, everywhere in the report.">

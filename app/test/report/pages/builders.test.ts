@@ -304,9 +304,22 @@ describe('report pages: custom sheets and uploads', () => {
     expect(pageText(boot)).toContain('Boot photo')
     expect(pageText(boot)).toContain('Boot scanned by hand.')
     const detail = d.pages[after]
-    expect(detail.items.some((i) => i.t === 'sheet')).toBe(true)
+    // The main drawing and head 1 alone (its own sheet: the head's items only, nothing next to it).
+    const sheets = detail.items.filter((i) => i.t === 'sheet')
+    expect(sheets).toHaveLength(2)
+    const [main, head] = sheets as Extract<(typeof detail.items)[number], { t: 'sheet' }>[]
+    expect(head.model.drawing.length).toBeLessThan(main.model.drawing.length / 3)
+    expect(head.model.drawing.some((x) => x.t === 'text' && x.text === p.settings.head1Label.toUpperCase())).toBe(true)
+    expect(head.model.drawing.some((x) => x.t === 'text' && x.text === p.settings.head2Label.toUpperCase())).toBe(false)
     expect(pageText(detail)).toContain('Minimum thickness')
-    expect(pageText(detail)).toContain('View not available')
+    expect(pageText(detail)).not.toContain('View not available')
+    // A head the drawing doesn't draw prints a placeholder and a note.
+    const none = build(sampleWithReport((q) => {
+      q.settings.headViewMode = 'NONE'
+      q.report!.customSheets = [customSheetSchema.parse({ id: 's', title: 'Head', blocks: [{ kind: 'view', view: 'head2' }] })]
+    }))
+    expect(pageText(none.pages.find((x) => x.label === 'Head')!)).toContain('View not available')
+    expect(none.notes).toContain("A custom sheet's head 2 view is not in the drawing; a placeholder prints.")
     expect(d.contents.map((e) => e.title)).toEqual(expect.arrayContaining(['Head 1 detail', 'Custom Sheets']))
   })
 

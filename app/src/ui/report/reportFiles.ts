@@ -1,5 +1,5 @@
 // The report's pictures in the browser: where each is read from (the report photo folder or a photo picked as a file,
-// the screenshots folder, the remembered cover and calibration files, the app's logo), their size and phone (EXIF)
+// the screenshots folder, the remembered cover, calibration and uploaded files, the app's logo), their size and phone (EXIF)
 // orientation for the page builders, upright thumbnails for the Pages view, and the pictures made ready for the PDF
 // (turned upright, cut to their crop, at about 300 dpi of their printed size; never more than the file has).
 
@@ -39,6 +39,8 @@ export const refKey = (r: ImageRef) => `${r.source}|${r.file}`
 
 /** A photo picked as a file (not from the folder) is remembered per job under this slot. */
 export const photoSlot = (name: string): FileSlot => `photo:${name}`
+/** An uploaded reference page (picture or PDF) is remembered per job under this slot. */
+export const uploadSlot = (name: string): FileSlot => `upload:${name}`
 
 async function remembered(src: ReportFileSources, slot: FileSlot, name: string): Promise<File | null> {
   const h = await recallFile(src.store, src.jobId, slot).catch(() => null)
@@ -67,9 +69,20 @@ export async function readReportFile(src: ReportFileSources, ref: ImageRef): Pro
         return await remembered(src, 'coverPhoto', ref.file)
       case 'calibration':
         return await remembered(src, 'dynamicImage', ref.file)
+      case 'uploads':
+        return await readUploadFile(src, ref.file)
       default:
         return null
     }
+  } catch {
+    return null
+  }
+}
+
+/** An uploaded file (picture or PDF): picked as a file and remembered, else from the report photo folder. */
+export async function readUploadFile(src: ReportFileSources, name: string): Promise<File | null> {
+  try {
+    return (await remembered(src, uploadSlot(name), name)) ?? (src.photos?.names.includes(name) ? await src.photos.getFile(name) : null)
   } catch {
     return null
   }
@@ -163,7 +176,12 @@ export async function allowReportFiles(src: ReportFileSources, r: Report): Promi
   if (r.coverPhoto) slots.push(['coverPhoto', r.coverPhoto])
   if (r.calibration.dynamicImage) slots.push(['dynamicImage', r.calibration.dynamicImage])
   for (const p of r.photos) if (!src.photos?.names.includes(p.file)) slots.push([photoSlot(p.file), p.file])
+  for (const sh of r.customSheets) for (const b of sh.blocks) if (b.kind === 'image' && !src.photos?.names.includes(b.file)) slots.push([photoSlot(b.file), b.file])
+  for (const u of r.uploads) slots.push([uploadSlot(u.file), u.file])
+  const seen = new Set<string>()
   for (const [slot, name] of slots) {
+    if (seen.has(slot)) continue
+    seen.add(slot)
     const h = await recallFile(src.store, src.jobId, slot).catch(() => null)
     if (!h || h.name !== name) continue
     try {

@@ -1,11 +1,13 @@
 // Custom sheets (design 4.6, 6.10): one page per sheet in the standard frame with the sheet's title, its blocks
 // filling the layout's slots in order: 1 large, 2 side by side, 2 + side panel, 4 grid. Blocks: a picture with its
 // caption, an AxisBuilder view (main drawing, a section sheet or a part of the main sheet), C-scan style boxes, text, a
-// small table. The screens that make them come in R4; the pages work now.
+// small table. A head view is that head alone (its outline, title, nozzles and MUT readings) drawn as the main sheet
+// draws it, so nothing next to it on the sheet shows.
 
-import { buildDrawing } from '../../engine/drawing.ts'
+import { buildDrawing, type Drawing } from '../../engine/drawing.ts'
+import type { Project } from '../../data/schema.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
-import { sheetModels, type SheetModel } from '../../engine/sheetModel.ts'
+import { mainSheet, sheetModels, type SheetModel } from '../../engine/sheetModel.ts'
 import { scanRows } from '../calc/results.ts'
 import { fontBox } from '../fonts.ts'
 import type { PageItem, Rect } from '../pageModel.ts'
@@ -38,9 +40,22 @@ export function sheetSlots(layout: CustomSheet['layout'], area: Rect): Rect[] {
   }
 }
 
+/** One head view as a sheet of its own (null when the drawing does not draw that head). */
+export function headSheet(p: Project, d: Drawing, head: 'HEAD 1' | 'HEAD 2', hidden: BuildContext['previewHidden']): SheetModel | null {
+  const mine = (list: 'headNozzles' | 'headMut', i: number) => p[list][i]?.head === head
+  const items = d.items.filter((it) => it.key === `head:${head}` || ((it.source?.list === 'headNozzles' || it.source?.list === 'headMut') && mine(it.source.list, it.source.index)))
+  if (!items.some((it) => it.key === `head:${head}`)) return null
+  return mainSheet(p, { ...d, items }, { hidden })
+}
+
 function viewModel(c: BuildContext, view: Extract<Block, { kind: 'view' }>['view']): { model: SheetModel; region?: { x: number; y: number; w: number; h: number } } | null {
-  const models = sheetModels(c.p, buildDrawing(c.p), activeSectionPlan(c.p), { hidden: c.previewHidden })
+  const drawing = buildDrawing(c.p)
+  const models = sheetModels(c.p, drawing, activeSectionPlan(c.p), { hidden: c.previewHidden })
   if (view === 'main') return { model: models[0] }
+  if (view === 'head1' || view === 'head2') {
+    const m = headSheet(c.p, drawing, view === 'head1' ? 'HEAD 1' : 'HEAD 2', c.previewHidden)
+    return m ? { model: m } : null
+  }
   if (typeof view === 'string' && view.startsWith('section:')) {
     const n = Number(view.slice('section:'.length))
     const m = models.find((x) => x.section?.n === n)
@@ -65,7 +80,7 @@ function blockItems(c: BuildContext, b: Block, slot: Rect): PageItem[] {
     case 'view': {
       const v = viewModel(c, b.view)
       if (!v) {
-        c.notes.push(`A custom sheet's ${typeof b.view === 'string' ? b.view : 'drawing'} view is not available yet; a placeholder prints.`)
+        c.notes.push(`A custom sheet's ${b.view === 'head1' ? 'head 1' : b.view === 'head2' ? 'head 2' : typeof b.view === 'string' ? b.view.replace(':', ' sheet ') : 'drawing'} view is not in the drawing; a placeholder prints.`)
         return placeholder(slot, 'View not available')
       }
       if (!v.region) return [sheetItem(v.model, slot)]

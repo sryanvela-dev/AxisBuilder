@@ -36,7 +36,7 @@ import { ReportContext, type ReportShared } from './reportContext.ts'
 import { ResultsStep } from './ResultsStep.tsx'
 import { SetupStep } from './SetupStep.tsx'
 import { SummaryStep } from './SummaryStep.tsx'
-import { useReportDocument, useReportPictures } from './useReportPages.ts'
+import { useReportDocument, useReportPictures, useUploadPdfs } from './useReportPages.ts'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -98,14 +98,22 @@ export function ReportWorkspace() {
   const project = job.history.present
   const sources = useMemo(() => ({ photos: photos.photoFolder, screenshots: screenshots.photoFolder, store: app.browserStore, jobId: project.jobId }),
     [photos.photoFolder, screenshots.photoFolder, app.browserStore, project.jobId])
-  const { pictures, retry, loading } = useReportPictures(project, sources)
+  const { pictures: imagePictures, retry: retryPictures, loading } = useReportPictures(project, sources)
+  const [pdfRetries, setPdfRetries] = useState(0)
+  const pdfs = useUploadPdfs(project, sources, pdfRetries)
+  // Uploaded PDF pages are drawn in the Pages view like pictures (pdfPageKey).
+  const pictures = useMemo(() => (pdfs.pages.size ? new Map([...imagePictures, ...pdfs.pages]) : imagePictures), [imagePictures, pdfs.pages])
+  const retry = useCallback(() => {
+    retryPictures()
+    setPdfRetries((n) => n + 1)
+  }, [retryPictures])
   const prefs = usePreviewPrefs()
   const previewHidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
-  const doc = useReportDocument(project, pictures, previewHidden)
+  const doc = useReportDocument(project, pictures, previewHidden, pdfs.info)
   const drawingPhotos = useJobFolders().photos
   const sheetThumbs = usePhotoThumbs(project, drawingPhotos.photoFolder, project.settings.generateOverlayDrawing)
-  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists, pages: { doc, pictures, sources, retry } }),
-    [photos, screenshots, lists, changeLists, doc, pictures, sources, retry])
+  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists, pages: { doc, pictures, sources, retry, pdfInfo: pdfs.info } }),
+    [photos, screenshots, lists, changeLists, doc, pictures, sources, retry, pdfs.info])
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     page.current?.scrollTo(0, 0)
