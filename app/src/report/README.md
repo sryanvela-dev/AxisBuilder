@@ -4,7 +4,7 @@ The AUT report module (design: `app/docs/report-design.md`). Kept apart from the
 data (job fields, scans, MUT rows, nozzles, coverage) and never copies it.
 
 Phase R1 (data, templates, calculations, import; no screens or PDF yet):
-- `schema.ts`: the report data under the project file's `report` key (format 7): components, report-only job fields,
+- `schema.ts`: the report data under the project file's `report` key (format 7; picture edits in format 8): components, report-only job fields,
   calibration, scan results, manual readings, photos, custom sheets, uploads, text, sections, options.
 - `report.ts`: starting a report (`createReport`), which component a scan or reading belongs to, linked MUT rows.
 - `sync.ts`: `syncReport`, run after every edit (state/session.ts): results and readings follow renamed, sorted and
@@ -22,4 +22,10 @@ Phase R2 (the Report workspace screens, in `ui/report/`):
 - `savedLists.ts`: saved lists per computer (browser storage, never in the .axb), with file export / import.
 - `readingPaste.ts`: manual readings pasted from Excel (column match, report rows only).
 
-Later phases add `pageModel.ts`, `pages/`, `pdf/` (R3).
+Phase R3 (pages and the PDF):
+- `fonts.ts` + `fontMetrics.generated.ts`: the brand fonts' widths, text wrapping and fitting.
+- `imageInfo.ts`: size and EXIF orientation of a JPEG or PNG; `imageItems.ts`: every picture with its edits (format 8).
+- `pageModel.ts`: the export-neutral pages (inches, y down) and the picture geometry (EXIF, turn, crop).
+- `marks.ts`: picture marks as vector items.
+- `pages/`: `buildReport` and one builder per page type (`layout.ts` holds the style and the standard frame).
+- `pdf/writeReportPdf.ts`: the page model as a PDF (pdf-lib).

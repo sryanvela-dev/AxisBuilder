@@ -1,7 +1,7 @@
 // Writes a report PDF outside the browser, to look at (never into the repo):
 //   npm run report:pdf -- --out "<folder>"
 // prints the V-100 sample with a made-up report (photos from public/sample-photos plus a made-up sideways phone
-// photo). A saved job can be printed instead, with its folders:
+// photo; --screenshots "<dir>" adds data-page screenshots named "Scan 1.png" ...). A saved job can be printed instead:
 //   npm run report:pdf -- --out "<folder>" --job "<job.axb>" [--photos "<dir>"] [--screenshots "<dir>"]
 //     [--cover "<dir>"] [--calibration "<dir>"] [--uploads "<dir>"] [--drawing-photos "<dir>"]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -50,7 +50,7 @@ if (job) {
       { file: 'S4.jpg', caption: 'Turned a quarter', alone: true, crop: null, rotate: 90, adjust: { autoLevels: false }, markup: [] },
     ]
   })
-  folders = { photos: samplePhotos, cover: samplePhotos }
+  folders = { photos: samplePhotos, cover: samplePhotos, screenshots: arg('--screenshots') }
 }
 
 const files = folderImages(folders, extra)

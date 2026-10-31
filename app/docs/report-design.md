@@ -1,6 +1,6 @@
 # AUT Report Module: Generic AUT design (for review)
 
-Status: **reviewed by the user 2026-10-28 (answers in section 11); design complete. Phase R1 built on feature/report-r1 (2026-10-29, see "R1 as built" at the end); Phase R2 (the workspace screens) on feature/report-r2 ("R2 as built").** This repo copy is the one to update; the original and the files it names (`Style_Sample/`, `References/`, `claude/LWN_Neck_Schedules.csv`, the spec and decisions docs) are in the design folder outside the repo (they hold client material).
+Status: **reviewed by the user 2026-10-28 (answers in section 11); design complete. Phase R1 built on feature/report-r1 (2026-10-29, see "R1 as built" at the end); Phase R2 (the workspace screens) on feature/report-r2 ("R2 as built"); Phase R3 (page model, pages, Pages view, report PDF) on feature/report-r3 ("R3 as built"). Photos, markup and crop: section 14 (user, 2026-10-30).** This repo copy is the one to update; the original and the files it names (`Style_Sample/`, `References/`, `claude/LWN_Neck_Schedules.csv`, the spec and decisions docs) are in the design folder outside the repo (they hold client material).
 Background: the design folder's `AUT_Report_Module_Spec.md` (original spec) and `AUT_Report_Design_Decisions.md` (decisions; they win over
 the spec). Where this design differs from either, it says so.
 
@@ -512,8 +512,9 @@ Warnings (never block):
 |---|---|---|
 | R1 | Format 7 + `report/schema.ts` (incl. components), template types + Generic definition, `report/calc` (ladder, wall loss, totals, temp correction, number words, pipe table + nominal pick), scansheet.csv importer, REF5 fixture (anonymized) | Calc and import tests pass on the REF5 fixture; golden and drawing fingerprints unchanged |
 | R2 | Report workspace: Drawing / Report switch, step bar, Setup, Calibration, AUT results (incl. screenshot matching), Manual UT, saved lists | A job's report data can be entered, undone, saved and reopened |
-| R3 | Page model, page builders for every Generic section, Pages view, PDF writer (fonts, header / footer, contents, bookmarks, table splitting, images, vector drawings) | The REF5 job prints a full report PDF the user accepts against the style sample |
-| R4 | Photos and pages step (custom sheets, uploads), Summary step (scope builder, regenerate), Review checks, Export step | First real job reported from the app by the user |
+| R3 | Page model, page builders for every Generic section, Pages view, PDF writer (fonts, header / footer, contents, bookmarks, table splitting, images, vector drawings); the photo basics of section 14: phone (EXIF) orientation, Photos per page, project file format 8 (crop, rotate, adjust, markup on every picture), crop / rotation / vector marks drawn (no redaction); a minimal photo list on Photos and pages and "Make report PDF" on Export | The REF5 job and the V-100 sample print a full report PDF the user accepts against the style sample |
+| R4 | Photos and pages step in full (custom sheets, uploads with the PDF page picker), crop tool, Summary step (scope builder, regenerate), Review checks, Export step | First real job reported from the app by the user |
+| R5 | Markup editor (section 14): every tool, label and style, redaction (pixels removed), auto brightness / contrast; window first, then in place | The user marks up photos on a real job and picks the editor host |
 | later | XTO Horizontal, API 653 Tank templates; Word export; template editor | – |
 
 Same rules as the drawing work: feature branch per phase, tests in CI, nothing from client jobs committed (fixtures
@@ -577,6 +578,98 @@ but the first build must not block it. Proposed (for review):
 
 Status: report-only jobs, coverage per template and the Piping template stay future work; components are in the first
 build (4.0).
+
+## 14. Photos: markup, crop, labels (design, 2026-10-30)
+
+Agreed with the user 2026-10-30. Adds to sections 4.5, 4.6, 5 (step 5 "Photos and pages"), 6.5 and 10; where they
+differ, this section wins. R3 built the parts marked R3 below (see "R3 as built").
+
+### Phasing (updated 2026-10-30 to fit the existing build plan R3 / R4)
+- **R3 – Page model, page builders, Pages view, PDF writer** (as the design's build plan) **plus** the photo basics
+  this doc adds: phone (EXIF) orientation, "Photos per page", and **project file format 8** holding `crop`, `rotate`,
+  `adjust` and `markup` on every image-like item; the page model and PDF draw crop, rotation and vector marks (no
+  redaction yet). A minimal photo list on the Photos and pages step so photo pages can be checked.
+- **R4 – Photos and pages step in full** (custom sheets, uploads with the PDF page picker), **crop tool**, Summary step,
+  Review checks, Export step (as planned).
+- **R5 – Markup editor**: every tool, label and style below, redaction, auto brightness / contrast. Window first, then
+  in place (see Editor).
+
+### Core rule: non-destructive
+- The original file is never changed. Crop, rotation, adjustments and every mark are **data on the item in the .axb**
+  (like MUT areas), so everything stays editable and undoable through the normal `edit()` history.
+- Positions are stored **relative to the image (0–1)**, so marks stay put when a photo is re-linked or resized.
+- Marks are drawn **as vectors** in the page model, so the PDF, the Pages view and later Word all draw the same
+  thing crisply. Exception: redaction (below).
+
+### Where markup applies
+One editor for every image-like item: report **photos**, the **cover photo**, **data-page (C-scan) screenshots**,
+**uploaded images** and **uploaded PDF pages** (marks laid over the embedded page), and custom-sheet images.
+
+### Editor (where it lives: OPEN, user decides by trying it)
+- The user can't tell yet whether he prefers a **full-size editor window** or **editing in place on the page in the
+  Pages view**; he wants to try both (user, 2026-10-30).
+- So the editor is built as **one component that doesn't care where it is shown** (a "host": takes the item, the
+  area to draw in and the zoom; all tools, selection and undo inside). Two hosts:
+  - **Full-size window** opened from the item (photo row, screenshot, uploaded page, Pages view). Built first in R5.
+  - **In place in the Pages view**: double-click an image on a page to edit it there, the rest of the page dimmed.
+    Added once the window works (small extra once the component exists).
+- The user tries both on a real job and picks; the other one may stay as an option or be removed. Optional: a quick
+  clickable mock-up of both before R5, to decide earlier.
+- Reuses the drawing-mode tool interface (`ui/preview/drawingTool.ts`) and snap engine (`engine/snap.ts`): Shift =
+  free / angle lock, arrows nudge, Esc cancels, right-click menu, one undo step per change, `ColorPicker`.
+- Select, move, resize, rotate, delete, duplicate, bring forward / send back, lock.
+
+### Tools
+- **Rectangle and ellipse**: outline, filled, or **highlighted** (see-through fill + solid edge = "highlighted square").
+- **Highlighter**, two modes:
+  - Freehand (follows the pointer).
+  - **Straight**: click-drag a straight stroke **in any direction**; Shift locks to 0 / 45 / 90°.
+  - Widths: presets Fine / Medium / Wide / Extra wide plus a slider; last width remembered; flat (marker) or round ends.
+- **Pen** (freehand), **line**, **arrow**.
+- **Colors**: short preset palette + custom color. Default meanings: **red = finding, yellow = highlight, green =
+  acceptable, blue = note.** Line width presets. Last color / width remembered.
+- **Crop** (R4): handles, keeps the photo's shape unless freed, plus **90° rotate** (rotate already in R3); crop only
+  changes what prints, always reversible.
+- **Redaction**: black or blurred box over nameplates, serial numbers, faces. Unlike every other mark, the exported
+  PDF must **remove the pixels** (re-encode that image with the area blanked), not lay a box on top that Acrobat
+  could lift off. Must be tested.
+- **Auto brightness / contrast**: one click for dim field photos, stored as a setting on the item.
+- **Copy markup to other photos** (repeated callouts).
+
+### Labels (make them look professional)
+1. **Callout styles**: rounded box, square box, pill, or plain text with a halo; optional leader with arrow / dot / no
+   end; the leader re-attaches to the nearest edge when the label moves.
+2. **Readable on any photo**: thin contrasting outline / halo and a slightly see-through box background.
+3. **Numbered badges**: circles 1, 2, 3 on the photo with a matching key printed under it ("1 – Pitting at 6 o'clock").
+4. **Live data labels**: linked to a scan or MUT row, filled in automatically (e.g. "S12 · Min 0.312 in · 18% WL");
+   follow renames and result changes (same follow-the-row mechanism as moved labels / `syncReport`).
+5. **Print-true sizing**: text size in points at print size, not pixels, so labels match across photos whatever their
+   resolution or crop.
+6. **Saved label styles**, kept per computer like saved lists, e.g. "Finding" (red box, white bold, arrow), "Note"
+   (blue), "Reading" (yellow badge); one click to apply.
+7. **Consistent type**: the report's bundled fonts, bold for headings, regular for the rest; optional subtle underline
+   and drop shadow.
+8. **Tidy placement**: labels snap to each other's edges and line up; nudge with arrow keys.
+
+### Portrait and landscape photos
+- Every photo keeps its own shape (already in the design); portrait prints tall, landscape wide.
+- **Phone orientation (EXIF)**: phones often save a portrait photo as a sideways image plus a "rotate" tag. Browsers
+  follow the tag; pdf-lib does not. R3 must apply the EXIF orientation in the PDF, the Pages view and thumbnails, so
+  a photo never prints sideways. The 90° rotate is the manual override on top.
+- **Photos per page** (per photo section): **Automatic** (default), 1, 2 or 4 (2 x 2 grid). Automatic: two portraits
+  side by side; a lone photo of either shape fills the page; mixed shapes laid out so nothing is squashed. "Own page"
+  per photo stays.
+
+### Data (format 8, R3; Claude Code to finalize)
+On each image-like item: `crop` (box in 0–1, null = whole image), `rotate` (0/90/180/270, on top of EXIF), `adjust`
+(auto levels on/off, later more), `markup` (list of marks: kind, geometry in 0–1, style {stroke, fill, opacity, width,
+ends}, text, link to scan / MUT row by list + ID + occurrence, z-order, locked). Label styles and the last-used tool
+settings live in this browser's storage, not the .axb. The data doesn't depend on where the editor is shown.
+
+### Checks (Review)
+- Redaction present → reminder that the PDF blanks those pixels.
+- Live data label whose row was deleted → warning with "Go to".
+- Markup outside the crop → note (it is hidden, not deleted).
 
 ---
 
@@ -674,3 +767,78 @@ Where the build fills in or differs from the design above:
   - Saved lists (user, 2026-10-30): nothing joins a list silently any more; a typed value not in the list gets a "+ Save ... to
     the list" line in the dropdown, and values saved on this computer have a × to take them off (built-in ones don't). The
     Setup procedure (the project field) is a saved-list dropdown too.
+
+## R3 as built (2026-10-31, branch feature/report-r3)
+
+Built: the page model (`src/report/pageModel.ts`), one page builder per page type (`src/report/pages/`), the report PDF
+writer (`src/report/pdf/writeReportPdf.ts`), the Pages view and the pages panel beside each report step
+(`src/ui/report/PagesView.tsx`, `PageSvg.tsx`), the photo list on Photos and pages (`PhotosStep.tsx`) and "Make report PDF"
+on Export (`ExportStep.tsx`); project file format 8; the brand fonts and logo. All behind `REPORT_ENABLED`. Golden jobs,
+compat v5.0 and the .lsp / DXF fingerprints unchanged.
+
+- **Fonts and logo.** Montserrat 600 / 700 and Roboto 400 / 500 / 700, static TrueType files from the Google Fonts CSS API
+  (fonts.gstatic.com), OFL texts beside them (`src/assets/fonts/README.md`); measured from `src/report/fontMetrics.generated.ts`
+  (`npm run gen:font-metrics` writes both metric files); embedded whole, ligatures off (each letter its own glyph, so the text is
+  exactly as measured and copies cleanly). The brand logo (`src/assets/brand/integrity-epc-logo.png`, 900 x 243 px) prints at
+  1.5 in in the header (600 dpi) and 2.2 in on the cover (409 dpi): not soft. All precached for offline use.
+- **Format 8.** `crop`, `rotate`, `adjust` and `markup` on every picture: directly on photos, custom-sheet pictures and uploads
+  (an upload's existing `rotate` keeps its meaning); beside the file name for the cover photo (`coverPhotoEdits`), data-page
+  screenshots (`dataImageEdits`) and the calibration screenshot (`dynamicImageEdits`). Crop and mark positions are fractions of
+  the picture after its EXIF orientation and before `rotate`, so a quarter turn turns them with the picture (what prints is the
+  design's "EXIF, then rotate, then crop"). Marks: rect, ellipse, highlight (freehand or straight), pen, line, arrow, label
+  (rounded / square / pill / plain, optional leader with arrow / dot / none), badge (number + key text), redaction; style in
+  points at print size. Mark links (scans, shell / head MUT rows) follow renames in `syncReport`; a deleted row leaves the link
+  as it was (Review in R4 / R5). Photos per page: `options.photosPerPage[sectionId]` ('auto' | 1 | 2 | 4), else the template's
+  option. `report/imageItems.ts` lists every picture with its edits.
+- **Page model.** Inches, y down: text runs, lines, boxes (rounded), vector paths, pictures (file reference, box, upright size,
+  EXIF orientation, turn, crop, marks), drawing sheets (a `SheetModel`, the region of it and the box it fills), uploaded PDF
+  pages, links; the document has bookmarks and contents entries. Marks become vector items in `report/marks.ts`, drawn by both
+  writers over the picture and clipped to it.
+- **Standard frame (6.0), measured.** Header band down to the blue rule at 1.32 in, section title at 1.66 in, footer rule at
+  8.06 in; **content area 10.0 x 6.08 in** (x 0.5 to 10.5, y 1.86 to 7.94). The header splits the template's header fields:
+  before the axis texts = the field list, the axis texts = "0" Reference", after them = the Nominal / Material / Circumference /
+  Length pairs. Footer fields got `place` ('lead' / 'centre') and `prefix` ("Job ", "Rev ", "AUT ") in the template; blank ones
+  are left out.
+- **Builders.** Cover, contents (two passes: counted, then numbered; each line a link), scope & summary (two boxes; tiles and
+  coloured figures; a sentence missing a value is left out and listed; long text flows on), calibration (boxes in two columns,
+  blank rows left out, transducers one row per filled channel; screenshot and the template's notes on the right), photos,
+  drawings, tables, C-scans, custom sheets (all four layouts, every block kind; head views print "View not available" for now, a
+  crop box is a part of the main sheet), uploads (pictures and PDF pages, standard or full frame), fixed text. Custom sheets and
+  uploads print in their own section unless `after` names another section that is on.
+- **Photos.** Automatic: two photos share a page side by side at equal heights (mixed shapes never squashed) when each keeps at
+  least 35% of the area it would have alone (two portraits always do; two very wide photos don't); a lone photo fills the page;
+  "own page" always alone. 1 / 2 / 4 per page as chosen (4 = 2 x 2 cells).
+- **Tables.** Columns from the template with `group` (two-row header: Circumferential (X) / Axial (Y)), `unit` and `trim`;
+  widths from the content, the comment column takes the rest and wraps; header repeated, rows never split, the totals row keeps a
+  data row. Several components: subtotals per component. X start / stop as scanned for a scan across the seam, else the smaller
+  first.
+- **PDF.** pdf-lib + fontkit, lazy-loaded; each picture embedded once (by file + crop) at up to 300 dpi of its largest printed
+  size (browser: turned upright and cut on a canvas; the logo always as it is); EXIF, turn and crop by the placement matrix and a
+  clip in the content stream (never left to the viewer); drawing sheets through the drawing PDF's own `drawSheetModel`
+  (extracted from `export/pdf/writePdf.ts`; the drawing PDF is unchanged); uploads by `embedPdf`; contents links; bookmarks for
+  every section with every scan under C-Scan Data (closed); title, author (the examiners), subject. `npm run report:pdf -- --out
+  "<folder>"` writes the sample's report (or a saved job's with `--job`), outside the repo.
+- **Pages view.** SVG from the same model: brand fonts by @font-face, pictures as upright thumbnails, drawing sheets through the
+  Sheets view's own `Step`. Pages panel beside every report step (the pages that step fills; all of them on Review and Export),
+  with the divider; "All pages" opens the full view (zoom, pan, previous / next, PageUp / PageDown, Fit, Escape); a click on a
+  page (or "Go to ...") goes to the step that fills it. Uploaded PDF pages show a box in the Pages view (pdf.js comes with the
+  uploads screen).
+- **Photos and pages step (R3 minimum).** Report photo folder ("Add photos from the folder": tick some or add all) or "Choose
+  photo files..." (Edge / Chrome; each file remembered per job like the cover photo, slot `photo:<name>`); thumbnail with EXIF
+  applied, caption, own page, turn left / right, arrows and drag handle (one undo step), remove; Photos per page. Crop, markup,
+  custom sheets, uploads and the drawings choice say "Coming later".
+- **Export step (R3 minimum).** "Make report PDF" writes `<job> - AUT Report.pdf` (the R3 brief's name; section 11's
+  `<job> - <client> - AUT Report.pdf` was not used), asking before replacing, then "Open the PDF"; blocked while Review has
+  errors. Remembered files that need an "Allow" click are asked for first.
+- **Where it differs from the design.**
+  - Rollout drawing = the "Scans" set (hatch, no photos), not "As the preview": with the preview's photos on, the rollout and the
+    overlay pages came out the same. The other layer groups still follow the preview.
+  - Summary tiles: minimum and wall loss in their ladder colour (section 8: amber / red, deep blue for the normal bands), not
+    always red as in the style sample (the sample is older than the band decision).
+  - Template column headers reworded to the style sample ("UT readings", "Area (sq in)", "Min. 'T'", "Wall loss", "Comments /
+    Analysis"); template version not raised (no job has printed with version 1 yet).
+  - A blank equipment type reads "equipment" in the scope and summary sentences.
+  - Fixed pages: the old workbook's pictures are not in the repo; each prints a marked placeholder box ("Picture to come: ...").
+    The template names equipment-scanner, equipment-unit, equipment-cscan, equipment-bscan (AUT Equipment) and
+    guide-cscan-example, guide-rollout-vertical, guide-rollout-horizontal (Guide to Interpretation).
+  - Redaction marks are not drawn; Review lists each picture that has one ("redaction comes in a later version").

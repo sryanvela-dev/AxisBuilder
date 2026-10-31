@@ -60,8 +60,9 @@ export function buildReport(input: ReportBuildInput): ReportDocument {
   if (!r) throw new Error('The job has no report.')
   const t = templateOf(r.templateId)
   const notes: string[] = []
+  const unread: string[] = []
   const c: BuildContext = {
-    p, r, t, notes,
+    p, r, t, notes, unread,
     image: input.image ?? (() => null),
     pdfPages: input.pdfPages ?? (() => null),
     previewHidden: input.previewHidden ?? new Set(),
@@ -125,6 +126,8 @@ export function buildReport(input: ReportBuildInput): ReportDocument {
     if (page.footer === 'number') return { ...page, items: [...page.items, text(page.size.w - 0.4, page.size.h - 0.25, `Page ${i + 1} of ${total}`, F.body, 7.5, COLORS.muted, 'right')] }
     return page
   })
+  const files = [...new Set(unread)]
+  if (files.length) notes.unshift(`${files.length} picture${files.length === 1 ? '' : 's'} could not be read, so a grey box prints in ${files.length === 1 ? 'its' : 'their'} place: ${files.slice(0, 10).join(', ')}${files.length > 10 ? ', ...' : ''}.`)
   const equipment = equipmentWords(p)
   return {
     pages: withFooters,

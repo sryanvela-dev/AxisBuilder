@@ -17,6 +17,8 @@ export interface BuildContext extends FrameContext {
   previewHidden: ReadonlySet<LayerGroup>
   /** Things the PDF leaves out or shows as a placeholder (export summary, Review). */
   notes: string[]
+  /** Picture files that could not be read (one note lists them). */
+  unread: string[]
 }
 
 export interface SectionPages {
@@ -56,7 +58,7 @@ export { FRAME }
 export function placeImage(c: BuildContext, ref: ImageRef | null, edits: ImageEdits, area: Rect, missing: string, align: 'center' | 'top' = 'center', frame = false): { items: PageItem[]; box: Rect; found: boolean } {
   const info = ref ? c.image(ref) : null
   if (!ref || !info) {
-    if (ref) c.notes.push(`${ref.file} could not be read, so a "${missing}" box prints in its place.`)
+    if (ref) c.unread.push(ref.file)
     const box = align === 'top' ? { ...area, h: Math.min(area.h, area.w * 0.62) } : area
     return { items: placeholder(box, missing), box, found: false }
   }
