@@ -4,10 +4,10 @@
 // (`cell-field`). Thicknesses and lengths take fractions like the drawing (parseLength). A box with a saved list shows
 // its suggestions, and a new value typed once joins the list (design 4.10).
 
-import { useId, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { formatNumber, parseLength, parseNumber, type Parsed } from '../../data/parse.ts'
 import type { Project } from '../../data/schema.ts'
-import { addString, suggestions, type StringListId } from '../../report/savedLists.ts'
+import { addString, removeString, suggestions, type StringListId } from '../../report/savedLists.ts'
 import type { ReportStepId } from '../../state/session.ts'
 import { useApp } from '../appContext.ts'
 import { useEditBox } from '../useEditBox.ts'
@@ -104,12 +104,7 @@ export function ReportBox(props: BoxProps) {
     step: props.step,
     where: props.where ?? props.label,
   })
-  const listId = props.list ? `${id}-list` : undefined
-  const onBlur = () => {
-    box.onBlur()
-    const list = props.list
-    if (list && box.text.trim() !== '' && !box.problem) shared.changeLists((l) => addString(l, list, box.text))
-  }
+  const onBlur = () => box.onBlur()
   const common = {
     id,
     value: box.text,
@@ -122,24 +117,172 @@ export function ReportBox(props: BoxProps) {
   }
   const input = props.multiline ? (
     <textarea {...common} rows={2} />
+  ) : props.list ? (
+    <ComboInput common={common} options={suggestions(shared.savedLists, props.list)} saved={shared.savedLists.strings[props.list] ?? []} label={props.where ?? props.label}
+      onPick={(v) => {
+        box.onChange(v)
+        app.dispatch({ type: 'endEditGroup' })
+      }}
+      onSave={(v) => {
+        const list = props.list!
+        shared.changeLists((l) => addString(l, list, v))
+      }}
+      onRemove={(v) => {
+        const list = props.list!
+        shared.changeLists((l) => removeString(l, list, v))
+      }} />
   ) : (
-    <input {...common} type="text" list={listId} inputMode={NUMBERS.includes(kind) ? 'decimal' : undefined} autoComplete="off" spellCheck={kind === 'text' || kind === 'optText'} />
+    <input {...common} type="text" inputMode={NUMBERS.includes(kind) ? 'decimal' : undefined} autoComplete="off" spellCheck={kind === 'text' || kind === 'optText'} />
   )
+  return <Frame {...props} id={id} problem={box.problem} note={box.note} input={input} />
+}
+
+/**
+ * A text box that is also a dropdown (a saved list): the arrow, a click in the empty box or Arrow down shows the whole
+ * list to pick from; typing filters it. A value not in the list can still be typed and is kept in the job; it joins the
+ * list only by its own "+ Save ... to the list" line (user, 2026-10-30: typos were saved silently). Values saved on this
+ * computer have a × to take them off the list; the built-in ones don't. The list is placed over the page (fixed), so a
+ * table's scroll area never cuts it off.
+ */
+function ComboInput(props: {
+  common: React.InputHTMLAttributes<HTMLInputElement> & { value: string }
+  options: readonly string[]
+  /** The values saved on this computer (removable). */
+  saved: readonly string[]
+  label: string
+  onPick: (value: string) => void
+  onSave: (value: string) => void
+  onRemove: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [filter, setFilter] = useState(false)
+  const [active, setActive] = useState(-1)
+  const [place, setPlace] = useState<{ top: number; left: number; width: number } | null>(null)
+  const wrap = useRef<HTMLSpanElement>(null)
+  const list = useRef<HTMLUListElement>(null)
+  const text = props.common.value
+  const shown = filter && text.trim() !== '' ? props.options.filter((o) => o.toLowerCase().includes(text.trim().toLowerCase())) : props.options
+  const typed = text.trim()
+  const canSave = typed !== '' && !props.options.some((o) => o.toLowerCase() === typed.toLowerCase())
+  const savedKeys = new Set(props.saved.map((v) => v.toLowerCase()))
+  // Rows the keyboard moves through: the values, then the Save line.
+  const count = shown.length + (canSave ? 1 : 0)
+  const measure = () => {
+    const r = wrap.current?.getBoundingClientRect()
+    if (r) setPlace({ top: r.bottom + 2, left: r.left, width: r.width })
+  }
+  const show = (byTyping: boolean) => {
+    measure()
+    setFilter(byTyping)
+    setActive(-1)
+    setOpen(true)
+  }
+  // The list stays under its box while the page or a table scrolls (it used to close, often before a pick could be
+  // made: focusing a box in a scrolled table scrolls it); scrolling the list itself changes nothing.
+  useEffect(() => {
+    if (!open) return
+    const follow = (e: Event) => {
+      if (list.current && e.target instanceof Node && list.current.contains(e.target)) return
+      const r = wrap.current?.getBoundingClientRect()
+      if (r) setPlace({ top: r.bottom + 2, left: r.left, width: r.width })
+    }
+    window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', follow)
+    return () => {
+      window.removeEventListener('scroll', follow, true)
+      window.removeEventListener('resize', follow)
+    }
+  }, [open])
+  const pick = (v: string) => {
+    props.onPick(v)
+    setOpen(false)
+  }
+  const save = () => {
+    props.onSave(typed)
+    setOpen(false)
+  }
   return (
-    <Frame {...props} id={id} problem={box.problem} note={box.note}
-      input={
-        <>
-          {input}
-          {props.list && (
-            <datalist id={listId}>
-              {suggestions(shared.savedLists, props.list).map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
+    <span className="combo" ref={wrap}>
+      <input
+        {...props.common}
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-autocomplete="list"
+        autoComplete="off"
+        onChange={(e) => {
+          props.common.onChange?.(e)
+          show(true)
+        }}
+        onClick={() => {
+          if (text === '' && !open) show(false)
+        }}
+        onBlur={(e) => {
+          setOpen(false)
+          props.common.onBlur?.(e)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            if (!open) show(false)
+            else setActive((a) => Math.min(count - 1, a + 1))
+          } else if (e.key === 'ArrowUp' && open) {
+            e.preventDefault()
+            setActive((a) => Math.max(0, a - 1))
+          } else if (e.key === 'Enter' && open && active >= 0 && active < count) {
+            e.preventDefault()
+            if (active < shown.length) pick(shown[active])
+            else save()
+          } else if (e.key === 'Escape' && open) {
+            e.stopPropagation()
+            setOpen(false)
+          }
+        }}
+      />
+      <button type="button" className="combo-arrow" tabIndex={-1} disabled={props.common.disabled} aria-label={`Show the list for ${props.label}`} title="Show the list"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          if (open) setOpen(false)
+          else {
+            show(false)
+            wrap.current?.querySelector('input')?.focus({ preventScroll: true })
+          }
+        }}>
+        ▾
+      </button>
+      {open && place && count > 0 && (
+        <ul ref={list} className="combo-list" role="listbox" onMouseDown={(e) => e.preventDefault()} style={{ top: place.top, left: place.left, minWidth: place.width }}>
+          {shown.map((o, i) => (
+            <li key={o} role="option" aria-selected={o === text} className={i === active ? 'combo-active' : undefined}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                pick(o)
+              }}>
+              <span className="combo-text">{o}</span>
+              {savedKeys.has(o.toLowerCase()) && (
+                <button type="button" className="combo-remove" tabIndex={-1} title={`Take "${o}" off this computer's list`} aria-label={`Remove ${o} from the list`}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    props.onRemove(o)
+                  }}>
+                  ×
+                </button>
+              )}
+            </li>
+          ))}
+          {canSave && (
+            <li role="option" aria-selected={false} className={`combo-save${active === shown.length ? ' combo-active' : ''}`}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                save()
+              }}>
+              + Save "{typed}" to the list
+            </li>
           )}
-        </>
-      }
-    />
+        </ul>
+      )}
+    </span>
   )
 }
 
@@ -220,10 +363,17 @@ function Frame(props: Common & { id: string; input: ReactNode; problem: string |
 }
 
 /** Checks on a table row, in a row of their own below it (as the drawing's tables show them). */
-export function RowMessages({ messages, colSpan }: { messages: Message[]; colSpan: number }) {
+export function RowMessages({ messages, colSpan, className, onDragOver, onDrop }: {
+  messages: Message[]
+  colSpan: number
+  /** Extra classes (e.g. a drop line while a row is dragged). */
+  className?: string
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+}) {
   if (messages.length === 0) return null
   return (
-    <tr className="row-messages">
+    <tr className={className ? `row-messages ${className}` : 'row-messages'} onDragOver={onDragOver} onDrop={onDrop}>
       <td colSpan={colSpan}>
         {messages.map((m) => (
           <p key={m.text} className={`msg msg-${m.severity}`}>

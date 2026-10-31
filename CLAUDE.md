@@ -372,9 +372,11 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `ReportWorkspace.tsx` (step bar, banner, Next, Review), `boxes.tsx` (`ReportBox` / `ReportSelect` / `ReportCheckbox` on `useEditBox`,
   `field` / `cell-field` markup, lengths with fractions, saved-list suggestions), Setup, Calibration, AUT results (scansheet.csv import / drop,
   `ScansheetPasteDialog`, position choice, results table, `CommentPicks`, screenshots through `ImageFolderPanel`, which now takes `scans`
-  + `onSave`), Manual UT (`ManualDialogs.tsx`: Add nozzle readings, positions remembered in localStorage `axisbuilder:nozzlePositions`;
-  paste via `report/readingPaste.ts`). Report folders `FolderKind` 'reportPhotos' and 'screenshots'. Saved lists (`report/savedLists.ts`,
-  `ui/report/SavedListsUi.tsx`): this browser's storage key `savedLists`, string lists as suggestions (a value typed once joins), record lists
+  + `onSave`), Manual UT (`ManualDialogs.tsx`: Add nozzle readings, one per position or "One reading (no position)" per nozzle, the choice
+  remembered in localStorage `axisbuilder:nozzlePositions` ('one reading' for the latter); paste via `report/readingPaste.ts`; "Add reading"
+  under the table adds a report row at the bottom; rows move by the arrows or by dragging the handle by the row number (`moveReadingTo`, `dropTarget`,
+  drop line under the reading's last row; an open reading's details and messages rows take a drop below it; one undo step); a drawn MUT area shows under a linked row's ID, no area box; pipe size and wall right of Nominal from). Report folders `FolderKind` 'reportPhotos' and 'screenshots'. Saved lists (`report/savedLists.ts`,
+  `ui/report/SavedListsUi.tsx`): this browser's storage key `savedLists`, string lists as dropdowns you can type in (a typed value joins only by its "+ Save ... to the list" line; saved values have a × to remove them; the Setup procedure is one, built-in IEPC-AUT-01, which is also the `procedure` default for new jobs), record lists
   with "Pick saved..." / "Save to list", dialog with edit, delete, export / import a file (merge, never deletes). No Pages view yet (R3).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
@@ -871,3 +873,18 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Approved follow-ups (user): one "has no results yet" check per scan with neither value, reading checks name the position, Manual UT
   table narrower (one MUT scan column, N/A reason in the details). Images step photo matching starts on the other naming format
   when the photo folder holds the report's data-page screenshot files (separate folders: unchanged).
+- 2026-10-29 – Report R2 review fixes (branch feature/report-r2-review, user notes): Setup edits the shared job fields in place (`SettingFieldFor`);
+  saved-list boxes are dropdowns you can type in (`ComboInput`) with built-in lists from the old IEPC AUT Report workbook (no names or
+  procedure numbers); cover photo and calibration screenshot picked as a file (`state/files.ts`, `ui/report/PhotoPick.tsx`); scansheet
+  import swaps reversed starts and stops; one form and cause for all scans and readings (`setPicksForAll`). Drawing outputs unchanged.
+- 2026-10-30 – Report R2 review, second round (branch feature/report-r2-review, user): Manual UT layout (pipe size and wall right of
+  Nominal from on one line, full page width, no area box: a drawn MUT area shows under the row's ID, no nozzle / drawing tags, Avg / Max
+  'T' stay in Details); dropdowns stay open until a pick and follow their box on scroll; "Add reading" under the table adds its row at the
+  bottom (`addReportReading`; a paste still lands before the MUT rows); Add nozzle readings offers "One reading (no position)" per nozzle;
+  rows dragged by a handle (`moveReadingTo`, one undo step, arrows kept). Saved lists: a typed value joins only by "+ Save ... to the list",
+  saved values have a × to remove them, lists missing from an older stored copy read as empty (no crash); new string list `procedure`.
+  Setup's Procedure is a saved-list dropdown; `procedure` defaults to IEPC-AUT-01 for new jobs (existing jobs and imported workbooks
+  keep theirs). Drawing outputs, golden jobs and fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-30 – Fixes (feature/report-r2-review, user): Manual UT drag and drop onto an open reading's details or messages row
+  (drops below that reading, line under its last row; `dropTarget`, tested); Excel import of a workbook with no Procedure row gives a
+  blank procedure, not IEPC-AUT-01 (new optional `importDefault` on text settings, `data/README.md`). Outputs unchanged.

@@ -243,6 +243,21 @@ export function setDataImages(p: Project, choices: ReadonlyMap<string, string>):
   return out
 }
 
+/**
+ * One form and / or cause for every drawing scan and every manual reading at once (user, 2026-10-29); each can still be
+ * changed on its own afterwards. A pick left undefined is not touched. Results are made for scans that have none.
+ */
+export function setPicksForAll(p: Project, picks: { form?: string; cause?: string }): Project {
+  const change = { ...(picks.form !== undefined && { form: picks.form }), ...(picks.cause !== undefined && { cause: picks.cause }) }
+  if (!p.report || Object.keys(change).length === 0) return p
+  let out = p
+  for (const s of p.scans) out = setScanResult(out, s.id, change)
+  out.report!.readings.forEach((_, i) => {
+    out = setReading(out, i, change)
+  })
+  return out
+}
+
 // --- Manual readings (design 4.4) --------------------------------------------------------------------
 
 const newReading = (fields: Partial<Reading> = {}): Reading => ({ ...readingSchema.parse({}), ...fields })
@@ -263,9 +278,9 @@ export function setReading(p: Project, index: number, change: Partial<Omit<Readi
   })
 }
 
-/** A new report row (a reading that isn't drawn as a MUT point), before the MUT rows. */
+/** "Add reading": a new report row at the bottom of the table, after every other row (user, 2026-10-30). */
 export function addReportReading(p: Project, fields: Partial<Omit<Reading, 'link'>> = {}): Project {
-  return addReportReadings(p, [fields])
+  return withReport(p, (r) => ({ ...r, readings: [...r.readings, newReading({ ...fields, link: null })] }))
 }
 
 /** Several report rows at once (a paste), before the MUT rows, in order. */
@@ -291,6 +306,29 @@ export function moveReading(p: Project, index: number, by: -1 | 1): Project {
   const r = p.report
   if (!r) return p
   return moveListItem(p, ['readings'], index, by)
+}
+
+/**
+ * Where a dragged reading lands: dropped above (`below` false) or below reading `index` (on its main row's lower half,
+ * or anywhere on its messages or details rows). The index the row moves to, or null when it would stay where it is
+ * (dropped on itself, its own details, or the gap it already sits in).
+ */
+export function dropTarget(from: number, index: number, below: boolean): number | null {
+  const target = below ? index + 1 : index
+  const to = target > from ? target - 1 : target
+  return to === from ? null : to
+}
+
+/** Moves a reading so it ends up at `to` (a row dragged in the table; user, 2026-10-30). */
+export function moveReadingTo(p: Project, from: number, to: number): Project {
+  return withReport(p, (r) => {
+    const n = r.readings.length
+    if (from < 0 || from >= n || to < 0 || to >= n || from === to) return r
+    const readings = r.readings.slice()
+    const [moved] = readings.splice(from, 1)
+    readings.splice(to, 0, moved)
+    return { ...r, readings }
+  })
 }
 
 /**

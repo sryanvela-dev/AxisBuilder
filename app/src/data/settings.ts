@@ -75,6 +75,12 @@ interface BaseDef {
 export interface TextDef extends BaseDef {
   type: 'text'
   default: string
+  /**
+   * What an imported Excel job gets when its workbook has no row for this setting, when that must differ from
+   * `default` (the value for a new job). An imported job is an existing job: e.g. the procedure is blank, never
+   * IEPC-AUT-01. Undefined = `default`.
+   */
+  importDefault?: string
   /** Longer free text (a multi-line box). */
   multiline?: boolean
 }
@@ -389,8 +395,8 @@ export const PROJECT_FIELDS = {
   }),
   procedure: text({
     excelLabel: 'Procedure', excelSheet: DI, name: 'Procedure',
-    description: 'Inspection procedure number.',
-    default: '', group: 'job', step: 'Project', level: 'Advanced',
+    description: 'Inspection procedure number (new jobs start with IEPC-AUT-01).',
+    default: 'IEPC-AUT-01', importDefault: '', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   reportNumber: text({

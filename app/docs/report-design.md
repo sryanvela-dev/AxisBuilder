@@ -657,3 +657,20 @@ Where the build fills in or differs from the design above:
   one is marked "the report's data-page screenshots"; the tech can still pick any). Kept in separate folders, or named
   alike in different folders, nothing changes: the automatic choice as before (`commonPattern`, `startPattern` in
   `data/imageMatch.ts`; `ImageFolderPanel` `otherFormat`).
+- **Review fixes (user notes after the merge, 2026-10-29)**:
+  - Setup's "From the job" fields are edited right there (the same boxes as the Project step, Advanced ones included).
+  - Boxes with a saved list are dropdowns you can type in (arrow, click in the empty box, or Arrow down shows the whole list).
+    Built-in values for now: the generic lists of the old IEPC AUT Report workbook (examination types, acceptance criteria,
+    surface conditions, inspection surfaces, techniques, examiner titles, calibration blocks, block materials, reference
+    reflectors, AUT system maker / model, transducer makers, wave modes, scanner models); its technician names and procedure
+    numbers are not in the app. The user adds to them later, then the defaults are locked.
+  - Cover photo and dynamic calibration screenshot: "Choose picture..." picks the file itself; the job keeps its name, this
+    browser keeps the file (`state/files.ts`, one "Allow" click after reopening). The report photo folder stays for the
+    Photos step (R4).
+  - Scansheet import swaps starts larger than stops, as the drawing draws them (report kind 'swapped'); in match mode a
+    drawing scan stored reversed counts as the same position and is swapped too.
+  - "For every scan and manual reading": one form and cause set on every scan result and reading (AUT results and Manual
+    UT), one undo step; each row can still be changed on its own (`setPicksForAll`).
+  - Saved lists (user, 2026-10-30): nothing joins a list silently any more; a typed value not in the list gets a "+ Save ... to
+    the list" line in the dropdown, and values saved on this computer have a × to take them off (built-in ones don't). The
+    Setup procedure (the project field) is a saved-list dropdown too.

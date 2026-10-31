@@ -38,6 +38,9 @@ Files:
   review) are converted. Custom Radius Factor (0-1) becomes `customRadiusPercent` (x 100).
 - Dates convert to YYYY-MM-DD. Repeated IDs are renamed "N1 (2)". Rows with data but no ID, rows with an
   unreadable ID or head, and Scan Images rows for unknown scans are not imported.
+- A setting with no row in the workbook gets its default, listed as "not found". A text setting may have its own
+  `importDefault` for that case (settings.ts), because an imported job is an existing job: the procedure imports
+  blank, never the new-job default IEPC-AUT-01. A blank cell is always blank.
 - Every skipped, changed, invalid, REVIEW or yellow-highlighted value is listed in the report. Bad values
   are left blank (null) or at their default; `findMissingData` lists what must be filled in before export.
 - Test workbooks: `npm run fixtures:xlsm` rebuilds `test/fixtures/xlsm/` (fictional data).

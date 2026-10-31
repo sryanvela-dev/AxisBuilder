@@ -27,8 +27,10 @@ describe('scansheet.csv: a job with no scans', () => {
     expect(imp.ok).toBe(true)
     expect(imp.mode).toBe('create')
     expect(imp.scans.map((s) => [s.id, s.xStart, s.xStop])).toEqual([
-      ['SCAN 1', 10, 30], ['SCAN 2', 30, 50], ['SCAN 3', 70, 60], ['SCAN 4', 190, 210],
+      ['SCAN 1', 10, 30], ['SCAN 2', 30, 50], ['SCAN 3', 60, 70], ['SCAN 4', 190, 210],
     ])
+    // The reversed scan is swapped (as the drawing draws it); the one across the seam is not.
+    expect(imp.report.filter((e) => e.kind === 'swapped')).toMatchObject([{ row: 5, value: 'X 70 to 60' }])
     expect(imp.report.find((e) => e.kind === 'skipped')).toMatchObject({ row: 2, message: 'Calibration row; not imported.' })
     expect(imp.report.find((e) => e.kind === 'wrapped')).toMatchObject({ row: 6 })
     expect(imp.rows.map((r) => r.scanId)).toEqual(['SCAN 1', 'SCAN 2', 'SCAN 3', 'SCAN 4'])
@@ -96,6 +98,18 @@ describe('scansheet.csv: a job that has scans', () => {
       'Scan SCAN 4: no drawing scan has its number; its results are not imported.',
       'No results in the file for S9.',
     ])
+  })
+
+  it('a drawing scan stored reversed is the same position as the swapped file row, and is swapped too', () => {
+    const p = drawn()
+    const q = { ...p, scans: p.scans.map((sc) => (sc.id === 'S1' ? { ...sc, xStart: 30, xStop: 10, yStart: 10, yStop: 0 } : sc)) }
+    const imp = importScansheet(CSV, q)
+    expect(imp.positionDiffs.map((d) => d.scanId)).toEqual(['S2'])
+    const after = applyScansheet(q, imp)
+    expect(after.scans[0]).toMatchObject({ xStart: 10, xStop: 30, yStart: 0, yStop: 10 })
+    // Not a matched scan: left as it is.
+    const r = { ...q, scans: q.scans.map((sc) => (sc.id === 'S9' ? { ...sc, xStart: 5, xStop: 0 } : sc)) }
+    expect(applyScansheet(r, importScansheet(CSV, r)).scans[2]).toMatchObject({ xStart: 5, xStop: 0 })
   })
 
   it('keeps the drawing positions unless the file’s are chosen', () => {

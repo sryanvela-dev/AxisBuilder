@@ -32,7 +32,15 @@ describe('string lists', () => {
     const l = addString(emptySavedLists(), 'naReason', 'Insulated')
     expect(suggestions(l, 'naReason')).toEqual(['Insulated', 'U-Bolt Obstruction', 'Repad'])
     expect(addString(l, 'naReason', 'repad')).toBe(l)
-    expect(suggestions(l, 'examinationType')).toEqual(['Corrosion Mapping Examination'])
+    expect(suggestions(l, 'examinationType')[0]).toBe('Corrosion Mapping Examination')
+  })
+
+  it('lists read before a list was added to the app still work (that list starts empty)', () => {
+    const old = emptySavedLists()
+    delete (old.strings as Partial<typeof old.strings>).procedure
+    expect(suggestions(old, 'procedure')).toEqual(['IEPC-AUT-01'])
+    expect(addString(old, 'procedure', 'AUT-CM-01').strings.procedure).toEqual(['AUT-CM-01'])
+    expect(removeString(old, 'procedure', 'x')).toBe(old)
   })
 
   it('renames and removes', () => {

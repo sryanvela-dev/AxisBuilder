@@ -5,20 +5,30 @@
 //   its list (user, 2026-10-28);
 // - record lists (examiners, AUT systems, transducers, scanners, calibration blocks): "Pick saved..." fills every field,
 //   "Save to list" adds the current values.
-// Built-in values (from the design and the reference report) are offered too but never stored.
+// Built-in values are offered too but never stored: for now the generic lists of the old IEPC AUT Report workbook (user,
+// 2026-10-29; its technician names and procedure numbers left out), to be added to and then locked by the user.
 // Export / import as a file moves them to a new laptop (approved improvement). Pure functions; the screens store them.
 
 import { z } from 'zod'
 import type { KeyValueStore } from '../state/storage.ts'
 
 export const STRING_LISTS = {
-  examinationType: { name: 'Examination types', builtIn: ['Corrosion Mapping Examination'] },
-  acceptanceCriteria: { name: 'Acceptance criteria', builtIn: [] },
-  surfaceCondition: { name: 'Surface conditions', builtIn: [] },
-  inspectionSurface: { name: 'Inspection surfaces', builtIn: [] },
-  technique: { name: 'Techniques', builtIn: [] },
-  referenceReflector: { name: 'Reference reflectors', builtIn: [] },
-  transducerMode: { name: 'Transducer modes', builtIn: ['Longitudinal', 'Shear'] },
+  procedure: { name: 'Procedures', builtIn: ['IEPC-AUT-01'] },
+  examinationType: { name: 'Examination types', builtIn: ['Corrosion Mapping Examination', 'HIC Examination', 'TOFD Examination', 'Time of Flight Diffraction (TOFD)', 'Pulse Echo'] },
+  acceptanceCriteria: { name: 'Acceptance criteria', builtIn: ['ASME Section VIII', 'ASME B31.3', 'ASME B31.3 / Code Case 2235-6', 'Client'] },
+  surfaceCondition: { name: 'Surface conditions', builtIn: ['As Welded', 'Power Buffed', 'Sand Blasted', 'Rusted', 'Poor', 'Fair', 'Good'] },
+  inspectionSurface: { name: 'Inspection surfaces', builtIn: ['O.D. Surface', 'I.D. Surface', 'Outside Surface', 'Inside Surface'] },
+  technique: { name: 'Techniques', builtIn: ['Pulse Echo', 'TOFD - D-scan', 'TOFD - B-scan', 'B-scan'] },
+  examinerName: { name: 'Examiner names', builtIn: [] },
+  examinerTitle: { name: 'Examiner titles', builtIn: ['AUT Assistant', 'Sr. NDE Specialist', 'ASNT/ACCP, Level III', 'NDT Level II', 'Sr. AUT Specialist, Level III', 'Sr. AUT Specialist, Level II', 'AUT Specialist, Level II', 'NDE Assistant'] },
+  calibrationBlock: { name: 'Calibration blocks', builtIn: ['Rompus', 'AUT Calibration Block', 'IIW Block type II', 'Step Wedge', 'TOFD Notch Block'] },
+  blockMaterial: { name: 'Block materials', builtIn: ['316 Stainless Steel', '302 Stainless Steel', '347 Stainless Steel'] },
+  referenceReflector: { name: 'Reference reflectors', builtIn: ['0.040" I.D. Notch', '0.040" O.D. Notch', "3/4 'T' Side drilled hole", 'I.D. & O.D. Notches'] },
+  systemMaker: { name: 'AUT system makers', builtIn: ['Wesdyne/Amdata'] },
+  systemModel: { name: 'AUT system models', builtIn: ['Intraspect'] },
+  probeMaker: { name: 'Transducer makers', builtIn: ['Megasonics', 'Danasonics', 'Technisonics', 'KBA', 'WK', 'Sigma', 'Panametrics', 'RTD', 'AUT Solutions'] },
+  transducerMode: { name: 'Wave modes', builtIn: ['Longitudinal', 'Shear', 'Surface', 'Creeping'] },
+  scannerModel: { name: 'Scanner models', builtIn: ['5080 scanner', '5080M scanner', '5090 scanner', 'TOFD Hand Scanner', '5085 scanner', '4040 Mouse Scanner'] },
   readingLocation: { name: 'Reading locations', builtIn: ['North', 'East', 'South', 'West', 'Top', 'Bottom'] },
   naReason: { name: 'N/A reasons', builtIn: ['U-Bolt Obstruction', 'Repad'] },
 } as const satisfies Record<string, { name: string; builtIn: readonly string[] }>
@@ -71,11 +81,14 @@ const key = (s: string) => s.trim().toLowerCase()
 
 // --- String lists ----------------------------------------------------------------------------
 
+/** A string list's saved values; lists read before a list was added to the app have none. */
+const strs = (lists: SavedLists, id: StringListId): string[] => lists.strings[id] ?? []
+
 /** The suggestions for a box: the saved values, then the built-in ones not saved (no doubles, ignoring case). */
 export function suggestions(lists: SavedLists, id: StringListId): string[] {
   const out: string[] = []
   const seen = new Set<string>()
-  for (const v of [...lists.strings[id], ...STRING_LISTS[id].builtIn]) {
+  for (const v of [...strs(lists, id), ...STRING_LISTS[id].builtIn]) {
     if (seen.has(key(v))) continue
     seen.add(key(v))
     out.push(v)
@@ -90,18 +103,18 @@ export function suggestions(lists: SavedLists, id: StringListId): string[] {
 export function addString(lists: SavedLists, id: StringListId, value: string): SavedLists {
   const v = value.trim()
   if (v === '' || suggestions(lists, id).some((s) => key(s) === key(v))) return lists
-  return { ...lists, strings: { ...lists.strings, [id]: [...lists.strings[id], v] } }
+  return { ...lists, strings: { ...lists.strings, [id]: [...strs(lists, id), v] } }
 }
 
 export function removeString(lists: SavedLists, id: StringListId, value: string): SavedLists {
-  const list = lists.strings[id].filter((s) => key(s) !== key(value))
-  return list.length === lists.strings[id].length ? lists : { ...lists, strings: { ...lists.strings, [id]: list } }
+  const list = strs(lists, id).filter((s) => key(s) !== key(value))
+  return list.length === strs(lists, id).length ? lists : { ...lists, strings: { ...lists.strings, [id]: list } }
 }
 
 /** Renames a saved value; a new name that is blank or already saved (another value) changes nothing. */
 export function renameString(lists: SavedLists, id: StringListId, from: string, to: string): SavedLists {
   const v = to.trim()
-  const list = lists.strings[id]
+  const list = strs(lists, id)
   const i = list.findIndex((s) => key(s) === key(from))
   if (i < 0 || v === '' || list.some((s, j) => j !== i && key(s) === key(v)) || list[i] === v) return lists
   return { ...lists, strings: { ...lists.strings, [id]: list.map((s, j) => (j === i ? v : s)) } }
@@ -153,8 +166,8 @@ export function mergeLists(a: SavedLists, b: SavedLists): SavedLists {
 /** Like addString, but a built-in value is kept too (so a file round trip gives the same lists). */
 function addSavedString(lists: SavedLists, id: StringListId, value: string): SavedLists {
   const v = value.trim()
-  if (v === '' || lists.strings[id].some((s) => key(s) === key(v))) return lists
-  return { ...lists, strings: { ...lists.strings, [id]: [...lists.strings[id], v] } }
+  if (v === '' || strs(lists, id).some((s) => key(s) === key(v))) return lists
+  return { ...lists, strings: { ...lists.strings, [id]: [...strs(lists, id), v] } }
 }
 
 const FILE_KIND = 'axisbuilder-saved-lists'

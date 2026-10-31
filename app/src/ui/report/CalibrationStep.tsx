@@ -7,8 +7,7 @@ import { addListItem, removeListItem, setReportValue, type ReportPath } from '..
 import { transducerSchema, type Report } from '../../report/schema.ts'
 import { useApp } from '../appContext.ts'
 import { Flag, ReportBox, ReportCheckbox, ReportSelect, type BoxKind } from './boxes.tsx'
-import { FilePick, ReportFolderBar } from './FilePick.tsx'
-import { useReport } from './reportContext.ts'
+import { PhotoPick } from './PhotoPick.tsx'
 import { ReportStepIssues, type ReportStepProps } from './ReportWorkspace.tsx'
 import { RecordPicker, SavedListsButton } from './SavedListsUi.tsx'
 import type { StringListId } from '../../report/savedLists.ts'
@@ -59,7 +58,6 @@ function Group(props: { title: string; intro?: string; picker?: React.ReactNode;
 
 export function CalibrationStep({ status }: ReportStepProps) {
   const app = useApp()
-  const { screenshots } = useReport()
   const report = app.state.job!.history.present.report!
   const cal = report.calibration
   const pick = (label: string, path: ReportPath, merge: (c: Cal) => object) => (rec: object) =>
@@ -74,17 +72,17 @@ export function CalibrationStep({ status }: ReportStepProps) {
 
       <Group title="Calibration block" picker={<RecordPicker list="blocks" current={cal.block} onPick={pick('calibration block', ['block'], (c) => c.block)} />}>
         <div className="field-grid">
-          <CalBox path={['block', 'name']} label="Block" />
+          <CalBox path={['block', 'name']} label="Block" list="calibrationBlock" />
           <CalBox path={['block', 'thicknessRange']} label="Thickness range" help='As printed, e.g. 0.250" - 1.000".' />
-          <CalBox path={['block', 'material']} label="Block material" />
+          <CalBox path={['block', 'material']} label="Block material" list="blockMaterial" />
           <CalBox path={['referenceReflector']} label="Reference reflector" list="referenceReflector" />
         </div>
       </Group>
 
       <Group title="AUT system" picker={<RecordPicker list="systems" current={cal.system} onPick={pick('AUT system', ['system'], (c) => c.system)} />}>
         <div className="field-grid">
-          <CalBox path={['system', 'maker']} label="Maker" />
-          <CalBox path={['system', 'model']} label="Model" />
+          <CalBox path={['system', 'maker']} label="Maker" list="systemMaker" />
+          <CalBox path={['system', 'model']} label="Model" list="systemModel" />
           <CalBox path={['system', 'serial']} label="Serial number" />
         </div>
       </Group>
@@ -115,7 +113,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
                   return (
                     <tr key={i}>
                       <td className="num row-no">{i + 1}</td>
-                      <td><CalBox compact path={['transducers', i, 'maker']} label="Maker" where={w('maker')} /></td>
+                      <td><CalBox compact path={['transducers', i, 'maker']} label="Maker" where={w('maker')} list="probeMaker" /></td>
                       <td><CalBox compact path={['transducers', i, 'mode']} label="Mode" where={w('mode')} list="transducerMode" /></td>
                       <td><CalSelect compact path={['transducers', i, 'element']} label="Element" where={w('element')} options={['', 'Single', 'Dual']} /></td>
                       <td><CalBox compact path={['transducers', i, 'size']} label="Size" where={w('size')} help='As printed, e.g. 0.375".' /></td>
@@ -154,7 +152,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
       <Group title="Scanner" picker={<RecordPicker list="scanners" current={cal.scanner} onPick={pick('scanner', ['scanner'], (c) => c.scanner)} />}>
         <div className="field-grid">
           <CalBox path={['scanner', 'maker']} label="Maker" />
-          <CalBox path={['scanner', 'model']} label="Model" />
+          <CalBox path={['scanner', 'model']} label="Model" list="scannerModel" />
           <CalBox path={['scanner', 'serial']} label="Serial number" />
           <CalSelect path={['scanner', 'drive']} label="Drive" options={['', 'Automated', 'Manual']} />
           <ReportSelect label="Track" value={cal.scanner.track === null ? '' : cal.scanner.track ? 'yes' : 'no'}
@@ -183,9 +181,8 @@ export function CalibrationStep({ status }: ReportStepProps) {
         </div>
       </Group>
 
-      <Group title="Dynamic calibration screenshot" intro="One image from the screenshots folder.">
-        <ReportFolderBar folder={screenshots} label="Screenshots folder" />
-        <FilePick label="Dynamic calibration screenshot" folder={screenshots} value={cal.dynamicImage} set={(q, f) => setReportValue(q, ['calibration', 'dynamicImage'], f)} />
+      <Group title="Dynamic calibration screenshot" intro="Pick the screenshot itself, whatever it is called.">
+        <PhotoPick label="Dynamic calibration screenshot" slot="dynamicImage" value={cal.dynamicImage} set={(q, f) => setReportValue(q, ['calibration', 'dynamicImage'], f)} />
       </Group>
 
       <Group title="Temperature correction" intro="UT x (1.007 - 0.0001 x T°F), applied to Min 'T' and Avg 'T' before wall loss, everywhere in the report.">

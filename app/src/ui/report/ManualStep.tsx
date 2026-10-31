@@ -8,14 +8,14 @@ import { Fragment, useMemo, useState } from 'react'
 import { formatNumber } from '../../data/parse.ts'
 import { jobLadder, pipeWallsFor, readingRows, type ReadingRow } from '../../report/calc/results.ts'
 import { NPS_SIZES, wallLabel } from '../../report/calc/pipeWalls.ts'
-import { addReportReading, moveReading, removeReading, setReading, setReadingMinT } from '../../report/edits.ts'
+import { addReportReading, dropTarget, moveReading, moveReadingTo, removeReading, setReading, setReadingMinT } from '../../report/edits.ts'
 import { linkedRow, readingComponent } from '../../report/report.ts'
 import { NOMINAL_MODES, READING_TYPES, type NominalMode, type Reading } from '../../report/schema.ts'
 import { useApp } from '../appContext.ts'
 import { Flag, ReportBox, ReportSelect, RowMessages, type Message } from './boxes.tsx'
-import { CommentPicks, CommentText, WallLoss } from './CommentPicks.tsx'
+import { CommentPicks, CommentText, PicksForAll, WallLoss } from './CommentPicks.tsx'
 import { NozzleReadingsDialog, ReadingPasteDialog } from './ManualDialogs.tsx'
-import { reportPlaceId } from './places.ts'
+import { jumpToReport, reportPlaceId } from './places.ts'
 import { ReportStepIssues, type ReportStepProps } from './ReportWorkspace.tsx'
 import { SavedListsButton } from './SavedListsUi.tsx'
 
@@ -31,8 +31,27 @@ export function ManualStep({ status }: ReportStepProps) {
   const rows = useMemo(() => readingRows(p, report, ladder), [p, report, ladder])
   const [open, setOpen] = useState<Set<number>>(new Set())
   const [dialog, setDialog] = useState<'nozzles' | 'paste' | null>(null)
-  // The MUT scan column (avg, max, area) only when a row is a MUT scan; N/A reasons sit in the details row.
-  const mutCols = rows.some((r) => r.reading.type === 'MUT scan')
+  // A new row at the bottom, scrolled to with the cursor in its name.
+  const addRow = () => {
+    const index = rows.length
+    app.edit('Add a reading', (q) => addReportReading(q))
+    window.setTimeout(() => jumpToReport({ kind: 'reading', index }), 60)
+  }
+  // Dragging a row by its handle (user, 2026-10-30): a line shows where it lands; one undo step on the drop.
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [drop, setDrop] = useState<{ index: number; below: boolean } | null>(null)
+  const endDrag = () => {
+    setDragFrom(null)
+    setDrop(null)
+  }
+  const dropRow = () => {
+    const to = dragFrom !== null && drop ? dropTarget(dragFrom, drop.index, drop.below) : null
+    if (to !== null) {
+      app.edit('Move a reading', (q) => moveReadingTo(q, dragFrom!, to))
+      clear()
+    }
+    endDrag()
+  }
   const clear = () => {
     app.dispatch({ type: 'clearDrafts', prefix: 'report.reading.' })
     setOpen(new Set())
@@ -44,9 +63,6 @@ export function ManualStep({ status }: ReportStepProps) {
     <>
       <ReportStepIssues status={status} />
       <div className="button-row">
-        <button type="button" className="btn" onClick={() => app.edit('Add a reading', (q) => addReportReading(q))}>
-          Add reading
-        </button>
         <button type="button" className="btn" onClick={() => setDialog('nozzles')}>
           Add nozzle readings...
         </button>
@@ -55,10 +71,11 @@ export function ManualStep({ status }: ReportStepProps) {
         </button>
         <SavedListsButton />
       </div>
+      {rows.length > 0 && <PicksForAll ladder={ladder} />}
       {rows.length === 0 ? (
-        <p className="muted">No readings yet. MUT rows on the drawing's Field data step appear here by themselves; add your own readings above.</p>
+        <p className="muted">No readings yet. MUT rows on the drawing's Field data step appear here by themselves; add your own with the buttons above and below.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-full">
           <table className="grid readings-table">
             <thead>
               <tr>
@@ -68,7 +85,6 @@ export function ManualStep({ status }: ReportStepProps) {
                 <th>Component</th>
                 <th>Type</th>
                 <th>Min 'T' (in)</th>
-                {mutCols && <th title="MUT scans only: average and maximum thickness (in) and area (sq in)">MUT scan</th>}
                 <th>Nominal</th>
                 <th>Wall loss</th>
                 <th>Comment</th>
@@ -77,7 +93,7 @@ export function ManualStep({ status }: ReportStepProps) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <ReadingTableRow key={row.index} row={row} count={rows.length} mutCols={mutCols} open={open.has(row.index)} messages={messagesOf(row.index)} ladder={ladder}
+                <ReadingTableRow key={row.index} row={row} count={rows.length} open={open.has(row.index)} messages={messagesOf(row.index)} ladder={ladder}
                   onToggle={() => setOpen((s) => {
                     const n = new Set(s)
                     if (n.has(row.index)) n.delete(row.index)
@@ -92,12 +108,27 @@ export function ManualStep({ status }: ReportStepProps) {
                     app.edit(`Delete reading ${row.name || row.index + 1}`, (q) => removeReading(q, row.index))
                     clear()
                   }}
+                  drag={{
+                    dragging: dragFrom === row.index,
+                    mark: drop?.index === row.index ? (drop.below ? 'below' : 'above') : null,
+                    start: () => setDragFrom(row.index),
+                    over: (below) => {
+                      if (dragFrom !== null && (drop?.index !== row.index || drop.below !== below)) setDrop({ index: row.index, below })
+                    },
+                    end: endDrag,
+                    dropHere: dropRow,
+                  }}
                 />
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <div className="button-row">
+        <button type="button" className="btn" onClick={addRow} title="A new row at the bottom of the table">
+          Add reading
+        </button>
+      </div>
       {dialog === 'nozzles' && <NozzleReadingsDialog onClose={() => setDialog(null)} />}
       {dialog === 'paste' && <ReadingPasteDialog onClose={() => setDialog(null)} />}
     </>
@@ -107,13 +138,13 @@ export function ManualStep({ status }: ReportStepProps) {
 function ReadingTableRow(props: {
   row: ReadingRow
   count: number
-  mutCols: boolean
   open: boolean
   messages: Message[]
   ladder: ReturnType<typeof jobLadder>
   onToggle: () => void
   onMove: (by: -1 | 1) => void
   onDelete: () => void
+  drag: { dragging: boolean; mark: 'above' | 'below' | null; start: () => void; over: (below: boolean) => void; end: () => void; dropHere: () => void }
 }) {
   const app = useApp()
   const p = app.state.job!.history.present
@@ -130,20 +161,64 @@ function ReadingTableRow(props: {
   const severity = row.band === null ? null : props.ladder.severity[Math.min(row.band, props.ladder.severity.length - 1)].id
   const walls = pipeWallsFor(r.pipeSize)
   const drawnArea = r.link !== null && drawing?.area && drawing.area.length >= 3
-  const cols = props.mutCols ? 11 : 10
+  const cols = 10
+  // A reading's block is its main row, then its messages row, then its details row (when open). The details and messages
+  // rows take a drop as "below this reading", and the drop-below line is drawn under the block's last row.
+  const last = props.open ? 'details' : props.messages.length ? 'messages' : 'main'
+  const partClass = (part: 'main' | 'messages' | 'details', base: string) =>
+    [base, props.drag.dragging ? 'row-dragging' : '',
+      props.drag.mark === 'above' && part === 'main' ? 'drop-above' : '',
+      props.drag.mark === 'below' && part === last ? 'drop-below' : ''].filter(Boolean).join(' ') || undefined
+  const dropBelowHere = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault()
+      props.drag.over(true)
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault()
+      props.drag.dropHere()
+    },
+  }
   return (
     <Fragment>
-      <tr id={reportPlaceId({ kind: 'reading', index: i })} className={props.messages.length ? 'has-messages' : undefined}>
-        <td className="num row-no">{i + 1}</td>
+      <tr id={reportPlaceId({ kind: 'reading', index: i })}
+        className={partClass('main', props.messages.length ? 'has-messages' : '')}
+        onDragOver={(e) => {
+          e.preventDefault()
+          const box = e.currentTarget.getBoundingClientRect()
+          props.drag.over(e.clientY > box.top + box.height / 2)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          props.drag.dropHere()
+        }}>
+        <td className="num row-no">
+          <span className="drag-cell">
+            <span className="drag-handle" draggable title="Drag to move this reading up or down" aria-hidden="true"
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('text/plain', String(i))
+                const tr = e.currentTarget.closest('tr')
+                if (tr) e.dataTransfer.setDragImage(tr, 16, 16)
+                props.drag.start()
+              }}
+              onDragEnd={props.drag.end}>
+              ⠿
+            </span>
+            {i + 1}
+          </span>
+        </td>
         <td>
           {r.link ? (
-            <span>
-              <strong>{row.name}</strong> <Flag kind="other" title="A MUT row of the drawing: its ID, position, Min 'T' and area are the drawing's">drawing</Flag>
+            // A MUT row of the drawing: its ID (read-only here) and, for a MUT scan, its drawn area under it in small type.
+            <span className="linked-name" title="A MUT row of the drawing: its ID, position, Min 'T' and area are the drawing's (edit them on Field data)">
+              <strong>{row.name}</strong>
+              {mutScan && drawnArea && <span className="muted">{fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in drawn</span>}
             </span>
           ) : (
             <ReportBox compact label="Name" where={w('name')} value={r.name} placeholder={r.nozzle?.id ?? 'e.g. Nozzle 3'}
               set={(q, v: string) => set({ name: v })(q)} boxKey={`${key}.name`} step={STEP}
-              tag={r.nozzle ? <Flag kind="other" title={`Linked to nozzle ${r.nozzle.id}`}>nozzle</Flag> : undefined} />
+              help={r.nozzle ? `Linked to nozzle ${r.nozzle.id} (its ID is used when the name is blank).` : undefined} />
           )}
         </td>
         <td>
@@ -159,6 +234,7 @@ function ReadingTableRow(props: {
           )}
         </td>
         <td>
+          {/* No area box for a MUT scan (user, 2026-10-30): a drawn area shows under the ID. Avg / Max 'T' are in Details. */}
           <ReportSelect compact label="Type" where={w('type')} value={r.type} options={READING_TYPES.map((t) => ({ value: t, label: t }))}
             set={(q, v: Reading['type']) => set({ type: v })(q)} boxKey={`${key}.type`} step={STEP} />
         </td>
@@ -167,23 +243,6 @@ function ReadingTableRow(props: {
             help={r.link ? "The drawing MUT row's Min 'T': changing it here changes the drawing too." : undefined}
             set={(q, v: number | null) => setReadingMinT(q, i, v)} boxKey={`${key}.minT`} step={STEP} />
         </td>
-        {props.mutCols && (
-          <td>
-            {mutScan ? (
-              <div className="mut-cell">
-                <ReportBox compact label="Avg 'T'" where={w("Avg 'T'")} kind="reading" value={r.avgT} placeholder="avg" set={(q, v: number | null) => set({ avgT: v })(q)} boxKey={`${key}.avgT`} step={STEP} />
-                <ReportBox compact label="Max 'T'" where={w("Max 'T'")} kind="reading" value={r.maxT} placeholder="max" set={(q, v: number | null) => set({ maxT: v })(q)} boxKey={`${key}.maxT`} step={STEP} />
-                {drawnArea ? (
-                  <span className="col-derived" title="The MUT area drawn in the preview">{fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in <Flag kind="other">drawn</Flag></span>
-                ) : (
-                  <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} placeholder="area" set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
-                )}
-              </div>
-            ) : (
-              <span className="muted not-used" title="MUT scans only">–</span>
-            )}
-          </td>
-        )}
         <td>
           <div className="nominal-cell">
           <ReportSelect compact label="Nominal from" where={w('nominal from')} value={r.nominalMode} options={NOMINAL_MODES.map((m) => ({ value: m, label: MODE_LABEL[m] }))}
@@ -214,7 +273,7 @@ function ReadingTableRow(props: {
         <td className="num">{row.na !== null ? <span className="muted">N/A</span> : <WallLoss value={row.wallLoss} color={row.color} />}</td>
         <td className="col-comment">{row.na !== null ? <span className="muted">{row.na}</span> : <CommentText comment={row.comment} />}</td>
         <td className="row-actions">
-          <button type="button" className="btn btn-small" aria-expanded={props.open} onClick={props.onToggle} title="N/A reason and comment picks">
+          <button type="button" className="btn btn-small" aria-expanded={props.open} onClick={props.onToggle} title={mutScan ? "N/A reason, Avg / Max 'T' and comment picks" : 'N/A reason and comment picks'}>
             {props.open ? 'Close' : 'Details'}
           </button>
           <button type="button" className="icon-btn" onClick={() => props.onMove(-1)} disabled={i === 0} aria-label={`Move ${label} up`} title="Move up">↑</button>
@@ -223,14 +282,22 @@ function ReadingTableRow(props: {
             title={r.link ? 'A MUT row of the drawing: delete it on the Field data step' : 'Delete (Ctrl+Z brings it back)'}>×</button>
         </td>
       </tr>
-      <RowMessages messages={props.messages} colSpan={cols} />
+      <RowMessages messages={props.messages} colSpan={cols} className={partClass('messages', '')} {...dropBelowHere} />
       {props.open && (
-        <tr className="row-details">
+        <tr className={partClass('details', 'row-details')} {...dropBelowHere}>
           <td colSpan={cols}>
             <div className="field-grid">
               <ReportBox label="Not measured (N/A)" where={w('N/A reason')} kind="optText" value={r.na} list="naReason" placeholder="measured"
                 set={(q, v: string | null) => set({ na: v })(q)} boxKey={`${key}.na`} step={STEP}
                 help="Blank = measured. A reason (e.g. U-Bolt Obstruction) is printed instead of the figures and the row is left out of them." />
+              {mutScan && (
+                <>
+                  <ReportBox label="Avg 'T'" where={w("Avg 'T'")} kind="reading" units="in" value={r.avgT} set={(q, v: number | null) => set({ avgT: v })(q)}
+                    boxKey={`${key}.avgT`} step={STEP} help="MUT scans only; rarely needed." />
+                  <ReportBox label="Max 'T'" where={w("Max 'T'")} kind="reading" units="in" value={r.maxT} set={(q, v: number | null) => set({ maxT: v })(q)}
+                    boxKey={`${key}.maxT`} step={STEP} help="MUT scans only; rarely needed." />
+                </>
+              )}
             </div>
             <CommentPicks ladder={props.ladder} picks={r} comment={row.comment} ladderSeverity={severity} name={label} step={STEP} boxKey={key}
               set={(q, change) => setReading(q, i, change)} />

@@ -13,6 +13,8 @@ import {
   getReportValue,
   moveListItem,
   moveReading,
+  moveReadingTo,
+  dropTarget,
   removeComponent,
   removeListItem,
   removeReading,
@@ -20,6 +22,7 @@ import {
   sectionTitle,
   setCoverExtra,
   setDataImages,
+  setPicksForAll,
   setReading,
   setReadingMinT,
   setReportValue,
@@ -162,17 +165,36 @@ describe('scan results', () => {
   })
 })
 
+describe('form and cause for all', () => {
+  it('sets every scan (results made where missing) and every reading; each can still be changed after', () => {
+    let p = addReportReading(started(), { name: 'N1' })
+    p = setScanResult(p, 'SCAN 2', { form: 'pitting', cause: 'erosion' })
+    p = setPicksForAll(p, { form: 'localized', cause: 'corrosion' })
+    expect(p.report!.scanResults).toHaveLength(p.scans.length)
+    expect(p.report!.scanResults.every((r) => r.form === 'localized' && r.cause === 'corrosion')).toBe(true)
+    expect(p.report!.readings.every((r) => r.form === 'localized' && r.cause === 'corrosion')).toBe(true)
+    // Only the cause: forms stay as they are.
+    p = setScanResult(p, 'SCAN 1', { form: 'general' })
+    p = setPicksForAll(p, { cause: '' })
+    expect(p.report!.scanResults[0]).toMatchObject({ form: 'general', cause: '' })
+    expect(setPicksForAll(p, {})).toBe(p)
+    expect(setPicksForAll(p, { cause: '' })).toBe(p)
+  })
+})
+
 describe('readings', () => {
-  it('adds report rows before the MUT rows, and only report rows can be removed', () => {
+  it('Add reading puts a row at the bottom; pasted rows go before the MUT rows; only report rows can be removed', () => {
     let p = started()
     const linked = p.report!.readings.length
     p = addReportReading(p, { name: 'Nozzle 3', location: 'North' })
+    expect(p.report!.readings.at(-1)!.name).toBe('Nozzle 3')
     p = addReportReadings(p, [{ name: 'Boot 1' }, { name: 'Boot 2' }])
-    expect(p.report!.readings.slice(0, 3).map((r) => r.name)).toEqual(['Nozzle 3', 'Boot 1', 'Boot 2'])
+    expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['Boot 1', 'Boot 2'])
     expect(p.report!.readings).toHaveLength(linked + 3)
-    expect(removeReading(p, 3)).toBe(p)
+    expect(removeReading(p, 2)).toBe(p)
     p = removeReading(p, 1)
-    expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['Nozzle 3', 'Boot 2'])
+    expect(p.report!.readings[0].name).toBe('Boot 1')
+    expect(p.report!.readings.at(-1)!.name).toBe('Nozzle 3')
     expect(addReportReadings(p, [])).toBe(p)
   })
 
@@ -180,6 +202,34 @@ describe('readings', () => {
     let p = addReportReadings(started(), [{ name: 'A' }, { name: 'B' }])
     p = moveReading(p, 1, -1)
     expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['B', 'A'])
+  })
+
+  it('works out where a dragged row lands', () => {
+    // Dragging down: below row 2 lands at 2, above row 2 at 1.
+    expect(dropTarget(0, 2, true)).toBe(2)
+    expect(dropTarget(0, 2, false)).toBe(1)
+    // Dragging up: above row 0 lands at 0, below row 0 at 1.
+    expect(dropTarget(3, 0, false)).toBe(0)
+    expect(dropTarget(3, 0, true)).toBe(1)
+    // On itself, above or below it (its own details and messages rows count as below): no move.
+    expect(dropTarget(2, 2, false)).toBeNull()
+    expect(dropTarget(2, 2, true)).toBeNull()
+    // The gap it already sits in: below the row above, above the row below.
+    expect(dropTarget(2, 1, true)).toBeNull()
+    expect(dropTarget(2, 3, false)).toBeNull()
+    // First and last rows.
+    expect(dropTarget(4, 0, false)).toBe(0)
+    expect(dropTarget(0, 4, true)).toBe(4)
+  })
+
+  it('moves a dragged row to where it is dropped', () => {
+    let p = addReportReadings(started(), [{ name: 'A' }, { name: 'B' }, { name: 'C' }])
+    p = moveReadingTo(p, 0, 2)
+    expect(p.report!.readings.slice(0, 3).map((r) => r.name)).toEqual(['B', 'C', 'A'])
+    p = moveReadingTo(p, 2, 0)
+    expect(p.report!.readings.slice(0, 3).map((r) => r.name)).toEqual(['A', 'B', 'C'])
+    expect(moveReadingTo(p, 1, 1)).toBe(p)
+    expect(moveReadingTo(p, 0, 99)).toBe(p)
   })
 
   it('a linked Min T is the drawing MUT row’s: written there, read back in the reading rows', () => {
@@ -196,8 +246,9 @@ describe('readings', () => {
     expect(p.headMut.find((m) => m.id === p.report!.readings[h].link!.id)!.minT).toBe(0.6)
     // A report row keeps its own.
     p = addReportReading(p, { name: 'X' })
-    p = setReadingMinT(p, 0, 0.3)
-    expect(p.report!.readings[0].minT).toBe(0.3)
+    const last = p.report!.readings.length - 1
+    p = setReadingMinT(p, last, 0.3)
+    expect(p.report!.readings[last].minT).toBe(0.3)
   })
 
   it('adds nozzle readings: one per nozzle and position, linked, pipe nominal, no doubles', () => {
@@ -216,6 +267,14 @@ describe('readings', () => {
     // A renamed nozzle is followed; a deleted one leaves its rows, unlinked, named after it.
     const renamed = syncReport(again.project, { ...again.project, shellNozzles: again.project.shellNozzles.map((n) => (n.id === 'N2' ? { ...n, id: 'N2A' } : n)) })
     expect(renamed.report!.readings[0].nozzle!.id).toBe('N2A')
+  })
+
+  it('one reading per nozzle: a single row with no position, never doubled', () => {
+    const first = addNozzleReadings(started(), [{ list: 'shellNozzles', index: 1 }, { list: 'shellNozzles', index: 2 }], [''])
+    expect(first.added).toBe(2)
+    expect(first.project.report!.readings.slice(0, 2).map((r) => [r.nozzle!.id, r.location])).toEqual([['N2', ''], ['MW', '']])
+    const again = addNozzleReadings(first.project, [{ list: 'shellNozzles', index: 1 }], [''])
+    expect([again.added, again.skipped]).toEqual([0, 1])
   })
 
   it('pipe size from the nozzle diameter: the NPS or its outside diameter', () => {
