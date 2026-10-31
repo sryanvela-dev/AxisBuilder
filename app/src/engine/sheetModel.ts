@@ -12,7 +12,7 @@
 
 import type { Project } from '../data/schema.ts'
 import { LAYER_COLOR, TRANSPARENT_LAYERS, groupOfLayer, type Drawing, type LayerGroup, type Shape } from './drawing.ts'
-import { FONT_DESCENT, FONT_UNITS_PER_EM } from './fontMetrics.generated.ts'
+import { FONT_ASCENT, FONT_DESCENT, FONT_UNITS_PER_EM } from './fontMetrics.generated.ts'
 import { paperOf, sheetArea, type Section, type SectionPlan } from './sections.ts'
 import { PANEL_LAYERS, PAPER_LAYER_COLOR, sheetPages, type PaperShape } from './sheets.ts'
 import { lineWeights } from './styles.ts'
@@ -94,6 +94,42 @@ export function textGeometry(p: { x: number; y: number; h: number; rot: number; 
   const descent = (-FONT_DESCENT / FONT_UNITS_PER_EM) * size
   const corners = [at(dx, dy - descent), at(dx + width, dy - descent), at(dx + width, dy + p.h), at(dx, dy + p.h)]
   return { size, width, start: at(dx, dy), corners }
+}
+
+/**
+ * A text's outline from the font's full descent to its full ascent (not only its capital height), rotated with the text:
+ * what the glyphs can really cover, overshoot included. For the report's sheet views, which clip to their region.
+ */
+export function textInkCorners(p: { x: number; y: number; h: number; rot: number; text: string; just: 'MC' | 'ML' }): [number, number][] {
+  const g = textGeometry(p)
+  const rad = (p.rot * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const dx = p.just === 'MC' ? -g.width / 2 : 0
+  const dy = -p.h / 2
+  const at = (u: number, v: number): [number, number] => [p.x + u * cos - v * sin, p.y + u * sin + v * cos]
+  const down = (-FONT_DESCENT / FONT_UNITS_PER_EM) * g.size
+  const up = (FONT_ASCENT / FONT_UNITS_PER_EM) * g.size
+  return [at(dx, dy - down), at(dx + g.width, dy - down), at(dx + g.width, dy + up), at(dx, dy + up)]
+}
+
+/** Margin (paper inches) kept round a report sheet view, so nothing printed touches the clip. */
+export const VIEW_MARGIN = 0.08
+
+/**
+ * The part of a sheet a report view shows (paper inches, y up): everything printed, every text to its full ascent and
+ * descent, plus VIEW_MARGIN on every side. A head view's title is no longer cut at its top.
+ */
+export function viewRegion(m: SheetModel, margin = VIEW_MARGIN): { x: number; y: number; w: number; h: number } {
+  const clip: Box | null = m.clip ? [m.clip.x, m.clip.y, m.clip.x + m.clip.w, m.clip.y + m.clip.h] : null
+  let b = m.extents.all
+  for (const p of m.drawing) {
+    if (p.t !== 'text') continue
+    const t = clip ? intersect(boxOf(textInkCorners(p), 0), clip) : boxOf(textInkCorners(p), 0)
+    if (t[2] >= t[0] && t[3] >= t[1]) b = union(b, t)
+  }
+  for (const p of m.sheet) if (p.t === 'text') b = union(b, boxOf(textInkCorners(p), 0))
+  return { x: b[0] - margin, y: b[1] - margin, w: b[2] - b[0] + 2 * margin, h: b[3] - b[1] + 2 * margin }
 }
 
 // --- Extents -----------------------------------------------------------------------------------------

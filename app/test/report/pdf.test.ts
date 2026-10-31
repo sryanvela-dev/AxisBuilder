@@ -129,7 +129,8 @@ describe('report PDF', async () => {
 
   it('the contents link to their pages', () => {
     const annots = pdf.getPages()[1].node.Annots()!
-    expect(annots.size()).toBe(doc.contents.length)
+    // Every section, then every scan of the Scans index (17 in the sample).
+    expect(annots.size()).toBe(doc.contents.length + 17)
     const first = pdf.context.lookup(annots.get(0), PDFDict)
     const dest = first.lookup(PDFName.of('Dest'), PDFArray)
     expect(dest.get(0)).toBe(pdf.getPages()[doc.contents[0].page].ref)

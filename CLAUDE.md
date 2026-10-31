@@ -1034,3 +1034,16 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   PDF, report images and DXF as the outputs. App change numbers: the coverage legend change is app change 30 (29 is the title block);
   both are now in `APP_CHANGES` and the phase2-notes table, which is closed at 30. Golden jobs, compat v5.0, .lsp and DXF fingerprints
   unchanged. Test added.
+- 2026-10-31 – R4 click-through fixes (feature/report-r4, user): (1) Report sheet views (head views on custom sheets, the main /
+  section / overview sheets on Drawings pages) print `viewRegion` (engine/sheetModel.ts): the extents with every text measured to
+  the font's full ascent and descent (`textInkCorners`) plus `VIEW_MARGIN` 0.08 in, so a head view's title (EAST HEAD) is no longer
+  cut at its top; tested on both heads, all three orientations and every sheet. The drawing's own extents (PDF, report images) are
+  unchanged. (2) "A part of the main drawing" picker (`ViewCropDialog` in ui/report/CustomSheets.tsx) uses the crop tool's box
+  (`dragBox` / `fitAspect` / `presetBox`; `paperToFrac`, `fracToPaper`, `startViewBox` in report/crop.ts): corner and side handles,
+  drag inside to move, drag elsewhere for a new box, arrows nudge (Shift bigger), "Match the slot's shape" (on: the slot's
+  width / height from `sheetSlots`), Reset; every change goes into the job at once (grouped undo, so the Pages panel follows), OK
+  is one undo step, Cancel undoes it. (3) Contents (report/pages/contents.ts): section lines across the full content width, dot
+  leaders to the page numbers at the right margin; below, while C-Scan Data is on, a "Scans" index (every scan with its C-Scan
+  Data page, from that section's bookmarks; 3 columns, 4 above 45 scans; filled top to bottom; each a link); it flows onto more
+  contents pages ("Scans (continued)") and the two-pass numbering counts them (`contentsLayout`, `contentsPageCount`). Tests added;
+  drawing outputs unchanged.

@@ -1,21 +1,24 @@
 // Drawings (design 6.6): one page per drawing sheet, the app's own sheet models (engine/sheetModel.ts) printed into
 // the content area as vectors, fitted with their shape kept: the rollout (the scans with their hatch, no photos), the
 // scan overlay (photos with the scan outlines and labels, no hatch) when the drawing uses scan photos, and the section
-// sheets when the drawing has them, as scans, as overlays or both (user, 2026-10-31). The other layer groups follow the drawing preview, as the drawing PDF's sets do.
-// The PDF draws them with the drawing PDF's own code, so the two always match.
+// sheets when the drawing has them, as scans, as overlays or both (user, 2026-10-31). The other layer groups follow the
+// drawing preview, as the drawing PDF's sets do. The PDF draws them with the drawing PDF's own code, so the two always match.
 
 import { buildDrawing, type LayerGroup } from '../../engine/drawing.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
-import { sheetModels, type SheetModel } from '../../engine/sheetModel.ts'
+import { sheetModels, viewRegion, type SheetModel } from '../../engine/sheetModel.ts'
 import { exportRuns } from '../../export/exportSets.ts'
 import type { Bookmark, PageItem, Rect } from '../pageModel.ts'
 import { content, standardPage, type PageBuilder } from './common.ts'
 import { fitBox } from './layout.ts'
 
-/** The sheet's printed extents (paper inches, y up) fitted into a box on the page. */
+/**
+ * The sheet's printed extents (paper inches, y up), every text to its full height plus a small margin (`viewRegion`),
+ * fitted into a box on the page.
+ */
 export function sheetItem(model: SheetModel, area: Rect): PageItem {
-  const [x0, y0, x1, y1] = model.extents.all
-  const region = { x: x0, y: y0, w: Math.max(x1 - x0, 0.01), h: Math.max(y1 - y0, 0.01) }
+  const r = viewRegion(model)
+  const region = { ...r, w: Math.max(r.w, 0.01), h: Math.max(r.h, 0.01) }
   return { t: 'sheet', model, region, box: fitBox(region.w / region.h, area) }
 }
 

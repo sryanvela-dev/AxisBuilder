@@ -1,6 +1,6 @@
 // The crop tool's geometry (report/crop.ts): boxes on the turned picture <-> the stored crop, shapes, dragging.
 import { describe, expect, it } from 'vitest'
-import { boxAspect, dragBox, fitAspect, presetAspect, presetBox, storedCrop, turnBox, turned, turnedSize, turnPoint, unturnBox, unturnPoint } from '../../src/report/crop.ts'
+import { boxAspect, dragBox, fitAspect, fracToPaper, FULL_BOX, paperToFrac, presetAspect, presetBox, startViewBox, storedCrop, turnBox, turned, turnedSize, turnPoint, unturnBox, unturnPoint } from '../../src/report/crop.ts'
 import { imagePoint, uprightSize, visibleAspect } from '../../src/report/pageModel.ts'
 import type { FracBox, Rotation } from '../../src/report/schema.ts'
 
@@ -108,5 +108,43 @@ describe('storing', () => {
     expect(storedCrop({ x0: 0.1, y0: 0, x1: 1, y1: 1 })).toEqual({ x0: 0.1, y0: 0, x1: 1, y1: 1 })
     expect(turned(270, 'right')).toBe(0)
     expect(turned(0, 'left')).toBe(270)
+  })
+})
+
+describe('a part of the main drawing (custom sheet view)', () => {
+  const paper = { w: 11, h: 8.5 }
+  const slot = 4.9 / 6.08 // a "2 side by side" slot, taller than wide
+
+  it('converts the stored part (inches, y up) to the box (fractions, y down) and back', () => {
+    const b = { x0: 1, y0: 2, x1: 6.5, y1: 7 }
+    const f = paperToFrac(b, paper)
+    expect(f.x0).toBeCloseTo(1 / 11, 9)
+    expect(f.y0).toBeCloseTo(1.5 / 8.5, 9) // top of the part: 8.5 - 7
+    expect(f.y1).toBeCloseTo(6.5 / 8.5, 9)
+    const back = fracToPaper(f, paper)
+    for (const k of ['x0', 'y0', 'x1', 'y1'] as const) expect(back[k]).toBeCloseTo(b[k], 9)
+    // A part stored the other way round reads the same.
+    expect(paperToFrac({ x0: 6.5, y0: 7, x1: 1, y1: 2 }, paper)).toEqual(f)
+  })
+
+  it('starts on the stored part, else the largest box of the slot shape (or the whole sheet when free)', () => {
+    const stored = { x0: 1, y0: 2, x1: 6.5, y1: 7 }
+    expect(startViewBox(stored, paper, slot)).toEqual(paperToFrac(stored, paper))
+    const start = startViewBox(null, paper, slot)
+    expect(boxAspect(start, paper)).toBeCloseTo(slot, 9)
+    expect(start.y0).toBe(0)
+    expect(start.y1).toBe(1)
+    expect(startViewBox(null, paper, null)).toEqual(FULL_BOX)
+  })
+
+  it('"Match the slot\'s shape" keeps the box the slot shape while resizing; free does not; moving keeps the size', () => {
+    const start = startViewBox(null, paper, slot)
+    const small = dragBox(start, 'se', -0.2, -0.1, slot, paper)
+    expect(boxAspect(small, paper)).toBeCloseTo(slot, 9)
+    const free = dragBox(start, 'se', -0.2, -0.4, null, paper)
+    expect(boxAspect(free, paper)).not.toBeCloseTo(slot, 3)
+    const moved = dragBox(small, 'move', 0.05, 0.02, null, paper)
+    expect(moved.x1 - moved.x0).toBeCloseTo(small.x1 - small.x0, 12)
+    expect(fitAspect(free, slot, paper)).toSatisfy((b: { x0: number; x1: number; y0: number; y1: number }) => Math.abs(boxAspect(b, paper) - slot) < 1e-9)
   })
 })

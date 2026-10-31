@@ -3240,13 +3240,14 @@ svg.report-page .report-paper {
   height: 100%;
 }
 
-.view-crop-overlay {
-  pointer-events: none;
-}
-
-.view-crop-overlay .crop-box {
+/* The picker's box over the sheet: the crop tool's box and handles, in red so they show on white paper. */
+.view-crop-edit .crop-box {
   stroke: #d62828;
   stroke-width: 2;
+}
+
+.view-crop-edit .crop-handle {
+  stroke: #d62828;
 }
 
 .section-switch {

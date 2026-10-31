@@ -144,3 +144,29 @@ export function storedCrop(b: FracBox): FracBox | null {
 export function turned(rotate: Rotation, dir: 'left' | 'right'): Rotation {
   return ((rotate + (dir === 'right' ? 90 : 270)) % 360) as Rotation
 }
+
+// --- "A part of the main drawing" on a custom sheet (user, 2026-10-31: the picker works like the crop tool) ----------
+// The part is stored in paper inches of the main sheet, y up (schema `view.crop`); the picker edits it as a box of
+// fractions of the sheet, y down, with the crop tool's own dragBox / fitAspect / presetBox (size = the paper in inches).
+
+export type PaperBox = { x0: number; y0: number; x1: number; y1: number }
+
+/** The stored part (paper inches, y up) -> fractions of the sheet, y down. */
+export function paperToFrac(b: PaperBox, paper: { w: number; h: number }): FracBox {
+  const x0 = Math.min(b.x0, b.x1)
+  const x1 = Math.max(b.x0, b.x1)
+  const top = Math.max(b.y0, b.y1)
+  const bottom = Math.min(b.y0, b.y1)
+  return { x0: clamp01(x0 / paper.w), y0: clamp01((paper.h - top) / paper.h), x1: clamp01(x1 / paper.w), y1: clamp01((paper.h - bottom) / paper.h) }
+}
+
+/** Fractions of the sheet, y down -> the stored part (paper inches, y up). */
+export function fracToPaper(f: FracBox, paper: { w: number; h: number }): PaperBox {
+  return { x0: f.x0 * paper.w, x1: f.x1 * paper.w, y0: (1 - f.y1) * paper.h, y1: (1 - f.y0) * paper.h }
+}
+
+/** The picker's starting box: the stored part, or the largest box of the slot's shape (whole sheet when free). */
+export function startViewBox(current: PaperBox | null, paper: { w: number; h: number }, slotAspect: number | null): FracBox {
+  if (current) return paperToFrac(current, paper)
+  return slotAspect === null ? FULL_BOX : presetBox(slotAspect, paper)
+}

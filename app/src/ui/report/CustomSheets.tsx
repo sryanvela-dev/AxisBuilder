@@ -28,7 +28,10 @@ import {
   tableToText,
   type BlockKind,
 } from '../../report/pagesEdits.ts'
-import { SHEET_LAYOUTS, type Block, type CustomSheet } from '../../report/schema.ts'
+import { dragBox, fitAspect, fracToPaper, FULL_BOX, MIN_SIDE, presetBox, startViewBox, type Handle, type PaperBox } from '../../report/crop.ts'
+import { content } from '../../report/pages/common.ts'
+import { sheetSlots } from '../../report/pages/custom.ts'
+import { SHEET_LAYOUTS, type Block, type CustomSheet, type FracBox } from '../../report/schema.ts'
 import { templateOf } from '../../report/templates/registry.ts'
 import { pickImageFile, rememberFile } from '../../state/files.ts'
 import { useApp } from '../appContext.ts'
@@ -255,7 +258,16 @@ function ImageBlock({ sheet, index, block }: { sheet: CustomSheet; index: number
 function ViewBlock({ sheet, index, block }: { sheet: CustomSheet; index: number; block: Extract<Block, { kind: 'view' }> }) {
   const app = useApp()
   const p = app.state.job!.history.present
-  const [picking, setPicking] = useState(false)
+  const [picking, setPickingState] = useState(false)
+  const changed = useRef(false)
+  const group = `view-crop:${sheet.id}:${index}`
+  const setPicking = (on: boolean) => {
+    // A fresh undo step for this pick, whatever was typed before.
+    if (on) app.dispatch({ type: 'endEditGroup' })
+    setPickingState(on)
+  }
+  const slot = sheetSlots(sheet.layout, content())[index]
+  const slotAspect = slot ? slot.w / slot.h : 11 / 8.5
   const plan = useMemo(() => activeSectionPlan(p), [p])
   const mode = p.settings.headViewMode
   const options = [
@@ -287,69 +299,141 @@ function ViewBlock({ sheet, index, block }: { sheet: CustomSheet; index: number;
           </button>
         </div>
       )}
-      {picking && <ViewCropDialog current={typeof block.view === 'object' ? block.view.crop : null} onCancel={() => setPicking(false)} onOk={(crop) => {
-        app.edit('Pick a part of the drawing', (q) => setBlock(q, sheet.id, index, { view: { crop } }))
-        setPicking(false)
-      }} />}
+      {picking && (
+        <ViewCropDialog
+          current={typeof block.view === 'object' ? block.view.crop : null}
+          slotAspect={slotAspect}
+          // Live: every change goes into the job at once (the Pages panel follows), merged into one undo step.
+          onChange={(crop) => {
+            changed.current = true
+            app.edit('Pick a part of the drawing', (q) => setBlock(q, sheet.id, index, { view: { crop } }), group)
+          }}
+          onCancel={() => {
+            if (changed.current) app.undo()
+            changed.current = false
+            setPicking(false)
+          }}
+          onOk={() => {
+            app.dispatch({ type: 'endEditGroup' })
+            changed.current = false
+            setPicking(false)
+          }}
+        />
+      )}
     </div>
   )
 }
 
-type PaperBox = { x0: number; y0: number; x1: number; y1: number }
+const VIEW_HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 
-/** The main sheet as it prints; drag a box on it to pick the part a custom sheet shows (paper inches, y up). */
-function ViewCropDialog(props: { current: PaperBox | null; onOk: (b: PaperBox) => void; onCancel: () => void }) {
+/**
+ * The main sheet as it prints, with the crop tool's box on it (user, 2026-10-31): corner and side handles resize, a drag
+ * inside moves it, a drag on the sheet outside it draws a new one, arrow keys nudge (Shift: bigger steps). "Match the
+ * slot's shape" (on by default) keeps the box the shape of the slot it fills, so the part fills the slot. Every change
+ * goes to the job at once (`onChange`, the Pages panel follows); the caller makes OK one undo step and Cancel undoes it.
+ */
+function ViewCropDialog(props: { current: PaperBox | null; slotAspect: number; onChange: (b: PaperBox) => void; onOk: () => void; onCancel: () => void }) {
   const app = useApp()
-  const p = app.state.job!.history.present
-  const model = useMemo(() => mainSheet(p, buildDrawing(p), { hidden: new Set(previewPrefs().hidden) }), [p])
+  // The drawing does not change while the window is open: build the sheet once.
+  const [model] = useState(() => {
+    const p = app.state.job!.history.present
+    return mainSheet(p, buildDrawing(p), { hidden: new Set(previewPrefs().hidden) })
+  })
   const { w: W, h: H } = model.paper
-  // The box in page inches, y down (as the SVG draws).
-  const toDown = (b: PaperBox) => ({ x: Math.min(b.x0, b.x1), y: H - Math.max(b.y0, b.y1), w: Math.abs(b.x1 - b.x0), h: Math.abs(b.y1 - b.y0) })
-  const [box, setBox] = useState(props.current ? toDown(props.current) : null)
+  const size = model.paper
+  const [match, setMatch] = useState(true)
+  const aspect = match ? props.slotAspect : null
+  const [box, setBoxState] = useState<FracBox>(() => startViewBox(props.current, size, props.slotAspect))
   const svg = useRef<SVGSVGElement>(null)
-  const start = useRef<[number, number] | null>(null)
+  const drag = useRef<{ handle: Handle; x: number; y: number; start: FracBox; w: number; h: number } | null>(null)
   const page: ReportPage = useMemo(() => ({
     size: { w: W, h: H }, sectionId: 'custom', step: 'pages', label: 'Main drawing', footer: 'none',
     items: [{ t: 'sheet', model, region: { x: 0, y: 0, w: W, h: H }, box: { x: 0, y: 0, w: W, h: H } }],
   }), [model, W, H])
-  const at = (e: ReactPointerEvent): [number, number] => {
+
+  const setBox = (b: FracBox) => {
+    setBoxState(b)
+    props.onChange(fracToPaper(b, size))
+  }
+  // The sheet as drawn on screen (meet: letterboxed in the stage).
+  const frame = () => {
     const r = svg.current!.getBoundingClientRect()
     const k = Math.min(r.width / W, r.height / H)
-    const ox = (r.width - W * k) / 2
-    const oy = (r.height - H * k) / 2
-    return [Math.min(W, Math.max(0, (e.clientX - r.left - ox) / k)), Math.min(H, Math.max(0, (e.clientY - r.top - oy) / k))]
+    return { left: r.left + (r.width - W * k) / 2, top: r.top + (r.height - H * k) / 2, w: W * k, h: H * k }
   }
-  const ok = () => {
-    if (!box || box.w < 0.2 || box.h < 0.2) return
-    props.onOk({ x0: box.x, x1: box.x + box.w, y0: H - box.y - box.h, y1: H - box.y })
+  const startDrag = (handle: Handle, start: FracBox) => (e: ReactPointerEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+    const f = frame()
+    drag.current = { handle, x: e.clientX, y: e.clientY, start, w: f.w, h: f.h }
   }
+  // A drag on the sheet outside the box draws a new box from that point.
+  const newBox = (e: ReactPointerEvent) => {
+    const f = frame()
+    const fx = Math.min(1 - MIN_SIDE, Math.max(0, (e.clientX - f.left) / f.w))
+    const fy = Math.min(1 - MIN_SIDE, Math.max(0, (e.clientY - f.top) / f.h))
+    const seed = { x0: fx, y0: fy, x1: fx + MIN_SIDE, y1: fy + MIN_SIDE }
+    startDrag('se', seed)(e)
+  }
+  const move = (e: ReactPointerEvent) => {
+    const d = drag.current
+    if (!d) return
+    setBox(dragBox(d.start, d.handle, (e.clientX - d.x) / d.w, (e.clientY - d.y) / d.h, d.handle === 'move' ? null : aspect, size))
+  }
+  const up = () => {
+    drag.current = null
+  }
+  const nudge = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 0.05 : 0.01
+    const by: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }
+    const d = by[e.key]
+    if (!d) return
+    e.preventDefault()
+    setBox(dragBox(box, 'move', d[0], d[1], null, size))
+  }
+
+  const r = { x: box.x0 * W, y: box.y0 * H, w: (box.x1 - box.x0) * W, h: (box.y1 - box.y0) * H }
+  // Handles about 12 px on a stage about 900 px wide.
+  const hs = Math.max(W, H) / 75
+  const handleAt = (h: Handle): [number, number] => [
+    h.includes('w') ? r.x : h.includes('e') ? r.x + r.w : r.x + r.w / 2,
+    h.includes('n') ? r.y : h.includes('s') ? r.y + r.h : r.y + r.h / 2,
+  ]
+  const fmt = (n: number) => n.toFixed(1)
   return (
-    <PictureWindow title="Pick a part of the main drawing" onOk={ok} onCancel={props.onCancel}>
-      <p className="muted">Drag a box around the part to show. It prints as large as the slot allows, its shape kept.</p>
-      <div className="view-crop-stage">
-        <PageSvg page={page} pictures={new Map()} sheetThumbs={new Map()} minW={0.01} svgRef={svg}
-          onPointerDown={(e) => {
-            ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
-            start.current = at(e)
-            setBox({ x: start.current[0], y: start.current[1], w: 0, h: 0 })
-          }}
-          onPointerMove={(e) => {
-            if (!start.current) return
-            const [x, y] = at(e)
-            const [sx, sy] = start.current
-            setBox({ x: Math.min(x, sx), y: Math.min(y, sy), w: Math.abs(x - sx), h: Math.abs(y - sy) })
-          }}
-          onPointerUp={() => {
-            start.current = null
+    <PictureWindow title="Pick a part of the main drawing" onOk={props.onOk} onCancel={props.onCancel}>
+      <div className="button-row crop-bar">
+        <label className="check-inline">
+          <input type="checkbox" checked={match} onChange={(e) => {
+            setMatch(e.target.checked)
+            if (e.target.checked) setBox(fitAspect(box, props.slotAspect, size))
           }} />
-        {box && box.w > 0 && (
-          <svg className="view-crop-overlay" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <path className="crop-shade" fillRule="evenodd" d={`M0 0H${W}V${H}H0Z M${box.x} ${box.y}h${box.w}v${box.h}h${-box.w}Z`} />
-            <rect className="crop-box" x={box.x} y={box.y} width={box.w} height={box.h} vectorEffect="non-scaling-stroke" />
-          </svg>
-        )}
+          Match the slot's shape
+        </label>
+        <button type="button" className="btn btn-small" onClick={() => setBox(match ? presetBox(props.slotAspect, size) : FULL_BOX)}
+          title={match ? 'The largest box of the slot\'s shape on the whole sheet' : 'The whole sheet'}>
+          Reset
+        </button>
       </div>
-      {box && (box.w < 0.2 || box.h < 0.2) && <p className="msg msg-warning">Drag a larger box (at least 0.2 in each way on the sheet).</p>}
+      <div className="view-crop-stage">
+        <PageSvg page={page} pictures={new Map()} sheetThumbs={new Map()} minW={0.01} />
+        <svg ref={svg} className="view-crop-edit" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
+          onPointerDown={newBox} onPointerMove={move} onPointerUp={up} onPointerCancel={up} role="img" aria-label="The main drawing with the box to show">
+          <path className="crop-shade" fillRule="evenodd" d={`M0 0H${W}V${H}H0Z M${r.x} ${r.y}h${r.w}v${r.h}h${-r.w}Z`} />
+          <rect className="crop-box" x={r.x} y={r.y} width={r.w} height={r.h} vectorEffect="non-scaling-stroke" tabIndex={0}
+            onPointerDown={startDrag('move', box)} onKeyDown={nudge} aria-label="The part to show: drag to move, arrow keys nudge (Shift for bigger steps)" />
+          {VIEW_HANDLES.map((h) => {
+            const [x, y] = handleAt(h)
+            return <rect key={h} className={`crop-handle crop-handle-${h}`} x={x - hs / 2} y={y - hs / 2} width={hs} height={hs} vectorEffect="non-scaling-stroke" onPointerDown={startDrag(h, box)} />
+          })}
+        </svg>
+      </div>
+      <p className="muted crop-info">
+        Shows {fmt(r.w)} x {fmt(r.h)} in of the {fmt(W)} x {fmt(H)} in sheet. Drag a corner or side to resize, drag inside to move, drag
+        elsewhere on the sheet for a new box; arrow keys nudge (Shift: bigger steps).{' '}
+        {match ? 'The box keeps the slot\'s shape, so the part fills its slot.' : 'Any shape: the part prints as large as the slot allows, its shape kept.'}
+      </p>
     </PictureWindow>
   )
 }
