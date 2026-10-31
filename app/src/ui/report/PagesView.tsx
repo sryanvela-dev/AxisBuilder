@@ -90,12 +90,12 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
         <button type="button" className="btn btn-small" onClick={() => go(i - 1)} disabled={i === 0}>
           Previous
         </button>
-        <span>
-          Page {i + 1} of {doc.pages.length}: {page.label}
-        </span>
         <button type="button" className="btn btn-small" onClick={() => go(i + 1)} disabled={i >= doc.pages.length - 1}>
           Next
         </button>
+        <span>
+          Page {i + 1} of {doc.pages.length}: {page.label}
+        </span>
         <span className="button-row sheets-zoom">
           <button type="button" className="icon-btn" onClick={() => zoom(1.4)} aria-label="Zoom in on the page" title="Zoom in (or use the mouse wheel)">
             +

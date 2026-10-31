@@ -113,12 +113,12 @@ export function SheetsView(props: { drawing: Drawing; plan: SectionPlan | null; 
         <button type="button" className="btn btn-small" onClick={() => go(Math.max(0, i - 1))} disabled={i === 0}>
           Previous
         </button>
-        <span>
-          Sheet {i + 1} of {pages.length}: {sec ? `section ${sec.n} (${fmt(sec.start)} to ${fmt(sec.end)} in)` : page.kind === 'main' ? 'drawing' : 'overview'}
-        </span>
         <button type="button" className="btn btn-small" onClick={() => go(Math.min(pages.length - 1, i + 1))} disabled={i >= pages.length - 1}>
           Next
         </button>
+        <span>
+          Sheet {i + 1} of {pages.length}: {sec ? `section ${sec.n} (${fmt(sec.start)} to ${fmt(sec.end)} in)` : page.kind === 'main' ? 'drawing' : 'overview'}
+        </span>
         <span className="button-row sheets-zoom">
           <button type="button" className="icon-btn" onClick={() => zoom(1.4)} aria-label="Zoom in on the sheet" title="Zoom in (or use the mouse wheel)">
             +
