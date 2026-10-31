@@ -51,6 +51,10 @@ export function PreviewPanel() {
   // The section sheet plan is drawn only while section sheets are on (engine/sections.ts).
   const plan = useMemo(() => activeSectionPlan(project), [project])
   const drawing = useMemo(() => buildDrawing(project), [project])
+  // A remembered photo folder needs one "Allow" click after reopening or restoring a job: asked here, not only on the
+  // Images step, so the photos come back on whatever step the job opens.
+  const photosAsk = (photos.status === 'allow' || photos.status === 'lost') && project.settings.generateOverlayDrawing
+    && project.scanImages.some((l) => l.imageFile)
   const model = useMemo(() => {
     const d = drawing
     return buildRenderModel(plan ? { ...d, items: [...d.items, ...sectionPlanItems(project, plan)] } : d)
@@ -166,6 +170,20 @@ export function PreviewPanel() {
           </label>
         ))}
       </div>
+      {photosAsk && (
+        <p className="msg msg-warning preview-photo-folder">
+          {photos.status === 'allow' ? (
+            <>
+              The browser asks before showing the photos in <strong>{photos.name}</strong> again.{' '}
+              <button type="button" className="btn btn-small btn-primary" onClick={() => void photos.allow()}>
+                Allow access
+              </button>
+            </>
+          ) : (
+            <>The photo folder {photos.name} can&apos;t be opened any more (moved, renamed or deleted?). Choose it again on the Images step.</>
+          )}
+        </p>
+      )}
       {move.status}
       {areas.status}
       <div className={`preview-canvas${showSheets ? ' sheets' : project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>

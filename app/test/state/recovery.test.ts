@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyProject } from '../../src/data/projectFile.ts'
 import type { Project } from '../../src/data/schema.ts'
-import { addRecent, discardRecovery, listRecent, listRecoveries, readRecovery, RECENT_LIMIT, removeRecent, writeRecovery } from '../../src/state/recovery.ts'
+import { addRecent, discardRecovery, listRecent, listRecoveries, readRecovery, RECENT_LIMIT, restoreAction, removeRecent, writeRecovery } from '../../src/state/recovery.ts'
 import { sessionReducer, type Job } from '../../src/state/session.ts'
 import { memoryStore } from '../../src/state/storage.ts'
 
@@ -40,6 +40,21 @@ describe('recovery copy', () => {
     expect((await listRecoveries(store, new Set())).map((r) => r.title)).toEqual(['B', 'A'])
     await discardRecovery(store, 'new')
     expect((await listRecoveries(store, new Set())).map((r) => r.title)).toEqual(['A'])
+  })
+
+  it('restores the job as it was: same id, step and source (the sample keeps its photos, remembered folders come back)', async () => {
+    const store = memoryStore()
+    const p = createEmptyProject()
+    const j = { ...sessionReducer({ job: null }, { type: 'openJob', project: p, source: 'sample' }).job!, step: 'images' as const }
+    const edited = sessionReducer({ job: j }, { type: 'edit', label: 'Name', update: (q) => ({ ...q, project: { ...q.project, projectName: 'V-9' } }) }).job!
+    await writeRecovery(store, 'tab-a', edited)
+    const [r] = await listRecoveries(store, new Set())
+    const res = readRecovery(r)
+    if (!res.ok) throw new Error('not restored')
+    const back = sessionReducer({ job: null }, restoreAction(r, res.project)).job!
+    expect(back).toMatchObject({ id: j.id, source: 'sample', step: 'images' })
+    expect(back.history.present.jobId).toBe(p.jobId)
+    expect(back.history.present.project.projectName).toBe('V-9')
   })
 
   it('a damaged copy is reported, not opened', () => {

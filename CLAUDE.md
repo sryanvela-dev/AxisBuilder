@@ -954,3 +954,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   include, section switches); Export (file name with the client, uploaded PDFs copied, summary). New dependency pdfjs-dist (screen only;
   the PDF still copies pages with pdf-lib). No project file format change. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged;
   the engine is untouched. No VBA or workbook changes.
+- 2026-10-31 – Fix (feature/report-r4, user: the drawing lost its overlay photos after restoring unsaved work; the report did not): a restored
+  job kept the source "recovery", so the sample job lost its bundled photos; it now keeps its own source (`restoreAction` in
+  `state/recovery.ts`, test). A remembered photo folder that needs the browser's "Allow" (or was moved) is now asked about in the
+  preview on every step, not only on the Images step. Outputs unchanged.
