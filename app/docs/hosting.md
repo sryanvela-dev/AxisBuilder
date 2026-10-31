@@ -64,6 +64,9 @@ The AUT report screens (Drawing | Report switch, "Start the AUT report") are swi
 - Locally: `VITE_REPORT=1 npm run build` (in Git Bash) builds with the report on.
 - A job file with a report opens and saves the same with the switch off: the report data is kept, only the screens are
   hidden.
+- **The markup editor (R5)** has its own switch, `MARKUP_ENABLED`, with the same rule (on in dev, tests and previews,
+  off in the production build of `main`) and its own variable `VITE_MARKUP` (`1` / `0`). With it off, the editor can't
+  be opened; marks already in a job file still print in the Pages view and the PDF.
 
 ## 4. Who can open it: Cloudflare Access (Sean or IT)
 
