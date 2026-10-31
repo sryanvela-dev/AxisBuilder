@@ -2,8 +2,9 @@
 
 How a job finds its photos, screenshots and uploaded pages, for every user, without anyone having to keep files in a set
 place (user, 2026-10-31: no rules about where people store their files; a job-folder layout was proposed and turned down,
-and so was copying files into one folder, for the space it takes). An installed desktop app would remove the browser's
-limits altogether; that is a separate decision, not part of this plan.
+and so was copying files into one folder, for the space it takes). In the future the app becomes an installed desktop
+app, where none of this is a problem (see "Future: the desktop app" at the end); the web fixes here keep the web version
+working until then and alongside it.
 
 ## Why files go missing in a browser
 
@@ -65,3 +66,27 @@ and no restore, and the report PDF can always be made.
 - **Save job with photos** (optional): one bigger job file holding the working copies, for handing a job to a colleague
   or another PC. Only when asked; normal saves stay small.
 - **One web address** once hosted: everyone uses the hosted address; test addresses keep their own memory of files.
+
+## Future: the desktop app (user, 2026-10-31)
+
+AxisBuilder becomes an installed Windows program, downloaded from the website, where files are no problem at all.
+
+- **What it is.** The same app (React, the engine, every screen) inside a small desktop shell. Suggested: Tauri, which uses
+  the Edge engine already in Windows 11 (installer about 10 MB, estimate); Electron is the alternative (bundles its own
+  Chrome, about 100 MB). Only the file layer changes: all reading and writing goes through one interface, with a browser
+  version (today's code) and a desktop version (real file paths).
+- **What it fixes.** Jobs keep real file paths (as the Excel version did), relative to the .axb where the files are below
+  its folder, so photos are there every time a job opens: no permission questions, no Restore files, no per-browser or
+  per-address memory. Double-click an .axb to open it; exports, the .lsp, the DXF and Processed_Images are written
+  without asking; fully offline.
+- **What stays.** Opening a job on another PC where the files sit at other paths: Find files relinks them in one go (the
+  same search as the web version). The web version stays for viewing and for PCs where installing is not allowed; the
+  Restore files bar, Find files and Job files stay there.
+- **Distribution.** "Download AxisBuilder for Windows" on the website; automatic updates from the website.
+- **Before building, to settle:** whether installing is allowed on Integrity EPC PCs (IT approval); a code-signing
+  certificate from a recognised authority (without one Windows shows "Windows protected your PC"; roughly a few hundred
+  dollars a year, estimate; the current .cer signs the Excel macros only); Windows only or Mac too.
+- **Build steps.** (1) One file interface in the app, browser version = today (no change for users). (2) The desktop
+  version with real paths, relative paths in the job file, Find files on the desktop. (3) Installer, signing, automatic
+  updates, the download page. (4) Check on real jobs: open, reopen, move a job folder, another PC.
+- **The working copies** (planned above) are web-only; once the desktop app exists they matter only for the web version.
