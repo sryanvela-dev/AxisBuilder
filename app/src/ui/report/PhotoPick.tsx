@@ -12,6 +12,7 @@ import type { ImageRef } from '../../report/pageModel.ts'
 import { restoreEvents } from '../../state/restore.ts'
 import { useApp } from '../appContext.ts'
 import { CropButton } from './PictureWindow.tsx'
+import { MarkupButton } from './markup/MarkupWindow.tsx'
 
 type Status = 'loading' | 'none' | 'allow' | 'ready' | 'lost'
 
@@ -151,6 +152,7 @@ export function PhotoPick(props: { label: string; slot: FileSlot; value: string 
               {value === null ? 'Choose picture...' : 'Choose another...'}
             </button>
             {value !== null && props.crop && <CropButton at={props.crop.at} picture={props.crop.picture} name={props.label.toLowerCase()} />}
+            {value !== null && props.crop && <MarkupButton at={props.crop.at} picture={props.crop.picture} name={props.label.toLowerCase()} />}
             {value !== null && (
               <button type="button" className="btn" onClick={() => void remove()}>
                 Remove

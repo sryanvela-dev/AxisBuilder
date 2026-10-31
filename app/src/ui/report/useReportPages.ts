@@ -5,7 +5,10 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { Project } from '../../data/schema.ts'
 import type { LayerGroup } from '../../engine/drawing.ts'
-import type { ImageRef, ReportDocument } from '../../report/pageModel.ts'
+import { hasPixelEdits } from '../../report/imageProcess.ts'
+import type { ImageItem, ImageRef, ReportDocument } from '../../report/pageModel.ts'
+import { processThumb } from './markup/processThumb.ts'
+import { processedKey } from './svgPaths.ts'
 import { buildReport } from '../../report/pages/index.ts'
 import { isPdfUpload } from '../../report/pagesEdits.ts'
 import { readPdfInfo, type PdfInfo } from '../../report/pdfInfo.ts'
@@ -146,4 +149,44 @@ export function useReportDocument(project: Project, pictures: ReadonlyMap<string
       return null
     }
   }, [p, pictures, previewHidden, pdfInfo])
+}
+
+/**
+ * Thumbnails of the document's pictures that have auto levels or redactions, made with the PDF's pixel code
+ * (processThumb), keyed by processedKey(item key), so the Pages view shows what the PDF prints.
+ */
+export function useProcessedThumbs(doc: ReportDocument | null, pictures: ReadonlyMap<string, ReadPicture | null>): ReadonlyMap<string, ReadPicture> {
+  const known = useRef(new Map<string, ReadPicture>())
+  const [out, setOut] = useState<ReadonlyMap<string, ReadPicture>>(new Map())
+  useEffect(() => {
+    if (!doc) return
+    let alive = true
+    const items = doc.pages.flatMap((p) => p.items).filter((i): i is ImageItem => i.t === 'image' && hasPixelEdits(i))
+    void (async () => {
+      for (const it of items) {
+        const key = processedKey(it.key)
+        const raw = pictures.get(refKey(it.ref))
+        if (known.current.has(key) || !raw) continue
+        try {
+          const thumb = await processThumb(raw.thumb, { autoLevels: it.autoLevels ?? false, redactions: it.redactions ?? [], crop: it.crop })
+          if (!alive) {
+            URL.revokeObjectURL(thumb)
+            return
+          }
+          known.current.set(key, { info: raw.info, thumb })
+          setOut(new Map(known.current))
+        } catch {
+          // The Pages view draws solid stand-ins for the redactions instead.
+        }
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [doc, pictures])
+  useEffect(() => {
+    const k = known.current
+    return () => k.forEach((x) => URL.revokeObjectURL(x.thumb))
+  }, [])
+  return out
 }

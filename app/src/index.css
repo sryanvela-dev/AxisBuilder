@@ -3346,3 +3346,239 @@ svg.report-page .report-paper {
   height: 140px;
   color: #7a8594;
 }
+
+/* --- Report pictures: the markup editor (R5) ------------------------------------------------------ */
+
+.markup-window {
+  width: min(1240px, 100%);
+}
+
+.markup-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  outline: none;
+}
+
+.markup-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.markup-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.markup-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.markup-grow {
+  flex: 1 1 260px;
+}
+
+.markup-grow input,
+.markup-grow textarea {
+  flex: 1;
+  min-width: 160px;
+}
+
+.markup-spacer {
+  flex: 1;
+}
+
+.markup-tools {
+  gap: 2px;
+}
+
+.markup-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 58px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.markup-tool:hover {
+  border-color: var(--line);
+}
+
+.markup-tool.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.markup-icon {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.markup-note {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.markup-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.markup-swatch.on {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.markup-toolbar .btn.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.markup-toolbar input[type='color'] {
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: none;
+}
+
+.markup-stage-wrap {
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  max-width: 100%;
+}
+
+.markup-stage {
+  position: relative;
+  flex: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.markup-stage svg {
+  display: block;
+}
+
+.markup-menu {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+}
+
+.markup-menu button {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.markup-menu button:hover,
+.markup-menu button:focus-visible {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.markup-menu kbd {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.markup-popover {
+  position: absolute;
+  z-index: 6;
+  top: 40px;
+  right: 0;
+  width: min(420px, 100%);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
+.markup-popover h3 {
+  margin: 0 0 8px;
+}
+
+.markup-targets {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markup-status {
+  margin: 0;
+  min-height: 1.4em;
+}
+
+.markup-scale {
+  float: right;
+}
+
+/* In place in the Pages view (host B): the page dimmed around the picture being edited. */
+.markup-inplace {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+
+.markup-inplace-dim {
+  position: absolute;
+  inset: 0;
+  background: rgb(10 14 20 / 0.55);
+}
+
+.markup-inplace-bar {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, calc(100% - 16px));
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
+.markup-inplace-stage {
+  position: absolute;
+  z-index: 1;
+  box-shadow: 0 0 0 2px var(--focus);
+}

@@ -83,11 +83,10 @@ function Item({ it, props, id }: { it: PageItem; props: Props; id: string }) {
           </defs>
           <image href={pic.thumb} x={0} y={0} width={1} height={1} preserveAspectRatio="none" transform={`matrix(${[a, b, c, d, e, g].map(f).join(' ')})`} />
           {!processed && redactionBoxes(it)}
-          <g style={{ isolation: 'isolate' }}>
-            {markItems(it).map((m, k) => (
-              <BasicItem key={k} it={m} />
-            ))}
-          </g>
+          {/* Not isolated: the highlighter multiplies onto the picture under it. */}
+          {markItems(it).map((m, k) => (
+            <BasicItem key={k} it={m} />
+          ))}
         </g>
       )
     }
@@ -175,7 +174,7 @@ function PdfMarks({ it, id }: { it: Extract<PageItem, { t: 'pdfPage' }>; id: str
   const marks = pdfPageMarks(it)
   if (!marks.length) return null
   return (
-    <g clipPath={`url(#${id}-m)`} style={{ isolation: 'isolate' }}>
+    <g clipPath={`url(#${id}-m)`}>
       <defs>
         <clipPath id={`${id}-m`}>
           <rect x={it.box.x} y={it.box.y} width={it.box.w} height={it.box.h} />

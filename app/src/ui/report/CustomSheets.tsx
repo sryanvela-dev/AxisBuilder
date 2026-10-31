@@ -40,6 +40,7 @@ import { ReportBox, ReportSelect } from './boxes.tsx'
 import { PageSvg } from './PageSvg.tsx'
 import { placeOptions, placeValue } from './placeOptions.ts'
 import { CropButton, PictureWindow } from './PictureWindow.tsx'
+import { MarkupButton } from './markup/MarkupWindow.tsx'
 import { photoSlot } from './reportFiles.ts'
 import { useReport } from './reportContext.ts'
 
@@ -248,6 +249,7 @@ function ImageBlock({ sheet, index, block }: { sheet: CustomSheet; index: number
             </select>
           )}
           <CropButton at={{ kind: 'sheetImage', sheetId: sheet.id, block: index }} picture={{ source: 'photos', file: block.file }} name={block.file} />
+          {block.file && <MarkupButton at={{ kind: 'sheetImage', sheetId: sheet.id, block: index }} picture={{ source: 'photos', file: block.file }} name={block.file} />}
         </span>
       </div>
       <ReportBox label="Caption" value={block.caption} set={(q, v: string) => setBlock(q, sheet.id, index, { caption: v })} boxKey={`report.sheet.${sheet.id}.${index}.caption`} step={STEP} />

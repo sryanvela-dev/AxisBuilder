@@ -30,7 +30,7 @@ import { refKey, type ReadPicture } from './reportFiles.ts'
 import { useReport } from './reportContext.ts'
 
 /** The window: a title, the tool, OK and Cancel. Escape cancels, Enter (outside a box) is OK. */
-export function PictureWindow(props: { title: string; children: ReactNode; onOk: () => void; onCancel: () => void; okLabel?: string }) {
+export function PictureWindow(props: { title: string; children: ReactNode; onOk: () => void; onCancel: () => void; okLabel?: string; noCancel?: boolean; className?: string }) {
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
@@ -44,13 +44,15 @@ export function PictureWindow(props: { title: string; children: ReactNode; onOk:
         props.onCancel()
       }
     }}>
-      <div className="dialog picture-window" role="dialog" aria-modal="true" aria-label={props.title} tabIndex={-1} ref={box}>
+      <div className={`dialog picture-window${props.className ? ` ${props.className}` : ''}`} role="dialog" aria-modal="true" aria-label={props.title} tabIndex={-1} ref={box}>
         <h2>{props.title}</h2>
         {props.children}
         <div className="dialog-buttons">
-          <button type="button" className="btn" onClick={props.onCancel}>
-            Cancel
-          </button>
+          {!props.noCancel && (
+            <button type="button" className="btn" onClick={props.onCancel}>
+              Cancel
+            </button>
+          )}
           <button type="button" className="btn btn-primary" onClick={props.onOk}>
             {props.okLabel ?? 'OK'}
           </button>
