@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import * as XLSX from 'xlsx'
 import { describe, expect, it } from 'vitest'
+import { createEmptyProject } from '../../src/data/projectFile.ts'
 import {
   XlsmImportError,
   importWorkbook,
@@ -293,5 +294,43 @@ describe('older column orders (v4.7)', () => {
         notes: 'I', labelMode: 'G', include: 'H' },
     })
     expect(r.sources.fields.project.projectName).toEqual({ sheet: 'Project Settings', row: 2 })
+  })
+})
+
+describe('procedure: an imported job is an existing job', () => {
+  /** v5-current.xlsx with its Drawing Information "Procedure" row changed. */
+  function withProcedureRow(change: (sheet: XLSX.WorkSheet, row: number) => void): ImportResult {
+    const wb = XLSX.read(readFileSync(new URL('../fixtures/xlsm/v5-current.xlsx', import.meta.url)))
+    const sheet = wb.Sheets['Drawing Information']
+    const range = XLSX.utils.decode_range(sheet['!ref']!)
+    let row = -1
+    for (let r = range.s.r; r <= range.e.r; r++) if (String(sheet[XLSX.utils.encode_cell({ r, c: 0 })]?.v ?? '') === 'Procedure') row = r
+    expect(row).toBeGreaterThanOrEqual(0)
+    change(sheet, row)
+    return importWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+  }
+
+  it('keeps the workbook’s procedure', () => {
+    expect(current.project.project.procedure).toBe('PROC-000')
+  })
+
+  it('a blank Procedure cell imports blank', () => {
+    const res = withProcedureRow((sheet, row) => {
+      delete sheet[XLSX.utils.encode_cell({ r: row, c: 1 })]
+    })
+    expect(res.project.project.procedure).toBe('')
+  })
+
+  it('no Procedure row imports blank (listed), never the new-job default', () => {
+    const res = withProcedureRow((sheet, row) => {
+      delete sheet[XLSX.utils.encode_cell({ r: row, c: 0 })]
+      delete sheet[XLSX.utils.encode_cell({ r: row, c: 1 })]
+    })
+    expect(res.project.project.procedure).toBe('')
+    expect(res.report.find((e) => e.kind === 'notFound' && e.value === 'Procedure')?.message).toBe('No "Procedure" row; blank used.')
+  })
+
+  it('a new job starts with IEPC-AUT-01', () => {
+    expect(createEmptyProject().project.procedure).toBe('IEPC-AUT-01')
   })
 })

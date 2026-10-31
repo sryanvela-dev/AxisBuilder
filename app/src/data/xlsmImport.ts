@@ -487,8 +487,12 @@ function importFields(
         }
       }
       if (!row) {
-        const shown = def.default === '' || def.default === null ? 'blank' : `"${displayValue(def.default)}"`
+        // A field with its own import default (an imported job is an existing one) gets it; the rest their default.
+        const importDefault = def.type === 'text' ? def.importDefault : undefined
+        const used = importDefault ?? def.default
+        const shown = used === '' || used === null ? 'blank' : `"${displayValue(used)}"`
         sheet.report.add(sheet.name, 'column A', def.excelLabel, 'notFound', `No "${def.excelLabel}" row; ${shown} used.`)
+        if (importDefault !== undefined) out[key] = importDefault
         continue
       }
       found++
