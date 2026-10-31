@@ -71,7 +71,7 @@ export function ExportDxfPanel({ disabled }: { disabled: boolean }) {
     <section className="export-card">
       <h2>Make DXF</h2>
       <p className="muted">
-        The drawing in model space, for more work in AutoCAD or DraftSight: the same layers, colors and positions as the CAD drawing file, with the
+        The drawing in model space, for more work in AutoCAD or DraftSight: the drawing's own layers, colors and positions, with the
         labels, leaders and MUT areas as you see them, and the scan images linked from {folderName}. Writes {fileName}. Section sheets are not in
         the DXF yet; the PDF has them.
       </p>

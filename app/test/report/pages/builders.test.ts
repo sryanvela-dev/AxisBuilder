@@ -39,8 +39,42 @@ describe('report pages: the whole report', () => {
       ['Scope & Summary', 3], ['Calibration', 4], ['Drawings', 5], ['Scan Sheet', 7], ['Manual UT', 8], ['C-Scan Data', 9], ['AUT Equipment', 26], ['Guide to Interpretation', 27],
     ])
     const links = doc.pages[1].items.filter((i) => i.t === 'link')
-    expect(links.map((l) => (l as { page: number }).page)).toEqual(doc.contents.map((e) => e.page))
+    expect(links.slice(0, doc.contents.length).map((l) => (l as { page: number }).page)).toEqual(doc.contents.map((e) => e.page))
     expect(texts(doc.pages[1])).toContain('26')
+  })
+
+  it('the contents span the full content width: numbers at the right margin, dot leaders to them', () => {
+    const page = doc.pages[1]
+    const links = page.items.filter((i): i is Extract<PageItem, { t: 'link' }> => i.t === 'link').slice(0, doc.contents.length)
+    for (const l of links) {
+      expect(l.x).toBeCloseTo(CONTENT.x, 9)
+      expect(l.w).toBeCloseTo(CONTENT.w, 9)
+    }
+    const numbers = page.items.filter((i): i is TextItem => i.t === 'text' && i.align === 'right' && /^\d+$/.test(i.text))
+    expect(numbers[0].x).toBeCloseTo(CONTENT.x + CONTENT.w, 9)
+    expect(page.items.some((i) => i.t === 'text' && /^( \.){10,}$/.test(i.text))).toBe(true)
+  })
+
+  it('a Scans index under the contents: every scan with its C-Scan Data page, 3 columns filled top to bottom, each a link', () => {
+    const page = doc.pages[1]
+    expect(texts(page)).toContain('Scans')
+    const scanLinks = page.items.filter((i): i is Extract<PageItem, { t: 'link' }> => i.t === 'link').slice(doc.contents.length)
+    const cscanStart = doc.contents.find((e) => e.title === 'C-Scan Data')!.page
+    expect(scanLinks.map((l) => l.page)).toEqual(Array.from({ length: 17 }, (_, i) => cscanStart + i))
+    for (let i = 0; i < 17; i++) expect(texts(page)).toContain(`Scan ${i + 1}`)
+    // 17 scans in 3 columns: 6 rows; scan 7 starts the second column at the top.
+    const xs = [...new Set(scanLinks.map((l) => l.x.toFixed(4)))]
+    expect(xs).toHaveLength(3)
+    expect(scanLinks[6].y).toBeCloseTo(scanLinks[0].y, 9)
+    expect(scanLinks[6].x).toBeGreaterThan(scanLinks[5].x)
+    expect(scanLinks[5].y).toBeGreaterThan(scanLinks[4].y)
+    expect(scanLinks.every((l) => l.y + l.h <= CONTENT.y + CONTENT.h + 1e-9)).toBe(true)
+  })
+
+  it('no Scans index while the C-Scan Data section is off', () => {
+    const d = build(sampleWithReport((q) => { q.report!.sections = { cscan: { on: false } } }))
+    expect(texts(d.pages[1])).not.toContain('Scans')
+    expect(d.pages[1].items.filter((i) => i.t === 'link')).toHaveLength(d.contents.length)
   })
 
   it('bookmarks every section and every scan', () => {
@@ -110,6 +144,34 @@ describe('report pages: the whole report', () => {
     expect(rollout?.t === 'sheet' && rollout.model.drawing.some((x) => x.t === 'image')).toBe(false)
     const overlay = sheets[1].items.find((i) => i.t === 'sheet')
     expect(overlay?.t === 'sheet' && overlay.model.drawing.some((x) => x.t === 'image')).toBe(true)
+  })
+
+  it('section sheets print as scans, as overlays or both, with or without the rollout ticked', () => {
+    const labels = (sections: 'as drawing' | 'overlays' | 'both' | 'off', rollout = true, overlay = true, images = true) => {
+      const p = sampleWithReport((q) => {
+        q.settings.makeSectionSheets = true
+        q.settings.generateOverlayDrawing = images
+        q.report!.options.drawings = { rollout, overlay, sections }
+      })
+      const sheets = build(p).pages.filter((x) => x.sectionId === 'drawings')
+      const photos = sheets.map((x) => { const s = x.items.find((i) => i.t === 'sheet'); return s?.t === 'sheet' && s.model.drawing.some((d) => d.t === 'image') })
+      return sheets.map((x, i) => `${x.label}${photos[i] ? ' +photos' : ''}`)
+    }
+    const scans = labels('as drawing')
+    expect(scans.slice(0, 2)).toEqual(['Rollout drawing', 'Scan overlay drawing +photos'])
+    expect(scans[2]).toBe('Overview')
+    expect(scans.slice(3).every((l) => /^Section \d+/.test(l) && !l.includes('photos'))).toBe(true)
+    const n = scans.length - 3
+    expect(n).toBeGreaterThan(0)
+    const over = labels('overlays')
+    expect(over.slice(2)).toEqual(scans.slice(2).map((l) => `${l} +photos`))
+    const both = labels('both')
+    expect(both.slice(2)).toEqual([...scans.slice(2), ...scans.slice(2).map((l) => `${l} (overlay) +photos`)])
+    expect(labels('off')).toEqual(['Rollout drawing', 'Scan overlay drawing +photos'])
+    // Sections no longer need the rollout ticked; without scan images the overlay sets print nothing.
+    expect(labels('overlays', false, false)).toEqual(over.slice(2))
+    expect(labels('overlays', true, true, false)).toEqual(['Rollout drawing'])
+    expect(labels('both', true, true, false)).toEqual(['Rollout drawing', ...scans.slice(2)])
   })
 
   it('a section turned off prints nothing; a renamed section prints its own title', () => {
@@ -304,9 +366,22 @@ describe('report pages: custom sheets and uploads', () => {
     expect(pageText(boot)).toContain('Boot photo')
     expect(pageText(boot)).toContain('Boot scanned by hand.')
     const detail = d.pages[after]
-    expect(detail.items.some((i) => i.t === 'sheet')).toBe(true)
+    // The main drawing and head 1 alone (its own sheet: the head's items only, nothing next to it).
+    const sheets = detail.items.filter((i) => i.t === 'sheet')
+    expect(sheets).toHaveLength(2)
+    const [main, head] = sheets as Extract<(typeof detail.items)[number], { t: 'sheet' }>[]
+    expect(head.model.drawing.length).toBeLessThan(main.model.drawing.length / 3)
+    expect(head.model.drawing.some((x) => x.t === 'text' && x.text === p.settings.head1Label.toUpperCase())).toBe(true)
+    expect(head.model.drawing.some((x) => x.t === 'text' && x.text === p.settings.head2Label.toUpperCase())).toBe(false)
     expect(pageText(detail)).toContain('Minimum thickness')
-    expect(pageText(detail)).toContain('View not available')
+    expect(pageText(detail)).not.toContain('View not available')
+    // A head the drawing doesn't draw prints a placeholder and a note.
+    const none = build(sampleWithReport((q) => {
+      q.settings.headViewMode = 'NONE'
+      q.report!.customSheets = [customSheetSchema.parse({ id: 's', title: 'Head', blocks: [{ kind: 'view', view: 'head2' }] })]
+    }))
+    expect(pageText(none.pages.find((x) => x.label === 'Head')!)).toContain('View not available')
+    expect(none.notes).toContain("A custom sheet's head 2 view is not in the drawing; a placeholder prints.")
     expect(d.contents.map((e) => e.title)).toEqual(expect.arrayContaining(['Head 1 detail', 'Custom Sheets']))
   })
 

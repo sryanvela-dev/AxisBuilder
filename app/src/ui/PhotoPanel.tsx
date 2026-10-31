@@ -36,7 +36,7 @@ export function FolderBar(props: { folder: RememberedFolder; label: string; choo
           <strong>{f.name}</strong> <span className="muted">({f.files?.length ?? 0} files)</span>
         </span>
       )}
-      {f.status === 'none' && <span className="muted">not chosen yet</span>}
+      {(f.status === 'none' || f.status === 'suggest') && <span className="muted">not chosen yet</span>}
       {f.status === 'loading' && <span className="muted">...</span>}
       {f.status === 'allow' && (
         <span>
@@ -50,8 +50,13 @@ export function FolderBar(props: { folder: RememberedFolder; label: string; choo
       )}
       <span className="button-row">
         {f.status === 'allow' && (
-          <button type="button" className="btn btn-primary" onClick={() => void f.allow()}>
-            Allow access to {f.name}
+          <button type="button" className="btn btn-primary" onClick={() => void f.allow()} title="The browser asks once each time the job is opened again">
+            Restore {f.name}
+          </button>
+        )}
+        {f.status === 'suggest' && f.suggested && (
+          <button type="button" className="btn btn-primary" onClick={() => void f.useSuggested()} title="The folder used last in this browser">
+            Use {f.suggested.name} (used last)
           </button>
         )}
         {f.canPick ? (

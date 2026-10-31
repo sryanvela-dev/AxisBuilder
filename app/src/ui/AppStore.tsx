@@ -23,6 +23,7 @@ import {
   listRecent,
   listRecoveries,
   readRecovery,
+  restoreAction,
   removeRecent,
   writeRecovery,
   type RecentJob,
@@ -287,7 +288,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         void showOpenError(`the recovered copy of ${r.title}`, res.errors)
         return
       }
-      dispatch({ type: 'openJob', project: res.project, source: 'recovery', id: r.jobId, file: r.file, workbookImport: r.workbookImport, step: r.step })
+      dispatch(restoreAction(r, res.project))
       setRecoveries((list) => list.filter((x) => x.tabId !== r.tabId))
       void discardRecovery(store, r.tabId)
       setNotice({ kind: 'info', text: `Restored ${r.title}. Save the job to keep these changes.` })

@@ -6,6 +6,7 @@ import { buildDrawing } from '../../src/engine/drawing.ts'
 import { sectionPlan } from '../../src/engine/sections.ts'
 import { circumference, nozzlePieces, scanPieces } from '../../src/engine/wrap.ts'
 import { sampleProject } from '../../src/ui/sampleJob.ts'
+import { usesSamplePhotos } from '../../src/ui/samplePhotos.ts'
 
 // The sample job is what a new inspector tries first: it shows every feature (Phase 6).
 describe('sample job', () => {
@@ -57,5 +58,15 @@ describe('sample job', () => {
 
   it('opens with nothing to fix and no warnings', () => {
     expect(checkProject(p).map((c) => `${c.severity}: ${c.text}`)).toEqual([])
+  })
+})
+
+describe('a job saved from the sample', () => {
+  it('keeps the built-in photos; a changed scan or photo name, or a real job, does not', () => {
+    const p = sampleProject()
+    expect(usesSamplePhotos({ ...p, jobId: 'another-id' })).toBe(true)
+    expect(usesSamplePhotos({ ...p, scans: p.scans.map((s, i) => (i === 0 ? { ...s, xStart: (s.xStart ?? 0) + 1 } : s)) })).toBe(false)
+    expect(usesSamplePhotos({ ...p, scanImages: p.scanImages.map((l, i) => (i === 0 ? { ...l, imageFile: 'mine.jpg' } : l)) })).toBe(false)
+    expect(usesSamplePhotos({ ...p, scanImages: [] })).toBe(false)
   })
 })

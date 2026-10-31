@@ -13,7 +13,7 @@ import type { Project } from '../data/schema.ts'
 import type { ImportSummary, ReportEntry } from '../data/xlsmImport.ts'
 import { canRedo, canUndo, createHistory, endGroup, record, redo, undo, type History } from './history.ts'
 
-export const STEP_IDS = ['project', 'fieldData', 'scans', 'images', 'drawing', 'review', 'export'] as const
+export const STEP_IDS = ['project', 'scans', 'images', 'fieldData', 'drawing', 'review', 'export'] as const
 export type StepId = (typeof STEP_IDS)[number]
 
 /** The Report workspace's steps (report design section 5). */

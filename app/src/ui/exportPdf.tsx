@@ -8,7 +8,7 @@ import { buildDrawing } from '../engine/drawing.ts'
 import { activeSectionPlan } from '../engine/sections.ts'
 import { photoNeeds, sheetModels, type SheetModel } from '../engine/sheetModel.ts'
 import { exportRuns, type ExportRun } from '../export/exportSets.ts'
-import { cleanFileName, exportBaseName, reportImageNames } from '../export/files.ts'
+import { cleanFileName, exportBaseName, sheetImageNames } from '../export/files.ts'
 import { preparePhotos } from '../export/pdf/photos.ts'
 import { REPORT_FONT, drawReportSheet, encodeReportJpeg, reportFrame, type Ctx2D, type ReportCrop } from '../export/report/reportImages.ts'
 import { jobTitle } from '../state/session.ts'
@@ -106,7 +106,7 @@ export function ExportPdfPanel({ disabled }: { disabled: boolean }) {
     try {
       const sets = list.map((run) => {
         const sheets = models(run)
-        return { run, sheets, names: reportImageNames(`${imageBase}${run.suffix}`, sheets.length) }
+        return { run, sheets, names: sheetImageNames(`${imageBase}${run.suffix}`, sheets) }
       })
       const all = sets.flatMap((x) => x.names)
       if (!(await okToReplace(app, root, all))) return

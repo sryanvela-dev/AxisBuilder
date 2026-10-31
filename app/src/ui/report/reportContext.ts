@@ -3,6 +3,7 @@
 
 import { createContext, useContext } from 'react'
 import type { ReportDocument } from '../../report/pageModel.ts'
+import type { PdfInfo } from '../../report/pdfInfo.ts'
 import type { SavedLists } from '../../report/savedLists.ts'
 import type { RememberedFolder } from '../useRememberedFolder.ts'
 import type { ReadPicture, ReportFileSources } from './reportFiles.ts'
@@ -22,6 +23,8 @@ export interface ReportShared {
     sources: ReportFileSources
     /** Reads the pictures that could not be read again (after an "Allow" click or a new folder). */
     retry: () => void
+    /** Uploaded PDFs: each file's pages, why it can't be used, or 'missing' (not found yet). */
+    pdfInfo: ReadonlyMap<string, PdfInfo | 'missing'>
   }
 }
 

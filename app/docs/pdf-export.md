@@ -140,7 +140,8 @@ the pixels.
 - Defaults as TightPDF: 300 DPI, quality 95, no chroma subsampling (jpeg-js always writes 4:4:4), 8 px padding,
   the DPI written into the JFIF header. All adjustable on the Export step.
 - "Crop to": Everything printed, or Drawing only (leaves out the title block, the legend and the head views).
-- Names as TightPDF: `<name>.jpg` for one sheet, `<name>_001.jpg`, `_002`, ... for several; `<name>` defaults to
+- Names: `<name>.jpg` for one sheet; for several, by the sheet (user, 2026-10-31; TightPDF numbered them `_001`, ...):
+  `<name> - Drawing.jpg`, `<name> - Overview.jpg`, `<name> - Section 1.jpg`, ...; `<name>` defaults to
   the PDF's name ("File name" under Report images on the Export step changes it). Written to the job folder after asking
   about any already there.
 - Photos are drawn from the original photos (each sheet's photos are read, drawn and let go before the next).

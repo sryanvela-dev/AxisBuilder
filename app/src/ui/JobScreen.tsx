@@ -21,13 +21,14 @@ import { PreviewPanel } from './preview/PreviewPanel.tsx'
 import { SelectionContext, type Selected } from './selectionContext.ts'
 import { AreaToolContext, IDLE, type AreaPhase, type PreviewTool } from './areaToolContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
-import { samplePhotoFolder } from './samplePhotos.ts'
+import { RestoreFilesBar } from './RestoreFilesBar.tsx'
+import { samplePhotoFolder, usesSamplePhotos } from './samplePhotos.ts'
 import { REPORT_ENABLED } from '../featureFlags.ts'
 import { reportStepInfo } from '../state/reportSteps.ts'
 import { ReportWorkspace } from './report/ReportWorkspace.tsx'
 
 /** Steps that show the drawing preview beside their page. */
-const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images', 'drawing']
+const PREVIEW_STEPS: StepId[] = ['project', 'scans', 'images', 'fieldData', 'drawing']
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -58,9 +59,11 @@ export function JobScreen() {
   const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
   // The sample job comes with made-up photos (until another photo folder is chosen).
   const { status: photoStatus, useInputFolder: setPhotoFolder } = photos
-  const samplePhotos = job.source === 'sample' ? present.scanImages.map((l) => l.imageFile).join('|') : ''
+  // Also a job saved from the sample and opened again (its photos are the app's own).
+  const fromSample = useMemo(() => job.source === 'sample' || usesSamplePhotos(present), [job.source, present])
+  const samplePhotos = fromSample ? present.scanImages.map((l) => l.imageFile).join('|') : ''
   useEffect(() => {
-    if (samplePhotos && photoStatus === 'none') setPhotoFolder(samplePhotoFolder(samplePhotos.split('|')))
+    if (samplePhotos && (photoStatus === 'none' || photoStatus === 'suggest')) setPhotoFolder(samplePhotoFolder(samplePhotos.split('|')))
   }, [samplePhotos, photoStatus, setPhotoFolder])
   const [selected, setSelected] = useState<Selected | null>(null)
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected])
@@ -89,6 +92,7 @@ export function JobScreen() {
     <AreaToolContext.Provider value={areaApi}>
       <div className="job">
         <TopBar />
+        <RestoreFilesBar />
         {reportShown ? (
           <ErrorBoundary where="Report workspace" onLeave={{ label: 'Back to the drawing', action: () => app.dispatch({ type: 'setWorkspace', workspace: 'drawing' }) }}>
             <ReportWorkspace />

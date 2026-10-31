@@ -1,7 +1,7 @@
 // The Report workspace in the session (state/session.ts) and its step statuses (state/reportSteps.ts).
 import { describe, expect, it } from 'vitest'
 import type { Project } from '../../src/data/schema.ts'
-import { setScanResult, startReport, updateComponent } from '../../src/report/edits.ts'
+import { setReportValue, setScanResult, startReport, updateComponent } from '../../src/report/edits.ts'
 import { nextReportStep, reportReviewList, reportStepStatuses, reportWhatsLeft } from '../../src/state/reportSteps.ts'
 import { initialSession, sessionReducer, type SessionAction, type SessionState } from '../../src/state/session.ts'
 import { stepStatuses } from '../../src/state/steps.ts'
@@ -77,13 +77,16 @@ describe('report step statuses', () => {
     expect(st.setup.issues.map((i) => i.text)).toContain('Shell has no nominal thickness.')
     expect(st.results.issues.some((i) => /has no results yet/.test(i.text))).toBe(true)
     expect(st.calibration.state).toBe('notStarted')
-    expect(st.pages.short).toBe('Not started')
-    expect(st.summary.short).toBe('Coming later')
+    // Photos is on by default with no photos: an error with "Turn the section off".
+    expect(st.pages.short).toBe('1 to fix')
+    expect(st.pages.issues[0].check?.actions?.[0].kind).toBe('sectionOff')
+    expect(st.summary.state).toBe('attention')
+    expect(st.summary.issues.every((i) => !i.blocksExport)).toBe(true)
     // Export lists what blocks the PDF (the Review list's errors).
     const blocking = st.reportReview.issues.filter((i) => i.blocksExport)
     expect(st.reportExport.issues).toEqual(blocking)
     expect(st.reportExport.state).toBe(blocking.length ? 'attention' : 'notStarted')
-    expect(st.reportReview.issues.length).toBe(st.setup.issues.length + st.results.issues.length + st.manual.issues.length)
+    expect(st.reportReview.issues.length).toBe(['setup', 'calibration', 'results', 'manual', 'pages', 'summary'].reduce((a, k) => a + st[k as 'setup'].issues.length, 0))
     const list = reportReviewList(st.reportReview)
     expect(list.errors[0].step).toBe('setup')
     expect(reportWhatsLeft(st).map((l) => l.step)).toContain('results')
@@ -92,6 +95,7 @@ describe('report step statuses', () => {
   it('setup is done once every component has its nominal; calibration starts with its first value', () => {
     let s = withReport()
     s = run([edit((p) => ['shell', 'head1', 'head2'].reduce((q, id) => updateComponent(q, id, { nominal: 0.5 }), p))], s)
+    s = run([edit((p) => setReportValue(p, ['job', 'techs'], [{ name: 'A. Tech', title: '' }]))], s)
     s = run([edit((p) => setScanResult(p, 'SCAN 1', { minT: 0.49 }))], s)
     s = run([edit((p) => ({ ...p, report: { ...p.report!, calibration: { ...p.report!.calibration, referenceReflector: 'FBH' } } }))], s)
     const st = reportStepStatuses(s.job!)

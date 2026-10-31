@@ -167,7 +167,7 @@ export function PagesPanel({ doc, pictures, sheetThumbs, step, onGo, loading }: 
   const shown = doc.pages.map((p, n) => ({ p, n })).filter(({ p }) => all || p.step === step)
   return (
     <aside className="preview pages-panel" aria-label="Report pages">
-      <PreviewSplitter />
+      <PreviewSplitter kind="report" />
       <div className="preview-head">
         <strong>Report pages</strong>
         <span className="muted">

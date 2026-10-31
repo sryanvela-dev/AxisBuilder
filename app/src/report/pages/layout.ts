@@ -58,6 +58,25 @@ export const FRAME = {
 /** What is left for a page's content under the standard frame: about 10.0 x 6.1 in (measured: see CONTENT). */
 export const CONTENT: Rect = { x: FRAME.left, y: 1.86, w: FRAME.right - FRAME.left, h: 7.94 - 1.86 }
 
+/**
+ * The standard frame on a portrait letter page, for reference pages whose sheet is upright (user, 2026-10-31): the
+ * header fields in one column beside the logo (the landscape side column's chips join the list), the 0" reference on
+ * the right; content about 7.5 x 7.7 in, so an upright letter sheet prints at about 70% instead of 55%.
+ */
+export const FRAME_PORTRAIT = {
+  left: 0.5,
+  right: 8.0,
+  top: 0.45,
+  headerRule: 2.2,
+  titleBase: 2.54,
+  footerRule: 10.56,
+  footerBase: 10.7,
+} as const
+export const CONTENT_PORTRAIT: Rect = { x: FRAME_PORTRAIT.left, y: 2.74, w: FRAME_PORTRAIT.right - FRAME_PORTRAIT.left, h: 10.44 - 2.74 }
+
+export type PageSize = { w: number; h: number }
+export const isPortrait = (size: PageSize) => size.h > size.w
+
 export const LOGO = { file: 'integrity-epc-logo.png', aspect: 900 / 243 }
 
 // --- Items -------------------------------------------------------------------------------------
@@ -203,7 +222,9 @@ const fieldsOf = (c: FrameContext, refs: readonly FieldRef[]) => refs.map((f) =>
  * Header band, section title (with an optional quieter subtitle) and the footer rule; the footer text with "Page X of
  * Y" is added once the pages are counted (`footer`).
  */
-export function frameItems(c: FrameContext, title: string, subtitle = ''): PageItem[] {
+export function frameItems(c: FrameContext, title: string, subtitle = '', pageSize: PageSize = LETTER_LANDSCAPE): PageItem[] {
+  const portrait = isPortrait(pageSize)
+  const fr = portrait ? FRAME_PORTRAIT : FRAME
   const items: PageItem[] = []
   const logoW = 1.5
   const logoH = logoW / LOGO.aspect
@@ -214,23 +235,26 @@ export function frameItems(c: FrameContext, title: string, subtitle = ''): PageI
   const firstAxis = all.findIndex((f) => /AxisDirectionText$/.test(f.ref.source))
   const kv = firstAxis < 0 ? all : all.slice(0, firstAxis)
   const axes = firstAxis < 0 ? [] : all.filter((f) => /AxisDirectionText$/.test(f.ref.source))
-  const chips = firstAxis < 0 ? [] : all.slice(firstAxis).filter((f) => !/AxisDirectionText$/.test(f.ref.source))
+  const after = firstAxis < 0 ? [] : all.slice(firstAxis).filter((f) => !/AxisDirectionText$/.test(f.ref.source))
+  // Portrait: no room for the side column's chips; they join the field list.
+  if (portrait) kv.push(...after)
+  const chips = portrait ? [] : after
   const size = 7.6
   const rowH = 0.168
   const kvX = 2.18
   const kvLabelW = Math.max(...kv.map((f) => measure(f.ref.label, F.label, size)), 0.5)
   const kvValX = kvX + kvLabelW + 0.08
-  const kvRight = 6.25
+  const kvRight = portrait ? 5.15 : 6.25
   kv.forEach((f, i) => {
     const base = FRAME.top + 0.12 + i * rowH
     items.push(text(kvX + kvLabelW, base, f.ref.label, F.label, size, COLORS.deep, 'right'))
     items.push(text(kvValX, base, fitText(f.value, F.body, size, kvRight - kvValX), F.body, size))
     items.push(line(kvValX, base + 0.045, kvRight, base + 0.045, 0.5, COLORS.line))
   })
-  const refX = 6.55
+  const refX = portrait ? 5.35 : 6.55
   if (axes.length) {
     items.push(text(refX, FRAME.top + 0.12, '0" Reference', F.heading, size, COLORS.deep))
-    axes.forEach((f, i) => items.push(text(refX, FRAME.top + 0.12 + (i + 1) * 0.15, fitText(`${f.ref.label} = ${f.value}`, F.body, size, FRAME.right - refX), F.body, size)))
+    axes.forEach((f, i) => items.push(text(refX, FRAME.top + 0.12 + (i + 1) * 0.15, fitText(`${f.ref.label} = ${f.value}`, F.body, size, fr.right - refX), F.body, size)))
   }
   const chipTop = FRAME.top + 0.12 + (axes.length + 1) * 0.15 + 0.06
   chips.forEach((f, i) => {
@@ -241,15 +265,15 @@ export function frameItems(c: FrameContext, title: string, subtitle = ''): PageI
     items.push(text(x, base, f.ref.label, F.label, size, COLORS.deep))
     items.push(text(x + 0.92, base, fitText(f.value, F.body, size, 1.0), F.body, size))
   })
-  items.push(line(FRAME.left, FRAME.headerRule, FRAME.right, FRAME.headerRule, 2, COLORS.blue))
+  items.push(line(fr.left, fr.headerRule, fr.right, fr.headerRule, 2, COLORS.blue))
 
   // Section title, subtitle beside it.
-  items.push(text(FRAME.left, FRAME.titleBase, title, F.title, 15, COLORS.deep))
+  items.push(text(fr.left, fr.titleBase, title, F.title, 15, COLORS.deep))
   if (subtitle) {
-    const x = FRAME.left + measure(title, F.title, 15) + 0.12
-    items.push(text(x, FRAME.titleBase, fitText(subtitle, F.body, 9, FRAME.right - x), F.body, 9, COLORS.muted))
+    const x = fr.left + measure(title, F.title, 15) + 0.12
+    items.push(text(x, fr.titleBase, fitText(subtitle, F.body, 9, fr.right - x), F.body, 9, COLORS.muted))
   }
-  items.push(line(FRAME.left, FRAME.footerRule, FRAME.right, FRAME.footerRule, 0.75, COLORS.line))
+  items.push(line(fr.left, fr.footerRule, fr.right, fr.footerRule, 0.75, COLORS.line))
   return items
 }
 

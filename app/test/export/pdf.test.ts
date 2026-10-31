@@ -10,7 +10,7 @@ import { activeSectionPlan } from '../../src/engine/sections.ts'
 import { drawSteps, photoNeeds, sheetModels, textGeometry, type SheetModel } from '../../src/engine/sheetModel.ts'
 import type { Project } from '../../src/data/schema.ts'
 import { exportRuns } from '../../src/export/exportSets.ts'
-import { reportImageNames } from '../../src/export/files.ts'
+import { sheetImageNames } from '../../src/export/files.ts'
 import { printPhotoSize } from '../../src/export/pdf/photos.ts'
 import { pdfLayerName } from '../../src/export/pdf/writePdf.ts'
 import { drawReportSheet, encodeReportJpeg, jpegInfo, reportFrame, type Ctx2D, type ReportCrop } from '../../src/export/report/reportImages.ts'
@@ -211,8 +211,9 @@ describe.each(jobs.map((j) => ({ ...j })))('report images of $name', ({ project 
     for (const on of [false, true]) {
       const p = withSections(project, on)
       const models = sheetModels(p, buildDrawing(p), activeSectionPlan(p))
-      const names = reportImageNames('Job - AUT Coverage', models.length)
+      const names = sheetImageNames('Job - AUT Coverage', models)
       expect(names.length).toBe(models.length)
+      expect(new Set(names).size).toBe(names.length)
       for (const m of models) {
         for (const crop of ['Everything printed', 'Drawing only'] as ReportCrop[]) {
           const f = reportFrame(m, crop, 300, 8)
@@ -286,10 +287,14 @@ describe('report JPEG', () => {
     expect(jpegInfo(q50).xDpi).toBe(150)
   })
 
-  it('names the images like TightPDF', () => {
-    expect(reportImageNames('V-100 - AUT Coverage', 1)).toEqual(['V-100 - AUT Coverage.jpg'])
-    expect(reportImageNames('V-100 - AUT Coverage', 3)).toEqual(['V-100 - AUT Coverage_001.jpg', 'V-100 - AUT Coverage_002.jpg', 'V-100 - AUT Coverage_003.jpg'])
-    expect(reportImageNames('a:b', 1)).toEqual(['a_b.jpg'])
+  it('names the images by the sheet they show', () => {
+    const main = { kind: 'main' as const, section: null }
+    const sec = (n: number) => ({ kind: 'section' as const, section: { n } })
+    expect(sheetImageNames('V-100 - AUT Coverage', [main])).toEqual(['V-100 - AUT Coverage.jpg'])
+    expect(sheetImageNames('V-100 - AUT Coverage', [main, { kind: 'overview', section: null }, sec(1), sec(2)])).toEqual([
+      'V-100 - AUT Coverage - Drawing.jpg', 'V-100 - AUT Coverage - Overview.jpg', 'V-100 - AUT Coverage - Section 1.jpg', 'V-100 - AUT Coverage - Section 2.jpg',
+    ])
+    expect(sheetImageNames('a:b', [main])).toEqual(['a_b.jpg'])
   })
 })
 

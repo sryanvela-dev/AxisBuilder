@@ -8,13 +8,13 @@
 // boxes, the legend summary reflow after TEXTRESIZE); those use the same formulas. Text is drawn with a
 // browser font, so its exact width differs. See PREVIEW_DIFFERENCES.
 
-import { vbaFormatFixed } from '../export/lsp/vbaFormat.ts'
 import type { ListKey, MovableLabelList, Project } from '../data/schema.ts'
 import {
   REFERENCE_POSITIONS,
   axisLabels,
   clockPositionDegrees,
   countedScans,
+  coverageLabel,
   coveragePercent,
   drawnScans,
   imageInserts,
@@ -602,11 +602,12 @@ export function buildDrawing(p: Project): Drawing {
   // Legend and title block
   if (s.showLegendOnOverlay) {
     const counted = countedScans(p, drawnScans(p), false)
-    const coverage = coveragePercent(p, counted, mutCoverageArea(p))
+    const mutArea = mutCoverageArea(p)
+    const coverage = coveragePercent(p, counted, mutArea)
     const pen = new Pen()
     legend(pen, o, panel.legendX, panel.legendY, scales.legend, s.autHatchEnabled, step, {
       total: `Total Scans: ${counted.length}`,
-      cov: coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`,
+      cov: coverageLabel(coverage, mutArea),
       orient: o === 'Vertical' ? 'Orientation: Vertical' : 'Orientation: Horizontal',
       overlay: 'Overlay: Enabled',
     })

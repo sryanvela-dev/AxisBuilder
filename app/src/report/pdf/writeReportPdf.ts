@@ -281,8 +281,15 @@ class ReportPageWriter {
       pushGraphicsState(),
       concatTransformationMatrix(round((PT * a) / W), round((-PT * b) / W), round((-PT * c) / Hs), round((PT * d) / Hs), round(PT * (c + ee)), round(PT * (H - d - f))),
       drawObject(name),
-      popGraphicsState(),
     )
+    // Darken: the same page again on top, multiplied: white stays white, grey lines and text deepen (stays vector).
+    const more = Math.max(0, Math.min(2, it.darken ?? 0))
+    if (more > 0) {
+      const gs = this.page.node.newExtGState('GS', this.pdf.context.obj({ Type: 'ExtGState', BM: 'Multiply' }))
+      this.ops(setGraphicsState(gs))
+      for (let i = 0; i < more; i++) this.ops(drawObject(name))
+    }
+    this.ops(popGraphicsState())
   }
 }
 

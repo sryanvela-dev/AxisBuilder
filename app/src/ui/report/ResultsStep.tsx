@@ -19,6 +19,7 @@ import { Flag, ReportBox, ReportCheckbox, ReportSelect, RowMessages, type Messag
 import { CommentPicks, CommentText, PicksForAll, WallLoss } from './CommentPicks.tsx'
 import { FilePick, ReportFolderBar } from './FilePick.tsx'
 import { reportPlaceId } from './places.ts'
+import { CropButton } from './PictureWindow.tsx'
 import { useReport } from './reportContext.ts'
 import { ReportStepIssues, type ReportStepProps } from './ReportWorkspace.tsx'
 import { ScansheetPasteDialog } from './ScansheetPasteDialog.tsx'
@@ -343,6 +344,7 @@ function ResultRow({ row, open, onToggle, messages, ladder }: { row: ScanRow; op
                 placeholder={report.calibration.increments.y === null ? '' : `${formatNumber(report.calibration.increments.y)} (job)`}
                 set={(q, v: number | null) => set({ incrY: v })(q)} boxKey={`${key}.incrY`} step={STEP} />
               <FilePick label="Data-page screenshot" folder={screenshots} value={result?.dataImage ?? null} set={(q, f) => setScanResult(q, id, { dataImage: f })} />
+              {result?.dataImage && <CropButton at={{ kind: 'dataImage', scanId: result.scanId }} picture={{ source: 'screenshots', file: result.dataImage }} name={`the data page of ${id}`} />}
             </div>
             {result && (result.csvComment || result.csvNomT !== null || result.csvWallRemain !== null) && (
               <p className="muted">

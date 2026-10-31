@@ -7,17 +7,17 @@ export const GUIDE_STEPS: Record<StepId, string> = {
   project:
     'Job information for the title block (project, component, client, inspector, date) and the shell: its length, ' +
     'circumference, orientation, axis directions, reference labels and which heads are drawn.',
-  fieldData:
-    'What the field form says: circ welds, long seams, shell and head nozzles, objects such as saddles and pads, and ' +
-    'MUT readings (an object\'s X and Y are its corner nearest 0, 0, not its center). Type into the tables or paste ' +
-    'rows from Excel. A value that is missing or not valid is marked, and ' +
-    'the export waits until it is fixed.',
   scans:
     'Import the AUT CSV (the button, or drop the file on the page). Scans with start and stop the wrong way round, ' +
     'overlaps and scans outside the shell are listed with one-click fixes where there is one.',
   images:
     'Pick the folder with the scan photos; each photo is matched to its scan by number. Process images fits each photo ' +
-    'to its scan\'s shape for the CAD drawing and the DXF (the PDF reads the photos straight from the folder).',
+    'to its scan\'s shape for the DXF (the PDF reads the photos straight from the folder).',
+  fieldData:
+    'What the field form says: circ welds, long seams, shell and head nozzles, objects such as saddles and pads, and ' +
+    'MUT readings (an object\'s X and Y are its corner nearest 0, 0, not its center). Type into the tables or paste ' +
+    'rows from Excel. A value that is missing or not valid is marked, and ' +
+    'the export waits until it is fixed.',
   drawing:
     'How the drawing looks: text sizes and colors, rulers, nozzle labels, leaders and arrows, legend and title block, ' +
     'head views, line colors and weights, and section sheets. The preview beside the page shows every change at once. ' +
@@ -26,14 +26,14 @@ export const GUIDE_STEPS: Record<StepId, string> = {
     'Everything still open, grouped by step. "Fix" items stop the export; "Check" items are only worth a look. ' +
     'Go to takes you to the field or row.',
   export:
-    'Make the files, into the job folder you pick. The app asks before it replaces a file.',
+    'Make the PDF, the report images and the DXF, into the job folder you pick. The app asks before it replaces a file.',
 }
 
 /** What each export file is for. */
 export const GUIDE_FILES: { name: string; text: string }[] = [
   { name: 'PDF and report images (JPEG)', text: 'The deliverable for the report: the drawing on its sheet, plus the overview and section sheets when they are on.' },
   { name: 'DXF', text: 'For anyone who carries on in CAD (AutoCAD, DraftSight). Keep it next to its Processed_Images folder.' },
-  { name: 'CAD drawing (.lsp)', text: 'The backup: in DraftSight or AutoCAD, APPLOAD the file and type AXISBUILDER.' },
+  { name: 'CAD drawing (.lsp)', text: 'Old backup only, closed at the bottom of the Export step: it gets no new drawing features. Use the DXF for CAD.' },
   { name: 'Job file (.axb)', text: 'Save keeps the job itself, to open and change later. A recovery copy is kept in this browser while changes are unsaved.' },
 ]
 

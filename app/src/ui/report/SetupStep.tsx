@@ -127,7 +127,7 @@ function Examiners() {
   const reviewer = job.reviewer
   const clear = () => app.dispatch({ type: 'clearDrafts', prefix: 'report.job.techs.' })
   return (
-    <section className="settings-group">
+    <section className="settings-group" id="report-examiners">
       <div className="group-head">
         <div>
           <h2>Examiners</h2>
@@ -370,7 +370,7 @@ function Sections() {
               const own = report.sections[s.id]
               const automatic = s.defaultOn === 'whenAny' && own?.on === undefined
               return (
-                <tr key={s.id}>
+                <tr key={s.id} id={`report-section-${s.id}`}>
                   <td>
                     <ReportCheckbox compact label={`${s.title} in the report`} value={sectionOn(report, s)} disabled={!s.optional}
                       set={(q, on: boolean) => setSectionOn(q, s.id, on)} boxKey={`report.sections.${s.id}.on`} step={STEP} />
@@ -394,5 +394,10 @@ function Sections() {
 function CoverPhoto() {
   const app = useApp()
   const report = app.state.job!.history.present.report!
-  return <PhotoPick label="Cover photo" slot="coverPhoto" value={report.coverPhoto} set={(q, f) => setReportValue(q, ['coverPhoto'], f)} />
+  return (
+    <div id="report-picture-cover">
+      <PhotoPick label="Cover photo" slot="coverPhoto" value={report.coverPhoto} set={(q, f) => setReportValue(q, ['coverPhoto'], f)}
+        crop={report.coverPhoto ? { at: { kind: 'cover' }, picture: { source: 'cover', file: report.coverPhoto } } : undefined} />
+    </div>
+  )
 }

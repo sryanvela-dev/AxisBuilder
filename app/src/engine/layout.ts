@@ -5,6 +5,7 @@
 import { defaultProcessedName, pieceImageName, processedImageNames } from '../data/imageMatch.ts'
 import type { HeadMut, HeadNozzle, Project, Scan } from '../data/schema.ts'
 import { formatDate } from '../data/settings.ts'
+import { vbaFormatFixed } from '../export/lsp/vbaFormat.ts'
 import { panelScales } from './styles.ts'
 import { circumference, isWrapped, scanPieces, scanXRange } from './wrap.ts'
 
@@ -316,6 +317,15 @@ export function drawnScans(p: Project, v5 = false): Scan[] {
  */
 export function countedScans(p: Project, scans: Scan[], v5: boolean): Scan[] {
   return (v5 ? p.scans : scans).filter((sc) => sc.include && sc.xStop! - sc.xStart! > 0 && sc.yStop! - sc.yStart! > 0)
+}
+
+/**
+ * The legend's coverage line (app change 30). With shell MUT areas (app only) the figure includes their hatched part, and says so; without,
+ * "Coverage: x%" as v5.0 prints it. Shell only: the heads are never counted.
+ */
+export function coverageLabel(coverage: number | null, mutArea: number): string {
+  if (coverage === null) return ''
+  return `${mutArea > 0 ? 'Shell coverage (AUT + MUT)' : 'Coverage'}: ${vbaFormatFixed(coverage, 1, 1)}%`
 }
 
 /**

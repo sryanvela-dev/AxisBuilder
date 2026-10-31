@@ -51,6 +51,10 @@ export function PreviewPanel() {
   // The section sheet plan is drawn only while section sheets are on (engine/sections.ts).
   const plan = useMemo(() => activeSectionPlan(project), [project])
   const drawing = useMemo(() => buildDrawing(project), [project])
+  // The photo folder can't be opened, or none is chosen and the last one used is offered. (One that only waits for the browser's
+  // OK is in the Restore files bar under the top bar.)
+  const photosAsk = (photos.status === 'lost' || (photos.status === 'suggest' && job.source !== 'sample')) && project.settings.generateOverlayDrawing
+    && project.scanImages.some((l) => l.imageFile)
   const model = useMemo(() => {
     const d = drawing
     return buildRenderModel(plan ? { ...d, items: [...d.items, ...sectionPlanItems(project, plan)] } : d)
@@ -113,7 +117,7 @@ export function PreviewPanel() {
   const vesselMissing = project.vessel.length === null || project.vessel.height === null
   return (
     <aside className={`preview${full ? ' preview-full' : ''}`} aria-label="Drawing preview">
-      {!full && <PreviewSplitter />}
+      {!full && <PreviewSplitter kind="drawing" />}
       <div className="preview-head">
         <strong>Drawing preview</strong>
         <span className="muted">{project.vessel.orientation}</span>
@@ -166,6 +170,20 @@ export function PreviewPanel() {
           </label>
         ))}
       </div>
+      {photosAsk && (
+        <p className="msg msg-warning preview-photo-folder">
+          {photos.status === 'suggest' ? (
+            <>
+              No photo folder is chosen for this job.{' '}
+              <button type="button" className="btn btn-small btn-primary" onClick={() => void photos.useSuggested()}>
+                Use {photos.suggested?.name} (used last)
+              </button>
+            </>
+          ) : (
+            <>The photo folder {photos.name} can&apos;t be opened any more (moved, renamed or deleted?). Choose it again on the Images step.</>
+          )}
+        </p>
+      )}
       {move.status}
       {areas.status}
       <div className={`preview-canvas${showSheets ? ' sheets' : project.settings.drawingColors === 'Softer for screens' ? '' : ' exact-colors'}`}>

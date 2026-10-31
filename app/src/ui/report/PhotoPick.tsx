@@ -7,7 +7,11 @@ import type { Project } from '../../data/schema.ts'
 import { forgetFile, pickImageFile, recallFile, rememberFile, type FileSlot } from '../../state/files.ts'
 import { pickWithInput } from '../../state/projectFiles.ts'
 import type { FileHandleLike } from '../../state/session.ts'
+import type { ImagePlace } from '../../report/imageItems.ts'
+import type { ImageRef } from '../../report/pageModel.ts'
+import { restoreEvents } from '../../state/restore.ts'
 import { useApp } from '../appContext.ts'
+import { CropButton } from './PictureWindow.tsx'
 
 type Status = 'loading' | 'none' | 'allow' | 'ready' | 'lost'
 
@@ -19,6 +23,12 @@ function useRememberedFile(slot: FileSlot) {
   const [handle, setHandle] = useState<FileHandleLike | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<Status>('loading')
+  const [restored, setRestored] = useState(0)
+  useEffect(() => {
+    const again = () => setRestored((n) => n + 1)
+    restoreEvents.addEventListener('restored', again)
+    return () => restoreEvents.removeEventListener('restored', again)
+  }, [])
 
   const open = useCallback(async (h: FileHandleLike) => {
     setHandle(h)
@@ -54,7 +64,7 @@ function useRememberedFile(slot: FileSlot) {
     return () => {
       alive = false
     }
-  }, [store, jobId, slot, open])
+  }, [store, jobId, slot, open, restored])
 
   /** Opens the file picker; the picked file's name, or null when cancelled. */
   const choose = useCallback(async (): Promise<string | null> => {
@@ -92,7 +102,7 @@ function useRememberedFile(slot: FileSlot) {
   return { status, name: file?.name ?? handle?.name ?? null, file, choose, allow, forget }
 }
 
-export function PhotoPick(props: { label: string; slot: FileSlot; value: string | null; set: (p: Project, name: string | null) => Project; help?: string }) {
+export function PhotoPick(props: { label: string; slot: FileSlot; value: string | null; set: (p: Project, name: string | null) => Project; help?: string; crop?: { at: ImagePlace; picture: ImageRef } }) {
   const app = useApp()
   const id = useId()
   const f = useRememberedFile(props.slot)
@@ -140,6 +150,7 @@ export function PhotoPick(props: { label: string; slot: FileSlot; value: string 
             <button type="button" className={value === null ? 'btn btn-primary' : 'btn'} onClick={() => void choose()} aria-describedby={`${id}-label`}>
               {value === null ? 'Choose picture...' : 'Choose another...'}
             </button>
+            {value !== null && props.crop && <CropButton at={props.crop.at} picture={props.crop.picture} name={props.label.toLowerCase()} />}
             {value !== null && (
               <button type="button" className="btn" onClick={() => void remove()}>
                 Remove

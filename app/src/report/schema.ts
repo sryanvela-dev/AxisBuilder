@@ -116,7 +116,11 @@ export const imageEditsShape = {
   crop: fracBox.nullable().default(null),
   /** Quarter turns clockwise, on top of the file's own (EXIF) orientation. */
   rotate: rotation.default(0),
-  adjust: z.strictObject({ autoLevels: z.boolean().default(false) }).prefault({}),
+  adjust: z.strictObject({
+    autoLevels: z.boolean().default(false),
+    /** Darken a faint page: 0 off, 1 darker, 2 much darker (format 9; uploaded PDF pages print over themselves, multiplied). */
+    darken: z.number().int().min(0).max(2).default(0),
+  }).prefault({}),
   markup: z.array(markSchema).default([]),
 }
 export const imageEditsSchema = z.strictObject(imageEditsShape)
@@ -371,7 +375,8 @@ export const reportOptionsSchema = z.strictObject({
     .strictObject({
       rollout: z.boolean().default(true),
       overlay: z.boolean().default(true),
-      sections: z.enum(['as drawing', 'off']).default('as drawing'),
+      /** 'as drawing' = the scans version (hatched, no photos), as before; 'overlays' with the photos; 'both' = scans, then overlays. */
+      sections: z.enum(['as drawing', 'overlays', 'both', 'off']).default('as drawing'),
     })
     .prefault({}),
   cscanStats: z.strictObject({ temperature: z.boolean().default(false) }).prefault({}),

@@ -1,4 +1,4 @@
-// The six steps of a job and their status (done / needs attention / not started), computed from
+// The seven steps of a job and their status (done / needs attention / not started), computed from
 // the project's checks (data/checks.ts: missing values, repeated names, values outside the shell,
 // ...), typed values that are not valid yet (drafts) and the import report. Pure functions, no React.
 
@@ -17,12 +17,12 @@ export interface StepInfo {
 
 export const STEPS: readonly StepInfo[] = [
   { id: 'project', title: 'Project', intro: 'Job information and the size and orientation of the shell.' },
-  { id: 'fieldData', title: 'Field data', intro: 'Welds, nozzles, objects and MUT readings from the field form.' },
   { id: 'scans', title: 'AUT scans', intro: 'Scan positions from the AUT CSV.' },
   { id: 'images', title: 'Images', intro: 'A photo for each AUT scan.' },
+  { id: 'fieldData', title: 'Field data', intro: 'Welds, nozzles, objects and MUT readings from the field form, drawn over the scans.' },
   { id: 'drawing', title: 'Drawing', intro: 'How the drawing looks: text sizes and colors, rulers, legend, head views and what is shown.' },
   { id: 'review', title: 'Review', intro: 'Everything still open before the drawing can be made.' },
-  { id: 'export', title: 'Export', intro: 'Make the PDF and the report images, or the CAD drawing file.' },
+  { id: 'export', title: 'Export', intro: 'Make the PDF, the report images and the DXF.' },
 ]
 
 export function stepInfo(id: StepId): StepInfo {
@@ -146,7 +146,7 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
   // Drawing: every setting has a working default, so it is done as soon as there is a shell to draw.
   const drawing = status(p.vessel.length !== null && p.vessel.height !== null, stepIssues(job, checks, 'drawing'))
 
-  const before = [project, fieldData, scans, images, drawing]
+  const before = [project, scans, images, fieldData, drawing]
   const labelIssues: Issue[] = checks.filter((c) => c.label).map((c) => ({ step: stepOfCheck(c), text: checkSentence(p, c), blocksExport: false, check: c }))
   const open = [...before.flatMap((s) => s.issues), ...labelIssues]
   const todo: Issue[] = []
@@ -160,7 +160,7 @@ export function stepStatuses(job: Job): Record<StepId, StepStatus> {
       ? { state: 'attention', short: `${exportBlockers.length} to fix`, issues: exportBlockers }
       : { state: 'notStarted', short: 'Not started', issues: [] }
 
-  return { project, fieldData, scans, images, drawing, review, export: exportStatus }
+  return { project, scans, images, fieldData, drawing, review, export: exportStatus }
 }
 
 function imageStatus(p: Project, wb: WorkbookImport | null, checkIssues: Issue[]): StepStatus {
@@ -187,7 +187,7 @@ export function reviewList(review: StepStatus): { errors: ReviewGroup[]; warning
 /** Short lines for the "before export" banner: what is left, grouped by step. Empty when ready. */
 export function whatsLeft(statuses: Record<StepId, StepStatus>): { step: StepId; text: string }[] {
   const out: { step: StepId; text: string }[] = []
-  for (const id of ['project', 'fieldData', 'scans', 'images', 'drawing'] as const) {
+  for (const id of ['project', 'scans', 'images', 'fieldData', 'drawing'] as const) {
     const s = statuses[id]
     const fix = s.issues.filter((i) => i.blocksExport).length
     const check = s.issues.length - fix

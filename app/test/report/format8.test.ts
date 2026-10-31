@@ -44,10 +44,10 @@ describe('project file format 8', () => {
     expect(r.migratedFrom).toBe(7)
     expect(r.project.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     const rep = r.project.report!
-    expect(rep.photos[0]).toEqual({ file: 'p.jpg', caption: 'x', alone: true, crop: null, rotate: 0, adjust: { autoLevels: false }, markup: [] })
+    expect(rep.photos[0]).toEqual({ file: 'p.jpg', caption: 'x', alone: true, crop: null, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup: [] })
     expect(rep.uploads[0].rotate).toBe(270)
     expect(rep.uploads[0].markup).toEqual([])
-    expect(rep.coverPhotoEdits).toEqual({ crop: null, rotate: 0, adjust: { autoLevels: false }, markup: [] })
+    expect(rep.coverPhotoEdits).toEqual({ crop: null, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup: [] })
     expect(rep.calibration.dynamicImageEdits.rotate).toBe(0)
     expect(rep.options.photosPerPage).toEqual({})
     expect(imageItems(rep).map((i) => i.place.kind)).toEqual(['cover', 'calibration', 'photo', 'upload'].flatMap((k) => (k === 'upload' ? ['sheetImage', 'upload'] : [k])))
@@ -106,5 +106,19 @@ describe('mark links follow their row', () => {
     const p = start()
     const next = { ...p, objects: [...p.objects] }
     expect(syncReport(p, next).report).toBe(p.report)
+  })
+})
+
+describe('project file format 9', () => {
+  it('opens a format 8 file: reference pages and pictures get Darken off', () => {
+    const p = olderSample()
+    const data = JSON.parse(saveProject({ ...p, report: createReport(p) }))
+    data.schemaVersion = 8
+    data.report.uploads = [{ file: 'ga.pdf', page: 1, title: 'GA', after: 'cscan', frame: 'standard', crop: null, rotate: 0, adjust: { autoLevels: false }, markup: [] }]
+    const r = openProject(JSON.stringify(data))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.migratedFrom).toBe(8)
+    expect(r.project.report!.uploads[0].adjust).toEqual({ autoLevels: false, darken: 0 })
   })
 })

@@ -12,7 +12,7 @@ import { templateOf } from '../templates/registry.ts'
 import type { PageTypeId, SectionDef } from '../templates/types.ts'
 import { buildCalibration } from './calibration.ts'
 import type { BuildContext, PageBuilder, SectionPages } from './common.ts'
-import { buildContents, contentsPerPage } from './contents.ts'
+import { buildContents, contentsPageCount } from './contents.ts'
 import { buildCover } from './cover.ts'
 import { buildCscans } from './cscan.ts'
 import { buildCustom, customSheetPages } from './custom.ts'
@@ -101,7 +101,10 @@ export function buildReport(input: ReportBuildInput): ReportDocument {
   // Pass 2: the contents' own length, then every part's first page, then the contents with real numbers.
   const listed = parts.filter((x) => x.listed && x.built.pages.length > 0)
   const contentsPart = parts.find((x) => x.def.pageType === 'contents')
-  if (contentsPart) contentsPart.built = { pages: new Array<ReportPage>(Math.max(1, Math.ceil(listed.length / contentsPerPage()))), bookmarks: [] }
+  // The Scans index under the contents: every scan of the C-Scan Data section (one page each), while it is on.
+  const cscanPart = parts.find((x) => x.def.pageType === 'cscan' && x.built.pages.length > 0)
+  const scanMarks = cscanPart?.built.bookmarks ?? []
+  if (contentsPart) contentsPart.built = { pages: new Array<ReportPage>(contentsPageCount(listed.length, scanMarks.length)), bookmarks: [] }
   const starts = new Map<Part, number>()
   let n = 0
   for (const part of parts) {
@@ -109,7 +112,8 @@ export function buildReport(input: ReportBuildInput): ReportDocument {
     n += part.built.pages.length
   }
   const contents: ContentsEntry[] = listed.map((x) => ({ title: x.title, page: starts.get(x)! }))
-  if (contentsPart) contentsPart.built = buildContents(c, contentsPart.def, contentsPart.title, contents)
+  const scanIndex: ContentsEntry[] = cscanPart ? scanMarks.map((b) => ({ title: b.title, page: starts.get(cscanPart)! + b.page })) : []
+  if (contentsPart) contentsPart.built = buildContents(c, contentsPart.def, contentsPart.title, contents, scanIndex)
 
   const pages = parts.flatMap((x) => x.built.pages)
   const bookmarks: Bookmark[] = listed.map((x) => {

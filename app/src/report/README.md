@@ -15,7 +15,10 @@ Phase R1 (data, templates, calculations, import; no screens or PDF yet):
   table and nominal pick (`pipeWalls.ts`), text block filling (`textFill.ts`).
 - `scansheetImport.ts`: the AUT Solutions scansheet.csv and pasted scan sheets (positions through the drawing's AUT
   CSV import).
-- `checks.ts`: checks on the report data (shown on the report steps and their Review since R2; the full list in R4).
+- `checks.ts`: checks on the report (design 9 and 14, full since R4): errors block the PDF, warnings and notes don't.
+- `summary.ts`: the Summary step's tiles, generated and edited scope / summary text, sentences left out (R4).
+- `crop.ts`: the crop tool's geometry; `pagesEdits.ts`: picture edits by place, custom sheets, uploads; `pdfInfo.ts`: uploaded PDF
+  page sizes, locked / damaged (R4).
 
 Phase R2 (the Report workspace screens, in `ui/report/`):
 - `edits.ts`: every report change the screens make, as a pure function of the project (one undo step each).

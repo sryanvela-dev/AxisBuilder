@@ -149,7 +149,7 @@ describe('MUT areas on the shell', () => {
       scans: [{ id: 'S1', xStart: 100, xStop: 150, yStart: 0, yStop: 50, include: true, noWrap: false, acrossSeam: false }],
     })
     expect(lsp(q, true)).toContain('Coverage: 10.4%')
-    expect(lsp(q)).toContain(`Coverage: ${((2500 + 400) / 24000 * 100).toFixed(1)}%`)
+    expect(lsp(q)).toContain(`Shell coverage (AUT + MUT): ${((2500 + 400) / 24000 * 100).toFixed(1)}%`)
   })
 
   it('wraps across the seam in pieces with one ID on the larger piece', () => {

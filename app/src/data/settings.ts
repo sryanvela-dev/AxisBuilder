@@ -19,9 +19,9 @@ export const SETTING_GROUPS = [
   { id: 'vessel', step: 'Project', title: 'Vessel size and orientation', intro: 'Size of the shell layout and which way it is drawn.' },
   { id: 'axes', step: 'Project', title: 'Axis directions', intro: 'Direction text printed along the rulers.' },
   { id: 'refLabels', step: 'Project', title: 'Reference labels', intro: 'Labels printed around the vessel, such as TDC and BDC.' },
-  { id: 'heads', step: 'Field data', title: 'Heads', intro: 'Head views drawn beside the shell layout, and their names.' },
   { id: 'scans', step: 'AUT scans', title: 'Scan drawing and checks', intro: 'How scanned areas are hatched, and how overlapping scans are treated.' },
   { id: 'images', step: 'Images', title: 'Scan images', intro: 'Whether photos are used, and how the processed copies are made.' },
+  { id: 'heads', step: 'Field data', title: 'Heads', intro: 'Head views drawn beside the shell layout, and their names.' },
   { id: 'textStyles', step: 'Drawing', title: 'Text sizes and colors', intro: 'One row per kind of text (each has its own CAD layer). Automatic is the size the drawing has always used.' },
   { id: 'rulers', step: 'Drawing', title: 'Rulers and labels', intro: 'Rulers along the shell, reference labels and direction arrows.' },
   { id: 'nozzleLabels', step: 'Drawing', title: 'Nozzle labels', intro: 'When a nozzle label goes inside its circle, and how long the leaders are.' },
@@ -34,7 +34,8 @@ export const SETTING_GROUPS = [
   { id: 'exportSets', step: 'Export', title: 'What is exported', intro: 'Which layers the PDF and the report images show, and how the main sheet is turned.' },
   { id: 'pdf', step: 'Export', title: 'PDF', intro: 'How the PDF is made: the photo resolution and PDF layers.' },
   { id: 'reportImages', step: 'Export', title: 'Report images', intro: 'One JPEG per sheet for the inspection report, cropped tight to what is printed (as TightPDF did).' },
-  { id: 'export', step: 'Export', title: 'CAD program and checks', intro: 'Which CAD program the drawing file is for, and the checks before export.' },
+  { id: 'export', step: 'Export', title: 'Checks before export', intro: 'How strictly the data is checked before anything is exported.' },
+  { id: 'lspBackup', step: 'Export', title: 'CAD program', intro: 'Only for the backup .lsp: the CAD program it is written for. The DXF opens in either.' },
 ] as const satisfies readonly { id: string; step: AppStep; title: string; intro: string }[]
 
 export type SettingGroupId = (typeof SETTING_GROUPS)[number]['id']
@@ -900,8 +901,8 @@ export const SETTINGS = {
   }),
   cadPlatform: choice(['DraftSight', 'AutoCAD'], {
     excelLabel: 'CAD Platform', excelSheet: PS, name: 'CAD program',
-    description: 'CAD program the .lsp is written for.',
-    default: 'DraftSight', group: 'export', step: 'Export', level: 'Basic',
+    description: 'CAD program the backup .lsp is written for. Not used by the PDF, report images or DXF.',
+    default: 'DraftSight', group: 'lspBackup', step: 'Export', level: 'Basic',
     v5: 'Set by the Home toggle. Anything other than AutoCAD means DraftSight.',
   }),
 
@@ -991,7 +992,7 @@ export const SETTINGS = {
   }),
   reportName: text({
     excelLabel: 'Report Image Name', excelSheet: PS, onSheet: false, name: 'File name',
-    description: 'Name of the images, without .jpg; one sheet gives "<name>.jpg", several "<name>_001.jpg", "<name>_002.jpg", ... Blank: the PDF\'s name.',
+    description: 'Name of the images, without .jpg; one sheet gives "<name>.jpg", several "<name> - Drawing.jpg", "<name> - Overview.jpg", "<name> - Section 1.jpg", ... Blank: the PDF\'s name.',
     default: '', group: 'reportImages', step: 'Export', level: 'Basic',
   }),
 

@@ -81,11 +81,12 @@ export function fieldValue(p: Project, r: Report, t: ReportTemplate, ref: FieldR
 // --- Scope and summary text ------------------------------------------------------------------
 
 /** Values that are figures (coloured in the summary). */
-export const FIGURE_FIELDS: readonly TextField[] = ['scanCount', 'readings', 'coveragePercent', 'minT', 'wallLoss', 'nominal', 'avgT', 'manualReadings']
+export const FIGURE_FIELDS: readonly TextField[] = ['scanCount', 'readings', 'coveragePercent', 'mutCoveragePercent', 'totalCoveragePercent', 'minT', 'wallLoss', 'nominal', 'avgT', 'manualReadings']
 
 export interface TextValues {
   values: Partial<Record<TextField, string>>
-  /** For the `when` of grouped blocks: band = the worst scan's ladder band, manualReadings = readings measured. */
+  /** For the `when` of grouped blocks: band = the worst scan's ladder band, manualReadings = readings measured, mutArea = the
+   * hatched area of the shell MUT areas (sq in). */
   numbers: Record<string, number>
   /** Ladder colour of the worst wall loss ('normal' | 'amber' | 'red'), for the minimum and wall loss figures. */
   lossColor: 'normal' | 'amber' | 'red'
@@ -125,6 +126,12 @@ export function textValues(p: Project, r: Report, t: ReportTemplate): TextValues
   if (coverage) {
     put('coveragePercent', pct(coverage.autPercent))
     put('coverageArea', thousands(coverage.autArea))
+    // Shell MUT areas (hatched part): only when the job has some; the drawing's figure is the total.
+    if (coverage.mutArea > 0) {
+      put('mutCoveragePercent', pct(coverage.mutPercent))
+      put('mutCoverageArea', thousands(coverage.mutArea))
+      put('totalCoveragePercent', pct(coverage.combinedPercent))
+    }
   }
   if (totals.min) {
     put('minT', inch(totals.min.value))
@@ -136,7 +143,7 @@ export function textValues(p: Project, r: Report, t: ReportTemplate): TextValues
   if (manual.readings > 0) put('manualReadings', String(manual.readings))
   return {
     values: v,
-    numbers: { band: totals.wallLoss?.band ?? 0, manualReadings: manual.readings, scans: rows.length },
+    numbers: { band: totals.wallLoss?.band ?? 0, manualReadings: manual.readings, scans: rows.length, mutArea: coverage?.mutArea ?? 0 },
     lossColor: totals.wallLoss?.color ?? 'normal',
   }
 }

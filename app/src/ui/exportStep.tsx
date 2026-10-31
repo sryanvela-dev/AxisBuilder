@@ -1,8 +1,9 @@
-// The Export step: the job folder, then the PDF and the report images (the main way, from the app's own
-// sheets) and the CAD drawing file (.lsp, the backup way). Everything refuses while there are errors, asks
+// The Export step: the job folder, then the PDF and the report images (from the app's own sheets) and the DXF; the
+// .lsp (frozen, 2026-10-31) is a closed backup section at the bottom. Everything refuses while there are errors, asks
 // before replacing a file, and ends with a plain summary of what was written where.
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { opensLspBackup } from './lspBackup.ts'
 import { processedFolderName } from '../export/images/process.ts'
 import { exportBaseName } from '../export/files.ts'
 import { exportLsp } from '../export/lsp/exportLsp.ts'
@@ -12,6 +13,8 @@ import { plural, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { useJobFolders } from './foldersContext.ts'
 import { FolderBar } from './PhotoPanel.tsx'
+import { JobFilesPanel } from './JobFilesPanel.tsx'
+import { REVEAL_EVENT, type RevealDetail } from './FindSetting.tsx'
 import { SettingsGroup } from './SettingsForm.tsx'
 import { writeFile, okToReplace } from './writeFiles.ts'
 import { bringImagesUpToDate } from './exportImages.tsx'
@@ -75,19 +78,45 @@ export function ExportStep({ status }: StepProps) {
       )}
       <section className="export-folder">
         <h2>Job folder</h2>
-        <p className="muted">Everything is written here: the PDF, the report images, the DXF and the CAD drawing file, with the processed images.</p>
+        <p className="muted">Everything is written here: the PDF, the report images and the DXF, with the processed images the DXF links to.</p>
         {jobFolder.canPick ? (
           <FolderBar folder={jobFolder} label="Job folder" chooseLabel="Choose job folder" what="writing to" />
         ) : (
           <p className="coming-soon">Writing into a folder needs Edge or Chrome.</p>
         )}
       </section>
+      <JobFilesPanel />
       <ExportPdfPanel disabled={blocked > 0 || !ready} />
       <ExportDxfPanel disabled={blocked > 0 || !ready} />
-      <LspPanel disabled={blocked > 0 || !ready} />
       <SettingsGroup group="export" step="export" />
       {REPORT_ENABLED && <ReportStart />}
+      <LspBackup disabled={blocked > 0 || !ready} />
     </>
+  )
+}
+
+/**
+ * The .lsp, frozen on 2026-10-31 (user): it still works but gets no new drawing features; the DXF is the way into CAD.
+ * Closed at the bottom of the step every time it opens; "Find a setting" opens it for the CAD program.
+ */
+export function LspBackup({ disabled }: { disabled: boolean }) {
+  const ref = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const reveal = (e: Event) => {
+      if (opensLspBackup((e as CustomEvent<RevealDetail>).detail) && ref.current) ref.current.open = true
+    }
+    window.addEventListener(REVEAL_EVENT, reveal)
+    return () => window.removeEventListener(REVEAL_EVENT, reveal)
+  }, [])
+  return (
+    <details ref={ref} className="export-backup-section">
+      <summary>Backup: CAD drawing (.lsp)</summary>
+      <p className="muted">
+        The old way into CAD. It still works but doesn't get new drawing features: use Make DXF above to take the drawing into AutoCAD or DraftSight.
+      </p>
+      <LspPanel disabled={disabled} />
+      <SettingsGroup group="lspBackup" step="export" />
+    </details>
   )
 }
 

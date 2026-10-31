@@ -2,11 +2,13 @@
 // drawing: issues come from the report checks (report/checks.ts: a component on Setup, a scan on AUT results, a reading
 // on Manual UT) and from typed values on a report step that are not valid yet (drafts). Pure functions, no React.
 //
-// R2 builds Setup, Calibration, AUT results, Manual UT and a first Review; R3 adds the photo list of Photos and pages
-// and "Make report PDF" on Export; Summary shows "Coming later" and the full Review list comes with R4.
+// Every step is built (R4): the checks of design section 9 and 14 land on the step whose page fixes them; notes (a
+// redaction waiting for R5, marks outside the crop) are listed with the warnings and never block.
 
-import { checkReport, type ReportCheck } from '../report/checks.ts'
+import { checkReport, sectionStep, type ReportCheck } from '../report/checks.ts'
 import { calibrationSchema } from '../report/schema.ts'
+import { templateOf } from '../report/templates/registry.ts'
+import type { ReportTemplate } from '../report/templates/types.ts'
 import { REPORT_STEP_IDS, type Job, type ReportStepId } from './session.ts'
 import { plural, type StepState } from './steps.ts'
 
@@ -24,7 +26,7 @@ export const REPORT_STEPS: readonly ReportStepInfo[] = [
   { id: 'results', title: 'AUT results', intro: 'Results per scan from the scansheet, the comment for each scan and its data-page screenshot.' },
   { id: 'manual', title: 'Manual UT', intro: 'UTT and MUT scan readings: the drawing’s MUT rows and readings of your own, such as nozzles.' },
   { id: 'pages', title: 'Photos and pages', intro: 'Photos, custom sheets, reference pages and which drawings go in.' },
-  { id: 'summary', title: 'Summary', intro: 'Number tiles, the scope and the summary text.', later: true },
+  { id: 'summary', title: 'Summary', intro: 'Number tiles, the scope and the summary text.' },
   { id: 'reportReview', title: 'Review', intro: 'Everything still open before the report can be made.' },
   { id: 'reportExport', title: 'Export', intro: 'Make the report PDF.' },
 ]
@@ -44,6 +46,8 @@ export interface ReportIssue {
   fix?: string
   /** True when the report PDF refuses until it is fixed. */
   blocksExport: boolean
+  /** For information only (listed with the warnings). */
+  note?: boolean
   check?: ReportCheck
 }
 
@@ -54,23 +58,39 @@ export interface ReportStepStatus {
 }
 
 /** The step whose page shows a report check. */
-export function stepOfReportCheck(c: ReportCheck): ReportStepId {
-  if (c.place.kind === 'picture') {
-    const k = c.place.at.kind
-    return k === 'cover' ? 'setup' : k === 'calibration' ? 'calibration' : k === 'dataImage' ? 'results' : 'pages'
-  }
-  return c.place.kind === 'component' ? 'setup' : c.place.kind === 'scan' ? 'results' : 'manual'
+/** The step that lists a report check. */
+export function stepOfReportCheck(c: ReportCheck, t?: ReportTemplate): ReportStepId {
+  return c.listOn ?? placeStep(c.place, t)
 }
 
-const BUILT = ['setup', 'calibration', 'results', 'manual', 'pages'] as const
+/** The step whose page shows a place (where Go to takes you). */
+export function placeStep(pl: ReportCheck['place'], t?: ReportTemplate): ReportStepId {
+  switch (pl.kind) {
+    case 'picture': {
+      const k = pl.at.kind
+      return k === 'cover' ? 'setup' : k === 'calibration' ? 'calibration' : k === 'dataImage' ? 'results' : 'pages'
+    }
+    case 'field': return pl.step
+    case 'section': {
+      const def = t?.sections.find((d) => d.id === pl.id)
+      return def ? sectionStep(def) : 'setup'
+    }
+    case 'sheet': return 'pages'
+    case 'component': return 'setup'
+    case 'scan': return 'results'
+    case 'reading': return 'manual'
+  }
+}
 
+const BUILT = ['setup', 'calibration', 'results', 'manual', 'pages', 'summary'] as const
+
+/** Notes are listed (Review, the step's own list) but don't make a step need attention. */
 function status(started: boolean, issues: ReportIssue[]): ReportStepStatus {
   const fix = issues.filter((i) => i.blocksExport).length
-  if (issues.length > 0) return { state: 'attention', short: fix > 0 ? `${fix} to fix` : `${issues.length - fix} to check`, issues }
+  const counted = issues.filter((i) => !i.note).length
+  if (counted > 0) return { state: 'attention', short: fix > 0 ? `${fix} to fix` : `${counted - fix} to check`, issues }
   return started ? { state: 'done', short: 'Done', issues } : { state: 'notStarted', short: 'Not started', issues }
 }
-
-const LATER: ReportStepStatus = { state: 'notStarted', short: 'Coming later', issues: [] }
 
 const DEFAULT_CALIBRATION = JSON.stringify(calibrationSchema.parse({}))
 
@@ -78,7 +98,10 @@ const DEFAULT_CALIBRATION = JSON.stringify(calibrationSchema.parse({}))
 export function reportStepStatuses(job: Job): Record<ReportStepId, ReportStepStatus> {
   const p = job.history.present
   const report = p.report
-  const issues: ReportIssue[] = checkReport(p).map((c) => ({ step: stepOfReportCheck(c), text: c.text, fix: c.fix, blocksExport: c.severity === 'error', check: c }))
+  const t = report ? templateOf(report.templateId) : undefined
+  const issues: ReportIssue[] = checkReport(p).map((c) => ({
+    step: stepOfReportCheck(c, t), text: c.text, fix: c.fix, blocksExport: c.severity === 'error', check: c, ...(c.severity === 'note' && { note: true }),
+  }))
   for (const d of Object.values(job.drafts)) {
     if ((REPORT_STEP_IDS as readonly string[]).includes(d.step)) {
       issues.push({ step: d.step as ReportStepId, text: `${d.where}: "${d.text}" is not stored. ${d.problem}`, blocksExport: true })
@@ -90,13 +113,14 @@ export function reportStepStatuses(job: Job): Record<ReportStepId, ReportStepSta
     calibration: report !== null && JSON.stringify(report.calibration) !== DEFAULT_CALIBRATION,
     results: (report?.scanResults.length ?? 0) > 0,
     manual: (report?.readings.length ?? 0) > 0,
-    pages: (report?.photos.length ?? 0) > 0,
+    pages: report !== null && report.photos.length + report.customSheets.length + report.uploads.length > 0,
+    // The tiles and text are there as soon as there are results; the user's own text or switches count too.
+    summary: report !== null && (report.scanResults.length > 0 || report.text.scope.edited !== null || report.text.summary.edited !== null),
   }
   const built = Object.fromEntries(BUILT.map((s) => [s, status(started[s], on(s))])) as Record<(typeof BUILT)[number], ReportStepStatus>
   const anyStarted = report !== null
   return {
     ...built,
-    summary: LATER,
     reportReview: status(anyStarted, anyStarted ? issues : []),
     reportExport: exportStatus(anyStarted ? issues : []),
   }
@@ -126,7 +150,7 @@ export function reportWhatsLeft(statuses: Record<ReportStepId, ReportStepStatus>
   for (const id of BUILT) {
     const s = statuses[id]
     const fix = s.issues.filter((i) => i.blocksExport).length
-    const check = s.issues.length - fix
+    const check = s.issues.filter((i) => !i.note).length - fix
     const title = reportStepInfo(id).title
     if (fix > 0) out.push({ step: id, text: `${title}: ${plural(fix, 'thing')} to fix` })
     if (check > 0) out.push({ step: id, text: `${title}: ${plural(check, 'thing')} to check` })

@@ -1,7 +1,7 @@
 // One report page drawn as SVG from the page model (report/pageModel.ts), the same model the PDF draws: text in the
 // bundled brand fonts, rules, boxes, pictures (upright thumbnails, turned and cut as the PDF places them) with their
-// marks, drawing sheets through the Sheets view's own drawing code, and a box for an uploaded PDF page (shown in the
-// PDF itself; a viewer for them comes with the uploads screen, R4).
+// marks, drawing sheets through the Sheets view's own drawing code, and uploaded PDF pages as pictures drawn by pdf.js
+// (the PDF copies the page itself).
 
 import { useId } from 'react'
 import { drawSteps } from '../../engine/sheetModel.ts'
@@ -10,6 +10,7 @@ import { markItems } from '../../report/marks.ts'
 import { rectPath, storedToPage, type PageItem, type PathCmd, type ReportPage } from '../../report/pageModel.ts'
 import { Step } from '../preview/SheetsView.tsx'
 import { refKey, type ReadPicture } from './reportFiles.ts'
+import { pdfPageKey } from './useReportPages.ts'
 
 const f = (n: number) => String(Math.round(n * 10000) / 10000)
 const pathD = (d: readonly PathCmd[]) =>
@@ -92,15 +93,34 @@ function Item({ it, props, id }: { it: PageItem; props: Props; id: string }) {
         </g>
       )
     }
-    case 'pdfPage':
+    case 'pdfPage': {
+      const pic = props.pictures.get(pdfPageKey(it.file, it.page))
+      if (pic) {
+        // The picture is the page unturned; turn it about the box's centre so it fills the box.
+        const turned = it.rotate === 90 || it.rotate === 270
+        const w = turned ? it.box.h : it.box.w
+        const h = turned ? it.box.w : it.box.h
+        const cx = it.box.x + it.box.w / 2
+        const cy = it.box.y + it.box.h / 2
+        // Darken as the PDF does it: the page again on top, multiplied.
+        return (
+          <g transform={it.rotate ? `rotate(${it.rotate} ${f(cx)} ${f(cy)})` : undefined} style={{ isolation: 'isolate' }}>
+            {Array.from({ length: 1 + (it.darken ?? 0) }, (_, k) => (
+              <image key={k} href={pic.thumb} x={cx - w / 2} y={cy - h / 2} width={w} height={h} preserveAspectRatio="none"
+                style={k > 0 ? { mixBlendMode: 'multiply' } : undefined} />
+            ))}
+          </g>
+        )
+      }
       return (
         <g>
           <rect x={it.box.x} y={it.box.y} width={it.box.w} height={it.box.h} fill="#F6F8FA" stroke="#C9DAEA" strokeWidth={0.75 / 72} />
           <text x={it.box.x + it.box.w / 2} y={it.box.y + it.box.h / 2} fontSize={10 / 72} fill="#7A8594" textAnchor="middle" fontFamily="'AB Roboto', Arial, sans-serif">
-            {`${it.file}, page ${it.page} (shown in the PDF)`}
+            {`${it.file}, page ${it.page}`}
           </text>
         </g>
       )
+    }
     default:
       return null
   }

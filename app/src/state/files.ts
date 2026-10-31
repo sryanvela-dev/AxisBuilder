@@ -6,8 +6,11 @@
 import type { FileHandleLike } from './session.ts'
 import type { KeyValueStore } from './storage.ts'
 
-/** Which file of the job: the report's cover photo, its dynamic calibration screenshot, or a report photo picked as a file. */
-export type FileSlot = 'coverPhoto' | 'dynamicImage' | `photo:${string}`
+/**
+ * Which file of the job: the report's cover photo, its dynamic calibration screenshot, a report photo (or custom-sheet
+ * picture) picked as a file, or an uploaded reference page (picture or PDF).
+ */
+export type FileSlot = 'coverPhoto' | 'dynamicImage' | `photo:${string}` | `upload:${string}`
 
 const key = (jobId: string, slot: FileSlot) => `file:${jobId}:${slot}`
 
@@ -24,6 +27,7 @@ export async function forgetFile(store: KeyValueStore, jobId: string, slot: File
 }
 
 export const IMAGE_ACCEPT = { 'image/*': ['.png', '.jpg', '.jpeg'] }
+export const PDF_ACCEPT = { 'application/pdf': ['.pdf'] }
 
 /** The file picker for one image (Edge/Chrome); null when cancelled, undefined when the browser has none. */
 export async function pickImageFile(id: string): Promise<FileHandleLike | null | undefined> {

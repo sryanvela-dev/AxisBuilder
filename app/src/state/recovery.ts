@@ -8,7 +8,7 @@
 
 import { openProject, saveProject } from '../data/projectFile.ts'
 import type { Project } from '../data/schema.ts'
-import { isDirty, jobTitle, type FileHandleLike, type Job, type JobFile, type JobSource, type StepId, type WorkbookImport } from './session.ts'
+import { isDirty, jobTitle, type FileHandleLike, type Job, type JobFile, type JobSource, type SessionAction, type StepId, type WorkbookImport } from './session.ts'
 import type { KeyValueStore } from './storage.ts'
 
 const RECOVERY_PREFIX = 'recovery:'
@@ -71,6 +71,12 @@ export type RestoreResult =
 export function readRecovery(record: RecoveryRecord): RestoreResult {
   const opened = openProject(record.projectJson)
   return opened.ok ? { ok: true, project: opened.project, record } : { ok: false, errors: opened.errors }
+}
+
+/** Opens the restored job as it was: same id, file, step and source (the sample job keeps its photos, and the photo and job
+ * folders remembered for the job come back, after one "Allow" click). */
+export function restoreAction(record: RecoveryRecord, project: Project): SessionAction {
+  return { type: 'openJob', project, source: record.source, id: record.jobId, file: record.file, workbookImport: record.workbookImport, step: record.step }
 }
 
 // --- Recent jobs -----------------------------------------------------------------------------

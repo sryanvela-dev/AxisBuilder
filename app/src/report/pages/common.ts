@@ -6,7 +6,7 @@ import type { ReportStepId } from '../../state/reportStepIds.ts'
 import { imageKey, uprightSize, visibleAspect, type Bookmark, type ImageInfo, type ImageRef, type PageItem, type Rect, type ReportPage } from '../pageModel.ts'
 import type { ImageEdits } from '../schema.ts'
 import type { SectionDef } from '../templates/types.ts'
-import { CONTENT, FRAME, fitBox, frameItems, LETTER_LANDSCAPE, placeholder, type FrameContext } from './layout.ts'
+import { CONTENT, CONTENT_PORTRAIT, FRAME, fitBox, frameItems, isPortrait, LETTER_LANDSCAPE, placeholder, type FrameContext, type PageSize } from './layout.ts'
 
 export interface BuildContext extends FrameContext {
   /** Size and orientation of a picture; null = not found or not readable (a placeholder prints). */
@@ -44,11 +44,12 @@ export function stepOf(def: SectionDef): ReportStepId {
 }
 
 /** A landscape page in the standard frame. */
-export function standardPage(c: BuildContext, def: SectionDef, label: string, title: string, subtitle: string, items: PageItem[]): ReportPage {
-  return { size: LETTER_LANDSCAPE, sectionId: def.id, step: stepOf(def), label, footer: 'standard', items: [...frameItems(c, title, subtitle), ...items] }
+/** A page under the standard frame; landscape letter unless `size` says portrait (reference pages of upright sheets). */
+export function standardPage(c: BuildContext, def: SectionDef, label: string, title: string, subtitle: string, items: PageItem[], size: PageSize = LETTER_LANDSCAPE): ReportPage {
+  return { size, sectionId: def.id, step: stepOf(def), label, footer: 'standard', items: [...frameItems(c, title, subtitle, size), ...items] }
 }
 
-export const content = (): Rect => ({ ...CONTENT })
+export const content = (size: PageSize = LETTER_LANDSCAPE): Rect => ({ ...(isPortrait(size) ? CONTENT_PORTRAIT : CONTENT) })
 export { FRAME }
 
 /**

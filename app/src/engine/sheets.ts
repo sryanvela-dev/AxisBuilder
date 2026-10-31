@@ -9,11 +9,11 @@
 // length runs up the sheet (circumference ruler below the viewport, length ruler on its left, reference
 // labels along its top).
 
-import { vbaFormatFixed } from '../export/lsp/vbaFormat.ts'
 import type { Project } from '../data/schema.ts'
 import {
   axisLabels,
   countedScans,
+  coverageLabel,
   coveragePercent,
   drawnReferenceLabels,
   drawnScans,
@@ -310,10 +310,11 @@ function page(p: Project, plan: SectionPlan, section: Section | null, title: str
   pen.text(infoX + 0.38 * u, y + boxH / 2, 0.085 * u, 0, 'MUT', 'REPORT_LEGEND', 'ML')
   y -= 0.27 * u
   const counted = countedScans(p, drawnScans(p), false)
-  const coverage = coveragePercent(p, counted, mutCoverageArea(p))
+  const mutArea = mutCoverageArea(p)
+  const coverage = coveragePercent(p, counted, mutArea)
   for (const txt of [
     `Total Scans: ${counted.length}`,
-    coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`,
+    coverageLabel(coverage, mutArea),
     vertical ? 'Orientation: Vertical' : 'Orientation: Horizontal',
     'Overlay: Enabled',
   ]) {

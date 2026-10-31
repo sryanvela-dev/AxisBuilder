@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { checkProject } from '../../src/data/checks.ts'
 import type { Project } from '../../src/data/schema.ts'
-import { cleanFileName, exportBaseName, reportImageNames } from '../../src/export/files.ts'
+import { cleanFileName, exportBaseName, sheetImageNames } from '../../src/export/files.ts'
 import { planProcessing, pngSize, staleJobs } from '../../src/export/images/process.ts'
 import { ExportBlockedError, exportLsp } from '../../src/export/lsp/exportLsp.ts'
 import { lspBytes } from '../../src/export/lsp/lspBytes.ts'
@@ -28,7 +28,7 @@ describe('Review list', () => {
     expect(flat(errors).every((c) => c?.severity === 'error')).toBe(true)
     expect(flat(warnings).filter(Boolean)).toEqual(expect.arrayContaining(checks.filter((c) => c.severity === 'warning')))
     // In step order (the sample's photos are not chosen: Images errors too).
-    expect(errors.map((g) => g.step)).toEqual(['fieldData', 'images'])
+    expect(errors.map((g) => g.step)).toEqual(['images', 'fieldData'])
     // The export refuses while there are errors.
     expect(status.export.state).toBe('attention')
     expect(() => exportLsp(p)).toThrow(ExportBlockedError)
@@ -42,13 +42,12 @@ describe('Review list', () => {
 })
 
 describe('file names', () => {
-  it('follow the job name; report images as TightPDF names them', () => {
+  it('follow the job name; report images by sheet', () => {
     expect(exportBaseName('V-101 "East" / Drum')).toBe('V-101 _East_ _ Drum - AUT Coverage')
     expect(cleanFileName('  name.  ')).toBe('name')
     expect(cleanFileName('')).toBe('Job')
-    expect(reportImageNames('Job - AUT Coverage', 1)).toEqual(['Job - AUT Coverage.jpg'])
-    expect(reportImageNames('J', 3)).toEqual(['J_001.jpg', 'J_002.jpg', 'J_003.jpg'])
-    expect(reportImageNames('J', 1200).at(-1)).toBe('J_1200.jpg')
+    expect(sheetImageNames('Job - AUT Coverage', [{ kind: 'main', section: null }])).toEqual(['Job - AUT Coverage.jpg'])
+    expect(sheetImageNames('J', [{ kind: 'section', section: { n: 12 } }, { kind: 'section', section: { n: 13 } }])).toEqual(['J - Section 12.jpg', 'J - Section 13.jpg'])
   })
 })
 

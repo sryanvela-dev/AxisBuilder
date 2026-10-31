@@ -11,15 +11,27 @@ NOZZLEWRAP, OBJECTWRAP, visibility toggles, SECTIONPAGES) become app settings sh
 finished deliverable is a 2D PDF exported straight from the app's own sheets (the drawing and its section sheets),
 plus a DXF for anyone who wants to carry on in CAD for more functionality. The .lsp is an optional backup, not
 where new features go (updated by the user, 2026-10-23: e.g. section sheets matter in the app and the PDF, and
-later the DXF, not in the LISP). LISP stays as the bridge until PDF and DXF are proven. The geometry engine serves
-all of these.
+later the DXF, not in the LISP). The geometry engine serves all of these.
+**The .lsp is frozen as of 2026-10-31 (user):** it keeps working but gets no new features; no new features go into
+`export/lsp/`. New drawing features are built for the preview, Sheets, PDF, report images and DXF only; the DXF is the
+CAD route. The .lsp still follows the shared engine, so its fingerprints may change when the engine does (refresh them
+as today, only after an approved change). It is removed later (see "Later: removing the .lsp").
+
+### Later: removing the .lsp (not now)
+1. Remove the export and its UI (`export/lsp/`, the Backup section on the Export step, the `cadPlatform` setting).
+2. Port `engine/rulers.ts` off `PrintVisualRulers` (`library.generated.ts`) and `engine/layout.ts` off `vbaFormat`.
+3. Move the v5.0 parity proof to drawing / DXF checks (engine numbers against the golden jobs).
+4. Delete the LISP scripts and files: `gen:lsp-library`, the golden `.lsp` files, `imagepath:test`, the .lsp fingerprints.
+5. Update the docs (this file, `app/docs/phase2-notes.md`, `export/README.md`, the quick guide).
 
 ## Working rules
 Improvements over v5.0 are welcome. When you see a function or behaviour that would work better than v5.0,
 propose it. Don't change it silently. List proposals under "Suggested improvements" at the end of your summary:
 what, why it's better, and what it changes for the user or the drawing. The author decides. Approved changes go
 into the app's output only; compat 'v5.0' stays exact so the golden tests keep proving the port. Record approved
-changes in the Change log.
+changes in the Change log. Since the .lsp freeze (2026-10-31) new features are not added to `export/lsp/`, and the
+numbered app change list (`APP_CHANGES`, `app/docs/phase2-notes.md`) is closed at change 30: later drawing changes are
+recorded in the Change log against the preview / PDF / DXF only.
 
 ## Folder layout
 - `src/*.bas` – **master copy of all VBA code** (9 standard modules). Edit only these.
@@ -147,7 +159,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   on shell and head MUT rows (MUT areas drawn in the preview); older files have none. Format 7 (Phase R1) adds `report`
   (the AUT report, `app/src/report/schema.ts`; null = drawing-only job, older files open with null) and the shared
   project fields `location` and `equipmentName` (blank). Format 8 (Phase R3) adds `crop`, `rotate`, `adjust` and `markup` on every report
-  picture and Photos per page (`options.photosPerPage`); all have defaults.
+  picture and Photos per page (`options.photosPerPage`); all have defaults. Format 9 (2026-10-31) adds `adjust.darken` (0 / 1 / 2) on
+  report pictures, used to darken faint uploaded PDF pages; default 0.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -155,8 +168,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). AUT CSV:
   `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`).
 - App shell (Phase 3b): start screen (new, open, import Excel with its report first, sample job, recent jobs, restore
-  unsaved work) and the job screen: top bar (Undo/Redo/Save/Save as/Close), step bar Project -> Field data -> AUT
-  scans -> Images -> Drawing -> Review -> Export with done / needs attention / not started from `stepStatuses`
+  unsaved work) and the job screen: top bar (Undo/Redo/Save/Save as/Close), step bar Project -> AUT scans ->
+  Images -> Field data -> Drawing -> Review -> Export (order since 2026-10-31, the order the work happens) with done / needs attention / not started from `stepStatuses`
   (`app/src/state/steps.ts`), "Before export" banner, one "Next: ..." button. All state in `AppStoreProvider`
   (`app/src/ui/AppStore.tsx`, read with `useApp()`); every project change goes through `edit()` and can be undone
   (Ctrl+Z / Ctrl+Y; typing in one box is one step). Project file extension `.axb` (JSON; `.json` also opens).
@@ -184,7 +197,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   nothing / WARN warning / BLOCK error). Photo rule (v5.0): a drawn scan needs a photo (error while Check data before
   export is on, warning when off); a switched-off scan, or a scan whose photo is switched off ("Use photo"), needs
   none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
-  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening needs one "Allow" click), matching flow
+  (`state/folders.ts`, `ui/useRememberedFolder.ts`; job files in this browser: `state/restore.ts` `jobFiles` (every group the job uses and its state), the bar under the top bar (`ui/RestoreFilesBar.tsx`: "Restore files" asks for everything waiting for the browser's OK from one click; "Find files..." searches a picked folder and its subfolders by name, `findFiles`), "Job files" on both Export steps (`ui/JobFilesPanel.tsx`, `ui/useJobFiles.ts`); `restoreEvents` tells the screens to read again; plan and the planned working copies in `app/docs/job-files-plan.md`; "Restore <folder>" on a folder bar does one; kept by job id, by job name (a job back with a new id) and as the last one used (offered as "Use <folder> (used last)")), matching flow
   (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
   (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
   + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
@@ -244,12 +257,13 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   "Write as" button, not a warning (`wrapNote`). Preview divider: `ui/preview/PreviewSplitter.tsx`.
 - Review and Export steps (Phase 4a): Review = `reviewList` (`state/steps.ts`, errors then warnings, grouped by step)
   with a Go to per item (`ui/goToIssue.ts`), "Ready to export" when nothing is open. Export (`ui/exportStep.tsx`): job
-  folder, the PDF / report images panel (`ui/exportPdf.tsx`), "Make CAD drawing (.lsp)" as the backup (processes
+  folder, the PDF / report images panel (`ui/exportPdf.tsx`), "Make CAD drawing (.lsp)" as the backup (frozen since 2026-10-31: in the closed "Backup: CAD drawing (.lsp)" section at the
+  bottom, `LspBackup`, with the CAD program setting, group `lspBackup`, which Find a setting opens via `ui/lspBackup.ts`; processes
   missing or out-of-date processed images first: `staleJobs` in `export/images/process.ts`; writes
   `<job> - AUT Coverage.lsp` in cp1252 with `lspBytes`, images found relative to the drawing: `relativeImages` option,
   `writeImageFinder` / `SL_AppInsertImage` in `appLibrary.ts`; then shows the CAD steps), CAD program and checks
   settings. Everything refuses while errors exist, asks before replacing (`ui/writeFiles.ts okToReplace`), and ends with
-  a summary. File names: `export/files.ts` (`exportBaseName`, `reportImageNames` as TightPDF).
+  a summary. File names: `export/files.ts` (`exportBaseName`, `sheetImageNames`: one per sheet, "<name> - Drawing / Overview / Section n.jpg").
 - PDF and report images (Phase 4b, `app/docs/pdf-export.md`): one sheet model per printed sheet
   (`engine/sheetModel.ts`: main sheet = whole drawing fitted to letter, landscape or portrait by its shape; then the
   overview and sections from `engine/sheets.ts`), primitives in paper inches with print color (`aci.ts printRgb`),
@@ -368,7 +382,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `REPORT_STEP_IDS` (setup, calibration, results, manual, pages, summary, reportReview, reportExport), `goToReportStep` / `setWorkspace`;
   `goToStep` goes back to the drawing (Find a setting, Go to); the report removed by undo shows the drawing; drafts may sit on a report step
   (`AnyStepId`). `state/reportSteps.ts`: titles, `reportStepStatuses` (checkReport: component -> Setup, scan -> AUT results, reading ->
-  Manual UT, plus report drafts; Photos and pages, Summary, Export "Coming later"), `reportReviewList`, `reportWhatsLeft`. `report/edits.ts`:
+  Manual UT, plus report drafts; every step built since R4), `reportReviewList`, `reportWhatsLeft`. `report/edits.ts`:
   every report change as a pure function (start, template, value by path, list items, components, sections, cover extras, scan results,
   data images, readings, linked Min 'T' written to the drawing MUT row, `addNozzleReadings` with `npsForDiameter`). Screens:
   `ReportWorkspace.tsx` (step bar, banner, Next, Review), `boxes.tsx` (`ReportBox` / `ReportSelect` / `ReportCheckbox` on `useEditBox`,
@@ -398,6 +412,26 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   view and the pages panel beside every report step; click a page -> its step), `PhotosStep.tsx` (photo list, Photos per page),
   `ExportStep.tsx` ("Make report PDF" -> `<job> - AUT Report.pdf`, `export/files.ts reportPdfName`). Node side for tests and the
   script: `test/report/pages/nodeFiles.ts`, `fixture.ts`, `photos.ts` (made-up photos, one with EXIF 6).
+- Report R4 (Photos and pages, Summary, Review, Export; "R4 as built" in `app/docs/report-design.md`): checks in full
+  (`report/checks.ts`: design 9 and 14; severities error / warning / note (notes never make a step need attention);
+  places component, scan, reading, picture, field (any element id on a step), section, sheet; `listOn` lists a check on another
+  step than its place, e.g. a summary sentence waiting for a Calibration value; `actions` = "Turn the section off" via
+  `applyReportCheckAction`; `placeStep` / `useGoToIssue` in `ui/report/places.ts` go to the step of the place). Summary
+  (`report/summary.ts`: `summaryTiles` shared with the page, `generatedText`, `editText` (text equal to the generated is not an
+  edit), `regenerateText`, `missingSentences`, `setTextBlock` (a group switches together), `setScopeField`; screen
+  `ui/report/SummaryStep.tsx`, Regenerate asks with both texts side by side; string lists scopePurpose / scopeArea /
+  scopeLimitations). Photos and pages: `report/crop.ts` (crop math, the box on the turned picture <-> the stored crop),
+  `report/pagesEdits.ts` (`setPictureEdits` by ImagePlace, custom sheets and blocks, uploads), `ui/report/PictureWindow.tsx`
+  (the full-size picture window R5's markup editor reuses; `CropTool`, `CropDialog`, `CropButton` on photos, cover, calibration
+  and data-page screenshots, sheet pictures, upload pictures), `CustomSheets.tsx` (blocks, head views = that head alone as its own
+  sheet model, `headSheet` in `report/pages/custom.ts`; a part of the main sheet picked by dragging a box), `Uploads.tsx` (drop or
+  pick pictures and PDFs, PDF page picker, file slot `upload:<name>`), `placeOptions.ts`. Uploaded PDFs: `report/pdfInfo.ts`
+  (pdf-lib page sizes; locked / damaged -> the design's plain message), `ui/report/pdfPages.ts` (pdf.js, `pdfjs-dist`, lazy-loaded,
+  its worker precached: `mjs` added to the Workbox globPatterns; its WebAssembly decoders jbig2 / openjpeg / qcms served and copied
+  unhashed to `/pdfjs-wasm/` by the `pdfjsWasm` plugin in vite.config.ts and passed as `wasmUrl`, else scanned fax / JBIG2 layers are
+  left out on screen), `useUploadPdfs` (pages drawn into the pictures map under
+  `pdfPageKey`, so PageSvg draws them). Export: `reportPdfName(job, client)` = `<job> - <client> - AUT Report.pdf`, uploaded PDFs
+  read again and copied, summary of what was left out.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -923,3 +957,93 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-31 – Saved lists (feature/report-r3, user): built in, first in their lists: makers Olympus, AUT Solutions (AUT system and, newly, the
   scanner maker box share the list); models Proscan, Accuscan, AccuTrak, Bandit (AUT system and scanner); new list Block thickness ranges
   (0.100" - 0.500", 0.100" - 1.500") on the calibration block; technique 0-degree.
+- 2026-10-31 – Drawing step order (branch feature/report-r4, user request): the step bar is now Project -> AUT scans -> Images ->
+  Field data -> Drawing -> Review -> Export (`STEP_IDS`, `STEPS`, the status and Review / banner order, `PREVIEW_STEPS`, the Heads
+  group, the quick guide, first-user-test.md); a test pins the order. No change to the project file or any output.
+- 2026-10-31 – AUT report Phase R4 (branch feature/report-r4, user request): Summary step (six tiles, scope builder with saved
+  suggestions, generated summary, text edited by hand kept and flagged until Regenerate, which shows both texts first; sentences
+  left out listed with Go to); Review in full (design 9 and 14: cover fields, sections on with nothing to print with "Turn the section
+  off", temperature without a value, data pages, drawn vs in-report scans, overrides, readings far over the nominal, changed ladder,
+  pictures: redaction note, labels linked to deleted rows, marks outside the crop, custom sheet views the drawing lacks, edited text);
+  Photos and pages in full (crop tool in a full-size picture window for every report picture, custom sheets with all block kinds, head
+  views now printed, a part of the main sheet picked by dragging, uploaded pictures and PDF pages with a pdf.js page picker, drawings to
+  include, section switches); Export (file name with the client, uploaded PDFs copied, summary). New dependency pdfjs-dist (screen only;
+  the PDF still copies pages with pdf-lib). No project file format change. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged;
+  the engine is untouched. No VBA or workbook changes.
+- 2026-10-31 – Fix (feature/report-r4, user: the drawing lost its overlay photos after restoring unsaved work; the report did not): a restored
+  job kept the source "recovery", so the sample job lost its bundled photos; it now keeps its own source (`restoreAction` in
+  `state/recovery.ts`, test). A remembered photo folder that needs the browser's "Allow" (or was moved) is now asked about in the
+  preview on every step, not only on the Images step. Outputs unchanged.
+- 2026-10-31 – Fix (feature/report-r4, user: restoring a job meant choosing the photo folder and photos again): folders are also
+  remembered by job name and as the last one used (`recallFolderFor`: this job, then the same name, then the last one, only offered);
+  the browser's permission click is now "Restore <folder>" on the Images step and "Restore photos" in the preview; the photo links
+  were never lost. Also fixed: on the sample job the first "Choose another folder" click was undone by the sample photos. Test added.
+- 2026-10-31 – Restore files (feature/report-r4, user: every picture on the report side was missing after a reopen too; must work in
+  Chrome and Edge): one "Restore files" bar under the top bar in both workspaces, listing the drawing photo folder, job folder, report
+  folders and the report's files picked one by one that wait for the browser's OK (`itemsToRestore`); one click asks for all
+  (`restoreItems`; any the browser refuses or will not ask about stay for the next click), then the folder bars, picked pictures,
+  report pages and drawing photos read again (`restoreEvents`). The preview's own restore line from the previous fix is gone (the bar
+  covers it). Tests added. Same File System Access API in Chrome and Edge.
+- 2026-10-31 – Job files (feature/report-r4, user: no rules on where people keep files; a job-folder layout and copying were turned
+  down): `state/restore.ts` rewritten around `jobFiles` (groups: scan photos, report photos and pictures, screenshots, cover, calibration,
+  uploads, job folder; per file found / waiting / missing; a folder that cannot be opened is lost). Find files... in the bar and on the
+  new Job files panel (both Export steps): any folder, subfolders searched by name (6 levels, 5,000 folders, system folders skipped),
+  folders and single files remembered for the job. Remembered report files are matched ignoring case. Plan with the working copies
+  for later in `app/docs/job-files-plan.md`. Tests added; outputs unchanged.
+- 2026-10-31 – Job files follow-up (feature/report-r4, user: Find files found none of the sample V-100's photos in the original job
+  folder): Find files also matches a picture saved with another extension (S1.png for S1.jpg; the sample's photos are the
+  original PNGs saved again as JPEG) and changes the job's links to the real names in one undo step (`renameLinkedFiles`). A job
+  saved from the sample and opened again keeps the photos built into the app while no photo folder is chosen
+  (`usesSamplePhotos` in `ui/samplePhotos.ts`: the sample's scans and photo names exactly; Job files shows them as built in).
+  Tests added; outputs unchanged.
+- 2026-10-31 – Coverage and long summaries (feature/report-r4, user): coverage is the shell only, AUT and MUT apart. Report: the
+  coverage sentence ends "of the <equipment type> shell"; new summary sentence "MUT areas coverage" (only with shell MUT areas,
+  `when: mutArea>0`, fields mutCoveragePercent / mutCoverageArea / totalCoveragePercent) gives the MUT part and the drawing's total;
+  the coverage tile reads "AUT shell coverage; +x% MUT areas = y% total". Drawing (app change 30, approved): with shell MUT areas the
+  legend line reads "Shell coverage (AUT + MUT): y%" (`coverageLabel` in engine/layout.ts; preview, sheets, PDF, .lsp, DXF); without,
+  "Coverage: y%" as before; compat v5.0 unchanged; only the sample's .lsp and DXF fingerprints changed. Long Scope & Summary: the page
+  flow no longer drops text silently past 6 pages (limit 20, then a note in the export summary); the Summary step says when it runs
+  onto more pages; Review notes it (`scopeSummaryPageCount`). R5 priority (user): photos and reference drawings first, data pages next.
+- 2026-10-31 – Reference pages (feature/report-r4, user: the title box was too narrow to read; a faint upright PDF sheet was
+  unreadable): the reference page list is now cards (picture, full-width Title, then Prints / Frame / Darken / buttons with visible
+  labels). An upright sheet or picture (taller than wide, as turned) prints on a portrait letter page under a portrait standard frame
+  (`FRAME_PORTRAIT`, `CONTENT_PORTRAIT` in report/pages/layout.ts: header fields in one column, 0" reference beside; about 70% of a
+  letter sheet instead of 55%); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
+  `adjust.darken`, migration from 8): the PDF page is printed again over itself with blend mode Multiply, once or twice (stays vector;
+  white stays white), the Pages view the same with mix-blend-mode; `setUploadDarken`. Tests added; drawing outputs unchanged.
+- 2026-10-31 – Fix (feature/report-r4, user: an uploaded scanned U-1A form showed only its table lines in the Pages view; Darken did not help):
+  the form's text is in CCITT fax stencils, which pdf.js 6 decodes only with its WebAssembly decoders, and the app never gave it
+  `wasmUrl`, so those layers were dropped on screen. The decoders (jbig2, openjpeg, qcms, about 450 KB) are now served in dev and copied
+  into the build under `/pdfjs-wasm/` and precached (`pdfjsWasm` in vite.config.ts); `openPdf` passes `wasmUrl`. The report PDF was not
+  affected (pdf-lib copies the page as it is). Test added; outputs unchanged.
+- 2026-10-31 – Fixes (feature/report-r4, user): (1) the preview divider keeps one width for the drawing steps and one for the report
+  steps (`PreviewSplitter kind`, localStorage `axisbuilder:previewWidth` as before and `axisbuilder:previewWidth:report`); switching
+  workspaces no longer carries the other's width over. (2) Report images are named by the sheet they show instead of numbered:
+  "<name> - Drawing.jpg", "<name> - Overview.jpg", "<name> - Section 1.jpg", ... (one sheet: "<name>.jpg" as before; `sheetImageNames`
+  replaces `reportImageNames`). Tests updated; drawing outputs unchanged.
+- 2026-10-31 – Report drawings (feature/report-r4, user: the Section sheets choice on Photos and pages printed the sections without the
+  overlays): Section sheets = Scans (hatched, no photos; the stored 'as drawing', as before) / Overlays (photos, no hatch) / Scans and
+  overlays (scans first, the overlay ones titled "... (overlay)") / Off (`report/schema.ts` enum, `sectionSets` and `overlaysUsable` in
+  `report/pages/drawing.ts`). Section sheets now print on their own (before, only while Rollout drawing was ticked). Without scan
+  images the overlay sets print nothing. No format change (older files keep their value). Test added; drawing outputs unchanged.
+- 2026-10-31 – .lsp frozen (feature/report-r4, user decision): it keeps working but gets no new features; the DXF is the CAD route, the
+  .lsp is removed later (End goal, "Later: removing the .lsp"). Export step: "Make CAD drawing (.lsp)" moved into a closed "Backup: CAD
+  drawing (.lsp)" section at the bottom (always starts closed; one line saying it is the old way and the DXF is the way into CAD); the
+  CAD program setting moved into it (new group `lspBackup`; the `export` group is now "Checks before export"); Find a setting opens the
+  section (`ui/lspBackup.ts`). The step intro, the job folder line, the DXF panel, the quick guide and first-user-test.md present the
+  PDF, report images and DXF as the outputs. App change numbers: the coverage legend change is app change 30 (29 is the title block);
+  both are now in `APP_CHANGES` and the phase2-notes table, which is closed at 30. Golden jobs, compat v5.0, .lsp and DXF fingerprints
+  unchanged. Test added.
+- 2026-10-31 – R4 click-through fixes (feature/report-r4, user): (1) Report sheet views (head views on custom sheets, the main /
+  section / overview sheets on Drawings pages) print `viewRegion` (engine/sheetModel.ts): the extents with every text measured to
+  the font's full ascent and descent (`textInkCorners`) plus `VIEW_MARGIN` 0.08 in, so a head view's title (EAST HEAD) is no longer
+  cut at its top; tested on both heads, all three orientations and every sheet. The drawing's own extents (PDF, report images) are
+  unchanged. (2) "A part of the main drawing" picker (`ViewCropDialog` in ui/report/CustomSheets.tsx) uses the crop tool's box
+  (`dragBox` / `fitAspect` / `presetBox`; `paperToFrac`, `fracToPaper`, `startViewBox` in report/crop.ts): corner and side handles,
+  drag inside to move, drag elsewhere for a new box, arrows nudge (Shift bigger), "Match the slot's shape" (on: the slot's
+  width / height from `sheetSlots`), Reset; every change goes into the job at once (grouped undo, so the Pages panel follows), OK
+  is one undo step, Cancel undoes it. (3) Contents (report/pages/contents.ts): section lines across the full content width, dot
+  leaders to the page numbers at the right margin; below, while C-Scan Data is on, a "Scans" index (every scan with its C-Scan
+  Data page, from that section's bookmarks; 3 columns, 4 above 45 scans; filled top to bottom; each a link); it flows onto more
+  contents pages ("Scans (continued)") and the two-pass numbering counts them (`contentsLayout`, `contentsPageCount`). Tests added;
+  drawing outputs unchanged.
