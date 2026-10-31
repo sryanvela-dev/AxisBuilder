@@ -35,6 +35,14 @@ describe('string lists', () => {
     expect(suggestions(l, 'examinationType')[0]).toBe('Corrosion Mapping Examination')
   })
 
+  it('lists read before a list was added to the app still work (that list starts empty)', () => {
+    const old = emptySavedLists()
+    delete (old.strings as Partial<typeof old.strings>).procedure
+    expect(suggestions(old, 'procedure')).toEqual([])
+    expect(addString(old, 'procedure', 'AUT-CM-01').strings.procedure).toEqual(['AUT-CM-01'])
+    expect(removeString(old, 'procedure', 'x')).toBe(old)
+  })
+
   it('renames and removes', () => {
     let l = addString(addString(emptySavedLists(), 'technique', 'A'), 'technique', 'B')
     l = renameString(l, 'technique', 'a', 'A2')

@@ -170,7 +170,7 @@ export function SavedListsDialog({ onClose }: { onClose: () => void }) {
             return (
               <section key={id}>
                 <h3>{STRING_LISTS[id].name} <span className="muted">({values.length})</span></h3>
-                {values.length === 0 ? <p className="muted">None yet. A value typed once in the report is added here.</p> : (
+                {values.length === 0 ? <p className="muted">None yet. Type a value in its box, then "+ Save ... to the list" in the dropdown.</p> : (
                   <ul className="saved-list">
                     {values.map((v) => (
                       <li key={v}>

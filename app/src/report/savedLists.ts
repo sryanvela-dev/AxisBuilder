@@ -13,6 +13,7 @@ import { z } from 'zod'
 import type { KeyValueStore } from '../state/storage.ts'
 
 export const STRING_LISTS = {
+  procedure: { name: 'Procedures', builtIn: [] },
   examinationType: { name: 'Examination types', builtIn: ['Corrosion Mapping Examination', 'HIC Examination', 'TOFD Examination', 'Time of Flight Diffraction (TOFD)', 'Pulse Echo'] },
   acceptanceCriteria: { name: 'Acceptance criteria', builtIn: ['ASME Section VIII', 'ASME B31.3', 'ASME B31.3 / Code Case 2235-6', 'Client'] },
   surfaceCondition: { name: 'Surface conditions', builtIn: ['As Welded', 'Power Buffed', 'Sand Blasted', 'Rusted', 'Poor', 'Fair', 'Good'] },
@@ -80,11 +81,14 @@ const key = (s: string) => s.trim().toLowerCase()
 
 // --- String lists ----------------------------------------------------------------------------
 
+/** A string list's saved values; lists read before a list was added to the app have none. */
+const strs = (lists: SavedLists, id: StringListId): string[] => lists.strings[id] ?? []
+
 /** The suggestions for a box: the saved values, then the built-in ones not saved (no doubles, ignoring case). */
 export function suggestions(lists: SavedLists, id: StringListId): string[] {
   const out: string[] = []
   const seen = new Set<string>()
-  for (const v of [...lists.strings[id], ...STRING_LISTS[id].builtIn]) {
+  for (const v of [...strs(lists, id), ...STRING_LISTS[id].builtIn]) {
     if (seen.has(key(v))) continue
     seen.add(key(v))
     out.push(v)
@@ -99,18 +103,18 @@ export function suggestions(lists: SavedLists, id: StringListId): string[] {
 export function addString(lists: SavedLists, id: StringListId, value: string): SavedLists {
   const v = value.trim()
   if (v === '' || suggestions(lists, id).some((s) => key(s) === key(v))) return lists
-  return { ...lists, strings: { ...lists.strings, [id]: [...lists.strings[id], v] } }
+  return { ...lists, strings: { ...lists.strings, [id]: [...strs(lists, id), v] } }
 }
 
 export function removeString(lists: SavedLists, id: StringListId, value: string): SavedLists {
-  const list = lists.strings[id].filter((s) => key(s) !== key(value))
-  return list.length === lists.strings[id].length ? lists : { ...lists, strings: { ...lists.strings, [id]: list } }
+  const list = strs(lists, id).filter((s) => key(s) !== key(value))
+  return list.length === strs(lists, id).length ? lists : { ...lists, strings: { ...lists.strings, [id]: list } }
 }
 
 /** Renames a saved value; a new name that is blank or already saved (another value) changes nothing. */
 export function renameString(lists: SavedLists, id: StringListId, from: string, to: string): SavedLists {
   const v = to.trim()
-  const list = lists.strings[id]
+  const list = strs(lists, id)
   const i = list.findIndex((s) => key(s) === key(from))
   if (i < 0 || v === '' || list.some((s, j) => j !== i && key(s) === key(v)) || list[i] === v) return lists
   return { ...lists, strings: { ...lists.strings, [id]: list.map((s, j) => (j === i ? v : s)) } }
@@ -162,8 +166,8 @@ export function mergeLists(a: SavedLists, b: SavedLists): SavedLists {
 /** Like addString, but a built-in value is kept too (so a file round trip gives the same lists). */
 function addSavedString(lists: SavedLists, id: StringListId, value: string): SavedLists {
   const v = value.trim()
-  if (v === '' || lists.strings[id].some((s) => key(s) === key(v))) return lists
-  return { ...lists, strings: { ...lists.strings, [id]: [...lists.strings[id], v] } }
+  if (v === '' || strs(lists, id).some((s) => key(s) === key(v))) return lists
+  return { ...lists, strings: { ...lists.strings, [id]: [...strs(lists, id), v] } }
 }
 
 const FILE_KIND = 'axisbuilder-saved-lists'

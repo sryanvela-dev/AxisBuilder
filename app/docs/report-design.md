@@ -671,3 +671,6 @@ Where the build fills in or differs from the design above:
     drawing scan stored reversed counts as the same position and is swapped too.
   - "For every scan and manual reading": one form and cause set on every scan result and reading (AUT results and Manual
     UT), one undo step; each row can still be changed on its own (`setPicksForAll`).
+  - Saved lists (user, 2026-10-30): nothing joins a list silently any more; a typed value not in the list gets a "+ Save ... to
+    the list" line in the dropdown, and values saved on this computer have a × to take them off (built-in ones don't). The
+    Setup procedure (the project field) is a saved-list dropdown too.

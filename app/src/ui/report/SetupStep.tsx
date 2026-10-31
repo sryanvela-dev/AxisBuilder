@@ -36,7 +36,7 @@ import { RecordPicker, SavedListsButton } from './SavedListsUi.tsx'
 const STEP = 'setup' as const
 
 /** The shared job fields the report prints, from the Project step. */
-const SHARED_FIELDS = ['client', 'location', 'component', 'equipmentName', 'equipmentType', 'unit', 'date', 'procedure', 'material'] as const
+const SHARED_FIELDS = ['client', 'location', 'component', 'equipmentName', 'equipmentType', 'unit', 'date'] as const
 
 export function SetupStep({ status }: ReportStepProps) {
   const app = useApp()
@@ -69,6 +69,10 @@ export function SetupStep({ status }: ReportStepProps) {
         </div>
         <div className="field-grid">
           <SettingFieldFor section="project" keys={SHARED_FIELDS} step="project" />
+          {/* The procedure is the project's own field, here as a dropdown of saved procedures (user, 2026-10-30). */}
+          <ReportBox label="Procedure" value={p.project.procedure} list="procedure" set={(q, v: string) => ({ ...q, project: { ...q.project, procedure: v } })}
+            boxKey="project.procedure" step={STEP} help="Inspection procedure number. Shared with the drawing's Project step." />
+          <SettingFieldFor section="project" keys={['material']} step="project" />
           <SettingFieldFor section="vessel" keys={['height', 'length']} step="project" />
         </div>
       </section>

@@ -374,7 +374,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `ScansheetPasteDialog`, position choice, results table, `CommentPicks`, screenshots through `ImageFolderPanel`, which now takes `scans`
   + `onSave`), Manual UT (`ManualDialogs.tsx`: Add nozzle readings, positions remembered in localStorage `axisbuilder:nozzlePositions`;
   paste via `report/readingPaste.ts`). Report folders `FolderKind` 'reportPhotos' and 'screenshots'. Saved lists (`report/savedLists.ts`,
-  `ui/report/SavedListsUi.tsx`): this browser's storage key `savedLists`, string lists as suggestions (a value typed once joins), record lists
+  `ui/report/SavedListsUi.tsx`): this browser's storage key `savedLists`, string lists as dropdowns you can type in (a typed value joins only by its "+ Save ... to the list" line; saved values have a × to remove them; the Setup procedure is one), record lists
   with "Pick saved..." / "Save to list", dialog with edit, delete, export / import a file (merge, never deletes). No Pages view yet (R3).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 

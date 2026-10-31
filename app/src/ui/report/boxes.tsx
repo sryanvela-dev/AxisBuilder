@@ -7,7 +7,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { formatNumber, parseLength, parseNumber, type Parsed } from '../../data/parse.ts'
 import type { Project } from '../../data/schema.ts'
-import { addString, suggestions, type StringListId } from '../../report/savedLists.ts'
+import { addString, removeString, suggestions, type StringListId } from '../../report/savedLists.ts'
 import type { ReportStepId } from '../../state/session.ts'
 import { useApp } from '../appContext.ts'
 import { useEditBox } from '../useEditBox.ts'
@@ -104,11 +104,7 @@ export function ReportBox(props: BoxProps) {
     step: props.step,
     where: props.where ?? props.label,
   })
-  const onBlur = () => {
-    box.onBlur()
-    const list = props.list
-    if (list && box.text.trim() !== '' && !box.problem) shared.changeLists((l) => addString(l, list, box.text))
-  }
+  const onBlur = () => box.onBlur()
   const common = {
     id,
     value: box.text,
@@ -122,12 +118,18 @@ export function ReportBox(props: BoxProps) {
   const input = props.multiline ? (
     <textarea {...common} rows={2} />
   ) : props.list ? (
-    <ComboInput common={common} options={suggestions(shared.savedLists, props.list)} label={props.where ?? props.label}
+    <ComboInput common={common} options={suggestions(shared.savedLists, props.list)} saved={shared.savedLists.strings[props.list] ?? []} label={props.where ?? props.label}
       onPick={(v) => {
         box.onChange(v)
         app.dispatch({ type: 'endEditGroup' })
+      }}
+      onSave={(v) => {
         const list = props.list!
         shared.changeLists((l) => addString(l, list, v))
+      }}
+      onRemove={(v) => {
+        const list = props.list!
+        shared.changeLists((l) => removeString(l, list, v))
       }} />
   ) : (
     <input {...common} type="text" inputMode={NUMBERS.includes(kind) ? 'decimal' : undefined} autoComplete="off" spellCheck={kind === 'text' || kind === 'optText'} />
@@ -137,14 +139,20 @@ export function ReportBox(props: BoxProps) {
 
 /**
  * A text box that is also a dropdown (a saved list): the arrow, a click in the empty box or Arrow down shows the whole
- * list to pick from; typing filters it, and a value not in the list can still be typed (it joins the list when the box
- * is left). The list is placed over the page (fixed), so a table's scroll area never cuts it off.
+ * list to pick from; typing filters it. A value not in the list can still be typed and is kept in the job; it joins the
+ * list only by its own "+ Save ... to the list" line (user, 2026-10-30: typos were saved silently). Values saved on this
+ * computer have a × to take them off the list; the built-in ones don't. The list is placed over the page (fixed), so a
+ * table's scroll area never cuts it off.
  */
 function ComboInput(props: {
   common: React.InputHTMLAttributes<HTMLInputElement> & { value: string }
   options: readonly string[]
+  /** The values saved on this computer (removable). */
+  saved: readonly string[]
   label: string
   onPick: (value: string) => void
+  onSave: (value: string) => void
+  onRemove: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState(false)
@@ -154,6 +162,11 @@ function ComboInput(props: {
   const list = useRef<HTMLUListElement>(null)
   const text = props.common.value
   const shown = filter && text.trim() !== '' ? props.options.filter((o) => o.toLowerCase().includes(text.trim().toLowerCase())) : props.options
+  const typed = text.trim()
+  const canSave = typed !== '' && !props.options.some((o) => o.toLowerCase() === typed.toLowerCase())
+  const savedKeys = new Set(props.saved.map((v) => v.toLowerCase()))
+  // Rows the keyboard moves through: the values, then the Save line.
+  const count = shown.length + (canSave ? 1 : 0)
   const measure = () => {
     const r = wrap.current?.getBoundingClientRect()
     if (r) setPlace({ top: r.bottom + 2, left: r.left, width: r.width })
@@ -184,6 +197,10 @@ function ComboInput(props: {
     props.onPick(v)
     setOpen(false)
   }
+  const save = () => {
+    props.onSave(typed)
+    setOpen(false)
+  }
   return (
     <span className="combo" ref={wrap}>
       <input
@@ -208,13 +225,14 @@ function ComboInput(props: {
           if (e.key === 'ArrowDown') {
             e.preventDefault()
             if (!open) show(false)
-            else setActive((a) => Math.min(shown.length - 1, a + 1))
+            else setActive((a) => Math.min(count - 1, a + 1))
           } else if (e.key === 'ArrowUp' && open) {
             e.preventDefault()
             setActive((a) => Math.max(0, a - 1))
-          } else if (e.key === 'Enter' && open && active >= 0 && shown[active]) {
+          } else if (e.key === 'Enter' && open && active >= 0 && active < count) {
             e.preventDefault()
-            pick(shown[active])
+            if (active < shown.length) pick(shown[active])
+            else save()
           } else if (e.key === 'Escape' && open) {
             e.stopPropagation()
             setOpen(false)
@@ -232,7 +250,7 @@ function ComboInput(props: {
         }}>
         ▾
       </button>
-      {open && place && shown.length > 0 && (
+      {open && place && count > 0 && (
         <ul ref={list} className="combo-list" role="listbox" onMouseDown={(e) => e.preventDefault()} style={{ top: place.top, left: place.left, minWidth: place.width }}>
           {shown.map((o, i) => (
             <li key={o} role="option" aria-selected={o === text} className={i === active ? 'combo-active' : undefined}
@@ -240,9 +258,28 @@ function ComboInput(props: {
                 e.preventDefault()
                 pick(o)
               }}>
-              {o}
+              <span className="combo-text">{o}</span>
+              {savedKeys.has(o.toLowerCase()) && (
+                <button type="button" className="combo-remove" tabIndex={-1} title={`Take "${o}" off this computer's list`} aria-label={`Remove ${o} from the list`}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    props.onRemove(o)
+                  }}>
+                  ×
+                </button>
+              )}
             </li>
           ))}
+          {canSave && (
+            <li role="option" aria-selected={false} className={`combo-save${active === shown.length ? ' combo-active' : ''}`}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                save()
+              }}>
+              + Save "{typed}" to the list
+            </li>
+          )}
         </ul>
       )}
     </span>
