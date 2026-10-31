@@ -52,12 +52,12 @@ export function wrapText(text: string, font: ReportFontId, sizePt: number, width
     let line = ''
     for (const word of words) {
       const tryLine = line ? `${line} ${word}` : word
-      if (measure(tryLine, font, sizePt) <= width) {
+      if (measure(tryLine, font, sizePt) <= width + 1e-9) {
         line = tryLine
         continue
       }
       if (line) out.push(line)
-      if (measure(word, font, sizePt) <= width) {
+      if (measure(word, font, sizePt) <= width + 1e-9) {
         line = word
         continue
       }
@@ -80,7 +80,7 @@ export function wrapText(text: string, font: ReportFontId, sizePt: number, width
 
 /** The text shortened with "…" to fit a width (table cells that must stay on one line). */
 export function fitText(text: string, font: ReportFontId, sizePt: number, width: number): string {
-  if (measure(text, font, sizePt) <= width) return text
+  if (measure(text, font, sizePt) <= width + 1e-9) return text
   let t = text
   while (t.length > 0 && measure(`${t}…`, font, sizePt) > width) t = t.slice(0, -1)
   return `${t.trimEnd()}…`

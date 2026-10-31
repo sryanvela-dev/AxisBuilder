@@ -32,6 +32,8 @@ export const READING_TYPES = ['UTT', 'MUT scan'] as const
 export const NOMINAL_MODES = ['component', 'pipe', 'custom'] as const
 /** Values that were worked out, not read or typed (shown as "calculated"). */
 export const CALCULATED_FIELDS = ['readings', 'incrX', 'incrY'] as const
+/** Custom sheets and uploads go after this section unless the user moves them (they print in their own section). */
+export const DEFAULT_PLACE_AFTER = 'cscan'
 export const SHEET_LAYOUTS = ['1 large', '2 side by side', '2 + side panel', '4 grid'] as const
 
 /** A drawing row, keyed like moved labels: list + ID + which of the rows with that ID. */
@@ -312,7 +314,7 @@ export const customSheetSchema = z.strictObject({
   id: nonBlank,
   title: text,
   /** Placed after this section (default: the C-scans). */
-  after: z.string().default('cscan'),
+  after: z.string().default(DEFAULT_PLACE_AFTER),
   layout: z.enum(SHEET_LAYOUTS).default('1 large'),
   blocks: z.array(blockSchema).default([]),
 })
@@ -322,7 +324,7 @@ export const uploadSchema = z.strictObject({
   /** PDF page (1 = the first); null for an image. */
   page: z.number().int().min(1).nullable().default(null),
   title: text,
-  after: z.string().default('cscan'),
+  after: z.string().default(DEFAULT_PLACE_AFTER),
   frame: z.enum(['standard', 'full']).default('standard'),
   ...imageEditsShape,
 })

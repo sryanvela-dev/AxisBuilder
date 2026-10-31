@@ -82,16 +82,35 @@ export async function writePdf(input: PdfInput): Promise<Uint8Array> {
 
   for (const m of input.models) {
     const page = doc.addPage([m.paper.w * PT, m.paper.h * PT])
-    const w = new PageWriter(doc, page, font, images, ocgs, m.soft)
-    // Paper inches from here on.
-    page.pushOperators(pushGraphicsState(), concatTransformationMatrix(PT, 0, 0, PT, 0, 0), setLineCap(LineCapStyle.Round), setLineJoin(LineJoinStyle.Round))
-    if (m.clip) page.pushOperators(pushGraphicsState(), rectangle(m.clip.x, m.clip.y, m.clip.w, m.clip.h), clip(), endPath())
-    w.steps(drawSteps(m.drawing))
-    if (m.clip) page.pushOperators(popGraphicsState())
-    w.steps(drawSteps(m.sheet))
-    page.pushOperators(popGraphicsState())
+    drawSheetModel({ doc, page, font, images, ocgs }, m, [PT, 0, 0, PT, 0, 0])
   }
   return doc.save({ useObjectStreams: true })
+}
+
+/** What drawing a sheet on a page needs: the document, the page, the drawing font, the embedded photos and layers. */
+export interface SheetTarget {
+  doc: PDFDocument
+  page: PDFPage
+  font: PDFFont
+  /** photoKey -> embedded photo. */
+  images: ReadonlyMap<string, PDFImage>
+  ocgs: ReadonlyMap<string, PDFRef>
+}
+
+/**
+ * Draws a sheet model on a page: `matrix` maps the sheet's paper inches (y up) to the page's points. The drawing PDF
+ * places it at 72 points per inch; the report PDF scales it into a box (report/pdf), so both print the same sheet.
+ */
+export function drawSheetModel(t: SheetTarget, m: SheetModel, matrix: [number, number, number, number, number, number]) {
+  const { page } = t
+  const w = new PageWriter(t.doc, page, t.font, t.images, t.ocgs, m.soft)
+  // Paper inches from here on.
+  page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...matrix), setLineCap(LineCapStyle.Round), setLineJoin(LineJoinStyle.Round))
+  if (m.clip) page.pushOperators(pushGraphicsState(), rectangle(m.clip.x, m.clip.y, m.clip.w, m.clip.h), clip(), endPath())
+  w.steps(drawSteps(m.drawing))
+  if (m.clip) page.pushOperators(popGraphicsState())
+  w.steps(drawSteps(m.sheet))
+  page.pushOperators(popGraphicsState())
 }
 
 class PageWriter {
