@@ -308,6 +308,18 @@ export function moveReading(p: Project, index: number, by: -1 | 1): Project {
   return moveListItem(p, ['readings'], index, by)
 }
 
+/** Moves a reading so it ends up at `to` (a row dragged in the table; user, 2026-10-30). */
+export function moveReadingTo(p: Project, from: number, to: number): Project {
+  return withReport(p, (r) => {
+    const n = r.readings.length
+    if (from < 0 || from >= n || to < 0 || to >= n || from === to) return r
+    const readings = r.readings.slice()
+    const [moved] = readings.splice(from, 1)
+    readings.splice(to, 0, moved)
+    return { ...r, readings }
+  })
+}
+
 /**
  * Min 'T' of a reading. A linked row's is the drawing MUT row's own (design 4.4: the same value on both sides), so it
  * is written there; a report row keeps its own.

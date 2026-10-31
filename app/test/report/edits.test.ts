@@ -13,6 +13,7 @@ import {
   getReportValue,
   moveListItem,
   moveReading,
+  moveReadingTo,
   removeComponent,
   removeListItem,
   removeReading,
@@ -200,6 +201,16 @@ describe('readings', () => {
     let p = addReportReadings(started(), [{ name: 'A' }, { name: 'B' }])
     p = moveReading(p, 1, -1)
     expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['B', 'A'])
+  })
+
+  it('moves a dragged row to where it is dropped', () => {
+    let p = addReportReadings(started(), [{ name: 'A' }, { name: 'B' }, { name: 'C' }])
+    p = moveReadingTo(p, 0, 2)
+    expect(p.report!.readings.slice(0, 3).map((r) => r.name)).toEqual(['B', 'C', 'A'])
+    p = moveReadingTo(p, 2, 0)
+    expect(p.report!.readings.slice(0, 3).map((r) => r.name)).toEqual(['A', 'B', 'C'])
+    expect(moveReadingTo(p, 1, 1)).toBe(p)
+    expect(moveReadingTo(p, 0, 99)).toBe(p)
   })
 
   it('a linked Min T is the drawing MUT row’s: written there, read back in the reading rows', () => {

@@ -8,7 +8,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { formatNumber } from '../../data/parse.ts'
 import { jobLadder, pipeWallsFor, readingRows, type ReadingRow } from '../../report/calc/results.ts'
 import { NPS_SIZES, wallLabel } from '../../report/calc/pipeWalls.ts'
-import { addReportReading, moveReading, removeReading, setReading, setReadingMinT } from '../../report/edits.ts'
+import { addReportReading, moveReading, moveReadingTo, removeReading, setReading, setReadingMinT } from '../../report/edits.ts'
 import { linkedRow, readingComponent } from '../../report/report.ts'
 import { NOMINAL_MODES, READING_TYPES, type NominalMode, type Reading } from '../../report/schema.ts'
 import { useApp } from '../appContext.ts'
@@ -36,6 +36,24 @@ export function ManualStep({ status }: ReportStepProps) {
     const index = rows.length
     app.edit('Add a reading', (q) => addReportReading(q))
     window.setTimeout(() => jumpToReport({ kind: 'reading', index }), 60)
+  }
+  // Dragging a row by its handle (user, 2026-10-30): a line shows where it lands; one undo step on the drop.
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
+  const [drop, setDrop] = useState<{ index: number; below: boolean } | null>(null)
+  const endDrag = () => {
+    setDragFrom(null)
+    setDrop(null)
+  }
+  const dropRow = () => {
+    if (dragFrom !== null && drop) {
+      const target = drop.below ? drop.index + 1 : drop.index
+      const to = target > dragFrom ? target - 1 : target
+      if (to !== dragFrom) {
+        app.edit('Move a reading', (q) => moveReadingTo(q, dragFrom, to))
+        clear()
+      }
+    }
+    endDrag()
   }
   const clear = () => {
     app.dispatch({ type: 'clearDrafts', prefix: 'report.reading.' })
@@ -93,6 +111,16 @@ export function ManualStep({ status }: ReportStepProps) {
                     app.edit(`Delete reading ${row.name || row.index + 1}`, (q) => removeReading(q, row.index))
                     clear()
                   }}
+                  drag={{
+                    dragging: dragFrom === row.index,
+                    mark: drop?.index === row.index ? (drop.below ? 'below' : 'above') : null,
+                    start: () => setDragFrom(row.index),
+                    over: (below) => {
+                      if (dragFrom !== null && (drop?.index !== row.index || drop.below !== below)) setDrop({ index: row.index, below })
+                    },
+                    end: endDrag,
+                    dropHere: dropRow,
+                  }}
                 />
               ))}
             </tbody>
@@ -119,6 +147,7 @@ function ReadingTableRow(props: {
   onToggle: () => void
   onMove: (by: -1 | 1) => void
   onDelete: () => void
+  drag: { dragging: boolean; mark: 'above' | 'below' | null; start: () => void; over: (below: boolean) => void; end: () => void; dropHere: () => void }
 }) {
   const app = useApp()
   const p = app.state.job!.history.present
@@ -138,8 +167,33 @@ function ReadingTableRow(props: {
   const cols = 10
   return (
     <Fragment>
-      <tr id={reportPlaceId({ kind: 'reading', index: i })} className={props.messages.length ? 'has-messages' : undefined}>
-        <td className="num row-no">{i + 1}</td>
+      <tr id={reportPlaceId({ kind: 'reading', index: i })}
+        className={[props.messages.length ? 'has-messages' : '', props.drag.dragging ? 'row-dragging' : '', props.drag.mark ? `drop-${props.drag.mark}` : ''].filter(Boolean).join(' ') || undefined}
+        onDragOver={(e) => {
+          e.preventDefault()
+          const box = e.currentTarget.getBoundingClientRect()
+          props.drag.over(e.clientY > box.top + box.height / 2)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          props.drag.dropHere()
+        }}>
+        <td className="num row-no">
+          <span className="drag-cell">
+            <span className="drag-handle" draggable title="Drag to move this reading up or down" aria-hidden="true"
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('text/plain', String(i))
+                const tr = e.currentTarget.closest('tr')
+                if (tr) e.dataTransfer.setDragImage(tr, 16, 16)
+                props.drag.start()
+              }}
+              onDragEnd={props.drag.end}>
+              ⠿
+            </span>
+            {i + 1}
+          </span>
+        </td>
         <td>
           {r.link ? (
             // A MUT row of the drawing: its ID (read-only here) and, for a MUT scan, its drawn area under it in small type.

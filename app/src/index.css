@@ -2731,3 +2731,37 @@ table.grid tr.row-out td {
 .page > .table-full {
   max-width: none;
 }
+
+/* Dragging a reading up or down by its handle (Manual UT) */
+.drag-cell {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.drag-handle {
+  padding: 0 2px;
+  color: var(--muted);
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-handle:hover {
+  color: inherit;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+table.grid tr.row-dragging > td {
+  opacity: 0.45;
+}
+
+table.grid tr.drop-above > td {
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+table.grid tr.drop-below > td {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
