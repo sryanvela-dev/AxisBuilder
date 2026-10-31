@@ -2,12 +2,15 @@
 // results follow renamed scans and go with deleted ones (as the scan photo links do, syncScanImages); linked readings
 // follow their MUT rows through renames, sorting and deletes (as moved labels do, followRow), and a new MUT row gets
 // its linked reading; a report row's nozzle link follows the nozzle, and is dropped (the row kept) when the nozzle goes.
+// Marks linked to a scan or MUT row (live data labels, format 8) follow their row the same way; a deleted row leaves
+// the link as it was (the mark stays, Review lists it).
 
 import { scanRenames } from '../data/columns.ts'
 import { followRow } from '../data/overrides.ts'
 import { idKey, type Project } from '../data/schema.ts'
+import { mapMarkup } from './imageItems.ts'
 import { linkedReadings } from './report.ts'
-import type { Reading, ScanResult } from './schema.ts'
+import type { Mark, Reading, Report, ScanResult } from './schema.ts'
 
 const WATCHED = ['shellMut', 'headMut', 'shellNozzles', 'headNozzles'] as const
 
@@ -49,6 +52,24 @@ export function syncReport(prev: Project, next: Project): Project {
   const kept = readings.length === report.readings.length && readings.every((r, i) => r === report.readings[i]) ? report.readings : readings
   const withNew = linkedReadings(next, { ...report, readings: kept })
 
-  if (scanResults === report.scanResults && withNew === report.readings) return next
-  return { ...next, report: { ...report, scanResults, readings: withNew } }
+  const out: Report = scanResults === report.scanResults && withNew === report.readings ? report : { ...report, scanResults, readings: withNew }
+  const marked = followMarkLinks(prev, next, out)
+  return marked === report ? next : { ...next, report: marked }
+}
+
+/** Mark links follow their scan or MUT row; a link whose row was deleted is left as it was. */
+function followMarkLinks(prev: Project, next: Project, report: Report): Report {
+  if (prev.scans === next.scans && prev.shellMut === next.shellMut && prev.headMut === next.headMut) return report
+  return mapMarkup(report, (marks) => {
+    let changed = false
+    const out = marks.map((m): Mark => {
+      const l = m.link
+      if (!l || prev[l.list] === next[l.list]) return m
+      const to = followRow(prev[l.list], next[l.list], l.id, l.occurrence)
+      if (!to || (to.id === l.id && to.occurrence === l.occurrence)) return m
+      changed = true
+      return { ...m, link: { ...l, ...to } }
+    })
+    return changed ? out : marks
+  })
 }

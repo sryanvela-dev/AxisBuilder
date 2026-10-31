@@ -17,7 +17,7 @@ function errorsFor(data: unknown): string[] {
 
 describe('project file format 7', () => {
   it('is the current format', () => {
-    expect(CURRENT_SCHEMA_VERSION).toBe(7)
+    expect(CURRENT_SCHEMA_VERSION).toBe(8)
   })
 
   it('opens a format 6 file with no report and blank Location and Equipment name', () => {
@@ -25,7 +25,7 @@ describe('project file format 7', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.migratedFrom).toBe(6)
-    expect(r.project.schemaVersion).toBe(7)
+    expect(r.project.schemaVersion).toBe(CURRENT_SCHEMA_VERSION)
     expect(r.project.report).toBeNull()
     expect(r.project.project.location).toBe('')
     expect(r.project.project.equipmentName).toBe('')
