@@ -14,6 +14,7 @@ import {
   moveListItem,
   moveReading,
   moveReadingTo,
+  dropTarget,
   removeComponent,
   removeListItem,
   removeReading,
@@ -201,6 +202,24 @@ describe('readings', () => {
     let p = addReportReadings(started(), [{ name: 'A' }, { name: 'B' }])
     p = moveReading(p, 1, -1)
     expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['B', 'A'])
+  })
+
+  it('works out where a dragged row lands', () => {
+    // Dragging down: below row 2 lands at 2, above row 2 at 1.
+    expect(dropTarget(0, 2, true)).toBe(2)
+    expect(dropTarget(0, 2, false)).toBe(1)
+    // Dragging up: above row 0 lands at 0, below row 0 at 1.
+    expect(dropTarget(3, 0, false)).toBe(0)
+    expect(dropTarget(3, 0, true)).toBe(1)
+    // On itself, above or below it (its own details and messages rows count as below): no move.
+    expect(dropTarget(2, 2, false)).toBeNull()
+    expect(dropTarget(2, 2, true)).toBeNull()
+    // The gap it already sits in: below the row above, above the row below.
+    expect(dropTarget(2, 1, true)).toBeNull()
+    expect(dropTarget(2, 3, false)).toBeNull()
+    // First and last rows.
+    expect(dropTarget(4, 0, false)).toBe(0)
+    expect(dropTarget(0, 4, true)).toBe(4)
   })
 
   it('moves a dragged row to where it is dropped', () => {

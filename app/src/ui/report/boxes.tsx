@@ -363,10 +363,17 @@ function Frame(props: Common & { id: string; input: ReactNode; problem: string |
 }
 
 /** Checks on a table row, in a row of their own below it (as the drawing's tables show them). */
-export function RowMessages({ messages, colSpan }: { messages: Message[]; colSpan: number }) {
+export function RowMessages({ messages, colSpan, className, onDragOver, onDrop }: {
+  messages: Message[]
+  colSpan: number
+  /** Extra classes (e.g. a drop line while a row is dragged). */
+  className?: string
+  onDragOver?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+}) {
   if (messages.length === 0) return null
   return (
-    <tr className="row-messages">
+    <tr className={className ? `row-messages ${className}` : 'row-messages'} onDragOver={onDragOver} onDrop={onDrop}>
       <td colSpan={colSpan}>
         {messages.map((m) => (
           <p key={m.text} className={`msg msg-${m.severity}`}>

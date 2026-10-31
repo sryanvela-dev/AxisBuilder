@@ -8,7 +8,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { formatNumber } from '../../data/parse.ts'
 import { jobLadder, pipeWallsFor, readingRows, type ReadingRow } from '../../report/calc/results.ts'
 import { NPS_SIZES, wallLabel } from '../../report/calc/pipeWalls.ts'
-import { addReportReading, moveReading, moveReadingTo, removeReading, setReading, setReadingMinT } from '../../report/edits.ts'
+import { addReportReading, dropTarget, moveReading, moveReadingTo, removeReading, setReading, setReadingMinT } from '../../report/edits.ts'
 import { linkedRow, readingComponent } from '../../report/report.ts'
 import { NOMINAL_MODES, READING_TYPES, type NominalMode, type Reading } from '../../report/schema.ts'
 import { useApp } from '../appContext.ts'
@@ -45,13 +45,10 @@ export function ManualStep({ status }: ReportStepProps) {
     setDrop(null)
   }
   const dropRow = () => {
-    if (dragFrom !== null && drop) {
-      const target = drop.below ? drop.index + 1 : drop.index
-      const to = target > dragFrom ? target - 1 : target
-      if (to !== dragFrom) {
-        app.edit('Move a reading', (q) => moveReadingTo(q, dragFrom, to))
-        clear()
-      }
+    const to = dragFrom !== null && drop ? dropTarget(dragFrom, drop.index, drop.below) : null
+    if (to !== null) {
+      app.edit('Move a reading', (q) => moveReadingTo(q, dragFrom!, to))
+      clear()
     }
     endDrag()
   }
@@ -165,10 +162,27 @@ function ReadingTableRow(props: {
   const walls = pipeWallsFor(r.pipeSize)
   const drawnArea = r.link !== null && drawing?.area && drawing.area.length >= 3
   const cols = 10
+  // A reading's block is its main row, then its messages row, then its details row (when open). The details and messages
+  // rows take a drop as "below this reading", and the drop-below line is drawn under the block's last row.
+  const last = props.open ? 'details' : props.messages.length ? 'messages' : 'main'
+  const partClass = (part: 'main' | 'messages' | 'details', base: string) =>
+    [base, props.drag.dragging ? 'row-dragging' : '',
+      props.drag.mark === 'above' && part === 'main' ? 'drop-above' : '',
+      props.drag.mark === 'below' && part === last ? 'drop-below' : ''].filter(Boolean).join(' ') || undefined
+  const dropBelowHere = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault()
+      props.drag.over(true)
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault()
+      props.drag.dropHere()
+    },
+  }
   return (
     <Fragment>
       <tr id={reportPlaceId({ kind: 'reading', index: i })}
-        className={[props.messages.length ? 'has-messages' : '', props.drag.dragging ? 'row-dragging' : '', props.drag.mark ? `drop-${props.drag.mark}` : ''].filter(Boolean).join(' ') || undefined}
+        className={partClass('main', props.messages.length ? 'has-messages' : '')}
         onDragOver={(e) => {
           e.preventDefault()
           const box = e.currentTarget.getBoundingClientRect()
@@ -268,9 +282,9 @@ function ReadingTableRow(props: {
             title={r.link ? 'A MUT row of the drawing: delete it on the Field data step' : 'Delete (Ctrl+Z brings it back)'}>×</button>
         </td>
       </tr>
-      <RowMessages messages={props.messages} colSpan={cols} />
+      <RowMessages messages={props.messages} colSpan={cols} className={partClass('messages', '')} {...dropBelowHere} />
       {props.open && (
-        <tr className="row-details">
+        <tr className={partClass('details', 'row-details')} {...dropBelowHere}>
           <td colSpan={cols}>
             <div className="field-grid">
               <ReportBox label="Not measured (N/A)" where={w('N/A reason')} kind="optText" value={r.na} list="naReason" placeholder="measured"

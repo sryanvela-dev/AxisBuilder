@@ -308,6 +308,17 @@ export function moveReading(p: Project, index: number, by: -1 | 1): Project {
   return moveListItem(p, ['readings'], index, by)
 }
 
+/**
+ * Where a dragged reading lands: dropped above (`below` false) or below reading `index` (on its main row's lower half,
+ * or anywhere on its messages or details rows). The index the row moves to, or null when it would stay where it is
+ * (dropped on itself, its own details, or the gap it already sits in).
+ */
+export function dropTarget(from: number, index: number, below: boolean): number | null {
+  const target = below ? index + 1 : index
+  const to = target > from ? target - 1 : target
+  return to === from ? null : to
+}
+
 /** Moves a reading so it ends up at `to` (a row dragged in the table; user, 2026-10-30). */
 export function moveReadingTo(p: Project, from: number, to: number): Project {
   return withReport(p, (r) => {
