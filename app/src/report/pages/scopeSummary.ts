@@ -1,25 +1,18 @@
 // Scope & Summary (design 6.3, as the style sample): the Scope box and the Summary box side by side, the summary with
 // its six number tiles, then the summary text with the figures in colour (minimum and wall loss in their ladder colour,
-// other figures deep blue). Text edited by hand wins; otherwise the template's blocks with the job's values (until the
-// Summary step, R4). A sentence missing a value is left out (listed in the notes). Long text flows onto another page.
+// other figures deep blue). Text edited by hand wins (Summary step, report/summary.ts); otherwise the template's blocks
+// with the job's values. A sentence missing a value is left out (listed in the notes). Long text flows onto another page.
 
 import { fontBox, wrapText } from '../fonts.ts'
-import { reportCoverage, scanRows, totalsOf } from '../calc/results.ts'
 import type { TextField } from '../calc/textFill.ts'
 import type { PageItem, Rect } from '../pageModel.ts'
 import { content, standardPage, type PageBuilder } from './common.ts'
 import { COLORS, F, ladderInk, lineHeight, rect, runItems, text, titledBox, wrapRuns, type Run } from './layout.ts'
-import { FIGURE_FIELDS, inch, pct, scanNumber, textParagraphs, textValues, thousands, type TextValues } from './values.ts'
+import { fieldWords, summaryTiles } from '../summary.ts'
+import { FIGURE_FIELDS, textParagraphs, textValues, type TextValues } from './values.ts'
 
 const SIZE = 9.5
 
-/** A text field in plain words, for the notes ("the transducer" for every transducer value). */
-function fieldWords(k: TextField): string {
-  if (k.startsWith('transducer')) return 'the transducer (Calibration)'
-  if (k === 'incrX' || k === 'incrY') return 'the scan increments (Calibration)'
-  const words: Partial<Record<TextField, string>> = { purpose: 'the purpose (Summary)', areaCovered: 'the area covered (Summary)', limitations: 'the limitations (Summary)', equipment: 'the Equipment ID', nominal: 'the nominal' }
-  return words[k] ?? k
-}
 const PARA_GAP = 0.09
 
 /** A paragraph as runs: the template's words plain, the filled-in figures bold and coloured. */
@@ -40,32 +33,15 @@ function runsOf(template: string, tv: TextValues): Run[] {
   return out
 }
 
-interface Tile {
-  value: string
-  label: string
-  color: string
-}
-
-function tilesOf(c: Parameters<PageBuilder>[0], tv: TextValues): Tile[] {
-  const rows = scanRows(c.p, c.r)
-  const t = totalsOf(rows)
-  const cov = reportCoverage(c.p)
+function tilesOf(c: Parameters<PageBuilder>[0], tv: TextValues): { value: string; label: string; color: string }[] {
   const loss = ladderInk(tv.lossColor, COLORS.deep)
-  const nominal = tv.values.nominal
-  return [
-    { value: String(rows.length), label: 'AUT scans', color: COLORS.deep },
-    { value: t.readings ? thousands(t.readings) : '–', label: 'UT readings', color: COLORS.deep },
-    { value: cov ? pct(cov.autPercent) : '–', label: cov ? `AUT coverage (${thousands(cov.autArea)} sq in)` : 'AUT coverage', color: COLORS.deep },
-    { value: t.min ? inch(t.min.value) : '–', label: t.min ? `Minimum, scan ${scanNumber(t.min.scanId)}` : 'Minimum', color: loss },
-    { value: t.wallLoss ? pct(t.wallLoss.value) : '–', label: nominal ? `Wall loss from ${nominal} nominal` : 'Wall loss', color: loss },
-    { value: t.average !== null ? inch(t.average) : '–', label: 'Average thickness', color: COLORS.deep },
-  ]
+  return summaryTiles(c.p, c.r, tv).map((t) => ({ value: t.value, label: t.label, color: t.tone === 'deep' ? COLORS.deep : loss }))
 }
 
 const TILE_H = 0.74
 const TILE_GAP = 0.07
 
-function tileItems(tiles: Tile[], area: Rect): PageItem[] {
+function tileItems(tiles: ReturnType<typeof tilesOf>, area: Rect): PageItem[] {
   const w = (area.w - 2 * TILE_GAP) / 3
   return tiles.flatMap((t, i) => {
     const x = area.x + (i % 3) * (w + TILE_GAP)

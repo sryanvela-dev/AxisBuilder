@@ -32,6 +32,11 @@ export const STRING_LISTS = {
   scannerModel: { name: 'Scanner models', builtIn: ['Proscan', 'Accuscan', 'AccuTrak', 'Bandit', '5080 scanner', '5080M scanner', '5090 scanner', 'TOFD Hand Scanner', '5085 scanner', '4040 Mouse Scanner'] },
   readingLocation: { name: 'Reading locations', builtIn: ['North', 'East', 'South', 'West', 'Top', 'Bottom'] },
   naReason: { name: 'N/A reasons', builtIn: ['U-Bolt Obstruction', 'Repad'] },
+  // Scope fields on the Summary step (design 4.7): the sentence reads "The purpose of this examination was to {purpose}
+  // in {area covered}."
+  scopePurpose: { name: 'Scope purposes', builtIn: ['detect any possible internal corrosion, pitting, or damage that may be present'] },
+  scopeArea: { name: 'Scope areas covered', builtIn: ['the accessible areas of the shell'] },
+  scopeLimitations: { name: 'Scope limitations', builtIn: [] },
 } as const satisfies Record<string, { name: string; builtIn: readonly string[] }>
 
 export type StringListId = keyof typeof STRING_LISTS

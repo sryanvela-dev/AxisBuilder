@@ -3,7 +3,8 @@ import { checkProject } from '../../src/data/checks.ts'
 import type { Project, Scan } from '../../src/data/schema.ts'
 import { checkReport } from '../../src/report/checks.ts'
 import { createReport } from '../../src/report/report.ts'
-import { reportSchema, type Reading, type Report, type ScanResult } from '../../src/report/schema.ts'
+import { applyReportCheckAction } from '../../src/report/checks.ts'
+import { photoSchema, reportSchema, transducerSchema, type Reading, type Report, type ScanResult } from '../../src/report/schema.ts'
 import { olderSample } from '../fixtures/olderSample.ts'
 
 const result = (scanId: string, r: Partial<ScanResult> = {}): ScanResult => ({
@@ -13,7 +14,10 @@ const reading = (r: Partial<Reading> = {}): Reading => ({
   ...reportSchema.parse({ templateId: 'generic-aut', templateVersion: 1, readings: [{}] }).readings[0], ...r,
 })
 
-/** Older sample: every scan has results, every component a nominal; so no checks at all. */
+/**
+ * Older sample with a complete report: every scan has results and a data page, every component a nominal, an
+ * examiner, a photo, the transducer and increments and the scope fields; so no checks at all.
+ */
 function clean(change: (r: Report, p: Project) => Report = (r) => r, scans?: Scan[]): Project {
   const p0 = olderSample()
   const p = scans ? { ...p0, scans } : p0
@@ -21,7 +25,14 @@ function clean(change: (r: Report, p: Project) => Report = (r) => r, scans?: Sca
   const report: Report = {
     ...r,
     components: r.components.map((c) => ({ ...c, nominal: 0.5 })),
-    scanResults: p.scans.map((s) => result(s.id, { readings: 100, minT: 0.49, avgT: 0.5 })),
+    scanResults: p.scans.map((s) => result(s.id, { readings: 100, minT: 0.49, avgT: 0.5, dataImage: `${s.id}.png` })),
+    job: { ...r.job, techs: [{ name: 'A. Tech', title: 'AUT Specialist' }] },
+    photos: [photoSchema.parse({ file: 'site.jpg' })],
+    calibration: {
+      ...r.calibration, increments: { x: 0.125, y: 0.05 },
+      transducers: [transducerSchema.parse({ maker: 'AUT Solutions', mode: 'Longitudinal', size: '0.375"', frequency: '5 MHz', angle: '0°' })],
+    },
+    text: { ...r.text, scope: { ...r.text.scope, fields: { purpose: 'map the remaining wall', areaCovered: 'the shell', limitations: '' } } },
   }
   return { ...p, report: change(report, p) }
 }
@@ -49,10 +60,14 @@ describe('report checks', () => {
 
   it('needs Min T and readings on a scan in the report (not on one left out)', () => {
     const p = clean((r) => ({
-      ...r,
+      ...r, calibration: { ...r.calibration, increments: { x: null, y: null } },
       scanResults: r.scanResults.map((s) => (s.scanId === 'SCAN 2' ? { ...s, minT: null, readings: null } : s.scanId === 'SCAN 3' ? { ...s, minT: null, inReport: false } : s)),
     }))
-    expect(texts(p)).toEqual(['error: SCAN 2 has no results yet.'])
+    expect(texts(p)).toEqual([
+      'error: SCAN 2 has no results yet.',
+      'warning: SCAN 3 is drawn but left out of the report.',
+      'warning: Scope: the "Equipment and indexing" sentence is left out until the scan increments (Calibration) is filled in.',
+    ])
     // One of the two missing: that one is named.
     const q = clean((r) => ({ ...r, scanResults: r.scanResults.map((s) => (s.scanId === 'SCAN 2' ? { ...s, minT: null } : s)) }))
     expect(texts(q)).toEqual(["error: SCAN 2 has no Min 'T'."])
@@ -117,5 +132,143 @@ describe('report checks', () => {
       'N3 has no nominal. Enter a reading so a wall can be suggested, or pick one.',
       'N6 North has no nominal. Type the nominal.',
     ])
+  })
+})
+
+describe('report checks, design 9 and 14 in full', () => {
+  const only = (p: Project, sev?: string) => checkReport(p).filter((c) => !sev || c.severity === sev)
+
+  it('needs the cover fields: client, Equipment ID, date and an examiner with a name', () => {
+    const p0 = clean((r) => ({ ...r, job: { ...r.job, techs: [{ name: ' ', title: 'AUT Assistant' }] } }))
+    const p = { ...p0, project: { ...p0.project, client: '', component: ' ', date: '' } }
+    expect(texts(p)).toEqual([
+      'error: The cover has no Client.',
+      'error: The cover has no Equipment ID.',
+      'error: The cover has no Date.',
+      'error: The cover names no examiner.',
+      // The Equipment ID also fills two sentences.
+      'warning: Scope: the "Opening" sentence is left out until the Equipment ID is filled in.',
+      'warning: Summary: the "Scans and coverage" sentence is left out until the Equipment ID is filled in.',
+    ])
+    expect(checkReport(p)[0].place).toEqual({ kind: 'field', step: 'setup', elementId: 'setting-project-client' })
+  })
+
+  it('a section that is on with nothing to print is an error with "Turn the section off"', () => {
+    const p = clean((r) => ({ ...r, photos: [], sections: { ...r.sections, reference: { on: true } } }))
+    const errs = only(p, 'error')
+    expect(errs.map((c) => c.text)).toEqual(['Photos is on but has no photos.', 'Reference Pages is on but has no reference pages.'])
+    expect(errs[0].actions).toEqual([{ label: 'Turn the section off', kind: 'sectionOff', sectionId: 'photos' }])
+    const fixed = errs.reduce((q, c) => applyReportCheckAction(q, c.actions![0]), p)
+    expect(only(fixed, 'error')).toEqual([])
+    // A renamed section is named by its own title.
+    const q = clean((r) => ({ ...r, photos: [], sections: { photos: { on: true, title: 'Overview Photos' } } }))
+    expect(only(q, 'error')[0].text).toBe('Overview Photos is on but has no photos.')
+  })
+
+  it('the scan sheet (not optional) and the drawings with nothing chosen', () => {
+    const p = clean((r) => ({
+      ...r, scanResults: r.scanResults.map((s) => ({ ...s, inReport: false })),
+      options: { ...r.options, drawings: { rollout: false, overlay: false, sections: 'off' as const } },
+    }))
+    const errs = only(p, 'error')
+    expect(errs.map((c) => c.text)).toEqual(['Drawings is on but has no drawings chosen.', 'Scan Sheet is on but has no scans.', 'C-Scan Data is on but has no scans.'])
+    expect(errs[1].actions).toBeUndefined()
+  })
+
+  it('temperature correction on needs a temperature; changed ladder bands are listed', () => {
+    const p = clean((r) => ({ ...r, options: { ...r.options, tempCorrection: { on: true, tempF: null }, ladder: { cutoffs: [10, 20, 40] as [number, number, number] } } }))
+    expect(texts(p)).toEqual(['error: Temperature correction is on but has no temperature.', 'warning: The severity bands were changed for this job (10 / 20 / 40%).'])
+  })
+
+  it('scans: no data page, switched off in the drawing but in the report (and the reverse)', () => {
+    const scans = olderSample().scans.map((s, i) => (i === 0 ? { ...s, include: false } : s))
+    const p = clean((r) => ({ ...r, scanResults: r.scanResults.map((s, i) => (i === 1 ? { ...s, dataImage: null } : i === 2 ? { ...s, inReport: false } : s)) }), scans)
+    expect(texts(p)).toEqual([
+      'warning: SCAN 1 is switched off in the drawing but is in the report.',
+      'warning: SCAN 2 has no data-page screenshot; its C-scan page shows an empty box.',
+      'warning: SCAN 3 is drawn but left out of the report.',
+    ])
+    // No C-scan pages: no screenshot needed.
+    const q = clean((r) => ({ ...r, sections: { cscan: { on: false } }, scanResults: r.scanResults.map((s) => ({ ...s, dataImage: null })) }))
+    expect(texts(q)).toEqual([])
+  })
+
+  it('lists what was set by hand: severity, comment, pipe wall; and readings far over the nominal', () => {
+    const p = clean((r) => ({
+      ...r,
+      scanResults: r.scanResults.map((s, i) => (i === 0 ? { ...s, severityOverride: 'minor', commentOverride: 'Looks fine.' } : i === 1 ? { ...s, minT: 0.6 } : s)),
+      readings: [
+        reading({ name: 'N1', nominalMode: 'custom', nominal: 0.3, minT: 0.36 }),
+        reading({ name: 'N2', nominalMode: 'pipe', pipeSize: '4', nominal: 0.237, minT: 0.33 }),
+        reading({ name: 'N3', nominalMode: 'pipe', pipeSize: '4', minT: 0.9 }),
+        reading({ name: 'N4', nominalMode: 'custom', nominal: 0.5, minT: 0.49, severityOverride: 'minor', commentOverride: 'x' }),
+      ],
+    }))
+    expect(texts(p)).toEqual([
+      'warning: SCAN 1: the severity was set by hand.',
+      'warning: SCAN 1: the comment was written by hand.',
+      "warning: SCAN 2: Min 'T' 0.6 is more than 15% over the nominal 0.5.",
+      'warning: N1: a reading of 0.36 is more than 15% over the nominal 0.3.',
+      'warning: N2: a reading of 0.33 is more than 15% over the nominal 0.237.',
+      'warning: N2: the pipe wall was chosen by hand.',
+      'warning: N3: the thickest reading is more than 15% over the suggested wall (XXS, 0.674").',
+      'warning: N4: the severity was set by hand.',
+      'warning: N4: the comment was written by hand.',
+    ])
+  })
+
+  it('pictures: a redaction (note), a label linked to a deleted row, marks outside the crop (note)', () => {
+    const photo = (file: string, rest: object) => reportSchema.parse({ templateId: 'generic-aut', templateVersion: 1, photos: [{ file, ...rest }] }).photos[0]
+    const p = clean((r) => ({
+      ...r,
+      photos: [
+        photo('a.jpg', { markup: [{ id: 'm1', kind: 'redaction', box: { x0: 0.1, y0: 0.1, x1: 0.2, y1: 0.2 } }] }),
+        photo('b.jpg', { markup: [{ id: 'm2', kind: 'label', at: [0.5, 0.5], text: 'S9', link: { list: 'scans', id: 'SCAN 99' } }] }),
+        photo('c.jpg', { crop: { x0: 0.5, y0: 0.5, x1: 1, y1: 1 }, markup: [
+          { id: 'm3', kind: 'rect', box: { x0: 0, y0: 0, x1: 0.2, y1: 0.2 } },
+          { id: 'm4', kind: 'line', from: [0.4, 0.4], to: [0.6, 0.6] },
+        ] }),
+      ],
+    }))
+    expect(texts(p)).toEqual([
+      'note: Photo 1 (a.jpg) has a redaction box: redaction comes in a later version, so the PDF does not hide that part yet.',
+      'warning: Photo 2 (b.jpg) has a label linked to SCAN 99, which is no longer in the drawing.',
+      'note: Photo 3 (c.jpg): a mark is outside the crop, so it does not print.',
+    ])
+    expect(checkReport(p)[1].place).toEqual({ kind: 'picture', at: { kind: 'photo', index: 1 } })
+  })
+
+  it('custom sheets: empty, a section sheet or head the drawing does not have, a scan no longer drawn', () => {
+    const p = clean((r) => ({
+      ...r,
+      customSheets: [
+        { id: 's1', title: 'Boot', after: 'cscan', layout: '1 large' as const, blocks: [] },
+        { id: 's2', title: '', after: 'cscan', layout: '4 grid' as const, blocks: [
+          { kind: 'view' as const, view: 'section:3' }, { kind: 'view' as const, view: 'head2' as const },
+          { kind: 'cscanBoxes' as const, scanId: 'SCAN 99', comment: '', stats: [] },
+        ] },
+      ],
+    }))
+    const p2 = { ...p, settings: { ...p.settings, headViewMode: 'HEAD 1' as const } }
+    expect(texts(p2)).toEqual([
+      'warning: The custom sheet "Boot" has nothing on it.',
+      'warning: The custom sheet "Untitled" shows section sheet 3, which the drawing does not have.',
+      'warning: The custom sheet "Untitled" shows head 2, which the drawing does not draw.',
+      'warning: The custom sheet "Untitled" shows SCAN 99, which is no longer in the drawing.',
+    ])
+  })
+
+  it('summary: sentences left out are listed on Summary and go to where the value is filled in; edited text is listed', () => {
+    const p = clean((r) => ({ ...r, text: { ...r.text, summary: { ...r.text.summary, edited: 'My own words.' } }, calibration: { ...r.calibration, transducers: [] } }))
+    const c = checkReport(p)
+    expect(c.map((x) => `${x.severity}: ${x.text}`)).toEqual([
+      'warning: Scope: the "Equipment and indexing" sentence is left out until the transducer (Calibration) is filled in.',
+      'warning: The summary text was edited by hand, so it no longer follows the data.',
+    ])
+    expect(c[0].place).toEqual({ kind: 'field', step: 'calibration', elementId: 'report-field-transducers' })
+    expect(c[0].listOn).toBe('summary')
+    // The template asks for the purpose to be checked.
+    const q = clean((r) => ({ ...r, text: { ...r.text, scope: { ...r.text.scope, fields: { purpose: '', areaCovered: '', limitations: '' } } } }))
+    expect(checkReport(q)[0].fix).toBe('Fill it in and check the wording; the template asks for it.')
   })
 })

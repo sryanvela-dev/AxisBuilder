@@ -41,9 +41,9 @@ function CalSelect(props: { path: ReportPath; label: string; options: readonly s
   )
 }
 
-function Group(props: { title: string; intro?: string; picker?: React.ReactNode; children: React.ReactNode }) {
+function Group(props: { title: string; intro?: string; picker?: React.ReactNode; children: React.ReactNode; id?: string }) {
   return (
-    <section className="settings-group">
+    <section className="settings-group" id={props.id}>
       <div className="group-head">
         <div>
           <h2>{props.title}</h2>
@@ -87,7 +87,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
         </div>
       </Group>
 
-      <Group title="Transducers" intro={`Up to ${MAX_CHANNELS} channels; only the channels filled in are printed.`}>
+      <Group id="report-field-transducers" title="Transducers" intro={`Up to ${MAX_CHANNELS} channels; only the channels filled in are printed.`}>
         {cal.transducers.length === 0 ? (
           <p className="muted">No transducer yet.</p>
         ) : (
@@ -174,7 +174,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
         </div>
       </Group>
 
-      <Group title="Scan increments" intro="The job's X and Y index steps. Used for scans whose increments were not imported (shown as calculated), and in the scope.">
+      <Group id="report-field-increments" title="Scan increments" intro="The job's X and Y index steps. Used for scans whose increments were not imported (shown as calculated), and in the scope.">
         <div className="field-grid">
           <CalBox path={['increments', 'x']} label="X increment" kind="thickness" units="in" />
           <CalBox path={['increments', 'y']} label="Y increment" kind="thickness" units="in" />
@@ -185,7 +185,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
         <PhotoPick label="Dynamic calibration screenshot" slot="dynamicImage" value={cal.dynamicImage} set={(q, f) => setReportValue(q, ['calibration', 'dynamicImage'], f)} />
       </Group>
 
-      <Group title="Temperature correction" intro="UT x (1.007 - 0.0001 x T°F), applied to Min 'T' and Avg 'T' before wall loss, everywhere in the report.">
+      <Group id="report-field-temperature" title="Temperature correction" intro="UT x (1.007 - 0.0001 x T°F), applied to Min 'T' and Avg 'T' before wall loss, everywhere in the report.">
         <div className="field-grid">
           <ReportCheckbox label="Correct for temperature" value={temp.on} set={(q, on: boolean) => setReportValue(q, ['options', 'tempCorrection', 'on'], on)}
             boxKey="report.options.tempCorrection.on" step={STEP} tag={temp.on ? <Flag kind="changed">on</Flag> : undefined} />
