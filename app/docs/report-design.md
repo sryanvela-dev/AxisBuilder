@@ -1,6 +1,6 @@
 # AUT Report Module: Generic AUT design (for review)
 
-Status: **reviewed by the user 2026-10-28 (answers in section 11); design complete. Phase R1 built on feature/report-r1 (2026-10-29, see "R1 as built" at the end); Phase R2 (the workspace screens) on feature/report-r2 ("R2 as built"); Phase R3 (page model, pages, Pages view, report PDF) on feature/report-r3 ("R3 as built"). Photos, markup and crop: section 14 (user, 2026-10-30).** This repo copy is the one to update; the original and the files it names (`Style_Sample/`, `References/`, `claude/LWN_Neck_Schedules.csv`, the spec and decisions docs) are in the design folder outside the repo (they hold client material).
+Status: **reviewed by the user 2026-10-28 (answers in section 11); design complete. Phase R1 built on feature/report-r1 (2026-10-29, see "R1 as built" at the end); Phase R2 (the workspace screens) on feature/report-r2 ("R2 as built"); Phase R3 (page model, pages, Pages view, report PDF) on feature/report-r3 ("R3 as built"). Phase R4 (Photos and pages, Summary, Review, Export in full) on feature/report-r4 ("R4 as built"). Photos, markup and crop: section 14 (user, 2026-10-30).** This repo copy is the one to update; the original and the files it names (`Style_Sample/`, `References/`, `claude/LWN_Neck_Schedules.csv`, the spec and decisions docs) are in the design folder outside the repo (they hold client material).
 Background: the design folder's `AUT_Report_Module_Spec.md` (original spec) and `AUT_Report_Design_Decisions.md` (decisions; they win over
 the spec). Where this design differs from either, it says so.
 
@@ -842,3 +842,50 @@ compat v5.0 and the .lsp / DXF fingerprints unchanged.
     The template names equipment-scanner, equipment-unit, equipment-cscan, equipment-bscan (AUT Equipment) and
     guide-cscan-example, guide-rollout-vertical, guide-rollout-horizontal (Guide to Interpretation).
   - Redaction marks are not drawn; Review lists each picture that has one ("redaction comes in a later version").
+
+## R4 as built (2026-10-31, branch feature/report-r4)
+
+Built: the Summary step, the Review checks of section 9 and 14 in full, the Photos and pages step in full (crop tool, custom sheets,
+uploaded pages with the PDF page picker, drawings to include) and the Export step. Code: `src/report/summary.ts`, `checks.ts`,
+`crop.ts`, `pagesEdits.ts`, `pdfInfo.ts`; `src/ui/report/SummaryStep.tsx`, `PictureWindow.tsx`, `CustomSheets.tsx`, `Uploads.tsx`,
+`pdfPages.ts`, `placeOptions.ts`. New dependency pdfjs-dist (thumbnails and the Pages view only; lazy-loaded, worker precached). No
+project file format change; golden jobs, compat v5.0 and the .lsp / DXF fingerprints unchanged; the drawing engine is untouched.
+
+Where the build fills in or differs from the design above:
+- **Checks.** Severities error / warning / **note** (a redaction waiting for R5, marks outside the crop): notes are listed on Review and
+  the step's list but don't make a step need attention. A section that is on with nothing to print: Photos, Custom Sheets, Reference
+  Pages, Manual UT, C-Scan Data, Scan Sheet (no scans; not optional, so only Go to) and Drawings (none chosen or none drawable); the
+  optional ones get "Turn the section off". Also checked (beyond section 9): temperature correction on without a temperature (error),
+  ladder bands changed for the job, a custom sheet with nothing on it, a custom sheet view the drawing doesn't have (section sheet n,
+  a head not drawn), a C-scan box on a scan no longer drawn, a pipe wall chosen by hand, severity / comment set by hand on readings too.
+  "A reading thicker than nominal by more than 15%": scans by Min 'T', readings by their thickest value (not repeated when the pipe
+  pick is already flagged).
+- **Not checks** (and why): screenshot files that match no scan or two files for one scan are shown by the screenshot matching panel
+  (the folder's contents are not in the job, so Review can't list them); scan numbers in the results that aren't in the drawing can't
+  happen (results follow the drawing's scans, R1). "Template text left at its default": the purpose has no default text, so its
+  sentence is left out and listed, with "the template asks for it" in the fix.
+- **Summary.** A sentence missing a value is a warning listed on the Summary step whatever step holds the value (`listOn`); Go to
+  goes to the value (Calibration for the transducer). Text typed equal to the generated text (or blank) is not an edit. Editing the
+  scope or summary turns off nothing: the sentence switches keep changing the generated text, which Regenerate then shows beside the
+  edited one (Keep mine / Use new). The step counts as started once there are scan results or edited text. Numbers in words is a
+  switch on the step (design 4.9).
+- **Crop tool.** In the full-size picture window (`PictureWindow`, built for R5's markup editor to reuse). The box is drawn on the
+  picture as it prints (upright, turned); 4:3 and 3:2 lie the way the picture lies (3:4 on a portrait). Reset = whole picture, not
+  turned. Arrow keys nudge the box (Shift: more). Offered on photos, the cover photo, the calibration and data-page screenshots, custom
+  sheet pictures and uploaded pictures; **not on uploaded PDF pages** (the page model can't cut an embedded page; their turn and frame
+  are there, marks come with R5).
+- **Custom sheets.** "Prints": in its own section (Custom Sheets) or after any other section that is on. A picture block's file comes
+  from the report photo folder or is picked as a file (remembered like photos). A **head view** is that head alone (its outline, title,
+  nozzles and MUT readings) as a sheet model of its own, fitted to its slot, so nothing next to it on the main sheet shows. "A part of
+  the main drawing" is a box dragged on the main sheet as it prints (paper inches; at least 0.2 in each way). C-scan box statistics and
+  small tables are typed one row per line, cells split by | (or tabs pasted from Excel).
+- **Uploaded pages.** Pictures and PDFs, dropped or picked (Edge / Chrome: the file is remembered per job, slot `upload:<name>`, and
+  read again at export; also found in the report photo folder). A one-page PDF is added straight away; a longer one opens the page
+  picker. Page sizes come from pdf-lib, the thumbnails and the Pages view from pdf.js, both **without the page's own /Rotate** (pdf-lib
+  copies pages unturned), so the screen matches the PDF; the upload's turn fixes a sideways page. "Full" frame is offered for PDF pages
+  only. Locked PDFs are told apart by pdf-lib's error message (its error class doesn't survive `instanceof`).
+- **Drawings to include.** Rollout, scan overlay (off and greyed when the drawing uses no photos) and section sheets "As the drawing" /
+  Off, as 4.9. Each part of the step has its section's "in the report" switch.
+- **Export.** `<job> - <client> - AUT Report.pdf` (`export/files.ts reportPdfName`; no client: `<job> - AUT Report.pdf`). The summary
+  lists pages, size, pictures that could not be read, uploaded PDFs that could not be used and the document's notes, or "Nothing was
+  left out". Word export still later.

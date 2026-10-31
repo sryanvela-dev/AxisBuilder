@@ -368,7 +368,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `REPORT_STEP_IDS` (setup, calibration, results, manual, pages, summary, reportReview, reportExport), `goToReportStep` / `setWorkspace`;
   `goToStep` goes back to the drawing (Find a setting, Go to); the report removed by undo shows the drawing; drafts may sit on a report step
   (`AnyStepId`). `state/reportSteps.ts`: titles, `reportStepStatuses` (checkReport: component -> Setup, scan -> AUT results, reading ->
-  Manual UT, plus report drafts; Photos and pages, Summary, Export "Coming later"), `reportReviewList`, `reportWhatsLeft`. `report/edits.ts`:
+  Manual UT, plus report drafts; every step built since R4), `reportReviewList`, `reportWhatsLeft`. `report/edits.ts`:
   every report change as a pure function (start, template, value by path, list items, components, sections, cover extras, scan results,
   data images, readings, linked Min 'T' written to the drawing MUT row, `addNozzleReadings` with `npsForDiameter`). Screens:
   `ReportWorkspace.tsx` (step bar, banner, Next, Review), `boxes.tsx` (`ReportBox` / `ReportSelect` / `ReportCheckbox` on `useEditBox`,
@@ -398,6 +398,24 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   view and the pages panel beside every report step; click a page -> its step), `PhotosStep.tsx` (photo list, Photos per page),
   `ExportStep.tsx` ("Make report PDF" -> `<job> - AUT Report.pdf`, `export/files.ts reportPdfName`). Node side for tests and the
   script: `test/report/pages/nodeFiles.ts`, `fixture.ts`, `photos.ts` (made-up photos, one with EXIF 6).
+- Report R4 (Photos and pages, Summary, Review, Export; "R4 as built" in `app/docs/report-design.md`): checks in full
+  (`report/checks.ts`: design 9 and 14; severities error / warning / note (notes never make a step need attention);
+  places component, scan, reading, picture, field (any element id on a step), section, sheet; `listOn` lists a check on another
+  step than its place, e.g. a summary sentence waiting for a Calibration value; `actions` = "Turn the section off" via
+  `applyReportCheckAction`; `placeStep` / `useGoToIssue` in `ui/report/places.ts` go to the step of the place). Summary
+  (`report/summary.ts`: `summaryTiles` shared with the page, `generatedText`, `editText` (text equal to the generated is not an
+  edit), `regenerateText`, `missingSentences`, `setTextBlock` (a group switches together), `setScopeField`; screen
+  `ui/report/SummaryStep.tsx`, Regenerate asks with both texts side by side; string lists scopePurpose / scopeArea /
+  scopeLimitations). Photos and pages: `report/crop.ts` (crop math, the box on the turned picture <-> the stored crop),
+  `report/pagesEdits.ts` (`setPictureEdits` by ImagePlace, custom sheets and blocks, uploads), `ui/report/PictureWindow.tsx`
+  (the full-size picture window R5's markup editor reuses; `CropTool`, `CropDialog`, `CropButton` on photos, cover, calibration
+  and data-page screenshots, sheet pictures, upload pictures), `CustomSheets.tsx` (blocks, head views = that head alone as its own
+  sheet model, `headSheet` in `report/pages/custom.ts`; a part of the main sheet picked by dragging a box), `Uploads.tsx` (drop or
+  pick pictures and PDFs, PDF page picker, file slot `upload:<name>`), `placeOptions.ts`. Uploaded PDFs: `report/pdfInfo.ts`
+  (pdf-lib page sizes; locked / damaged -> the design's plain message), `ui/report/pdfPages.ts` (pdf.js, `pdfjs-dist`, lazy-loaded,
+  its worker precached: `mjs` added to the Workbox globPatterns), `useUploadPdfs` (pages drawn into the pictures map under
+  `pdfPageKey`, so PageSvg draws them). Export: `reportPdfName(job, client)` = `<job> - <client> - AUT Report.pdf`, uploaded PDFs
+  read again and copied, summary of what was left out.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -926,3 +944,13 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-31 – Drawing step order (branch feature/report-r4, user request): the step bar is now Project -> AUT scans -> Images ->
   Field data -> Drawing -> Review -> Export (`STEP_IDS`, `STEPS`, the status and Review / banner order, `PREVIEW_STEPS`, the Heads
   group, the quick guide, first-user-test.md); a test pins the order. No change to the project file or any output.
+- 2026-10-31 – AUT report Phase R4 (branch feature/report-r4, user request): Summary step (six tiles, scope builder with saved
+  suggestions, generated summary, text edited by hand kept and flagged until Regenerate, which shows both texts first; sentences
+  left out listed with Go to); Review in full (design 9 and 14: cover fields, sections on with nothing to print with "Turn the section
+  off", temperature without a value, data pages, drawn vs in-report scans, overrides, readings far over the nominal, changed ladder,
+  pictures: redaction note, labels linked to deleted rows, marks outside the crop, custom sheet views the drawing lacks, edited text);
+  Photos and pages in full (crop tool in a full-size picture window for every report picture, custom sheets with all block kinds, head
+  views now printed, a part of the main sheet picked by dragging, uploaded pictures and PDF pages with a pdf.js page picker, drawings to
+  include, section switches); Export (file name with the client, uploaded PDFs copied, summary). New dependency pdfjs-dist (screen only;
+  the PDF still copies pages with pdf-lib). No project file format change. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged;
+  the engine is untouched. No VBA or workbook changes.
