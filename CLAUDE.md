@@ -920,3 +920,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   a save made before the lists were read did the same. Now read list by list and value by value, lists of another build are kept when
   storing, and nothing is written before the stored lists are read (`report/savedLists.ts` readSavedLists / storeSavedLists, ReportWorkspace).
   Built in, first in their lists: Painted (surface condition), Carbon Steel (block material), I.D. Notches and O.D. Notches (reflector).
+- 2026-10-31 – Saved lists (feature/report-r3, user): built in, first in their lists: makers Olympus, AUT Solutions (AUT system and, newly, the
+  scanner maker box share the list); models Proscan, Accuscan, AccuTrak, Bandit (AUT system and scanner); new list Block thickness ranges
+  (0.100" - 0.500", 0.100" - 1.500") on the calibration block; technique 0-degree.

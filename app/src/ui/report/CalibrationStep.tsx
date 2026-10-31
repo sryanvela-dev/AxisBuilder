@@ -73,7 +73,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
       <Group title="Calibration block" picker={<RecordPicker list="blocks" current={cal.block} onPick={pick('calibration block', ['block'], (c) => c.block)} />}>
         <div className="field-grid">
           <CalBox path={['block', 'name']} label="Block" list="calibrationBlock" />
-          <CalBox path={['block', 'thicknessRange']} label="Thickness range" help='As printed, e.g. 0.250" - 1.000".' />
+          <CalBox path={['block', 'thicknessRange']} label="Thickness range" list="blockThicknessRange" help='As printed, e.g. 0.100" - 1.500".' />
           <CalBox path={['block', 'material']} label="Block material" list="blockMaterial" />
           <CalBox path={['referenceReflector']} label="Reference reflector" list="referenceReflector" />
         </div>
@@ -151,7 +151,7 @@ export function CalibrationStep({ status }: ReportStepProps) {
 
       <Group title="Scanner" picker={<RecordPicker list="scanners" current={cal.scanner} onPick={pick('scanner', ['scanner'], (c) => c.scanner)} />}>
         <div className="field-grid">
-          <CalBox path={['scanner', 'maker']} label="Maker" />
+          <CalBox path={['scanner', 'maker']} label="Maker" list="systemMaker" />
           <CalBox path={['scanner', 'model']} label="Model" list="scannerModel" />
           <CalBox path={['scanner', 'serial']} label="Serial number" />
           <CalSelect path={['scanner', 'drive']} label="Drive" options={['', 'Automated', 'Manual']} />

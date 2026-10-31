@@ -141,4 +141,12 @@ describe('merging, files and storage', () => {
     expect(suggestions(none, 'blockMaterial')[0]).toBe('Carbon Steel')
     expect(suggestions(none, 'referenceReflector').slice(0, 2)).toEqual(['I.D. Notches', 'O.D. Notches'])
   })
+
+  it('AUT system and scanner makers and models, block thickness ranges and the 0-degree technique are built in', () => {
+    const none = emptySavedLists()
+    expect(suggestions(none, 'systemMaker').slice(0, 2)).toEqual(['Olympus', 'AUT Solutions'])
+    for (const id of ['systemModel', 'scannerModel'] as const) expect(suggestions(none, id).slice(0, 4)).toEqual(['Proscan', 'Accuscan', 'AccuTrak', 'Bandit'])
+    expect(suggestions(none, 'blockThicknessRange')).toEqual(['0.100" - 0.500"', '0.100" - 1.500"'])
+    expect(suggestions(none, 'technique')[0]).toBe('0-degree')
+  })
 })
