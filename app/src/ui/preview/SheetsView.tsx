@@ -22,7 +22,7 @@ function pathData(ops: readonly PathOp[], H: number): string {
 }
 
 /** minW = one screen pixel in paper inches (thin lines never drawn fainter than a pixel); soft = softer colors. */
-function Step({ s, H, thumbs, minW, soft }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string>; minW: number; soft: boolean }) {
+export function Step({ s, H, thumbs, minW, soft }: { s: DrawStep; H: number; thumbs: ReadonlyMap<string, string>; minW: number; soft: boolean }) {
   if (s.kind === 'path') {
     // Inline styles: the drawing view's CSS (theme colors, hairlines that keep their screen width) must not apply here.
     return <path d={pathData(s.ops, H)} style={{ fill: s.fill ? printCss(s.style.color, soft) : 'none', fillOpacity: s.style.opacity, stroke: printCss(s.style.color, soft), strokeWidth: Math.max(s.style.weight, minW), strokeOpacity: s.style.opacity, vectorEffect: 'none' }} />
@@ -113,12 +113,12 @@ export function SheetsView(props: { drawing: Drawing; plan: SectionPlan | null; 
         <button type="button" className="btn btn-small" onClick={() => go(Math.max(0, i - 1))} disabled={i === 0}>
           Previous
         </button>
-        <span>
-          Sheet {i + 1} of {pages.length}: {sec ? `section ${sec.n} (${fmt(sec.start)} to ${fmt(sec.end)} in)` : page.kind === 'main' ? 'drawing' : 'overview'}
-        </span>
         <button type="button" className="btn btn-small" onClick={() => go(Math.min(pages.length - 1, i + 1))} disabled={i >= pages.length - 1}>
           Next
         </button>
+        <span>
+          Sheet {i + 1} of {pages.length}: {sec ? `section ${sec.n} (${fmt(sec.start)} to ${fmt(sec.end)} in)` : page.kind === 'main' ? 'drawing' : 'overview'}
+        </span>
         <span className="button-row sheets-zoom">
           <button type="button" className="icon-btn" onClick={() => zoom(1.4)} aria-label="Zoom in on the sheet" title="Zoom in (or use the mouse wheel)">
             +

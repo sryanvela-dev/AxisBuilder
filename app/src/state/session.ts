@@ -4,6 +4,7 @@
 // Only the project itself is in the undo history. Where the job is saved, the current step and
 // the import reports are not: undo never "unsaves" a file or jumps between screens.
 
+import { REPORT_STEP_IDS, type ReportStepId } from './reportStepIds.ts'
 import type { AutImportResult } from '../data/autCsvImport.ts'
 import { syncLabelOverrides } from '../data/overrides.ts'
 import { syncReport } from '../report/sync.ts'
@@ -16,8 +17,7 @@ export const STEP_IDS = ['project', 'fieldData', 'scans', 'images', 'drawing', '
 export type StepId = (typeof STEP_IDS)[number]
 
 /** The Report workspace's steps (report design section 5). */
-export const REPORT_STEP_IDS = ['setup', 'calibration', 'results', 'manual', 'pages', 'summary', 'reportReview', 'reportExport'] as const
-export type ReportStepId = (typeof REPORT_STEP_IDS)[number]
+export { REPORT_STEP_IDS, type ReportStepId }
 /** A step of either workspace. */
 export type AnyStepId = StepId | ReportStepId
 

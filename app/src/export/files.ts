@@ -2,6 +2,7 @@
 //   "<job> - AUT Coverage.pdf"      the PDF
 //   "<job> - AUT Coverage.lsp"      the CAD drawing file (the backup way)
 //   "<name>.jpg" / "<name>_001.jpg" the report images, as TightPDF names them (<name> = the PDF's name)
+//   "<job> - AUT Report.pdf"        the AUT report
 
 /** TightPDF's clean_base_name: characters Windows doesn't allow become "_"; no trailing dots or spaces. */
 export function cleanFileName(value: string, fallback = 'Job'): string {
@@ -28,4 +29,9 @@ export function reportImageNames(baseName: string, count: number): string[] {
 /** "<job> - AUT Coverage.dxf" (Make DXF). */
 export function dxfFileName(jobName: string): string {
   return `${exportBaseName(jobName)}.dxf`
+}
+
+/** "<job> - AUT Report.pdf" (Make report PDF). */
+export function reportPdfName(jobName: string): string {
+  return `${cleanFileName(jobName)} - AUT Report.pdf`
 }

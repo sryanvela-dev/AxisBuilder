@@ -38,6 +38,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Format 7 adds the AUT report (`report`, null = none) and two shared job fields, Location and Equipment name
   // (blank by default). Older files have no report.
   6: (data) => ({ ...data, schemaVersion: 7, report: null }),
+  // Format 8 adds crop, rotation, adjustments and markup on every report picture and Photos per page; all have
+  // defaults (an upload's existing rotate keeps its meaning), so nothing needs converting.
+  7: (data) => ({ ...data, schemaVersion: 8 }),
 }
 
 export interface OpenOptions {

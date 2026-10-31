@@ -11,7 +11,6 @@ import { exportRuns, type ExportRun } from '../export/exportSets.ts'
 import { cleanFileName, exportBaseName, reportImageNames } from '../export/files.ts'
 import { preparePhotos } from '../export/pdf/photos.ts'
 import { REPORT_FONT, drawReportSheet, encodeReportJpeg, reportFrame, type Ctx2D, type ReportCrop } from '../export/report/reportImages.ts'
-import type { DirectoryHandleLike } from '../state/folders.ts'
 import { jobTitle } from '../state/session.ts'
 import { plural } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
@@ -20,7 +19,7 @@ import { useJobFolders } from './foldersContext.ts'
 import { previewPrefs, usePreviewPrefs } from './preview/previewPrefs.ts'
 import { SettingsGroup } from './SettingsForm.tsx'
 import { browserPhotoReader, closePhotos, sheetBitmaps } from './sheetPhotos.ts'
-import { okToReplace, writeFile } from './writeFiles.ts'
+import { okToReplace, openWritten, writeFile } from './writeFiles.ts'
 
 const sheetName = (m: SheetModel) => (m.kind === 'main' ? 'drawing' : m.kind === 'overview' ? 'overview' : m.title.toLowerCase())
 const mb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`)
@@ -32,14 +31,6 @@ function loadFont(): Promise<Uint8Array> {
     return new Uint8Array(await r.arrayBuffer())
   })
   return fontBytes
-}
-
-/** Opens a file the export wrote, in a new browser tab (the browser's PDF or picture viewer). */
-async function openWritten(dir: DirectoryHandleLike, name: string) {
-  const file = await (await dir.getFileHandle(name)).getFile()
-  const url = URL.createObjectURL(file)
-  window.open(url, '_blank', 'noopener')
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 export function ExportPdfPanel({ disabled }: { disabled: boolean }) {

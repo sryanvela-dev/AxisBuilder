@@ -20,12 +20,12 @@ import { memoryStore } from '../../src/state/storage.ts'
 
 describe('string lists', () => {
   it('a value typed once joins its list; doubles (ignoring case and spaces) and blanks do not', () => {
-    let l = addString(emptySavedLists(), 'surfaceCondition', '  Painted ')
-    expect(l.strings.surfaceCondition).toEqual(['Painted'])
-    expect(addString(l, 'surfaceCondition', 'painted')).toBe(l)
+    let l = addString(emptySavedLists(), 'surfaceCondition', '  Primed ')
+    expect(l.strings.surfaceCondition).toEqual(['Primed'])
+    expect(addString(l, 'surfaceCondition', 'primed')).toBe(l)
     expect(addString(l, 'surfaceCondition', '   ')).toBe(l)
     l = addString(l, 'surfaceCondition', 'Bare')
-    expect(l.strings.surfaceCondition).toEqual(['Painted', 'Bare'])
+    expect(l.strings.surfaceCondition).toEqual(['Primed', 'Bare'])
   })
 
   it('suggestions are the saved values, then the built-in ones; a built-in value is not stored again', () => {
@@ -113,5 +113,40 @@ describe('merging, files and storage', () => {
     expect(await loadSavedLists(store)).toEqual(sample())
     await store.set('savedLists', { strings: 'broken' })
     expect(await loadSavedLists(store)).toEqual(emptySavedLists())
+  })
+
+  it("one value or list it can't read never empties the others, and lists of another build are kept when storing", async () => {
+    const store = memoryStore()
+    await store.set('savedLists', {
+      strings: { surfaceCondition: ['Painted', 7], blockMaterial: ['Carbon Steel'], listOfAnotherBuild: ['kept'] },
+      records: { examiners: [{ name: 'A. Tech', title: 'AUT Specialist', badge: 'x' }, 'junk'], recordsOfAnotherBuild: [{ a: 1 }] },
+      extra: true,
+    })
+    const read = await loadSavedLists(store)
+    expect(read.strings.surfaceCondition).toEqual(['Painted'])
+    expect(read.strings.blockMaterial).toEqual(['Carbon Steel'])
+    expect(read.records.examiners).toEqual([{ name: 'A. Tech', title: 'AUT Specialist' }])
+    await storeSavedLists(store, addString(read, 'referenceReflector', 'Notch X'))
+    const raw = (await store.get('savedLists')) as { strings: Record<string, string[]>; records: Record<string, unknown[]>; extra: boolean }
+    expect(raw.strings.listOfAnotherBuild).toEqual(['kept'])
+    expect(raw.records.recordsOfAnotherBuild).toEqual([{ a: 1 }])
+    expect(raw.extra).toBe(true)
+    expect(raw.strings.surfaceCondition).toEqual(['Painted'])
+    expect(raw.strings.referenceReflector).toEqual(['Notch X'])
+  })
+
+  it('Painted, Carbon Steel and the I.D. / O.D. notches are built in, first in their lists', () => {
+    const none = emptySavedLists()
+    expect(suggestions(none, 'surfaceCondition')[0]).toBe('Painted')
+    expect(suggestions(none, 'blockMaterial')[0]).toBe('Carbon Steel')
+    expect(suggestions(none, 'referenceReflector').slice(0, 2)).toEqual(['I.D. Notches', 'O.D. Notches'])
+  })
+
+  it('AUT system and scanner makers and models, block thickness ranges and the 0-degree technique are built in', () => {
+    const none = emptySavedLists()
+    expect(suggestions(none, 'systemMaker').slice(0, 2)).toEqual(['Olympus', 'AUT Solutions'])
+    for (const id of ['systemModel', 'scannerModel'] as const) expect(suggestions(none, id).slice(0, 4)).toEqual(['Proscan', 'Accuscan', 'AccuTrak', 'Bandit'])
+    expect(suggestions(none, 'blockThicknessRange')).toEqual(['0.100" - 0.500"', '0.100" - 1.500"'])
+    expect(suggestions(none, 'technique')[0]).toBe('0-degree')
   })
 })

@@ -49,3 +49,11 @@ export async function writeFilesAsking(app: App, dir: DirectoryHandleLike, files
   for (const f of files) await writeFile(dir, f)
   return files.map((f) => f.name)
 }
+
+/** Opens a file the export wrote, in a new browser tab (the browser's PDF or picture viewer). */
+export async function openWritten(dir: DirectoryHandleLike, name: string) {
+  const file = await (await dir.getFileHandle(name)).getFile()
+  const url = URL.createObjectURL(file)
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}

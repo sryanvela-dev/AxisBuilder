@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { PROJECT_FIELDS, SETTINGS, VESSEL_FIELDS, shapeOf } from './settings.ts'
 import { reportSchema } from '../report/schema.ts'
 
-export const CURRENT_SCHEMA_VERSION = 7
+export const CURRENT_SCHEMA_VERSION = 8
 
 /** A new job ID: random, so two jobs never share one (copies made with "Save as" keep theirs). */
 export function newJobId(): string {

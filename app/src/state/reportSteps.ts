@@ -2,8 +2,8 @@
 // drawing: issues come from the report checks (report/checks.ts: a component on Setup, a scan on AUT results, a reading
 // on Manual UT) and from typed values on a report step that are not valid yet (drafts). Pure functions, no React.
 //
-// R2 builds Setup, Calibration, AUT results, Manual UT and a first Review; Photos and pages, Summary and Export show
-// "Coming later" (R3 / R4), and the full Review list comes with R4.
+// R2 builds Setup, Calibration, AUT results, Manual UT and a first Review; R3 adds the photo list of Photos and pages
+// and "Make report PDF" on Export; Summary shows "Coming later" and the full Review list comes with R4.
 
 import { checkReport, type ReportCheck } from '../report/checks.ts'
 import { calibrationSchema } from '../report/schema.ts'
@@ -23,10 +23,10 @@ export const REPORT_STEPS: readonly ReportStepInfo[] = [
   { id: 'calibration', title: 'Calibration', intro: 'Calibration block, AUT system, transducers and scanner, the scan increments and temperature correction.' },
   { id: 'results', title: 'AUT results', intro: 'Results per scan from the scansheet, the comment for each scan and its data-page screenshot.' },
   { id: 'manual', title: 'Manual UT', intro: 'UTT and MUT scan readings: the drawing’s MUT rows and readings of your own, such as nozzles.' },
-  { id: 'pages', title: 'Photos and pages', intro: 'Photos, custom sheets, reference pages and which drawings go in.', later: true },
+  { id: 'pages', title: 'Photos and pages', intro: 'Photos, custom sheets, reference pages and which drawings go in.' },
   { id: 'summary', title: 'Summary', intro: 'Number tiles, the scope and the summary text.', later: true },
   { id: 'reportReview', title: 'Review', intro: 'Everything still open before the report can be made.' },
-  { id: 'reportExport', title: 'Export', intro: 'Make the report PDF.', later: true },
+  { id: 'reportExport', title: 'Export', intro: 'Make the report PDF.' },
 ]
 
 export function reportStepInfo(id: ReportStepId): ReportStepInfo {
@@ -55,10 +55,14 @@ export interface ReportStepStatus {
 
 /** The step whose page shows a report check. */
 export function stepOfReportCheck(c: ReportCheck): ReportStepId {
+  if (c.place.kind === 'picture') {
+    const k = c.place.at.kind
+    return k === 'cover' ? 'setup' : k === 'calibration' ? 'calibration' : k === 'dataImage' ? 'results' : 'pages'
+  }
   return c.place.kind === 'component' ? 'setup' : c.place.kind === 'scan' ? 'results' : 'manual'
 }
 
-const BUILT = ['setup', 'calibration', 'results', 'manual'] as const
+const BUILT = ['setup', 'calibration', 'results', 'manual', 'pages'] as const
 
 function status(started: boolean, issues: ReportIssue[]): ReportStepStatus {
   const fix = issues.filter((i) => i.blocksExport).length
@@ -86,16 +90,22 @@ export function reportStepStatuses(job: Job): Record<ReportStepId, ReportStepSta
     calibration: report !== null && JSON.stringify(report.calibration) !== DEFAULT_CALIBRATION,
     results: (report?.scanResults.length ?? 0) > 0,
     manual: (report?.readings.length ?? 0) > 0,
+    pages: (report?.photos.length ?? 0) > 0,
   }
   const built = Object.fromEntries(BUILT.map((s) => [s, status(started[s], on(s))])) as Record<(typeof BUILT)[number], ReportStepStatus>
   const anyStarted = report !== null
   return {
     ...built,
-    pages: LATER,
     summary: LATER,
     reportReview: status(anyStarted, anyStarted ? issues : []),
-    reportExport: LATER,
+    reportExport: exportStatus(anyStarted ? issues : []),
   }
+}
+
+/** Export: what blocks the PDF (the Review list's errors), else ready. */
+function exportStatus(issues: ReportIssue[]): ReportStepStatus {
+  const fix = issues.filter((i) => i.blocksExport)
+  return fix.length ? { state: 'attention', short: `${fix.length} to fix`, issues: fix } : { state: 'notStarted', short: 'Ready', issues: [] }
 }
 
 export interface ReportReviewGroup {

@@ -30,6 +30,10 @@ export interface FieldRef {
   label: string
   /** Optional cover / header fields are off until the user turns them on. */
   optional?: boolean
+  /** Footer: printed before the value ("Job ", "Rev "). */
+  prefix?: string
+  /** Footer: the lead field (bold, first) or the one in the middle; others are joined after the lead. */
+  place?: 'lead' | 'centre'
 }
 
 /** A table column: key into the row the calculations produce, header text, number format. */
@@ -40,6 +44,12 @@ export interface ColumnRef {
   decimals?: number
   /** Printed only when the row type has the value (e.g. Avg T for MUT scans). */
   optional?: boolean
+  /** Group header above this column and its neighbours with the same group ("Circumferential (X)"). */
+  group?: string
+  /** Unit printed after numbers: inches (0.736"), percent (2.72%). */
+  unit?: 'in' | '%'
+  /** Drop trailing zeros (positions: 115", 22.5"). */
+  trim?: boolean
 }
 
 /** One choice in a comment-builder list: its stored id and the words it adds to the sentence. */

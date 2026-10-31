@@ -1,6 +1,7 @@
 // The Report workspace (report design section 5): its own step bar with done / needs attention / not started, a
-// "before export" banner, the current step's page and one "Next" button, in the same look as the drawing's. No preview
-// beside the steps yet (the Pages view is R3). Shared by every step: the report folders and this computer's saved lists.
+// "before export" banner, the current step's page and one "Next" button, in the same look as the drawing's, with the
+// report pages that step affects beside it (PagesPanel). Shared by every step: the report folders, this computer's saved
+// lists and the report as pages.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { emptySavedLists, loadSavedLists, storeSavedLists, type SavedLists } from '../../report/savedLists.ts'
@@ -18,15 +19,22 @@ import {
 import type { ReportStepId } from '../../state/session.ts'
 import type { StepState } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
+import { useJobFolders } from '../foldersContext.ts'
+import { usePhotoThumbs } from '../preview/usePhotoThumbs.ts'
+import { usePreviewPrefs } from '../preview/previewPrefs.ts'
 import { ErrorBoundary } from '../ErrorBoundary.tsx'
 import { Notices } from '../Notices.tsx'
 import { useRememberedFolder } from '../useRememberedFolder.ts'
 import { CalibrationStep } from './CalibrationStep.tsx'
+import { ExportStep } from './ExportStep.tsx'
 import { ManualStep } from './ManualStep.tsx'
+import { PagesPanel } from './PagesView.tsx'
+import { PhotosStep } from './PhotosStep.tsx'
 import { jumpToReport } from './places.ts'
 import { ReportContext, type ReportShared } from './reportContext.ts'
 import { ResultsStep } from './ResultsStep.tsx'
 import { SetupStep } from './SetupStep.tsx'
+import { useReportDocument, useReportPictures } from './useReportPages.ts'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -38,10 +46,10 @@ const PAGES: Record<ReportStepId, (props: ReportStepProps) => React.JSX.Element>
   calibration: CalibrationStep,
   results: ResultsStep,
   manual: ManualStep,
-  pages: ComingLater,
+  pages: PhotosStep,
   summary: ComingLater,
   reportReview: ReportReviewStep,
-  reportExport: ComingLater,
+  reportExport: ExportStep,
 }
 
 /** This computer's saved lists, loaded once and written back on every change. */
@@ -50,24 +58,27 @@ function useSavedLists() {
   const store = app.browserStore
   const [lists, setLists] = useState<SavedLists>(emptySavedLists)
   const current = useRef(lists)
+  // Nothing is written until the stored lists are read: a change made before that waits for them (writing then would
+  // put the empty starting lists over the saved ones).
+  const loaded = useRef<Promise<void> | null>(null)
   useEffect(() => {
     let alive = true
-    void loadSavedLists(store).then((l) => {
-      if (alive) {
-        current.current = l
-        setLists(l)
-      }
+    loaded.current = loadSavedLists(store).then((l) => {
+      current.current = l
+      if (alive) setLists(l)
     })
     return () => {
       alive = false
     }
   }, [store])
   const changeLists = useCallback((change: (l: SavedLists) => SavedLists) => {
-    const next = change(current.current)
-    if (next === current.current) return
-    current.current = next
-    setLists(next)
-    void storeSavedLists(store, next).catch(() => {})
+    void (loaded.current ?? Promise.resolve()).then(() => {
+      const next = change(current.current)
+      if (next === current.current) return
+      current.current = next
+      setLists(next)
+      void storeSavedLists(store, next).catch(() => {})
+    })
   }, [store])
   return { lists, changeLists }
 }
@@ -82,7 +93,17 @@ export function ReportWorkspace() {
   const photos = useRememberedFolder('reportPhotos', 'read')
   const screenshots = useRememberedFolder('screenshots', 'read')
   const { lists, changeLists } = useSavedLists()
-  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists }), [photos, screenshots, lists, changeLists])
+  const project = job.history.present
+  const sources = useMemo(() => ({ photos: photos.photoFolder, screenshots: screenshots.photoFolder, store: app.browserStore, jobId: project.jobId }),
+    [photos.photoFolder, screenshots.photoFolder, app.browserStore, project.jobId])
+  const { pictures, retry, loading } = useReportPictures(project, sources)
+  const prefs = usePreviewPrefs()
+  const previewHidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
+  const doc = useReportDocument(project, pictures, previewHidden)
+  const drawingPhotos = useJobFolders().photos
+  const sheetThumbs = usePhotoThumbs(project, drawingPhotos.photoFolder, project.settings.generateOverlayDrawing)
+  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists, pages: { doc, pictures, sources, retry } }),
+    [photos, screenshots, lists, changeLists, doc, pictures, sources, retry])
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     page.current?.scrollTo(0, 0)
@@ -124,7 +145,7 @@ export function ReportWorkspace() {
       </nav>
       <Banner statuses={statuses} />
       <Notices />
-      <div className="work">
+      <div className="work with-preview">
         <main className="page" ref={page}>
           <ErrorBoundary key={step} where={`Report ${reportStepInfo(step).title} step`} onLeave={{ label: 'Go to the report Review step', action: () => go('reportReview') }}>
             <header className="page-header">
@@ -134,6 +155,11 @@ export function ReportWorkspace() {
             <Page status={statuses[step]} />
           </ErrorBoundary>
         </main>
+        {doc && (
+          <ErrorBoundary where="Report pages">
+            <PagesPanel doc={doc} pictures={pictures} sheetThumbs={sheetThumbs} step={step} onGo={go} loading={loading} />
+          </ErrorBoundary>
+        )}
       </div>
       <footer className="page-footer">
         <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>
@@ -215,7 +241,7 @@ function ComingLater() {
   const step = app.state.job!.reportStep
   return (
     <p className="coming-soon">
-      Coming later: {reportStepInfo(step).intro} {step === 'reportExport' ? 'The report PDF comes with the next part of the report work.' : ''}
+      Coming later: {reportStepInfo(step).intro}
     </p>
   )
 }

@@ -32,7 +32,99 @@ export const READING_TYPES = ['UTT', 'MUT scan'] as const
 export const NOMINAL_MODES = ['component', 'pipe', 'custom'] as const
 /** Values that were worked out, not read or typed (shown as "calculated"). */
 export const CALCULATED_FIELDS = ['readings', 'incrX', 'incrY'] as const
+/** Custom sheets and uploads go after this section unless the user moves them (they print in their own section). */
+export const DEFAULT_PLACE_AFTER = 'cscan'
 export const SHEET_LAYOUTS = ['1 large', '2 side by side', '2 + side panel', '4 grid'] as const
+
+/** A drawing row, keyed like moved labels: list + ID + which of the rows with that ID. */
+const rowRef = <L extends readonly [string, ...string[]]>(lists: L) =>
+  z.strictObject({ list: z.enum(lists), id: z.string(), occurrence: z.number().int().min(0).default(0) })
+
+// --- Image edits (format 8; design "Photos: markup, crop, labels") ---------------------------
+// Every image-like item (photos, the cover photo, data-page screenshots, the calibration screenshot, custom-sheet
+// images, uploads) carries the same edits. The file itself is never changed. Positions are fractions 0-1 of the
+// picture as it stands after its phone (EXIF) orientation and before `rotate` (x to the right, y down), so a quarter
+// turn turns the crop and the marks with the picture. Items that are only a file name (cover photo, data-page and
+// calibration screenshots) keep the name and carry the edits beside it (`coverPhotoEdits`, ...).
+
+export const ROTATIONS = [0, 90, 180, 270] as const
+export type Rotation = (typeof ROTATIONS)[number]
+const rotation = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+const unit = z.number().min(0).max(1)
+const point = z.tuple([unit, unit])
+/** A box in 0-1 picture fractions, x0 < x1 and y0 < y1. */
+const fracBox = z
+  .strictObject({ x0: unit, y0: unit, x1: unit, y1: unit })
+  .refine((b) => b.x0 < b.x1 && b.y0 < b.y1, { message: 'must have its first corner above and left of the second' })
+
+export const MARK_KINDS = ['rect', 'ellipse', 'highlight', 'pen', 'line', 'arrow', 'label', 'badge', 'redaction'] as const
+export type MarkKind = (typeof MARK_KINDS)[number]
+/** Rows a mark can be linked to (live data labels): a scan or a shell / head MUT row. */
+export const MARK_LINK_LISTS = ['scans', 'shellMut', 'headMut'] as const
+export type MarkLinkList = (typeof MARK_LINK_LISTS)[number]
+
+export const markStyleSchema = z.strictObject({
+  /** CSS hex colour of lines and outlines; null = none. Default red (a finding). */
+  stroke: z.string().nullable().default('#d62828'),
+  /** CSS hex fill; null = none (a highlighted box: a fill with fillOpacity below 1). */
+  fill: z.string().nullable().default(null),
+  fillOpacity: unit.default(1),
+  /** Opacity of the whole mark (highlighter strokes are see-through). */
+  opacity: unit.default(1),
+  /** Line width in points at print size. */
+  width: z.number().gt(0).default(1.5),
+  /** Stroke ends: flat (marker) or round. */
+  ends: z.enum(['flat', 'round']).default('round'),
+  /** Text size in points at print size (labels, badges). */
+  textSize: z.number().gt(0).default(9),
+  textColor: z.string().default('#ffffff'),
+})
+
+const markBase = {
+  id: nonBlank,
+  style: markStyleSchema.prefault({}),
+  /** Live data label: the scan or MUT row it shows (followed through renames; a deleted row leaves it for Review). */
+  link: rowRef(MARK_LINK_LISTS).nullable().default(null),
+  /** Drawing order: higher on top. */
+  z: z.number().default(0),
+  locked: z.boolean().default(false),
+}
+
+export const markSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('rect'), ...markBase, box: fracBox }),
+  z.strictObject({ kind: z.literal('ellipse'), ...markBase, box: fracBox }),
+  /** Highlighter: freehand points, or a straight stroke (two points). */
+  z.strictObject({ kind: z.literal('highlight'), ...markBase, points: z.array(point).min(2), straight: z.boolean().default(false) }),
+  z.strictObject({ kind: z.literal('pen'), ...markBase, points: z.array(point).min(2) }),
+  z.strictObject({ kind: z.literal('line'), ...markBase, from: point, to: point }),
+  z.strictObject({ kind: z.literal('arrow'), ...markBase, from: point, to: point }),
+  /** Text label or callout: centred at `at`, optional leader to `leader` with its end. */
+  z.strictObject({
+    kind: z.literal('label'), ...markBase, at: point, text,
+    callout: z.enum(['rounded', 'square', 'pill', 'plain']).default('rounded'),
+    leader: point.nullable().default(null),
+    leaderEnd: z.enum(['arrow', 'dot', 'none']).default('arrow'),
+  }),
+  /** Numbered badge; `text` is its line in the key printed under the picture. */
+  z.strictObject({ kind: z.literal('badge'), ...markBase, at: point, n: z.number().int().min(1), text }),
+  /** Removes the pixels in the PDF (R5); not drawn before then. */
+  z.strictObject({ kind: z.literal('redaction'), ...markBase, box: fracBox, mode: z.enum(['black', 'blur']).default('black') }),
+])
+
+export const imageEditsShape = {
+  /** Part of the picture that prints; null = all of it. */
+  crop: fracBox.nullable().default(null),
+  /** Quarter turns clockwise, on top of the file's own (EXIF) orientation. */
+  rotate: rotation.default(0),
+  adjust: z.strictObject({ autoLevels: z.boolean().default(false) }).prefault({}),
+  markup: z.array(markSchema).default([]),
+}
+export const imageEditsSchema = z.strictObject(imageEditsShape)
+
+/** Photos per page of a photo section. */
+export const PHOTOS_PER_PAGE = ['auto', 1, 2, 4] as const
+export type PhotosPerPage = (typeof PHOTOS_PER_PAGE)[number]
+const photosPerPage = z.union([z.literal('auto'), z.literal(1), z.literal(2), z.literal(4)])
 
 // --- 4.0 Components --------------------------------------------------------------------------
 
@@ -121,6 +213,7 @@ export const calibrationSchema = z.strictObject({
   increments: z.strictObject({ x: thickness, y: thickness }).prefault({}),
   /** Dynamic calibration screenshot. */
   dynamicImage: file,
+  dynamicImageEdits: imageEditsSchema.prefault({}),
 })
 
 // --- 4.3 Scan results ------------------------------------------------------------------------
@@ -160,15 +253,12 @@ export const scanResultSchema = z.strictObject({
   ...commentFields,
   /** Full data-page screenshot. */
   dataImage: file,
+  dataImageEdits: imageEditsSchema.prefault({}),
   /** Listed in the report (separate from the drawing's Include). */
   inReport: z.boolean().default(true),
 })
 
 // --- 4.4 Manual readings ---------------------------------------------------------------------
-
-/** A drawing row, keyed like moved labels: list + ID + which of the rows with that ID. */
-const rowRef = <L extends readonly [string, ...string[]]>(lists: L) =>
-  z.strictObject({ list: z.enum(lists), id: z.string(), occurrence: z.number().int().min(0).default(0) })
 
 export const MUT_LISTS = ['shellMut', 'headMut'] as const
 export const NOZZLE_LISTS = ['shellNozzles', 'headNozzles'] as const
@@ -201,11 +291,11 @@ export const readingSchema = z.strictObject({
 
 // --- 4.5 - 4.6 Photos, custom sheets, uploads ------------------------------------------------
 
-export const photoSchema = z.strictObject({ file: nonBlank, caption: text, alone: z.boolean().default(false) })
+export const photoSchema = z.strictObject({ file: nonBlank, caption: text, alone: z.boolean().default(false), ...imageEditsShape })
 
 const box = z.strictObject({ x0: z.number(), y0: z.number(), x1: z.number(), y1: z.number() })
 export const blockSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('image'), file: nonBlank, caption: text }),
+  z.strictObject({ kind: z.literal('image'), file: nonBlank, caption: text, ...imageEditsShape }),
   z.strictObject({
     kind: z.literal('view'),
     view: z.union([z.enum(['head1', 'head2', 'main']), z.string().regex(/^section:\d+$/), z.strictObject({ crop: box })]),
@@ -224,7 +314,7 @@ export const customSheetSchema = z.strictObject({
   id: nonBlank,
   title: text,
   /** Placed after this section (default: the C-scans). */
-  after: z.string().default('cscan'),
+  after: z.string().default(DEFAULT_PLACE_AFTER),
   layout: z.enum(SHEET_LAYOUTS).default('1 large'),
   blocks: z.array(blockSchema).default([]),
 })
@@ -234,9 +324,9 @@ export const uploadSchema = z.strictObject({
   /** PDF page (1 = the first); null for an image. */
   page: z.number().int().min(1).nullable().default(null),
   title: text,
-  after: z.string().default('cscan'),
+  after: z.string().default(DEFAULT_PLACE_AFTER),
   frame: z.enum(['standard', 'full']).default('standard'),
-  rotate: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).default(0),
+  ...imageEditsShape,
 })
 
 // --- 4.7 - 4.9 Text, sections, options ------------------------------------------------------
@@ -286,6 +376,8 @@ export const reportOptionsSchema = z.strictObject({
     .prefault({}),
   cscanStats: z.strictObject({ temperature: z.boolean().default(false) }).prefault({}),
   numberWords: z.boolean().default(true),
+  /** Photos per page by photo section id; a section not listed uses its template option, else 'auto'. */
+  photosPerPage: z.record(z.string(), photosPerPage).default({}),
 })
 
 // --- The report ------------------------------------------------------------------------------
@@ -301,6 +393,7 @@ export const reportSchema = z
     readings: z.array(readingSchema).default([]),
     photos: z.array(photoSchema).default([]),
     coverPhoto: file,
+    coverPhotoEdits: imageEditsSchema.prefault({}),
     customSheets: z.array(customSheetSchema).default([]),
     uploads: z.array(uploadSchema).default([]),
     text: reportTextSchema.prefault({}),
@@ -340,6 +433,14 @@ export type Transducer = z.output<typeof transducerSchema>
 export type CalculatedField = (typeof CALCULATED_FIELDS)[number]
 export type MutList = (typeof MUT_LISTS)[number]
 export type NozzleListKey = (typeof NOZZLE_LISTS)[number]
+export type Photo = z.output<typeof photoSchema>
+export type Upload = z.output<typeof uploadSchema>
+export type CustomSheet = z.output<typeof customSheetSchema>
+export type Block = z.output<typeof blockSchema>
+export type Mark = z.output<typeof markSchema>
+export type MarkStyle = z.output<typeof markStyleSchema>
+export type ImageEdits = z.output<typeof imageEditsSchema>
+export type FracBox = z.output<typeof fracBox>
 
 /** Plain names for the report's lists and fields, for error messages ("Report, scan results, item 3 (SCAN 3): ..."). */
 export const REPORT_META: Record<string, { name: string; idField?: string; fields: Record<string, string> }> = {

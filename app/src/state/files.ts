@@ -6,8 +6,8 @@
 import type { FileHandleLike } from './session.ts'
 import type { KeyValueStore } from './storage.ts'
 
-/** Which file of the job: the report's cover photo or its dynamic calibration screenshot. */
-export type FileSlot = 'coverPhoto' | 'dynamicImage'
+/** Which file of the job: the report's cover photo, its dynamic calibration screenshot, or a report photo picked as a file. */
+export type FileSlot = 'coverPhoto' | 'dynamicImage' | `photo:${string}`
 
 const key = (jobId: string, slot: FileSlot) => `file:${jobId}:${slot}`
 

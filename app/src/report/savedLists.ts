@@ -16,19 +16,20 @@ export const STRING_LISTS = {
   procedure: { name: 'Procedures', builtIn: ['IEPC-AUT-01'] },
   examinationType: { name: 'Examination types', builtIn: ['Corrosion Mapping Examination', 'HIC Examination', 'TOFD Examination', 'Time of Flight Diffraction (TOFD)', 'Pulse Echo'] },
   acceptanceCriteria: { name: 'Acceptance criteria', builtIn: ['ASME Section VIII', 'ASME B31.3', 'ASME B31.3 / Code Case 2235-6', 'Client'] },
-  surfaceCondition: { name: 'Surface conditions', builtIn: ['As Welded', 'Power Buffed', 'Sand Blasted', 'Rusted', 'Poor', 'Fair', 'Good'] },
+  surfaceCondition: { name: 'Surface conditions', builtIn: ['Painted', 'As Welded', 'Power Buffed', 'Sand Blasted', 'Rusted', 'Poor', 'Fair', 'Good'] },
   inspectionSurface: { name: 'Inspection surfaces', builtIn: ['O.D. Surface', 'I.D. Surface', 'Outside Surface', 'Inside Surface'] },
-  technique: { name: 'Techniques', builtIn: ['Pulse Echo', 'TOFD - D-scan', 'TOFD - B-scan', 'B-scan'] },
+  technique: { name: 'Techniques', builtIn: ['0-degree', 'Pulse Echo', 'TOFD - D-scan', 'TOFD - B-scan', 'B-scan'] },
   examinerName: { name: 'Examiner names', builtIn: [] },
   examinerTitle: { name: 'Examiner titles', builtIn: ['AUT Assistant', 'Sr. NDE Specialist', 'ASNT/ACCP, Level III', 'NDT Level II', 'Sr. AUT Specialist, Level III', 'Sr. AUT Specialist, Level II', 'AUT Specialist, Level II', 'NDE Assistant'] },
   calibrationBlock: { name: 'Calibration blocks', builtIn: ['Rompus', 'AUT Calibration Block', 'IIW Block type II', 'Step Wedge', 'TOFD Notch Block'] },
-  blockMaterial: { name: 'Block materials', builtIn: ['316 Stainless Steel', '302 Stainless Steel', '347 Stainless Steel'] },
-  referenceReflector: { name: 'Reference reflectors', builtIn: ['0.040" I.D. Notch', '0.040" O.D. Notch', "3/4 'T' Side drilled hole", 'I.D. & O.D. Notches'] },
-  systemMaker: { name: 'AUT system makers', builtIn: ['Wesdyne/Amdata'] },
-  systemModel: { name: 'AUT system models', builtIn: ['Intraspect'] },
+  blockThicknessRange: { name: 'Block thickness ranges', builtIn: ['0.100" - 0.500"', '0.100" - 1.500"'] },
+  blockMaterial: { name: 'Block materials', builtIn: ['Carbon Steel', '316 Stainless Steel', '302 Stainless Steel', '347 Stainless Steel'] },
+  referenceReflector: { name: 'Reference reflectors', builtIn: ['I.D. Notches', 'O.D. Notches', '0.040" I.D. Notch', '0.040" O.D. Notch', "3/4 'T' Side drilled hole", 'I.D. & O.D. Notches'] },
+  systemMaker: { name: 'AUT system and scanner makers', builtIn: ['Olympus', 'AUT Solutions', 'Wesdyne/Amdata'] },
+  systemModel: { name: 'AUT system models', builtIn: ['Proscan', 'Accuscan', 'AccuTrak', 'Bandit', 'Intraspect'] },
   probeMaker: { name: 'Transducer makers', builtIn: ['Megasonics', 'Danasonics', 'Technisonics', 'KBA', 'WK', 'Sigma', 'Panametrics', 'RTD', 'AUT Solutions'] },
   transducerMode: { name: 'Wave modes', builtIn: ['Longitudinal', 'Shear', 'Surface', 'Creeping'] },
-  scannerModel: { name: 'Scanner models', builtIn: ['5080 scanner', '5080M scanner', '5090 scanner', 'TOFD Hand Scanner', '5085 scanner', '4040 Mouse Scanner'] },
+  scannerModel: { name: 'Scanner models', builtIn: ['Proscan', 'Accuscan', 'AccuTrak', 'Bandit', '5080 scanner', '5080M scanner', '5090 scanner', 'TOFD Hand Scanner', '5085 scanner', '4040 Mouse Scanner'] },
   readingLocation: { name: 'Reading locations', builtIn: ['North', 'East', 'South', 'West', 'Top', 'Bottom'] },
   naReason: { name: 'N/A reasons', builtIn: ['U-Bolt Obstruction', 'Repad'] },
 } as const satisfies Record<string, { name: string; builtIn: readonly string[] }>
@@ -196,13 +197,45 @@ export function listsFromFile(text: string): { ok: true; lists: SavedLists } | {
 
 const STORE_KEY = 'savedLists'
 
-/** The lists kept in this browser (empty when none or unreadable). */
-export async function loadSavedLists(store: KeyValueStore): Promise<SavedLists> {
-  const raw = await store.get<unknown>(STORE_KEY).catch(() => undefined)
-  const res = savedListsSchema.safeParse(raw ?? {})
-  return res.success ? res.data : emptySavedLists()
+const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
+
+/**
+ * Whatever can be read of a stored copy, list by list and value by value: a value or record this build can't read is
+ * skipped, never the whole copy. (Reading all or nothing emptied every list when one thing didn't fit, e.g. a copy
+ * saved by a build with another list, and the next save then wrote the empty lists over the real ones.)
+ */
+export function readSavedLists(raw: unknown): SavedLists {
+  const out = emptySavedLists()
+  if (!isObject(raw)) return out
+  const strings = isObject(raw.strings) ? raw.strings : {}
+  for (const id of STRING_LIST_IDS) {
+    const list = strings[id]
+    if (Array.isArray(list)) out.strings[id] = list.filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+  }
+  const records = isObject(raw.records) ? raw.records : {}
+  for (const id of RECORD_LIST_IDS) {
+    const list = records[id]
+    if (!Array.isArray(list)) continue
+    const ok: object[] = []
+    for (const r of list) if (isObject(r)) ok.push(toRecord(id, r))
+    ;(out.records as Record<RecordListId, object[]>)[id] = ok
+  }
+  return out
 }
 
+/** The lists kept in this browser (empty when none). */
+export async function loadSavedLists(store: KeyValueStore): Promise<SavedLists> {
+  return readSavedLists(await store.get<unknown>(STORE_KEY).catch(() => undefined))
+}
+
+/**
+ * Stores the lists. Lists this build doesn't know (kept by another build in the same browser) are kept as they were,
+ * so switching builds never loses them.
+ */
 export async function storeSavedLists(store: KeyValueStore, lists: SavedLists): Promise<void> {
-  await store.set(STORE_KEY, lists)
+  const raw = await store.get<unknown>(STORE_KEY).catch(() => undefined)
+  const old = isObject(raw) ? raw : {}
+  const oldStrings = isObject(old.strings) ? old.strings : {}
+  const oldRecords = isObject(old.records) ? old.records : {}
+  await store.set(STORE_KEY, { ...old, strings: { ...oldStrings, ...lists.strings }, records: { ...oldRecords, ...lists.records } })
 }

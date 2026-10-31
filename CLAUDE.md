@@ -130,8 +130,9 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `imagepath:test -- "<folder>"` (writes the CAD image-path test kit; never commit the kit), `fingerprints:check` /
   `fingerprints:write` (compare / save the app .lsp fingerprints, see Drawing step), `wrap:report` (what wraps across
   the seam in each golden job), `sections:report` (each golden job's section plan with section sheets on),
-  `gen:font-metrics` (the bundled font's widths; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
-  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit), `icons` (the logo files and app icons, see Polish), `sample:make` (the sample job, see Polish).
+  `gen:font-metrics` (the bundled fonts' widths, drawing and report; a test fails when out of date), `pdf:report` (PDF size per golden job), `pdf:inspect -- "<file.pdf>"` (what is inside a PDF), `labels:report -- [jobs]` (every nozzle label at 1x and 2x text).
+  `dxf:check` / `dxf:write` (DXF fingerprints), `dxf:report -- --out "<folder>"` (every golden job's DXF, outside the repo), `dxfpath:test -- "<folder>"` (DXF image-path test kit), `icons` (the logo files and app icons, see Polish), `sample:make` (the sample job, see Polish), `report:pdf -- --out "<folder>"`
+  (the sample's report PDF, or a saved job's with `--job`, outside the repo; see Report pages).
 - Unattended runs: `.claude/settings.local.json` (not committed) allows npm test / typecheck / build / lint, the npm
   scripts above, `npx vitest` and git add / commit / status / diff / log. Use single simple commands; helpers go in as
   npm scripts, not temporary scripts.
@@ -145,7 +146,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   both false by default. Format 5 (Phase 5b) adds `labelOverrides` (labels moved by hand); older files have none. Format 6 (Phase 5c) adds `area`
   on shell and head MUT rows (MUT areas drawn in the preview); older files have none. Format 7 (Phase R1) adds `report`
   (the AUT report, `app/src/report/schema.ts`; null = drawing-only job, older files open with null) and the shared
-  project fields `location` and `equipmentName` (blank).
+  project fields `location` and `equipmentName` (blank). Format 8 (Phase R3) adds `crop`, `rotate`, `adjust` and `markup` on every report
+  picture and Photos per page (`options.photosPerPage`); all have defaults.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -377,7 +379,25 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   under the table adds a report row at the bottom; rows move by the arrows or by dragging the handle by the row number (`moveReadingTo`, `dropTarget`,
   drop line under the reading's last row; an open reading's details and messages rows take a drop below it; one undo step); a drawn MUT area shows under a linked row's ID, no area box; pipe size and wall right of Nominal from). Report folders `FolderKind` 'reportPhotos' and 'screenshots'. Saved lists (`report/savedLists.ts`,
   `ui/report/SavedListsUi.tsx`): this browser's storage key `savedLists`, string lists as dropdowns you can type in (a typed value joins only by its "+ Save ... to the list" line; saved values have a × to remove them; the Setup procedure is one, built-in IEPC-AUT-01, which is also the `procedure` default for new jobs), record lists
-  with "Pick saved..." / "Save to list", dialog with edit, delete, export / import a file (merge, never deletes). No Pages view yet (R3).
+  with "Pick saved..." / "Save to list", dialog with edit, delete, export / import a file (merge, never deletes). Pages view, photos and the report PDF: Report pages (R3).
+- Report pages and PDF (Phase R3, design sections 6, 7 and 14, "R3 as built" in `app/docs/report-design.md`): brand fonts Montserrat
+  600 / 700 and Roboto 400 / 500 / 700 in `src/assets/fonts/` (Google Fonts, OFL, README there; widths in
+  `src/report/fontMetrics.generated.ts`, measured by `report/fonts.ts`; embedded whole, ligatures off) and the IEPC logo
+  `src/assets/brand/integrity-epc-logo.png`. Pictures (format 8): edits on photos, custom-sheet pictures and uploads, beside the name
+  for the cover photo / data pages / calibration screenshot (`coverPhotoEdits`, `dataImageEdits`, `dynamicImageEdits`); crop and marks
+  in fractions of the picture after its EXIF orientation and before `rotate`; `report/imageItems.ts` lists them; mark links follow
+  rows in `syncReport`; EXIF read by `report/imageInfo.ts`. `report/pageModel.ts`: pages of items in inches, y down (text, lines,
+  boxes, paths, pictures with orientation / turn / crop / marks, drawing sheets, PDF pages, links), bookmarks, contents, notes.
+  `report/pages/`: `buildReport` (index.ts: sections in template order, custom sheets / uploads by `after`, two passes for the
+  contents and "Page X of Y"), one builder per page type, `layout.ts` (style, standard frame, content area 10.0 x 6.08 in),
+  `table.ts` (layout and splitting), `values.ts` (formats, field values, scope / summary text from the template's blocks).
+  `report/marks.ts` turns marks into vector items (redactions not drawn: R5, Review says so). `report/pdf/writeReportPdf.ts`: draws
+  only the model (pictures once by file + crop, placement matrix for EXIF / turn / crop, drawing sheets via
+  `export/pdf/writePdf.ts drawSheetModel`, `embedPdf` for uploads, links, bookmarks, metadata). Browser: `ui/report/reportFiles.ts`
+  (where pictures come from, thumbnails, `preparePictures` at 300 dpi), `useReportPages.ts`, `PageSvg.tsx` + `PagesView.tsx` (Pages
+  view and the pages panel beside every report step; click a page -> its step), `PhotosStep.tsx` (photo list, Photos per page),
+  `ExportStep.tsx` ("Make report PDF" -> `<job> - AUT Report.pdf`, `export/files.ts reportPdfName`). Node side for tests and the
+  script: `test/report/pages/nodeFiles.ts`, `fixture.ts`, `photos.ts` (made-up photos, one with EXIF 6).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -888,3 +908,18 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-30 – Fixes (feature/report-r2-review, user): Manual UT drag and drop onto an open reading's details or messages row
   (drops below that reading, line under its last row; `dropTarget`, tested); Excel import of a workbook with no Procedure row gives a
   blank procedure, not IEPC-AUT-01 (new optional `importDefault` on text settings, `data/README.md`). Outputs unchanged.
+- 2026-10-31 – AUT report Phase R3 (branch feature/report-r3, user request): page model, a page builder for every Generic AUT page type,
+  the report PDF and the Pages view. Brand fonts (Montserrat, Roboto) and the IEPC logo bundled; project file format 8 (crop, rotate,
+  adjust, markup on every report picture; Photos per page; migration from 7); EXIF orientation applied everywhere; Pages view and a
+  pages panel beside each report step; Photos and pages step with the photo list (folder or files, caption, own page, turn, order);
+  "Make report PDF" on Export; `npm run report:pdf`. Photos markup design copied into `app/docs/report-design.md` (section 14), build plan
+  R3 / R4 / R5, "R3 as built". The drawing PDF's sheet drawing moved into `drawSheetModel` (output unchanged). Golden jobs, compat
+  v5.0, .lsp and DXF fingerprints unchanged. No VBA or workbook changes.
+- 2026-10-31 – Fix (feature/report-r3, user: saved dropdown values had gone): saved lists were read all or nothing, so one value or list a
+  build could not read (e.g. a list another build added) emptied every list, and the next "+ Save" wrote the empty lists over the saved ones;
+  a save made before the lists were read did the same. Now read list by list and value by value, lists of another build are kept when
+  storing, and nothing is written before the stored lists are read (`report/savedLists.ts` readSavedLists / storeSavedLists, ReportWorkspace).
+  Built in, first in their lists: Painted (surface condition), Carbon Steel (block material), I.D. Notches and O.D. Notches (reflector).
+- 2026-10-31 – Saved lists (feature/report-r3, user): built in, first in their lists: makers Olympus, AUT Solutions (AUT system and, newly, the
+  scanner maker box share the list); models Proscan, Accuscan, AccuTrak, Bandit (AUT system and scanner); new list Block thickness ranges
+  (0.100" - 0.500", 0.100" - 1.500") on the calibration block; technique 0-degree.
