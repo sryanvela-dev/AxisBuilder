@@ -980,3 +980,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   saved from the sample and opened again keeps the photos built into the app while no photo folder is chosen
   (`usesSamplePhotos` in `ui/samplePhotos.ts`: the sample's scans and photo names exactly; Job files shows them as built in).
   Tests added; outputs unchanged.
+- 2026-10-31 – Coverage and long summaries (feature/report-r4, user): coverage is the shell only, AUT and MUT apart. Report: the
+  coverage sentence ends "of the <equipment type> shell"; new summary sentence "MUT areas coverage" (only with shell MUT areas,
+  `when: mutArea>0`, fields mutCoveragePercent / mutCoverageArea / totalCoveragePercent) gives the MUT part and the drawing's total;
+  the coverage tile reads "AUT shell coverage; +x% MUT areas = y% total". Drawing (app change 29, approved): with shell MUT areas the
+  legend line reads "Shell coverage (AUT + MUT): y%" (`coverageLabel` in engine/layout.ts; preview, sheets, PDF, .lsp, DXF); without,
+  "Coverage: y%" as before; compat v5.0 unchanged; only the sample's .lsp and DXF fingerprints changed. Long Scope & Summary: the page
+  flow no longer drops text silently past 6 pages (limit 20, then a note in the export summary); the Summary step says when it runs
+  onto more pages; Review notes it (`scopeSummaryPageCount`). R5 priority (user): photos and reference drawings first, data pages next.

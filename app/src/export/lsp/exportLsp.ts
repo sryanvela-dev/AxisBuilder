@@ -19,6 +19,7 @@ import {
   axisLabels,
   clockPositionDegrees,
   countedScans,
+  coverageLabel,
   coveragePercent,
   drawnReferenceLabels,
   drawnScans,
@@ -48,7 +49,7 @@ import {
   WriteOverlayLispFunctions,
   type LibraryContext,
 } from './library.generated.ts'
-import { CStr, LispNum, LispStr, vbaFormatFixed } from './vbaFormat.ts'
+import { CStr, LispNum, LispStr } from './vbaFormat.ts'
 
 /**
  * Where the app's output deliberately differs from v5.0 (asked for by the user, 2026-10-22;
@@ -244,8 +245,9 @@ export function exportLsp(project: Project, options: ExportOptions = {}): string
   // Scans as drawn (reversed ones flipped), coverage and scan count (engine/layout.ts).
   const scans = drawnScans(p, v5)
   const counted = countedScans(p, scans, v5)
-  const coverage = coveragePercent(p, counted, v5 ? 0 : mutCoverageArea(p))
-  const coverageText = coverage === null ? '' : `Coverage: ${vbaFormatFixed(coverage, 1, 1)}%`
+  const mutArea = v5 ? 0 : mutCoverageArea(p)
+  const coverage = coveragePercent(p, counted, mutArea)
+  const coverageText = coverageLabel(coverage, mutArea)
   const legendTotalScansText = `Total Scans: ${CStr(counted.length)}`
 
   const lib: LibraryContext = {

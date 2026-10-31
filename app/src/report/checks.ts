@@ -14,6 +14,7 @@ import { sectionOn, sectionTitle, setSectionOn } from './edits.ts'
 import { imageItems, type ImagePlace } from './imageItems.ts'
 import { bandsOf } from './report.ts'
 import type { FracBox, Mark, Report } from './schema.ts'
+import { scopeSummaryPageCount, SUMMARY_PAGE_LIMIT } from './pages/scopeSummary.ts'
 import { fieldPlace, isEdited, missingSentences, missingWords } from './summary.ts'
 import { templateOf } from './templates/registry.ts'
 import type { SectionDef } from './templates/types.ts'
@@ -328,6 +329,15 @@ export function checkReport(p: Project): ReportCheck[] {
     if (isEdited(report, part)) {
       out.push({ severity: 'warning', place: field('summary', `report-field-${part}-text`), text: `The ${part} text was edited by hand, so it no longer follows the data.`,
         fix: 'Listed for a second look; Regenerate shows the new text beside yours.' })
+    }
+  }
+  // A long scope or summary flows onto more pages: fine, but worth knowing (never blocking).
+  const ssDef = t.sections.find((d) => d.pageType === 'scopeSummary')
+  if (ssDef && sectionOn(report, ssDef)) {
+    const n = scopeSummaryPageCount({ p, r: report, t })
+    if (n > 1) {
+      out.push({ severity: 'note', place: field('summary', 'report-field-summary-text'), text: `The Scope & Summary runs onto ${n} pages.`,
+        fix: n >= SUMMARY_PAGE_LIMIT ? 'Shorten it: text past this many pages is left out.' : 'Fine as it is; shorten the text or turn sentences off to keep it on one page.' })
     }
   }
   return out

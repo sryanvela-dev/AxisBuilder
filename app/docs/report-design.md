@@ -592,7 +592,8 @@ differ, this section wins. R3 built the parts marked R3 below (see "R3 as built"
 - **R4 – Photos and pages step in full** (custom sheets, uploads with the PDF page picker), **crop tool**, Summary step,
   Review checks, Export step (as planned).
 - **R5 – Markup editor**: every tool, label and style below, redaction, auto brightness / contrast. Window first, then
-  in place (see Editor).
+  in place (see Editor). Priority (user, 2026-10-31): photos and reference drawings (uploaded pages) need markup most,
+  so they are built and tested first; data-page screenshots (calling out areas to focus on) next.
 
 ### Core rule: non-destructive
 - The original file is never changed. Crop, rotation, adjustments and every mark are **data on the item in the .axb**

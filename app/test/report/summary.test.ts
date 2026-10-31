@@ -14,7 +14,13 @@ import {
   summaryTiles,
 } from '../../src/report/summary.ts'
 import { templateOf } from '../../src/report/templates/registry.ts'
-import { sampleWithReport } from './pages/fixture.ts'
+import { coverageLabel } from '../../src/engine/layout.ts'
+import { reportCoverage } from '../../src/report/calc/results.ts'
+import { pct } from '../../src/report/pages/values.ts'
+import { buildReport } from '../../src/report/pages/index.ts'
+import { scopeSummaryPageCount, SUMMARY_PAGE_LIMIT } from '../../src/report/pages/scopeSummary.ts'
+import { checkReport } from '../../src/report/checks.ts'
+import { fakeImages, sampleWithReport } from './pages/fixture.ts'
 
 const NOW = '2026-10-31T12:00:00.000Z'
 
@@ -101,5 +107,60 @@ describe('editing and Regenerate', () => {
     expect(r.report!.text.summary).toMatchObject({ edited: null, editedAt: null, generatedAt: later })
     expect(shownText(r, r.report!, 'summary')).toBe(generatedText(p, p.report!, 'summary'))
     expect(regenerateText(p, 'summary', later)).toBe(p)
+  })
+})
+
+describe('coverage is the shell, AUT and MUT areas apart', () => {
+  it('with shell MUT areas: the sentence and tile give the MUT part and the drawing total; the AUT figure stays AUT only', () => {
+    const p = sampleWithReport()
+    const cov = reportCoverage(p)!
+    expect(cov.mutArea).toBeGreaterThan(0)
+    const text = generatedText(p, p.report!, 'summary')
+    expect(text).toContain(`approximately ${pct(cov.autPercent)}`)
+    expect(text).toContain('shell.')
+    expect(text).toContain(`Manual UT areas covered a further ${pct(cov.mutPercent)}`)
+    expect(text).toContain(`for a total of ${pct(cov.combinedPercent)}.`)
+    const tile = summaryTiles(p, p.report!)[2]
+    expect(tile.value).toBe(pct(cov.autPercent))
+    expect(tile.label).toBe(`AUT shell coverage; +${pct(cov.mutPercent)} MUT areas = ${pct(cov.combinedPercent)} total`)
+    // The drawing prints the same total, and says what it is.
+    expect(coverageLabel(cov.combinedPercent, cov.mutArea)).toMatch(/^Shell coverage \(AUT \+ MUT\): /)
+  })
+
+  it('without MUT areas: no MUT sentence and no note about it; the drawing label is as before', () => {
+    const p = sampleWithReport((q) => {
+      q.shellMut = q.shellMut.map((m) => ({ ...m, area: null }))
+      q.headMut = q.headMut.map((m) => ({ ...m, area: null }))
+    })
+    expect(reportCoverage(p)!.mutArea).toBe(0)
+    expect(generatedText(p, p.report!, 'summary')).not.toContain('Manual UT areas')
+    expect(missingSentences(p, p.report!, 'summary').map((m) => m.block.id)).not.toContain('summary-mut')
+    expect(summaryTiles(p, p.report!)[2].label).toMatch(/^AUT shell coverage \(/)
+    expect(coverageLabel(62.44, 0)).toBe('Coverage: 62.4%')
+  })
+})
+
+describe('a long scope and summary', () => {
+  const long = (n: number) => Array.from({ length: n }, (_, i) => `Paragraph ${i + 1}: the AUT examination found the areas listed in the scan sheet, and each is described here in full.`).join('\n\n')
+
+  it('flows onto more pages, marked continued; Review notes it, never blocking', () => {
+    let p = sampleWithReport()
+    expect(scopeSummaryPageCount({ p, r: p.report!, t: templateOf(p.report!.templateId) })).toBe(1)
+    p = editText(p, 'summary', long(30), '2026-10-31T00:00:00Z')
+    const n = scopeSummaryPageCount({ p, r: p.report!, t: templateOf(p.report!.templateId) })
+    expect(n).toBeGreaterThan(1)
+    const d = buildReport({ project: p, image: fakeImages })
+    const pages = d.pages.filter((x) => x.sectionId === 'scope-summary')
+    expect(pages).toHaveLength(n)
+    expect(pages[1].items.some((i) => i.t === 'text' && i.text === 'Summary (continued)')).toBe(true)
+    const note = checkReport(p).find((c) => c.text.startsWith('The Scope & Summary runs onto'))
+    expect(note).toMatchObject({ severity: 'note', text: `The Scope & Summary runs onto ${n} pages.` })
+  })
+
+  it('past the page limit the rest is left out with a note, never silently', () => {
+    const p = editText(sampleWithReport(), 'summary', long(400), '2026-10-31T00:00:00Z')
+    const d = buildReport({ project: p, image: fakeImages })
+    expect(d.pages.filter((x) => x.sectionId === 'scope-summary')).toHaveLength(SUMMARY_PAGE_LIMIT)
+    expect(d.notes.some((x) => /Scope & Summary: \d+ lines past 20 pages left out/.test(x))).toBe(true)
   })
 })

@@ -5,7 +5,7 @@ export const TEXT_FIELDS = [
   'equipment', 'equipmentKind', 'examinationType', 'purpose', 'areaCovered', 'limitations',
   'transducerMaker', 'transducerSize', 'transducerFrequency', 'transducerAngle', 'transducerMode', 'incrX', 'incrY',
   'scanCount', 'readings', 'coveragePercent', 'coverageArea', 'minT', 'minScan', 'wallLoss', 'nominal', 'avgT',
-  'manualReadings',
+  'manualReadings', 'mutCoveragePercent', 'mutCoverageArea', 'totalCoveragePercent',
 ] as const
 export type TextField = (typeof TEXT_FIELDS)[number]
 

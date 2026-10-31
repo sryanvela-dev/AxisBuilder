@@ -42,7 +42,8 @@ export function summaryTiles(p: Project, r: Report, tv: TextValues = textValues(
   return [
     { value: String(rows.length), label: 'AUT scans', tone: 'deep' },
     { value: t.readings ? thousands(t.readings) : '–', label: 'UT readings', tone: 'deep' },
-    { value: cov ? pct(cov.autPercent) : '–', label: cov ? `AUT coverage (${thousands(cov.autArea)} sq in)` : 'AUT coverage', tone: 'deep' },
+    // Shell only (heads never count). With MUT areas the tile also gives the drawing's total, so the two agree.
+    { value: cov ? pct(cov.autPercent) : '–', label: !cov ? 'AUT shell coverage' : cov.mutArea > 0 ? `AUT shell coverage; +${pct(cov.mutPercent)} MUT areas = ${pct(cov.combinedPercent)} total` : `AUT shell coverage (${thousands(cov.autArea)} sq in)`, tone: 'deep' },
     { value: t.min ? inch(t.min.value) : '–', label: t.min ? `Minimum, scan ${scanNumber(t.min.scanId)}` : 'Minimum', tone: loss },
     { value: t.wallLoss ? pct(t.wallLoss.value) : '–', label: nominal ? `Wall loss from ${nominal} nominal` : 'Wall loss', tone: loss },
     { value: t.average !== null ? inch(t.average) : '–', label: 'Average thickness', tone: 'deep' },
@@ -78,6 +79,7 @@ export function fieldWords(k: TextField): string {
     purpose: 'the purpose (Summary)', areaCovered: 'the area covered (Summary)', limitations: 'the limitations (Summary)',
     equipment: 'the Equipment ID', nominal: 'the nominal (Setup, components)', scanCount: 'the scans', readings: 'the readings (AUT results)',
     coveragePercent: 'the coverage (vessel size and scans)', coverageArea: 'the coverage (vessel size and scans)',
+    mutCoveragePercent: 'the MUT areas (drawing)', mutCoverageArea: 'the MUT areas (drawing)', totalCoveragePercent: 'the coverage (vessel size and scans)',
     minT: "the Min 'T' (AUT results)", minScan: "the Min 'T' (AUT results)", wallLoss: 'the wall loss (nominal and Min \'T\')',
     avgT: "the Avg 'T' (AUT results)",
   }
@@ -91,7 +93,7 @@ export function fieldPlace(k: TextField): { step: ReportStepId; elementId: strin
   if (k === 'incrX' || k === 'incrY') return { step: 'calibration', elementId: 'report-field-increments' }
   if (k === 'equipment') return { step: 'setup', elementId: 'setting-project-component' }
   if (k === 'nominal') return { step: 'setup', elementId: 'report-components' }
-  if (k === 'coveragePercent' || k === 'coverageArea') return { step: 'setup', elementId: 'setting-vessel-height' }
+  if (k === 'coveragePercent' || k === 'coverageArea' || k === 'mutCoveragePercent' || k === 'mutCoverageArea' || k === 'totalCoveragePercent') return { step: 'setup', elementId: 'setting-vessel-height' }
   if (k === 'manualReadings') return { step: 'manual', elementId: 'report-readings' }
   return { step: 'results', elementId: 'report-results' }
 }

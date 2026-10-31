@@ -19,6 +19,7 @@ import {
   type ScopeField,
   type TextPart,
 } from '../../report/summary.ts'
+import { scopeSummaryPageCount } from '../../report/pages/scopeSummary.ts'
 import { templateOf } from '../../report/templates/registry.ts'
 import type { TextBlockDef } from '../../report/templates/types.ts'
 import { useApp } from '../appContext.ts'
@@ -137,6 +138,8 @@ function TextEditor({ part }: { part: TextPart }) {
   const report = p.report!
   const edited = isEdited(report, part)
   const name = part === 'scope' ? 'Scope' : 'Summary'
+  // The scope and the summary share one page; shown under the summary while either is long (report/pages/scopeSummary.ts).
+  const pages = useMemo(() => (part === 'summary' ? scopeSummaryPageCount({ p, r: report, t: templateOf(report.templateId) }) : 1), [part, p, report])
   const regenerate = async () => {
     const mine = shownText(p, report, part)
     const fresh = generatedText(p, report, part)
@@ -171,6 +174,13 @@ function TextEditor({ part }: { part: TextPart }) {
         <button type="button" className="btn" onClick={() => void regenerate()}>
           Regenerate…
         </button>
+      )}
+      {part === 'summary' && (
+        <p className={pages > 1 ? 'msg msg-warning' : 'muted'}>
+          {pages > 1
+            ? `The Scope & Summary runs onto ${pages} pages: the boxes continue on the next page. Fine as it is; shorten the text or turn sentences off to keep it on one.`
+            : 'The Scope & Summary fits on one page.'}
+        </p>
       )}
     </div>
   )

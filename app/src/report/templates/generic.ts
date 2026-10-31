@@ -145,7 +145,9 @@ export const GENERIC_AUT: ReportTemplate = {
       text: '{limitations}' },
 
     { id: 'summary-counts', part: 'summary', label: 'Scans and coverage', defaultOn: true,
-      text: 'A total of {scanCount} AUT scans were performed on {equipment}, consisting of {readings} UT readings on approximately {coveragePercent} ({coverageArea} Sq. In.) of the {equipmentKind}.' },
+      text: 'A total of {scanCount} AUT scans were performed on {equipment}, consisting of {readings} UT readings on approximately {coveragePercent} ({coverageArea} Sq. In.) of the {equipmentKind} shell.' },
+    { id: 'summary-mut', part: 'summary', label: 'MUT areas coverage', defaultOn: true, when: 'mutArea>0',
+      text: 'Manual UT areas covered a further {mutCoveragePercent} ({mutCoverageArea} Sq. In.) of the {equipmentKind} shell, for a total of {totalCoveragePercent}.' },
     { id: 'summary-findings-0', part: 'summary', label: 'Findings', defaultOn: true, group: 'findings', when: 'band=0',
       text: 'The AUT examination revealed no significant internal wall loss or damage.' },
     { id: 'summary-findings-1', part: 'summary', label: 'Findings', defaultOn: true, group: 'findings', when: 'band=1',
