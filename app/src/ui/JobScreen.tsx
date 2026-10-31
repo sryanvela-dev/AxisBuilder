@@ -27,7 +27,7 @@ import { reportStepInfo } from '../state/reportSteps.ts'
 import { ReportWorkspace } from './report/ReportWorkspace.tsx'
 
 /** Steps that show the drawing preview beside their page. */
-const PREVIEW_STEPS: StepId[] = ['project', 'fieldData', 'scans', 'images', 'drawing']
+const PREVIEW_STEPS: StepId[] = ['project', 'scans', 'images', 'fieldData', 'drawing']
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }

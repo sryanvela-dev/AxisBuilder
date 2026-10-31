@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createEmptyProject } from '../../src/data/projectFile.ts'
 import type { Project } from '../../src/data/schema.ts'
 import type { ReportEntry } from '../../src/data/xlsmImport.ts'
-import { sessionReducer, type Job, type WorkbookImport } from '../../src/state/session.ts'
-import { nextStep, stepStatuses, whatsLeft } from '../../src/state/steps.ts'
+import { sessionReducer, STEP_IDS, type Job, type WorkbookImport } from '../../src/state/session.ts'
+import { nextStep, STEPS, stepStatuses, whatsLeft } from '../../src/state/steps.ts'
+import { GUIDE_STEPS } from '../../src/ui/helpText.ts'
 // The sample as it was when these tests were written (test/fixtures/olderSample.ts).
 import { olderSample as sampleProject } from '../fixtures/olderSample.ts'
 
@@ -114,8 +115,16 @@ describe('step status', () => {
     expect(s.fieldData.state).toBe('done')
   })
 
+  it('runs Project, AUT scans, Images, Field data, Drawing, Review, Export (the order the work happens)', () => {
+    expect([...STEP_IDS]).toEqual(['project', 'scans', 'images', 'fieldData', 'drawing', 'review', 'export'])
+    expect(STEPS.map((s) => s.id)).toEqual([...STEP_IDS])
+    expect(Object.keys(GUIDE_STEPS)).toEqual([...STEP_IDS])
+  })
+
   it('Next goes through the steps in order', () => {
-    expect(nextStep('project')).toBe('fieldData')
+    expect(nextStep('project')).toBe('scans')
+    expect(nextStep('images')).toBe('fieldData')
+    expect(nextStep('fieldData')).toBe('drawing')
     expect(nextStep('review')).toBe('export')
     expect(nextStep('export')).toBeNull()
   })

@@ -28,7 +28,7 @@ describe('Review list', () => {
     expect(flat(errors).every((c) => c?.severity === 'error')).toBe(true)
     expect(flat(warnings).filter(Boolean)).toEqual(expect.arrayContaining(checks.filter((c) => c.severity === 'warning')))
     // In step order (the sample's photos are not chosen: Images errors too).
-    expect(errors.map((g) => g.step)).toEqual(['fieldData', 'images'])
+    expect(errors.map((g) => g.step)).toEqual(['images', 'fieldData'])
     // The export refuses while there are errors.
     expect(status.export.state).toBe('attention')
     expect(() => exportLsp(p)).toThrow(ExportBlockedError)

@@ -7,17 +7,17 @@ export const GUIDE_STEPS: Record<StepId, string> = {
   project:
     'Job information for the title block (project, component, client, inspector, date) and the shell: its length, ' +
     'circumference, orientation, axis directions, reference labels and which heads are drawn.',
-  fieldData:
-    'What the field form says: circ welds, long seams, shell and head nozzles, objects such as saddles and pads, and ' +
-    'MUT readings (an object\'s X and Y are its corner nearest 0, 0, not its center). Type into the tables or paste ' +
-    'rows from Excel. A value that is missing or not valid is marked, and ' +
-    'the export waits until it is fixed.',
   scans:
     'Import the AUT CSV (the button, or drop the file on the page). Scans with start and stop the wrong way round, ' +
     'overlaps and scans outside the shell are listed with one-click fixes where there is one.',
   images:
     'Pick the folder with the scan photos; each photo is matched to its scan by number. Process images fits each photo ' +
     'to its scan\'s shape for the CAD drawing and the DXF (the PDF reads the photos straight from the folder).',
+  fieldData:
+    'What the field form says: circ welds, long seams, shell and head nozzles, objects such as saddles and pads, and ' +
+    'MUT readings (an object\'s X and Y are its corner nearest 0, 0, not its center). Type into the tables or paste ' +
+    'rows from Excel. A value that is missing or not valid is marked, and ' +
+    'the export waits until it is fixed.',
   drawing:
     'How the drawing looks: text sizes and colors, rulers, nozzle labels, leaders and arrows, legend and title block, ' +
     'head views, line colors and weights, and section sheets. The preview beside the page shows every change at once. ' +

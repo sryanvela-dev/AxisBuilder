@@ -1,6 +1,6 @@
 # Drawing preview (Phase 3e)
 
-The preview beside the Project, Field data, AUT scans and Images steps shows the drawing as the .lsp
+The preview beside the Project, AUT scans, Images and Field data steps shows the drawing as the .lsp
 will draw it in CAD, in all three orientations, and updates as you edit.
 
 ## How it is built

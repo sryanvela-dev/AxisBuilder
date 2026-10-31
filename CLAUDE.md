@@ -155,8 +155,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
 - v5.0 import: `importWorkbook` in `app/src/data/xlsmImport.ts` (rules in `app/src/data/README.md`). AUT CSV:
   `importAutCsv` (`autCsvImport.ts`); image folder matching: `matchScanImages` (`imageMatch.ts`).
 - App shell (Phase 3b): start screen (new, open, import Excel with its report first, sample job, recent jobs, restore
-  unsaved work) and the job screen: top bar (Undo/Redo/Save/Save as/Close), step bar Project -> Field data -> AUT
-  scans -> Images -> Drawing -> Review -> Export with done / needs attention / not started from `stepStatuses`
+  unsaved work) and the job screen: top bar (Undo/Redo/Save/Save as/Close), step bar Project -> AUT scans ->
+  Images -> Field data -> Drawing -> Review -> Export (order since 2026-10-31, the order the work happens) with done / needs attention / not started from `stepStatuses`
   (`app/src/state/steps.ts`), "Before export" banner, one "Next: ..." button. All state in `AppStoreProvider`
   (`app/src/ui/AppStore.tsx`, read with `useApp()`); every project change goes through `edit()` and can be undone
   (Ctrl+Z / Ctrl+Y; typing in one box is one step). Project file extension `.axb` (JSON; `.json` also opens).
@@ -923,3 +923,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-10-31 – Saved lists (feature/report-r3, user): built in, first in their lists: makers Olympus, AUT Solutions (AUT system and, newly, the
   scanner maker box share the list); models Proscan, Accuscan, AccuTrak, Bandit (AUT system and scanner); new list Block thickness ranges
   (0.100" - 0.500", 0.100" - 1.500") on the calibration block; technique 0-degree.
+- 2026-10-31 – Drawing step order (branch feature/report-r4, user request): the step bar is now Project -> AUT scans -> Images ->
+  Field data -> Drawing -> Review -> Export (`STEP_IDS`, `STEPS`, the status and Review / banner order, `PREVIEW_STEPS`, the Heads
+  group, the quick guide, first-user-test.md); a test pins the order. No change to the project file or any output.
