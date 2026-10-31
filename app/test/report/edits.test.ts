@@ -181,16 +181,18 @@ describe('form and cause for all', () => {
 })
 
 describe('readings', () => {
-  it('adds report rows before the MUT rows, and only report rows can be removed', () => {
+  it('Add reading puts a row at the bottom; pasted rows go before the MUT rows; only report rows can be removed', () => {
     let p = started()
     const linked = p.report!.readings.length
     p = addReportReading(p, { name: 'Nozzle 3', location: 'North' })
+    expect(p.report!.readings.at(-1)!.name).toBe('Nozzle 3')
     p = addReportReadings(p, [{ name: 'Boot 1' }, { name: 'Boot 2' }])
-    expect(p.report!.readings.slice(0, 3).map((r) => r.name)).toEqual(['Nozzle 3', 'Boot 1', 'Boot 2'])
+    expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['Boot 1', 'Boot 2'])
     expect(p.report!.readings).toHaveLength(linked + 3)
-    expect(removeReading(p, 3)).toBe(p)
+    expect(removeReading(p, 2)).toBe(p)
     p = removeReading(p, 1)
-    expect(p.report!.readings.slice(0, 2).map((r) => r.name)).toEqual(['Nozzle 3', 'Boot 2'])
+    expect(p.report!.readings[0].name).toBe('Boot 1')
+    expect(p.report!.readings.at(-1)!.name).toBe('Nozzle 3')
     expect(addReportReadings(p, [])).toBe(p)
   })
 
@@ -214,8 +216,9 @@ describe('readings', () => {
     expect(p.headMut.find((m) => m.id === p.report!.readings[h].link!.id)!.minT).toBe(0.6)
     // A report row keeps its own.
     p = addReportReading(p, { name: 'X' })
-    p = setReadingMinT(p, 0, 0.3)
-    expect(p.report!.readings[0].minT).toBe(0.3)
+    const last = p.report!.readings.length - 1
+    p = setReadingMinT(p, last, 0.3)
+    expect(p.report!.readings[last].minT).toBe(0.3)
   })
 
   it('adds nozzle readings: one per nozzle and position, linked, pipe nominal, no doubles', () => {

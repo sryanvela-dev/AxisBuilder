@@ -278,9 +278,9 @@ export function setReading(p: Project, index: number, change: Partial<Omit<Readi
   })
 }
 
-/** A new report row (a reading that isn't drawn as a MUT point), before the MUT rows. */
+/** "Add reading": a new report row at the bottom of the table, after every other row (user, 2026-10-30). */
 export function addReportReading(p: Project, fields: Partial<Omit<Reading, 'link'>> = {}): Project {
-  return addReportReadings(p, [fields])
+  return withReport(p, (r) => ({ ...r, readings: [...r.readings, newReading({ ...fields, link: null })] }))
 }
 
 /** Several report rows at once (a paste), before the MUT rows, in order. */

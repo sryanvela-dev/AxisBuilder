@@ -15,7 +15,7 @@ import { useApp } from '../appContext.ts'
 import { Flag, ReportBox, ReportSelect, RowMessages, type Message } from './boxes.tsx'
 import { CommentPicks, CommentText, PicksForAll, WallLoss } from './CommentPicks.tsx'
 import { NozzleReadingsDialog, ReadingPasteDialog } from './ManualDialogs.tsx'
-import { reportPlaceId } from './places.ts'
+import { jumpToReport, reportPlaceId } from './places.ts'
 import { ReportStepIssues, type ReportStepProps } from './ReportWorkspace.tsx'
 import { SavedListsButton } from './SavedListsUi.tsx'
 
@@ -31,6 +31,12 @@ export function ManualStep({ status }: ReportStepProps) {
   const rows = useMemo(() => readingRows(p, report, ladder), [p, report, ladder])
   const [open, setOpen] = useState<Set<number>>(new Set())
   const [dialog, setDialog] = useState<'nozzles' | 'paste' | null>(null)
+  // A new row at the bottom, scrolled to with the cursor in its name.
+  const addRow = () => {
+    const index = rows.length
+    app.edit('Add a reading', (q) => addReportReading(q))
+    window.setTimeout(() => jumpToReport({ kind: 'reading', index }), 60)
+  }
   const clear = () => {
     app.dispatch({ type: 'clearDrafts', prefix: 'report.reading.' })
     setOpen(new Set())
@@ -42,9 +48,6 @@ export function ManualStep({ status }: ReportStepProps) {
     <>
       <ReportStepIssues status={status} />
       <div className="button-row">
-        <button type="button" className="btn" onClick={() => app.edit('Add a reading', (q) => addReportReading(q))}>
-          Add reading
-        </button>
         <button type="button" className="btn" onClick={() => setDialog('nozzles')}>
           Add nozzle readings...
         </button>
@@ -55,7 +58,7 @@ export function ManualStep({ status }: ReportStepProps) {
       </div>
       {rows.length > 0 && <PicksForAll ladder={ladder} />}
       {rows.length === 0 ? (
-        <p className="muted">No readings yet. MUT rows on the drawing's Field data step appear here by themselves; add your own readings above.</p>
+        <p className="muted">No readings yet. MUT rows on the drawing's Field data step appear here by themselves; add your own with the buttons above and below.</p>
       ) : (
         <div className="table-wrap table-full">
           <table className="grid readings-table">
@@ -96,6 +99,11 @@ export function ManualStep({ status }: ReportStepProps) {
           </table>
         </div>
       )}
+      <div className="button-row">
+        <button type="button" className="btn" onClick={addRow} title="A new row at the bottom of the table">
+          Add reading
+        </button>
+      </div>
       {dialog === 'nozzles' && <NozzleReadingsDialog onClose={() => setDialog(null)} />}
       {dialog === 'paste' && <ReadingPasteDialog onClose={() => setDialog(null)} />}
     </>
