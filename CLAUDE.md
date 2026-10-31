@@ -974,3 +974,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   new Job files panel (both Export steps): any folder, subfolders searched by name (6 levels, 5,000 folders, system folders skipped),
   folders and single files remembered for the job. Remembered report files are matched ignoring case. Plan with the working copies
   for later in `app/docs/job-files-plan.md`. Tests added; outputs unchanged.
+- 2026-10-31 – Job files follow-up (feature/report-r4, user: Find files found none of the sample V-100's photos in the original job
+  folder): Find files also matches a picture saved with another extension (S1.png for S1.jpg; the sample's photos are the
+  original PNGs saved again as JPEG) and changes the job's links to the real names in one undo step (`renameLinkedFiles`). A job
+  saved from the sample and opened again keeps the photos built into the app while no photo folder is chosen
+  (`usesSamplePhotos` in `ui/samplePhotos.ts`: the sample's scans and photo names exactly; Job files shows them as built in).
+  Tests added; outputs unchanged.

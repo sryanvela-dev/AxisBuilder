@@ -106,8 +106,11 @@ async function permission(h: Handle, mode: Mode): Promise<PermissionState> {
   }
 }
 
-/** Every group of files the job uses and where each file stands in this browser. */
-export async function jobFiles(store: KeyValueStore, p: Project): Promise<JobFilesGroup[]> {
+/**
+ * Every group of files the job uses and where each file stands in this browser. `builtInPhotos`: the drawing photos are
+ * the app's own (a job saved from the sample) while no photo folder is chosen.
+ */
+export async function jobFiles(store: KeyValueStore, p: Project, builtInPhotos = false): Promise<JobFilesGroup[]> {
   const out: JobFilesGroup[] = []
   for (const g of groupSpecs(p)) {
     const waiting: RestoreItem[] = []
@@ -132,6 +135,10 @@ export async function jobFiles(store: KeyValueStore, p: Project): Promise<JobFil
           }
         }
       }
+    }
+    if (g.id === 'photos' && builtInPhotos && folder === 'none') {
+      out.push({ id: g.id, what: g.what, folderKind: g.folderKind, mode: g.mode, folderName: 'Built into the app (sample)', folder, files: g.names.map((name) => ({ name, state: 'ok' })), waiting, state: 'ok' })
+      continue
     }
     const files: JobFilesGroup['files'] = []
     for (const name of g.names) {
@@ -243,11 +250,27 @@ export async function folderTree(root: DirectoryHandleLike, onFolder?: (count: n
   return { folders, complete }
 }
 
+const PICTURE = /.(png|jpe?g)$/i
+const stem = (name: string) => name.toLowerCase().replace(PICTURE, '')
+
+/**
+ * The file in a folder that stands for `name`: the same name (case ignored), or for a picture the same name with another
+ * picture extension (S1.jpg for S1.png: a photo saved again as JPEG). null when none.
+ */
+function fileFor(f: Found, name: string): string | null {
+  const exact = f.files.get(name.toLowerCase())
+  if (exact) return exact
+  if (!PICTURE.test(name)) return null
+  const want = stem(name)
+  for (const real of f.files.values()) if (PICTURE.test(real) && stem(real) === want) return real
+  return null
+}
+
 /** The folder holding the most of `names`, and how many (null when none holds any). */
 function bestFolder(folders: Found[], names: string[]): { found: Found; count: number } | null {
   let best: { found: Found; count: number } | null = null
   for (const f of folders) {
-    const count = names.filter((x) => f.files.has(x.toLowerCase())).length
+    const count = names.filter((x) => fileFor(f, x)).length
     if (count > (best?.count ?? 0)) best = { found: f, count }
   }
   return best
@@ -260,12 +283,15 @@ export interface FindResult {
   notFound: string[]
   /** False when the search stopped early (very many folders, or deeper than SEARCH_DEPTH). */
   complete: boolean
+  /** Files found under another name (case, or another picture extension): the job's links to change (`renameLinkedFiles`). */
+  renames: { from: string; to: string }[]
 }
 
 /**
- * Links the files not found in this browser from `root` and its subfolders, by name (case ignored). A group read from a
- * folder (drawing photos, report photos, screenshots) takes the folder holding most of its files, unless its own folder
- * already holds as many; report photos and single files found elsewhere are remembered one by one.
+ * Links the files not found in this browser from `root` and its subfolders, by name (case ignored; a picture also by the
+ * same name with another picture extension). A group read from a folder (drawing photos, report photos, screenshots) takes
+ * the folder holding most of its files, unless its own folder already holds as many; report photos and single files found
+ * elsewhere are remembered one by one. Files found under another name come back in `renames`.
  */
 export async function findFiles(store: KeyValueStore, p: Project, groups: JobFilesGroup[], root: DirectoryHandleLike, onFolder?: (count: number) => void): Promise<FindResult> {
   const { folders, complete } = await folderTree(root, onFolder)
@@ -273,6 +299,10 @@ export async function findFiles(store: KeyValueStore, p: Project, groups: JobFil
   const specs = new Map(groupSpecs(p).map((g) => [g.id, g]))
   let found = 0
   const notFound: string[] = []
+  const renames: { from: string; to: string }[] = []
+  const renamed = (from: string, to: string) => {
+    if (from !== to && !renames.some((r) => r.from === from)) renames.push({ from, to })
+  }
   for (const g of groups) {
     const missing = g.files.filter((f) => f.state === 'missing').map((f) => f.name)
     if (!missing.length) continue
@@ -284,18 +314,53 @@ export async function findFiles(store: KeyValueStore, p: Project, groups: JobFil
       const ownCount = g.folder === 'ready' ? g.files.filter((f) => f.state === 'ok').length : 0
       if (best && best.count > ownCount) {
         await rememberFolder(store, p.jobId, g.folderKind, best.found.dir, jobName)
-        found += missing.filter((n) => best.found.files.has(n.toLowerCase())).length
-        left = missing.filter((n) => !best.found.files.has(n.toLowerCase()))
+        left = []
+        for (const n of missing) {
+          const real = fileFor(best.found, n)
+          if (real) {
+            found++
+            renamed(n, real)
+          } else left.push(n)
+        }
       }
     }
     for (const name of left) {
-      const where = spec.slot ? folders.find((f) => f.files.has(name.toLowerCase())) : undefined
-      const h = where ? ((await where.dir.getFileHandle(where.files.get(name.toLowerCase())!).catch(() => null)) as FileHandleLike | null) : null
-      if (h && spec.slot) {
-        await rememberFile(store, p.jobId, spec.slot(name), h)
+      let hit: { where: Found; real: string } | null = null
+      if (spec.slot) for (const f of folders) {
+        const real = fileFor(f, name)
+        if (real) {
+          hit = { where: f, real }
+          break
+        }
+      }
+      const h = hit ? ((await hit.where.dir.getFileHandle(hit.real).catch(() => null)) as FileHandleLike | null) : null
+      if (h && hit && spec.slot) {
+        await rememberFile(store, p.jobId, spec.slot(hit.real), h)
+        renamed(name, hit.real)
         found++
       } else notFound.push(name)
     }
   }
-  return { found, notFound, complete }
+  return { found, notFound, complete, renames }
+}
+
+/** Changes every link to a file found under another name (drawing photos, report pictures, screenshots, cover, uploads). */
+export function renameLinkedFiles(p: Project, renames: { from: string; to: string }[]): Project {
+  if (!renames.length) return p
+  const to = new Map(renames.map((r) => [r.from, r.to]))
+  const n = <T extends string | null>(name: T): T => ((name !== null && to.get(name)) ?? name) as T
+  const r = p.report
+  return {
+    ...p,
+    scanImages: p.scanImages.map((l) => (to.has(l.imageFile) ? { ...l, imageFile: n(l.imageFile) } : l)),
+    report: r && {
+      ...r,
+      coverPhoto: n(r.coverPhoto),
+      calibration: { ...r.calibration, dynamicImage: n(r.calibration.dynamicImage) },
+      photos: r.photos.map((x) => (to.has(x.file) ? { ...x, file: n(x.file) } : x)),
+      customSheets: r.customSheets.map((s) => ({ ...s, blocks: s.blocks.map((b) => (b.kind === 'image' && to.has(b.file) ? { ...b, file: n(b.file) } : b)) })),
+      scanResults: r.scanResults.map((x) => (x.dataImage && to.has(x.dataImage) ? { ...x, dataImage: n(x.dataImage) } : x)),
+      uploads: r.uploads.map((u) => (to.has(u.file) ? { ...u, file: n(u.file) } : u)),
+    },
+  }
 }

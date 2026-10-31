@@ -8,12 +8,14 @@ import {
   jobFiles,
   missingNames,
   notifyRestored,
+  renameLinkedFiles,
   reportFileSlots,
   restoreEvents,
   restoreItems,
   type JobFilesGroup,
 } from '../state/restore.ts'
 import { useApp } from './appContext.ts'
+import { usesSamplePhotos } from './samplePhotos.ts'
 
 export interface JobFiles {
   /** null while being read. */
@@ -57,7 +59,8 @@ export function useJobFiles(): JobFiles {
   }, [])
   useEffect(() => {
     let alive = true
-    void jobFiles(store, app.state.job!.history.present).then((g) => alive && setGroups(g), () => {})
+    const now = app.state.job!.history.present
+    void jobFiles(store, now, app.state.job!.source === 'sample' || usesSamplePhotos(now)).then((g) => alive && setGroups(g), () => {})
     return () => {
       alive = false
     }
@@ -86,6 +89,8 @@ export function useJobFiles(): JobFiles {
     setSearched(0)
     const res = await findFiles(store, app.state.job!.history.present, groups, root, setSearched).catch(() => null)
     setBusy(false)
+    // Found under another name (S1.png for S1.jpg): the job's links follow, one undo step.
+    if (res?.renames.length) app.edit(`Link ${res.renames.length} found file${res.renames.length === 1 ? '' : 's'}`, (q) => renameLinkedFiles(q, res.renames))
     if (!res) setNote(`${root.name} could not be searched.`)
     else if (res.notFound.length === 0) setNote(`Found all ${res.found} in ${root.name}.`)
     else {
@@ -93,7 +98,7 @@ export function useJobFiles(): JobFiles {
         `Not found: ${listNames(res.notFound)}. Try another folder, or choose them where they are used.`)
     }
     notifyRestored()
-  }, [groups, store, app.state.job])
+  }, [groups, store, app])
 
   const chooseFolder = useCallback(async (g: JobFilesGroup) => {
     if (!g.folderKind) return

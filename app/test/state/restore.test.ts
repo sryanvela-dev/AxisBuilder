@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import { recallFile, rememberFile } from '../../src/state/files.ts'
 import { recallFolder, rememberFolder, type DirectoryHandleLike } from '../../src/state/folders.ts'
-import { findFiles, itemsToRestore, jobFiles, missingNames, reportFileSlots, restoreItems } from '../../src/state/restore.ts'
+import { findFiles, itemsToRestore, jobFiles, missingNames, renameLinkedFiles, reportFileSlots, restoreItems } from '../../src/state/restore.ts'
 import type { FileHandleLike } from '../../src/state/session.ts'
 import { memoryStore } from '../../src/state/storage.ts'
 import { photoSchema } from '../../src/report/schema.ts'
@@ -136,12 +136,12 @@ describe('find files', () => {
     const before = await jobFiles(store, p)
     let folders = 0
     const res = await findFiles(store, p, before, root, (c) => (folders = c))
-    expect(res).toEqual({ found: n + 2, notFound: [], complete: true })
+    expect(res).toEqual({ found: n + 2, notFound: [], complete: true, renames: [{ from: 'cover.jpg', to: 'COVER.JPG' }] })
     expect(folders).toBe(5)
     expect((await recallFolder(store, p.jobId, 'photos'))!.name).toBe('Field')
     expect((await recallFolder(store, p.jobId, 'reportPhotos'))!.name).toBe('Report')
     expect((await recallFile(store, p.jobId, 'coverPhoto'))!.name).toBe('COVER.JPG')
-    const after = await jobFiles(store, p)
+    const after = await jobFiles(store, renameLinkedFiles(p, res.renames))
     expect(after.filter((g) => g.id !== 'job').every((g) => g.state === 'ok')).toBe(true)
   })
 
@@ -166,5 +166,40 @@ describe('find files', () => {
     expect(res.complete).toBe(false)
     expect(res.notFound).toContain('cover.jpg')
     expect(res.notFound).toContain('boot.jpg')
+  })
+})
+
+describe('find files under another name', () => {
+  it('a picture saved with another extension is found (S1.png for S1.jpg) and the links follow it', async () => {
+    const p = job()
+    const n = p.scans.length
+    const store = memoryStore()
+    const root = folder('V-1120A', { screenshots: { files: Array.from({ length: n }, (_, i) => `S${i + 1}.png`) }, other: { files: ['cover.pdf'] } })
+    const res = await findFiles(store, p, await jobFiles(store, p), root)
+    expect(res.found).toBe(n)
+    expect(res.renames[0]).toEqual({ from: 'S1.jpg', to: 'S1.png' })
+    // Not a picture: cover.pdf does not stand for cover.jpg.
+    expect(res.notFound).toEqual(['boot.jpg', 'cover.jpg'])
+    const q = renameLinkedFiles(p, res.renames)
+    expect(q.scanImages.map((l) => l.imageFile).slice(0, 2)).toEqual(['S1.png', 'S2.png'])
+    expect((await jobFiles(store, q)).find((g) => g.id === 'photos')!.state).toBe('ok')
+  })
+
+  it('renameLinkedFiles changes every link to the file and nothing else', () => {
+    const p = sampleWithReport((q) => {
+      q.report!.coverPhoto = 'a.jpg'
+      q.report!.calibration.dynamicImage = 'a.jpg'
+      q.report!.photos = [photoSchema.parse({ file: 'a.jpg' }), photoSchema.parse({ file: 'b.jpg' })]
+      q.report!.scanResults[0].dataImage = 'a.jpg'
+    })
+    const q = renameLinkedFiles(p, [{ from: 'a.jpg', to: 'a.png' }])
+    expect([q.report!.coverPhoto, q.report!.calibration.dynamicImage, q.report!.photos[0].file, q.report!.scanResults[0].dataImage]).toEqual(['a.png', 'a.png', 'a.png', 'a.png'])
+    expect(q.report!.photos[1].file).toBe('b.jpg')
+    expect(renameLinkedFiles(p, [])).toBe(p)
+  })
+
+  it('built-in photos (a job saved from the sample) count as found while no photo folder is chosen', async () => {
+    const g = (await jobFiles(memoryStore(), job(), true)).find((x) => x.id === 'photos')!
+    expect(g).toMatchObject({ state: 'ok', folderName: 'Built into the app (sample)' })
   })
 })

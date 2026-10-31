@@ -22,7 +22,7 @@ import { SelectionContext, type Selected } from './selectionContext.ts'
 import { AreaToolContext, IDLE, type AreaPhase, type PreviewTool } from './areaToolContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
 import { RestoreFilesBar } from './RestoreFilesBar.tsx'
-import { samplePhotoFolder } from './samplePhotos.ts'
+import { samplePhotoFolder, usesSamplePhotos } from './samplePhotos.ts'
 import { REPORT_ENABLED } from '../featureFlags.ts'
 import { reportStepInfo } from '../state/reportSteps.ts'
 import { ReportWorkspace } from './report/ReportWorkspace.tsx'
@@ -59,7 +59,9 @@ export function JobScreen() {
   const folders = useMemo(() => ({ photos, jobFolder }), [photos, jobFolder])
   // The sample job comes with made-up photos (until another photo folder is chosen).
   const { status: photoStatus, useInputFolder: setPhotoFolder } = photos
-  const samplePhotos = job.source === 'sample' ? present.scanImages.map((l) => l.imageFile).join('|') : ''
+  // Also a job saved from the sample and opened again (its photos are the app's own).
+  const fromSample = useMemo(() => job.source === 'sample' || usesSamplePhotos(present), [job.source, present])
+  const samplePhotos = fromSample ? present.scanImages.map((l) => l.imageFile).join('|') : ''
   useEffect(() => {
     if (samplePhotos && (photoStatus === 'none' || photoStatus === 'suggest')) setPhotoFolder(samplePhotoFolder(samplePhotos.split('|')))
   }, [samplePhotos, photoStatus, setPhotoFolder])
