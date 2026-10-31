@@ -145,8 +145,15 @@ function Drawings() {
         help={overlayUsable ? 'The main sheet with the scan photos and outlines.' : 'Needs scans and "Use scan images" (Images step).'}
         set={(q, v: boolean) => setReportValue(q, ['options', 'drawings', 'overlay'], v)} boxKey="report.options.drawings.overlay" step={STEP} />
       <ReportSelect label="Section sheets" value={o.sections}
-        options={[{ value: 'as drawing', label: plan ? `As the drawing (${plan.sections.length} + overview)` : 'As the drawing (none now)' }, { value: 'off', label: 'Off' }]}
-        help="The overview and section sheets of the Drawing step's Section sheets, when they are on there."
+        options={[
+          { value: 'as drawing', label: 'Scans (hatched, no photos)' },
+          { value: 'overlays', label: overlayUsable ? 'Overlays (photos, no hatch)' : 'Overlays (needs scan images)' },
+          { value: 'both', label: overlayUsable ? 'Scans and overlays' : 'Scans and overlays (overlays need scan images)' },
+          { value: 'off', label: 'Off' },
+        ]}
+        help={plan
+          ? `The overview and ${plural(plan.sections.length, 'section sheet')} of the Drawing step's Section sheets, printed with the scans hatched, with the scan photos, or both (scans first).`
+          : 'The Drawing step has no section sheets now: turn on Section sheets there to print them here.'}
         set={(q, v: string) => setReportValue(q, ['options', 'drawings', 'sections'], v)} boxKey="report.options.drawings.sections" step={STEP} />
     </div>
   )

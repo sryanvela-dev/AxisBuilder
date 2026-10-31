@@ -375,7 +375,8 @@ export const reportOptionsSchema = z.strictObject({
     .strictObject({
       rollout: z.boolean().default(true),
       overlay: z.boolean().default(true),
-      sections: z.enum(['as drawing', 'off']).default('as drawing'),
+      /** 'as drawing' = the scans version (hatched, no photos), as before; 'overlays' with the photos; 'both' = scans, then overlays. */
+      sections: z.enum(['as drawing', 'overlays', 'both', 'off']).default('as drawing'),
     })
     .prefault({}),
   cscanStats: z.strictObject({ temperature: z.boolean().default(false) }).prefault({}),

@@ -112,6 +112,34 @@ describe('report pages: the whole report', () => {
     expect(overlay?.t === 'sheet' && overlay.model.drawing.some((x) => x.t === 'image')).toBe(true)
   })
 
+  it('section sheets print as scans, as overlays or both, with or without the rollout ticked', () => {
+    const labels = (sections: 'as drawing' | 'overlays' | 'both' | 'off', rollout = true, overlay = true, images = true) => {
+      const p = sampleWithReport((q) => {
+        q.settings.makeSectionSheets = true
+        q.settings.generateOverlayDrawing = images
+        q.report!.options.drawings = { rollout, overlay, sections }
+      })
+      const sheets = build(p).pages.filter((x) => x.sectionId === 'drawings')
+      const photos = sheets.map((x) => { const s = x.items.find((i) => i.t === 'sheet'); return s?.t === 'sheet' && s.model.drawing.some((d) => d.t === 'image') })
+      return sheets.map((x, i) => `${x.label}${photos[i] ? ' +photos' : ''}`)
+    }
+    const scans = labels('as drawing')
+    expect(scans.slice(0, 2)).toEqual(['Rollout drawing', 'Scan overlay drawing +photos'])
+    expect(scans[2]).toBe('Overview')
+    expect(scans.slice(3).every((l) => /^Section \d+/.test(l) && !l.includes('photos'))).toBe(true)
+    const n = scans.length - 3
+    expect(n).toBeGreaterThan(0)
+    const over = labels('overlays')
+    expect(over.slice(2)).toEqual(scans.slice(2).map((l) => `${l} +photos`))
+    const both = labels('both')
+    expect(both.slice(2)).toEqual([...scans.slice(2), ...scans.slice(2).map((l) => `${l} (overlay) +photos`)])
+    expect(labels('off')).toEqual(['Rollout drawing', 'Scan overlay drawing +photos'])
+    // Sections no longer need the rollout ticked; without scan images the overlay sets print nothing.
+    expect(labels('overlays', false, false)).toEqual(over.slice(2))
+    expect(labels('overlays', true, true, false)).toEqual(['Rollout drawing'])
+    expect(labels('both', true, true, false)).toEqual(['Rollout drawing', ...scans.slice(2)])
+  })
+
   it('a section turned off prints nothing; a renamed section prints its own title', () => {
     const p = sampleWithReport((q) => {
       q.report!.sections = { calibration: { on: false }, 'scan-sheet': { on: true, title: 'AUT Scan Sheet' } }

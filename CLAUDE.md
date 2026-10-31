@@ -1008,3 +1008,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   workspaces no longer carries the other's width over. (2) Report images are named by the sheet they show instead of numbered:
   "<name> - Drawing.jpg", "<name> - Overview.jpg", "<name> - Section 1.jpg", ... (one sheet: "<name>.jpg" as before; `sheetImageNames`
   replaces `reportImageNames`). Tests updated; drawing outputs unchanged.
+- 2026-10-31 – Report drawings (feature/report-r4, user: the Section sheets choice on Photos and pages printed the sections without the
+  overlays): Section sheets = Scans (hatched, no photos; the stored 'as drawing', as before) / Overlays (photos, no hatch) / Scans and
+  overlays (scans first, the overlay ones titled "... (overlay)") / Off (`report/schema.ts` enum, `sectionSets` and `overlaysUsable` in
+  `report/pages/drawing.ts`). Section sheets now print on their own (before, only while Rollout drawing was ticked). Without scan
+  images the overlay sets print nothing. No format change (older files keep their value). Test added; drawing outputs unchanged.

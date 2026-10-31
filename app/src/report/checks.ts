@@ -14,6 +14,7 @@ import { sectionOn, sectionTitle, setSectionOn } from './edits.ts'
 import { imageItems, type ImagePlace } from './imageItems.ts'
 import { bandsOf } from './report.ts'
 import type { FracBox, Mark, Report } from './schema.ts'
+import { overlaysUsable, sectionSets } from './pages/drawing.ts'
 import { scopeSummaryPageCount, SUMMARY_PAGE_LIMIT } from './pages/scopeSummary.ts'
 import { fieldPlace, isEdited, missingSentences, missingWords } from './summary.ts'
 import { templateOf } from './templates/registry.ts'
@@ -77,8 +78,8 @@ export function emptySection(p: Project, r: Report, def: SectionDef, scanCount: 
     case 'table': return def.options?.table === 'readings' ? (r.readings.length === 0 ? 'has no manual readings' : null) : scanCount === 0 ? 'has no scans' : null
     case 'drawing': {
       const o = r.options.drawings
-      const sections = o.sections === 'as drawing' && activeSectionPlan(p) !== null
-      const overlay = o.overlay && p.settings.generateOverlayDrawing && p.scans.length > 0
+      const sections = activeSectionPlan(p) !== null && sectionSets(o.sections, overlaysUsable(p)).length > 0
+      const overlay = o.overlay && overlaysUsable(p)
       const rollout = o.rollout && p.vessel.length !== null && p.vessel.height !== null
       return rollout || overlay || sections ? null : 'has no drawings chosen'
     }
