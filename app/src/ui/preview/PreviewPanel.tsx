@@ -53,7 +53,7 @@ export function PreviewPanel() {
   const drawing = useMemo(() => buildDrawing(project), [project])
   // A remembered photo folder needs one "Allow" click after reopening or restoring a job: asked here, not only on the
   // Images step, so the photos come back on whatever step the job opens.
-  const photosAsk = (photos.status === 'allow' || photos.status === 'lost') && project.settings.generateOverlayDrawing
+  const photosAsk = (photos.status === 'allow' || photos.status === 'lost' || (photos.status === 'suggest' && job.source !== 'sample')) && project.settings.generateOverlayDrawing
     && project.scanImages.some((l) => l.imageFile)
   const model = useMemo(() => {
     const d = drawing
@@ -174,9 +174,16 @@ export function PreviewPanel() {
         <p className="msg msg-warning preview-photo-folder">
           {photos.status === 'allow' ? (
             <>
-              The browser asks before showing the photos in <strong>{photos.name}</strong> again.{' '}
+              The photos are in <strong>{photos.name}</strong>; the browser asks once before showing them again.{' '}
               <button type="button" className="btn btn-small btn-primary" onClick={() => void photos.allow()}>
-                Allow access
+                Restore photos
+              </button>
+            </>
+          ) : photos.status === 'suggest' ? (
+            <>
+              No photo folder is chosen for this job.{' '}
+              <button type="button" className="btn btn-small btn-primary" onClick={() => void photos.useSuggested()}>
+                Use {photos.suggested?.name} (used last)
               </button>
             </>
           ) : (

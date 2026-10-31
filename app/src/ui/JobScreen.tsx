@@ -60,7 +60,7 @@ export function JobScreen() {
   const { status: photoStatus, useInputFolder: setPhotoFolder } = photos
   const samplePhotos = job.source === 'sample' ? present.scanImages.map((l) => l.imageFile).join('|') : ''
   useEffect(() => {
-    if (samplePhotos && photoStatus === 'none') setPhotoFolder(samplePhotoFolder(samplePhotos.split('|')))
+    if (samplePhotos && (photoStatus === 'none' || photoStatus === 'suggest')) setPhotoFolder(samplePhotoFolder(samplePhotos.split('|')))
   }, [samplePhotos, photoStatus, setPhotoFolder])
   const [selected, setSelected] = useState<Selected | null>(null)
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected])

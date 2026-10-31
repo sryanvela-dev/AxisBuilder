@@ -22,9 +22,28 @@ export interface DirectoryHandleLike {
 }
 
 const key = (jobId: string, kind: FolderKind) => `folder:${jobId}:${kind}`
+/** Also kept by job name and as the last one used, so a job that comes back with a new id (the Excel file imported again,
+ * a copy) still finds its folders (the same rule as the Processed_Images marker: the same name is the same job). */
+const nameKey = (jobName: string, kind: FolderKind) => `folder-name:${jobName.trim().toLowerCase()}:${kind}`
+const lastKey = (kind: FolderKind) => `folder-last:${kind}`
 
-export async function rememberFolder(store: KeyValueStore, jobId: string, kind: FolderKind, handle: DirectoryHandleLike): Promise<void> {
+export async function rememberFolder(store: KeyValueStore, jobId: string, kind: FolderKind, handle: DirectoryHandleLike, jobName = ''): Promise<void> {
   await store.set(key(jobId, kind), handle)
+  if (jobName.trim()) await store.set(nameKey(jobName, kind), handle)
+  await store.set(lastKey(kind), handle)
+}
+
+/** Where a recalled folder was found: this job, a job with the same name, or the last one used in this browser. */
+export type RecalledFrom = 'job' | 'name' | 'last'
+
+/** The folder remembered for this job; else the one for a job of the same name; else the last one used (only offered). */
+export async function recallFolderFor(store: KeyValueStore, jobId: string, jobName: string, kind: FolderKind): Promise<{ handle: DirectoryHandleLike; from: RecalledFrom } | null> {
+  const own = await recallFolder(store, jobId, kind)
+  if (own) return { handle: own, from: 'job' }
+  const named = jobName.trim() ? await store.get<DirectoryHandleLike>(nameKey(jobName, kind)) : undefined
+  if (named) return { handle: named, from: 'name' }
+  const last = await store.get<DirectoryHandleLike>(lastKey(kind))
+  return last ? { handle: last, from: 'last' } : null
 }
 
 export async function recallFolder(store: KeyValueStore, jobId: string, kind: FolderKind): Promise<DirectoryHandleLike | null> {

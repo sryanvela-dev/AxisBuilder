@@ -184,7 +184,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   nothing / WARN warning / BLOCK error). Photo rule (v5.0): a drawn scan needs a photo (error while Check data before
   export is on, warning when off); a switched-off scan, or a scan whose photo is switched off ("Use photo"), needs
   none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
-  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening needs one "Allow" click), matching flow
+  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening or restoring needs one "Restore <folder>" click, also offered in the preview on every step; kept by job id, by job name (a job back with a new id) and as the last one used (offered as "Use <folder> (used last)")), matching flow
   (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
   (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
   + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
@@ -958,3 +958,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   job kept the source "recovery", so the sample job lost its bundled photos; it now keeps its own source (`restoreAction` in
   `state/recovery.ts`, test). A remembered photo folder that needs the browser's "Allow" (or was moved) is now asked about in the
   preview on every step, not only on the Images step. Outputs unchanged.
+- 2026-10-31 – Fix (feature/report-r4, user: restoring a job meant choosing the photo folder and photos again): folders are also
+  remembered by job name and as the last one used (`recallFolderFor`: this job, then the same name, then the last one, only offered);
+  the browser's permission click is now "Restore <folder>" on the Images step and "Restore photos" in the preview; the photo links
+  were never lost. Also fixed: on the sample job the first "Choose another folder" click was undone by the sample photos. Test added.
