@@ -116,7 +116,11 @@ export const imageEditsShape = {
   crop: fracBox.nullable().default(null),
   /** Quarter turns clockwise, on top of the file's own (EXIF) orientation. */
   rotate: rotation.default(0),
-  adjust: z.strictObject({ autoLevels: z.boolean().default(false) }).prefault({}),
+  adjust: z.strictObject({
+    autoLevels: z.boolean().default(false),
+    /** Darken a faint page: 0 off, 1 darker, 2 much darker (format 9; uploaded PDF pages print over themselves, multiplied). */
+    darken: z.number().int().min(0).max(2).default(0),
+  }).prefault({}),
   markup: z.array(markSchema).default([]),
 }
 export const imageEditsSchema = z.strictObject(imageEditsShape)

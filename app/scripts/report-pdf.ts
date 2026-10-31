@@ -44,10 +44,10 @@ if (job) {
     const r = p.report!
     r.coverPhoto = 'S5.jpg'
     r.photos = [
-      { file: 'S1.jpg', caption: 'North side of the vessel', alone: false, crop: null, rotate: 0, adjust: { autoLevels: false }, markup: [] },
-      { file: 'phone-portrait.jpg', caption: 'Phone photo stored sideways (EXIF orientation 6)', alone: false, crop: null, rotate: 0, adjust: { autoLevels: false }, markup: [] },
-      { file: 'S3.jpg', caption: 'Nozzle N2 area', alone: false, crop: { x0: 0.2, y0: 0.1, x1: 0.8, y1: 0.9 }, rotate: 0, adjust: { autoLevels: false }, markup: [] },
-      { file: 'S4.jpg', caption: 'Turned a quarter', alone: true, crop: null, rotate: 90, adjust: { autoLevels: false }, markup: [] },
+      { file: 'S1.jpg', caption: 'North side of the vessel', alone: false, crop: null, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup: [] },
+      { file: 'phone-portrait.jpg', caption: 'Phone photo stored sideways (EXIF orientation 6)', alone: false, crop: null, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup: [] },
+      { file: 'S3.jpg', caption: 'Nozzle N2 area', alone: false, crop: { x0: 0.2, y0: 0.1, x1: 0.8, y1: 0.9 }, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup: [] },
+      { file: 'S4.jpg', caption: 'Turned a quarter', alone: true, crop: null, rotate: 90, adjust: { autoLevels: false, darken: 0 }, markup: [] },
     ]
   })
   folders = { photos: samplePhotos, cover: samplePhotos, screenshots: arg('--screenshots') }

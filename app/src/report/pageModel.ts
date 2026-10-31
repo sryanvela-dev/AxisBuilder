@@ -103,6 +103,8 @@ export interface PdfPageItem {
   page: number
   rotate: Rotation
   box: Rect
+  /** Darken a faint page: the page printed this many more times over itself, multiplied (0 = as it is). */
+  darken?: number
 }
 
 export type PathCmd = ['M', number, number] | ['L', number, number] | ['C', number, number, number, number, number, number] | ['Z']

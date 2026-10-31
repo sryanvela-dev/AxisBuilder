@@ -102,9 +102,14 @@ function Item({ it, props, id }: { it: PageItem; props: Props; id: string }) {
         const h = turned ? it.box.w : it.box.h
         const cx = it.box.x + it.box.w / 2
         const cy = it.box.y + it.box.h / 2
+        // Darken as the PDF does it: the page again on top, multiplied.
         return (
-          <image href={pic.thumb} x={cx - w / 2} y={cy - h / 2} width={w} height={h} preserveAspectRatio="none"
-            transform={it.rotate ? `rotate(${it.rotate} ${f(cx)} ${f(cy)})` : undefined} />
+          <g transform={it.rotate ? `rotate(${it.rotate} ${f(cx)} ${f(cy)})` : undefined} style={{ isolation: 'isolate' }}>
+            {Array.from({ length: 1 + (it.darken ?? 0) }, (_, k) => (
+              <image key={k} href={pic.thumb} x={cx - w / 2} y={cy - h / 2} width={w} height={h} preserveAspectRatio="none"
+                style={k > 0 ? { mixBlendMode: 'multiply' } : undefined} />
+            ))}
+          </g>
         )
       }
       return (

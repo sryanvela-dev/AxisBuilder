@@ -147,7 +147,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   on shell and head MUT rows (MUT areas drawn in the preview); older files have none. Format 7 (Phase R1) adds `report`
   (the AUT report, `app/src/report/schema.ts`; null = drawing-only job, older files open with null) and the shared
   project fields `location` and `equipmentName` (blank). Format 8 (Phase R3) adds `crop`, `rotate`, `adjust` and `markup` on every report
-  picture and Photos per page (`options.photosPerPage`); all have defaults.
+  picture and Photos per page (`options.photosPerPage`); all have defaults. Format 9 (2026-10-31) adds `adjust.darken` (0 / 1 / 2) on
+  report pictures, used to darken faint uploaded PDF pages; default 0.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -988,3 +989,10 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   "Coverage: y%" as before; compat v5.0 unchanged; only the sample's .lsp and DXF fingerprints changed. Long Scope & Summary: the page
   flow no longer drops text silently past 6 pages (limit 20, then a note in the export summary); the Summary step says when it runs
   onto more pages; Review notes it (`scopeSummaryPageCount`). R5 priority (user): photos and reference drawings first, data pages next.
+- 2026-10-31 – Reference pages (feature/report-r4, user: the title box was too narrow to read; a faint upright PDF sheet was
+  unreadable): the reference page list is now cards (picture, full-width Title, then Prints / Frame / Darken / buttons with visible
+  labels). An upright sheet or picture (taller than wide, as turned) prints on a portrait letter page under a portrait standard frame
+  (`FRAME_PORTRAIT`, `CONTENT_PORTRAIT` in report/pages/layout.ts: header fields in one column, 0" reference beside; about 70% of a
+  letter sheet instead of 55%); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
+  `adjust.darken`, migration from 8): the PDF page is printed again over itself with blend mode Multiply, once or twice (stays vector;
+  white stays white), the Pages view the same with mix-blend-mode; `setUploadDarken`. Tests added; drawing outputs unchanged.

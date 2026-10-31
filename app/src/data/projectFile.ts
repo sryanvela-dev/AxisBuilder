@@ -41,6 +41,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Format 8 adds crop, rotation, adjustments and markup on every report picture and Photos per page; all have
   // defaults (an upload's existing rotate keeps its meaning), so nothing needs converting.
   7: (data) => ({ ...data, schemaVersion: 8 }),
+  // Format 9 adds Darken on report pictures (`adjust.darken`, 0 = off; used for faint uploaded PDF pages). Default 0, so
+  // nothing needs converting.
+  8: (data) => ({ ...data, schemaVersion: 9 }),
 }
 
 export interface OpenOptions {

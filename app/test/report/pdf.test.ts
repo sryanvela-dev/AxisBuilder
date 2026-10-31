@@ -187,6 +187,9 @@ describe('report PDF smoke tests (R4): custom sheet layouts, uploaded PDF pages,
     q.report!.uploads = [
       uploadSchema.parse({ file: 'two.pdf', page: 1, title: 'Standard frame' }),
       uploadSchema.parse({ file: 'two.pdf', page: 2, title: 'Full size', frame: 'full' }),
+      uploadSchema.parse({ file: 'two.pdf', page: 2, title: 'Wide sheet' }),
+      uploadSchema.parse({ file: 'two.pdf', page: 2, title: 'Wide sheet turned', rotate: 90 }),
+      uploadSchema.parse({ file: 'two.pdf', page: 1, title: 'Faint copy', adjust: { darken: 2 } }),
     ]
   })
   const { doc, pdf } = await reportPdf(p, { 'crop.jpg': madeUpPhoto(2000, 1000) }, { 'two.pdf': two })
@@ -202,16 +205,36 @@ describe('report PDF smoke tests (R4): custom sheet layouts, uploaded PDF pages,
     expect(doc.pages[pageOf('Layout 2 side by side')].items.filter((i) => i.t === 'sheet')).toHaveLength(1)
   })
 
-  it("copies uploaded PDF pages: fitted under the frame, or full size at the page's own size", () => {
+  it("copies uploaded PDF pages: fitted under the frame (portrait for an upright sheet), or full size at the page's own size", () => {
+    // An upright letter sheet gets a portrait page and prints larger than on a landscape one.
     const standard = pdf.getPages()[pageOf('Standard frame')]
-    expect(standard.getWidth()).toBeCloseTo(11 * 72, 3)
+    expect(standard.getWidth()).toBeCloseTo(8.5 * 72, 3)
+    expect(standard.getHeight()).toBeCloseTo(11 * 72, 3)
     expect(pageText(standard)).toContain('Standard frame')
+    const sheet = doc.pages[pageOf('Standard frame')].items.find((x) => x.t === 'pdfPage')
+    if (sheet?.t !== 'pdfPage') throw new Error('no sheet')
+    expect(sheet.box.h / 11).toBeGreaterThan(0.69)
+    // A wide sheet stays landscape; turned a quarter it is upright, so portrait.
+    expect(pdf.getPages()[pageOf('Wide sheet')].getWidth()).toBeCloseTo(11 * 72, 3)
+    expect(pdf.getPages()[pageOf('Wide sheet turned')].getWidth()).toBeCloseTo(8.5 * 72, 3)
+    expect(pageText(pdf.getPages()[pageOf('Wide sheet turned')])).toMatch(/Page \d+ of \d+/)
     const full = pdf.getPages()[pageOf('Full size')]
     expect(full.getWidth()).toBeCloseTo(1224, 3)
     expect(full.getHeight()).toBeCloseTo(792, 3)
     expect(pageText(full)).toMatch(/Page \d+ of \d+/)
     const forms = [...pdf.context.enumerateIndirectObjects()].filter(([, o]) => o instanceof PDFRawStream && o.dict.get(PDFName.of('Subtype')) === PDFName.of('Form'))
     expect(forms.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('darkens a faint PDF page by printing it again over itself, multiplied (still vector)', () => {
+    const page = pdf.getPages()[pageOf('Faint copy')]
+    const gs = page.node.Resources()?.lookup(PDFName.of('ExtGState'), PDFDict)
+    const modes = gs ? gs.values().map((v) => (page.doc.context.lookup(v) as PDFDict).get(PDFName.of('BM'))) : []
+    expect(modes).toContainEqual(PDFName.of('Multiply'))
+    const plain = pdf.getPages()[pageOf('Standard frame')].node.Resources()?.lookup(PDFName.of('ExtGState'), PDFDict)
+    expect(plain ? plain.values().map((v) => (page.doc.context.lookup(v) as PDFDict).get(PDFName.of('BM'))) : []).not.toContainEqual(PDFName.of('Multiply'))
+    const item = doc.pages[pageOf('Faint copy')].items.find((x) => x.t === 'pdfPage')
+    expect(item).toMatchObject({ darken: 2 })
   })
 
   it('prints a cropped, turned photo at the shape of its crop, clipped', () => {

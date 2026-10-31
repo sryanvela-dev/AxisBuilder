@@ -20,6 +20,7 @@ import {
   setCustomSheet,
   setPictureEdits,
   setUpload,
+  setUploadDarken,
   tableFromText,
   tableToText,
 } from '../../src/report/pagesEdits.ts'
@@ -151,5 +152,15 @@ describe('report file name (design 11.4)', () => {
     expect(reportPdfName('V-100', '  ')).toBe('V-100 - AUT Report.pdf')
     expect(reportPdfName('V-100')).toBe('V-100 - AUT Report.pdf')
     expect(reportPdfName('V/100', 'A:B')).toBe('V_100 - A_B - AUT Report.pdf')
+  })
+})
+
+describe('darken a faint reference page', () => {
+  it('sets 0, 1 or 2 on one upload; the same value is no change', () => {
+    let p = addUploads(sampleWithReport(), [{ file: 'GA.pdf', page: 1 }, { file: 'GA.pdf', page: 2 }])
+    expect(p.report!.uploads[0].adjust.darken).toBe(0)
+    p = setUploadDarken(p, 1, 2)
+    expect(p.report!.uploads.map((u) => u.adjust.darken)).toEqual([0, 2])
+    expect(setUploadDarken(p, 1, 2)).toBe(p)
   })
 })

@@ -2917,6 +2917,86 @@ svg.report-page .report-paper {
   width: 100%;
 }
 
+.upload-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.upload-card {
+  display: grid;
+  grid-template-columns: auto 96px 1fr;
+  gap: 4px 12px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.upload-card .photo-thumb {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+}
+
+/* A page or picture shows on white paper, as it prints. */
+.upload-card img.photo-thumb {
+  background: #ffffff;
+}
+
+.upload-num {
+  font-weight: 600;
+  min-width: 1.4em;
+}
+
+.upload-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.upload-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-title .cell-field {
+  flex: 1;
+}
+
+.upload-title .cell-field input[type='text'] {
+  width: 100%;
+}
+
+.upload-file {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.upload-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+
+.upload-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.upload-field-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .photo-cell {
   display: flex;
   align-items: center;

@@ -165,6 +165,15 @@ export function addUploads(p: Project, entries: readonly { file: string; page: n
   })
 }
 
+/** Darken a faint uploaded page: 0 off, 1 darker, 2 much darker. */
+export function setUploadDarken(p: Project, index: number, darken: number): Project {
+  return withReport(p, (r) => {
+    const u = r.uploads[index]
+    if (!u || u.adjust.darken === darken) return r
+    return { ...r, uploads: r.uploads.map((x, i) => (i === index ? { ...x, adjust: { ...x.adjust, darken } } : x)) }
+  })
+}
+
 export function setUpload(p: Project, index: number, change: Partial<Pick<Upload, 'title' | 'after' | 'frame' | 'rotate'>>): Project {
   return withReport(p, (r) => {
     const u = r.uploads[index]

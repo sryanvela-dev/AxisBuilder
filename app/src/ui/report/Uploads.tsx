@@ -7,7 +7,7 @@
 import { useEffect, useState, type DragEvent } from 'react'
 import { IMAGE_EXTENSIONS } from '../../data/imageMatch.ts'
 import { turned } from '../../report/crop.ts'
-import { addUploads, isPdfUpload, moveUpload, removeUpload, setUpload } from '../../report/pagesEdits.ts'
+import { addUploads, isPdfUpload, moveUpload, removeUpload, setUpload, setUploadDarken } from '../../report/pagesEdits.ts'
 import { readPdfInfo } from '../../report/pdfInfo.ts'
 import type { Upload } from '../../report/schema.ts'
 import { templateOf } from '../../report/templates/registry.ts'
@@ -214,59 +214,56 @@ function UploadTable() {
     if (info && info.ok && (u.page ?? 1) > info.pages.length) return `the PDF has only ${plural(info.pages.length, 'page')}`
     return null
   }
+  // One card per page (user, 2026-10-31: the title box was too narrow to read in a table beside the pages panel): the
+  // picture on the left, the title the full width, then where it prints, frame, darken and the buttons.
   return (
-    <table className="grid photo-list upload-list">
-      <thead>
-        <tr>
-          <th className="num">#</th>
-          <th>Page</th>
-          <th>Title</th>
-          <th>Prints</th>
-          <th>Frame</th>
-          <th>Turn, order</th>
-        </tr>
-      </thead>
-      <tbody>
-        {list.map((u, i) => {
-          const pdf = isPdfUpload(u)
-          const pic = pdf ? pages.pictures.get(pdfPageKey(u.file, u.page ?? 1)) : pages.pictures.get(refKey({ source: 'uploads', file: u.file }))
-          const what = pdf ? `${u.file}, page ${u.page ?? 1}` : u.file
-          const label = `reference page ${i + 1} (${what})`
-          const st = status(u)
-          return (
-            <tr key={`${u.file}-${u.page}-${i}`} id={`report-upload-${i}`}>
-              <td className="num">{i + 1}</td>
-              <td>
-                <span className="photo-cell">
-                  {pic ? (
-                    <img className="photo-thumb" src={pic.thumb} alt="" style={u.rotate ? { transform: `rotate(${u.rotate}deg)${u.rotate % 180 ? ' scale(0.75)' : ''}` } : undefined} />
-                  ) : (
-                    <span className="photo-thumb thumb-empty" />
-                  )}
-                  <span className="muted">
-                    {what}
-                    {st && <span className="msg msg-warning"> ({st})</span>}
-                  </span>
-                </span>
-              </td>
-              <td>
+    <ol className="upload-cards">
+      {list.map((u, i) => {
+        const pdf = isPdfUpload(u)
+        const pic = pdf ? pages.pictures.get(pdfPageKey(u.file, u.page ?? 1)) : pages.pictures.get(refKey({ source: 'uploads', file: u.file }))
+        const what = pdf ? `${u.file}, page ${u.page ?? 1}` : u.file
+        const label = `reference page ${i + 1} (${what})`
+        const st = status(u)
+        return (
+          <li key={`${u.file}-${u.page}-${i}`} id={`report-upload-${i}`} className="upload-card">
+            <span className="upload-num">{i + 1}</span>
+            {pic ? (
+              <img className="photo-thumb" src={pic.thumb} alt="" style={u.rotate ? { transform: `rotate(${u.rotate}deg)${u.rotate % 180 ? ' scale(0.75)' : ''}` } : undefined} />
+            ) : (
+              <span className="photo-thumb thumb-empty" />
+            )}
+            <div className="upload-body">
+              <div className="upload-title">
+                <span className="upload-field-label">Title</span>
                 <ReportBox compact label="Title" where={`Reference page ${i + 1}, title`} value={u.title} placeholder="e.g. Nameplate"
                   set={(q, v: string) => setUpload(q, i, { title: v })} boxKey={`report.upload.${i}.title`} step={STEP} />
-              </td>
-              <td>
-                <ReportSelect compact label="Prints" where={`Reference page ${i + 1}, prints`} value={placeValue(u.after, own)} options={placeOptions(report, own)}
-                  set={(q, v: string) => setUpload(q, i, { after: v })} boxKey={`report.upload.${i}.after`} step={STEP} />
-              </td>
-              <td>
-                {pdf ? (
-                  <ReportSelect compact label="Frame" where={`Reference page ${i + 1}, frame`} value={u.frame}
-                    options={[{ value: 'standard', label: 'Standard (under the header)' }, { value: 'full', label: 'Full (the page as it is)' }]}
-                    set={(q, v: string) => setUpload(q, i, { frame: v as Upload['frame'] })} boxKey={`report.upload.${i}.frame`} step={STEP} />
-                ) : (
-                  <span className="muted">Standard</span>
+              </div>
+              <p className="muted upload-file">
+                {what}
+                {st && <span className="msg msg-warning"> ({st})</span>}
+              </p>
+              <div className="upload-options">
+                <label className="upload-option">
+                  <span className="upload-field-label">Prints</span>
+                  <ReportSelect compact label="Prints" where={`Reference page ${i + 1}, prints`} value={placeValue(u.after, own)} options={placeOptions(report, own)}
+                    set={(q, v: string) => setUpload(q, i, { after: v })} boxKey={`report.upload.${i}.after`} step={STEP} />
+                </label>
+                {pdf && (
+                  <label className="upload-option">
+                    <span className="upload-field-label">Frame</span>
+                    <ReportSelect compact label="Frame" where={`Reference page ${i + 1}, frame`} value={u.frame}
+                      options={[{ value: 'standard', label: 'Standard (under the header)' }, { value: 'full', label: 'Full (the page as it is)' }]}
+                      set={(q, v: string) => setUpload(q, i, { frame: v as Upload['frame'] })} boxKey={`report.upload.${i}.frame`} step={STEP} />
+                  </label>
                 )}
-              </td>
-              <td>
+                {pdf && (
+                  <label className="upload-option">
+                    <span className="upload-field-label">Darken</span>
+                    <ReportSelect compact label="Darken" where={`Reference page ${i + 1}, darken`} value={String(u.adjust.darken)}
+                      options={[{ value: '0', label: 'As it is' }, { value: '1', label: 'Darker (faint copy)' }, { value: '2', label: 'Much darker' }]}
+                      set={(q, v: string) => setUploadDarken(q, i, Number(v))} boxKey={`report.upload.${i}.darken`} step={STEP} />
+                  </label>
+                )}
                 <span className="button-row row-buttons">
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a reference page left', (q) => setUpload(q, i, { rotate: turned(u.rotate, 'left') }))} aria-label={`Turn ${label} left`} title="Turn left (a quarter, anticlockwise)">⟲</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a reference page right', (q) => setUpload(q, i, { rotate: turned(u.rotate, 'right') }))} aria-label={`Turn ${label} right`} title="Turn right (a quarter, clockwise)">⟳</button>
@@ -275,11 +272,11 @@ function UploadTable() {
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a reference page', (q) => moveUpload(q, i, i + 1))} disabled={i === list.length - 1} aria-label={`Move ${label} down`} title="Move down">↓</button>
                   <button type="button" className="icon-btn icon-danger" onClick={() => app.edit('Remove a reference page', (q) => removeUpload(q, i))} aria-label={`Remove ${label}`} title="Remove from the report (the file stays)">✕</button>
                 </span>
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+              </div>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
