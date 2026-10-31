@@ -84,17 +84,20 @@ export function JobFilesPanel() {
                     <td>{g.what}</td>
                     <td>{g.folderName || (g.folderKind ? <span className="muted">no folder</span> : <span className="muted">picked one by one</span>)}</td>
                     <td className={`job-files-${st.kind}`}>{st.text}</td>
-                    <td className="button-row">
-                      {g.folderKind && (
-                        <button type="button" className="btn btn-small" onClick={() => void f.chooseFolder(g)}>
-                          {g.folder === 'none' ? 'Choose folder...' : 'Change folder...'}
-                        </button>
-                      )}
-                      {showGo && (
-                        <button type="button" className="btn btn-small" onClick={() => go(g.id)} title={`Where these are chosen: ${to.label}`}>
-                          Go to
-                        </button>
-                      )}
+                    {/* The flex row sits inside the cell: a flex td stops being a table cell and its row lines drift. */}
+                    <td>
+                      <div className="button-row">
+                        {g.folderKind && (
+                          <button type="button" className="btn btn-small" onClick={() => void f.chooseFolder(g)}>
+                            {g.folder === 'none' ? 'Choose folder...' : 'Change folder...'}
+                          </button>
+                        )}
+                        {showGo && (
+                          <button type="button" className="btn btn-small" onClick={() => go(g.id)} title={`Where these are chosen: ${to.label}`}>
+                            Go to
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
