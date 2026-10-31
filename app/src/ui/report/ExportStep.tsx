@@ -17,6 +17,7 @@ import { useApp } from '../appContext.ts'
 import { WrittenSummary, type Written } from '../exportStep.tsx'
 import { useJobFolders } from '../foldersContext.ts'
 import { FolderBar } from '../PhotoPanel.tsx'
+import { JobFilesPanel } from '../JobFilesPanel.tsx'
 import { previewPrefs } from '../preview/previewPrefs.ts'
 import { browserPhotoReader } from '../sheetPhotos.ts'
 import { okToReplace, openWritten, writeFile } from '../writeFiles.ts'
@@ -127,6 +128,7 @@ export function ExportStep({ status }: ReportStepProps) {
           <p className="coming-soon">Writing into a folder needs Edge or Chrome.</p>
         )}
       </section>
+      <JobFilesPanel />
       <section className="export-card">
         <h2>Report PDF</h2>
         <p className="muted">

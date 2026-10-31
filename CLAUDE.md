@@ -184,7 +184,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   nothing / WARN warning / BLOCK error). Photo rule (v5.0): a drawn scan needs a photo (error while Check data before
   export is on, warning when off); a switched-off scan, or a scan whose photo is switched off ("Use photo"), needs
   none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
-  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening or restoring needs the browser's OK again: the "Restore files" bar under the top bar (`ui/RestoreFilesBar.tsx`, `state/restore.ts`) asks for every folder and file the job uses, drawing and report, from one click, and `restoreEvents` tells the screens to read them again; "Restore <folder>" on a folder bar does one; kept by job id, by job name (a job back with a new id) and as the last one used (offered as "Use <folder> (used last)")), matching flow
+  (`state/folders.ts`, `ui/useRememberedFolder.ts`; job files in this browser: `state/restore.ts` `jobFiles` (every group the job uses and its state), the bar under the top bar (`ui/RestoreFilesBar.tsx`: "Restore files" asks for everything waiting for the browser's OK from one click; "Find files..." searches a picked folder and its subfolders by name, `findFiles`), "Job files" on both Export steps (`ui/JobFilesPanel.tsx`, `ui/useJobFiles.ts`); `restoreEvents` tells the screens to read again; plan and the planned working copies in `app/docs/job-files-plan.md`; "Restore <folder>" on a folder bar does one; kept by job id, by job name (a job back with a new id) and as the last one used (offered as "Use <folder> (used last)")), matching flow
   (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
   (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
   + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
@@ -968,3 +968,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   (`restoreItems`; any the browser refuses or will not ask about stay for the next click), then the folder bars, picked pictures,
   report pages and drawing photos read again (`restoreEvents`). The preview's own restore line from the previous fix is gone (the bar
   covers it). Tests added. Same File System Access API in Chrome and Edge.
+- 2026-10-31 – Job files (feature/report-r4, user: no rules on where people keep files; a job-folder layout and copying were turned
+  down): `state/restore.ts` rewritten around `jobFiles` (groups: scan photos, report photos and pictures, screenshots, cover, calibration,
+  uploads, job folder; per file found / waiting / missing; a folder that cannot be opened is lost). Find files... in the bar and on the
+  new Job files panel (both Export steps): any folder, subfolders searched by name (6 levels, 5,000 folders, system folders skipped),
+  folders and single files remembered for the job. Remembered report files are matched ignoring case. Plan with the working copies
+  for later in `app/docs/job-files-plan.md`. Tests added; outputs unchanged.

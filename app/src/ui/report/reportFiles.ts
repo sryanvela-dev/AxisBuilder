@@ -44,7 +44,7 @@ export const uploadSlot = (name: string): FileSlot => `upload:${name}`
 
 async function remembered(src: ReportFileSources, slot: FileSlot, name: string): Promise<File | null> {
   const h = await recallFile(src.store, src.jobId, slot).catch(() => null)
-  if (!h || h.name !== name) return null
+  if (!h || h.name.toLowerCase() !== name.toLowerCase()) return null
   try {
     const perm = (await h.queryPermission?.({ mode: 'read' })) ?? 'granted'
     return perm === 'granted' ? await h.getFile() : null

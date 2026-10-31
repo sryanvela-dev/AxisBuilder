@@ -12,6 +12,7 @@ import { plural, type StepStatus } from '../state/steps.ts'
 import { useApp } from './appContext.ts'
 import { useJobFolders } from './foldersContext.ts'
 import { FolderBar } from './PhotoPanel.tsx'
+import { JobFilesPanel } from './JobFilesPanel.tsx'
 import { SettingsGroup } from './SettingsForm.tsx'
 import { writeFile, okToReplace } from './writeFiles.ts'
 import { bringImagesUpToDate } from './exportImages.tsx'
@@ -82,6 +83,7 @@ export function ExportStep({ status }: StepProps) {
           <p className="coming-soon">Writing into a folder needs Edge or Chrome.</p>
         )}
       </section>
+      <JobFilesPanel />
       <ExportPdfPanel disabled={blocked > 0 || !ready} />
       <ExportDxfPanel disabled={blocked > 0 || !ready} />
       <LspPanel disabled={blocked > 0 || !ready} />

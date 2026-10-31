@@ -597,6 +597,22 @@ input[aria-invalid='true'] {
   font-size: 0.92rem;
 }
 
+.job-files-table td {
+  vertical-align: middle;
+}
+
+.job-files-ok {
+  color: var(--ok);
+}
+
+.job-files-warn {
+  color: var(--warn);
+}
+
+.job-files-error {
+  color: var(--error);
+}
+
 .banner-ready {
   background: var(--ok-bg);
   color: var(--ok);
