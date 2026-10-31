@@ -2715,21 +2715,16 @@ table.grid tr.row-out td {
   width: 130px;
 }
 
-/* Manual UT: a MUT scan's area beside its type (Avg / Max 'T' are in the row's details) */
-.type-cell {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  align-items: center;
+/* Manual UT: a drawing MUT row's ID with its drawn area under it in small type */
+.linked-name {
+  display: grid;
+  line-height: 1.2;
+  padding-top: 6px;
 }
 
-.type-area {
-  color: var(--muted);
+.linked-name .muted {
+  font-size: 0.8rem;
   white-space: nowrap;
-}
-
-.type-cell .cell-field input[type='text'] {
-  width: 70px;
 }
 
 /* A wide report table may use the whole page width (the page keeps other content to 1320 px). */

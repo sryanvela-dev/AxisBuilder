@@ -134,13 +134,15 @@ function ReadingTableRow(props: {
         <td className="num row-no">{i + 1}</td>
         <td>
           {r.link ? (
-            <span>
-              <strong>{row.name}</strong> <Flag kind="other" title="A MUT row of the drawing: its ID, position, Min 'T' and area are the drawing's">drawing</Flag>
+            // A MUT row of the drawing: its ID (read-only here) and, for a MUT scan, its drawn area under it in small type.
+            <span className="linked-name" title="A MUT row of the drawing: its ID, position, Min 'T' and area are the drawing's (edit them on Field data)">
+              <strong>{row.name}</strong>
+              {mutScan && drawnArea && <span className="muted">{fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in drawn</span>}
             </span>
           ) : (
             <ReportBox compact label="Name" where={w('name')} value={r.name} placeholder={r.nozzle?.id ?? 'e.g. Nozzle 3'}
               set={(q, v: string) => set({ name: v })(q)} boxKey={`${key}.name`} step={STEP}
-              tag={r.nozzle ? <Flag kind="other" title={`Linked to nozzle ${r.nozzle.id}`}>nozzle</Flag> : undefined} />
+              help={r.nozzle ? `Linked to nozzle ${r.nozzle.id} (its ID is used when the name is blank).` : undefined} />
           )}
         </td>
         <td>
@@ -156,19 +158,9 @@ function ReadingTableRow(props: {
           )}
         </td>
         <td>
-          <div className="type-cell">
-            <ReportSelect compact label="Type" where={w('type')} value={r.type} options={READING_TYPES.map((t) => ({ value: t, label: t }))}
-              set={(q, v: Reading['type']) => set({ type: v })(q)} boxKey={`${key}.type`} step={STEP} />
-            {/* A MUT scan's area beside its type: the drawn area, or typed in. Avg / Max 'T' are in Details. */}
-            {mutScan && (drawnArea ? (
-              <span className="type-area" title="The MUT area drawn in the preview">
-                {fmt(row.area === null ? null : Math.round(row.area * 10) / 10)} sq in
-              </span>
-            ) : (
-              <ReportBox compact label="Area" where={w('area')} kind="reading" value={r.area} units="sq in" placeholder="area"
-                set={(q, v: number | null) => set({ area: v })(q)} boxKey={`${key}.area`} step={STEP} />
-            ))}
-          </div>
+          {/* No area box for a MUT scan (user, 2026-10-30): a drawn area shows under the ID. Avg / Max 'T' are in Details. */}
+          <ReportSelect compact label="Type" where={w('type')} value={r.type} options={READING_TYPES.map((t) => ({ value: t, label: t }))}
+            set={(q, v: Reading['type']) => set({ type: v })(q)} boxKey={`${key}.type`} step={STEP} />
         </td>
         <td>
           <ReportBox compact label="Min 'T'" where={w("Min 'T'")} kind="reading" value={r.link ? (drawing?.minT ?? null) : r.minT}
