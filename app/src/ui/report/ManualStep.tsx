@@ -57,7 +57,7 @@ export function ManualStep({ status }: ReportStepProps) {
       {rows.length === 0 ? (
         <p className="muted">No readings yet. MUT rows on the drawing's Field data step appear here by themselves; add your own readings above.</p>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-full">
           <table className="grid readings-table">
             <thead>
               <tr>

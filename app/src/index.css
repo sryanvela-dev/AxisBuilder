@@ -2509,13 +2509,12 @@ table.grid tr.row-out td {
   width: 130px;
 }
 
+/* Nominal from, pipe size and wall side by side in one line (user, 2026-10-30) */
 .nominal-cell {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 6px;
+  flex-wrap: nowrap;
+  gap: 6px;
   align-items: center;
-  min-width: 175px;
-  max-width: 190px;
 }
 
 
@@ -2600,7 +2599,7 @@ table.grid tr.row-out td {
 }
 
 .readings-table .nominal-cell select {
-  max-width: 175px;
+  max-width: none;
 }
 
 .picks-for-all {
@@ -2731,4 +2730,9 @@ table.grid tr.row-out td {
 
 .type-cell .cell-field input[type='text'] {
   width: 70px;
+}
+
+/* A wide report table may use the whole page width (the page keeps other content to 1320 px). */
+.page > .table-full {
+  max-width: none;
 }
