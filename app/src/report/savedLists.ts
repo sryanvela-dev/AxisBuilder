@@ -13,7 +13,7 @@ import { z } from 'zod'
 import type { KeyValueStore } from '../state/storage.ts'
 
 export const STRING_LISTS = {
-  procedure: { name: 'Procedures', builtIn: [] },
+  procedure: { name: 'Procedures', builtIn: ['IEPC-AUT-01'] },
   examinationType: { name: 'Examination types', builtIn: ['Corrosion Mapping Examination', 'HIC Examination', 'TOFD Examination', 'Time of Flight Diffraction (TOFD)', 'Pulse Echo'] },
   acceptanceCriteria: { name: 'Acceptance criteria', builtIn: ['ASME Section VIII', 'ASME B31.3', 'ASME B31.3 / Code Case 2235-6', 'Client'] },
   surfaceCondition: { name: 'Surface conditions', builtIn: ['As Welded', 'Power Buffed', 'Sand Blasted', 'Rusted', 'Poor', 'Fair', 'Good'] },

@@ -389,8 +389,8 @@ export const PROJECT_FIELDS = {
   }),
   procedure: text({
     excelLabel: 'Procedure', excelSheet: DI, name: 'Procedure',
-    description: 'Inspection procedure number.',
-    default: '', group: 'job', step: 'Project', level: 'Advanced',
+    description: 'Inspection procedure number (new jobs start with IEPC-AUT-01).',
+    default: 'IEPC-AUT-01', group: 'job', step: 'Project', level: 'Advanced',
     v5: 'Stored only; not drawn.',
   }),
   reportNumber: text({
