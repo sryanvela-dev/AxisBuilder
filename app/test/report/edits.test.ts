@@ -239,6 +239,14 @@ describe('readings', () => {
     expect(renamed.report!.readings[0].nozzle!.id).toBe('N2A')
   })
 
+  it('one reading per nozzle: a single row with no position, never doubled', () => {
+    const first = addNozzleReadings(started(), [{ list: 'shellNozzles', index: 1 }, { list: 'shellNozzles', index: 2 }], [''])
+    expect(first.added).toBe(2)
+    expect(first.project.report!.readings.slice(0, 2).map((r) => [r.nozzle!.id, r.location])).toEqual([['N2', ''], ['MW', '']])
+    const again = addNozzleReadings(first.project, [{ list: 'shellNozzles', index: 1 }], [''])
+    expect([again.added, again.skipped]).toEqual([0, 1])
+  })
+
   it('pipe size from the nozzle diameter: the NPS or its outside diameter', () => {
     expect(npsForDiameter(4)).toBe('4')
     expect(npsForDiameter(1.5)).toBe('1-1/2')

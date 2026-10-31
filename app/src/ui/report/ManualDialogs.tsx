@@ -10,11 +10,13 @@ import { plural } from '../../state/steps.ts'
 import { useApp } from '../appContext.ts'
 
 const POSITIONS_KEY = 'axisbuilder:nozzlePositions'
+/** Stored in the remembered list for "One reading" (one row per nozzle, no position). */
+const ONE = 'one reading'
 
 function rememberedPositions(): string[] {
   try {
     const v = JSON.parse(localStorage.getItem(POSITIONS_KEY) ?? 'null') as unknown
-    if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v.filter((x) => (NOZZLE_POSITIONS as readonly string[]).includes(x))
+    if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v.filter((x) => x === ONE || (NOZZLE_POSITIONS as readonly string[]).includes(x))
   } catch {
     // Blocked or bad storage: no remembered choice.
   }
@@ -60,10 +62,12 @@ export function NozzleReadingsDialog({ onClose }: { onClose: () => void }) {
     return n
   }
   const chosen = nozzles.filter((n) => picked.has(n.key))
-  const ordered = NOZZLE_POSITIONS.filter((x) => positions.includes(x))
+  // "One reading": a single row per nozzle with no position (user, 2026-10-30); otherwise one row per position picked.
+  const one = positions.includes(ONE)
+  const ordered = one ? [''] : NOZZLE_POSITIONS.filter((x) => positions.includes(x))
 
   async function add() {
-    rememberPositions(ordered)
+    rememberPositions(one ? [ONE] : ordered)
     const res = addNozzleReadings(p, chosen, ordered)
     if (res.added > 0) app.edit(`Add nozzle readings (${res.added})`, () => res.project)
     onClose()
@@ -83,7 +87,7 @@ export function NozzleReadingsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Backdrop onClose={onClose} labelledBy="nozzle-readings-title">
       <h2 id="nozzle-readings-title">Add nozzle readings</h2>
-      <p>One UTT row for each nozzle and position, linked to the nozzle, with the pipe nominal suggested from its size. A time-saver: rows that already exist are left out.</p>
+      <p>One UTT row for each nozzle (or one for each nozzle and position), linked to the nozzle, with the pipe nominal suggested from its size. A time-saver: rows that already exist are left out.</p>
       {nozzles.length === 0 ? (
         <p className="muted">The drawing has no nozzles yet (Field data step).</p>
       ) : (
@@ -100,14 +104,28 @@ export function NozzleReadingsDialog({ onClose }: { onClose: () => void }) {
               </label>
             ))}
           </div>
-          <h3>Positions</h3>
+          <h3>Readings per nozzle</h3>
           <div className="check-grid">
-            {NOZZLE_POSITIONS.map((x) => (
-              <label key={x} className="switch">
-                <input type="checkbox" checked={positions.includes(x)} onChange={() => setPositions([...toggle(new Set(positions), x)])} /> {x}
-              </label>
-            ))}
+            <label className="switch">
+              <input type="radio" name="nozzle-readings-kind" checked={one} onChange={() => setPositions([ONE])} /> One reading (no position)
+            </label>
+            <label className="switch">
+              <input type="radio" name="nozzle-readings-kind" checked={!one}
+                onChange={() => setPositions(['North', 'East', 'South', 'West'])} /> One per position
+            </label>
           </div>
+          {!one && (
+            <>
+              <h3>Positions</h3>
+              <div className="check-grid">
+                {NOZZLE_POSITIONS.map((x) => (
+                  <label key={x} className="switch">
+                    <input type="checkbox" checked={positions.includes(x)} onChange={() => setPositions([...toggle(new Set(positions), x)])} /> {x}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
       <div className="button-row dialog-buttons">
