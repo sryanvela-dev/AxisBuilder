@@ -26,6 +26,7 @@ import { usePreviewPrefs } from '../preview/previewPrefs.ts'
 import { ErrorBoundary } from '../ErrorBoundary.tsx'
 import { Notices } from '../Notices.tsx'
 import { useRememberedFolder } from '../useRememberedFolder.ts'
+import { restoreEvents } from '../../state/restore.ts'
 import { CalibrationStep } from './CalibrationStep.tsx'
 import { ExportStep } from './ExportStep.tsx'
 import { ManualStep } from './ManualStep.tsx'
@@ -107,6 +108,11 @@ export function ReportWorkspace() {
     retryPictures()
     setPdfRetries((n) => n + 1)
   }, [retryPictures])
+  // "Restore files" (RestoreFilesBar) asked the browser: read the pictures that were waiting again.
+  useEffect(() => {
+    restoreEvents.addEventListener('restored', retry)
+    return () => restoreEvents.removeEventListener('restored', retry)
+  }, [retry])
   const prefs = usePreviewPrefs()
   const previewHidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const doc = useReportDocument(project, pictures, previewHidden, pdfs.info)

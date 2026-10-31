@@ -9,6 +9,7 @@ import { pickWithInput } from '../../state/projectFiles.ts'
 import type { FileHandleLike } from '../../state/session.ts'
 import type { ImagePlace } from '../../report/imageItems.ts'
 import type { ImageRef } from '../../report/pageModel.ts'
+import { restoreEvents } from '../../state/restore.ts'
 import { useApp } from '../appContext.ts'
 import { CropButton } from './PictureWindow.tsx'
 
@@ -22,6 +23,12 @@ function useRememberedFile(slot: FileSlot) {
   const [handle, setHandle] = useState<FileHandleLike | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<Status>('loading')
+  const [restored, setRestored] = useState(0)
+  useEffect(() => {
+    const again = () => setRestored((n) => n + 1)
+    restoreEvents.addEventListener('restored', again)
+    return () => restoreEvents.removeEventListener('restored', again)
+  }, [])
 
   const open = useCallback(async (h: FileHandleLike) => {
     setHandle(h)
@@ -57,7 +64,7 @@ function useRememberedFile(slot: FileSlot) {
     return () => {
       alive = false
     }
-  }, [store, jobId, slot, open])
+  }, [store, jobId, slot, open, restored])
 
   /** Opens the file picker; the picked file's name, or null when cancelled. */
   const choose = useCallback(async (): Promise<string | null> => {

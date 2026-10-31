@@ -14,6 +14,7 @@ import {
   type DirectoryHandleLike,
   type FolderKind,
 } from '../state/folders.ts'
+import { restoreEvents } from '../state/restore.ts'
 import { useApp } from './appContext.ts'
 import type { PhotoFolder } from './photoFolder.ts'
 
@@ -68,6 +69,13 @@ export function useRememberedFolder(kind: FolderKind, mode: 'read' | 'readwrite'
   const [status, setStatus] = useState<FolderStatus>('loading')
   const [files, setFiles] = useState<string[] | null>(null)
   const [inputFolder, setInputFolder] = useState<PhotoFolder | null>(null)
+  // "Restore files" (RestoreFilesBar) asked the browser: look again.
+  const [restored, setRestored] = useState(0)
+  useEffect(() => {
+    const again = () => setRestored((n) => n + 1)
+    restoreEvents.addEventListener('restored', again)
+    return () => restoreEvents.removeEventListener('restored', again)
+  }, [])
 
   const open = useCallback(async (h: DirectoryHandleLike) => {
     setHandle(h)
@@ -105,7 +113,7 @@ export function useRememberedFolder(kind: FolderKind, mode: 'read' | 'readwrite'
     return () => {
       alive = false
     }
-  }, [store, jobId, kind, mode, open])
+  }, [store, jobId, kind, mode, open, restored])
 
   const choose = useCallback(async () => {
     const h = await pickFolder({ mode, id: `axisbuilder-${kind}`, startIn: startIn ?? handle ?? undefined })

@@ -21,6 +21,7 @@ import { PreviewPanel } from './preview/PreviewPanel.tsx'
 import { SelectionContext, type Selected } from './selectionContext.ts'
 import { AreaToolContext, IDLE, type AreaPhase, type PreviewTool } from './areaToolContext.ts'
 import { useRememberedFolder } from './useRememberedFolder.ts'
+import { RestoreFilesBar } from './RestoreFilesBar.tsx'
 import { samplePhotoFolder } from './samplePhotos.ts'
 import { REPORT_ENABLED } from '../featureFlags.ts'
 import { reportStepInfo } from '../state/reportSteps.ts'
@@ -89,6 +90,7 @@ export function JobScreen() {
     <AreaToolContext.Provider value={areaApi}>
       <div className="job">
         <TopBar />
+        <RestoreFilesBar />
         {reportShown ? (
           <ErrorBoundary where="Report workspace" onLeave={{ label: 'Back to the drawing', action: () => app.dispatch({ type: 'setWorkspace', workspace: 'drawing' }) }}>
             <ReportWorkspace />

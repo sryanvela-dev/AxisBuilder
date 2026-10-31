@@ -184,7 +184,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   nothing / WARN warning / BLOCK error). Photo rule (v5.0): a drawn scan needs a photo (error while Check data before
   export is on, warning when off); a switched-off scan, or a scan whose photo is switched off ("Use photo"), needs
   none; "Use scan images" off = no photos. Images step: photo folder and job folder remembered per job in IndexedDB
-  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening or restoring needs one "Restore <folder>" click, also offered in the preview on every step; kept by job id, by job name (a job back with a new id) and as the last one used (offered as "Use <folder> (used last)")), matching flow
+  (`state/folders.ts`, `ui/useRememberedFolder.ts`; reopening or restoring needs the browser's OK again: the "Restore files" bar under the top bar (`ui/RestoreFilesBar.tsx`, `state/restore.ts`) asks for every folder and file the job uses, drawing and report, from one click, and `restoreEvents` tells the screens to read them again; "Restore <folder>" on a folder bar does one; kept by job id, by job name (a job back with a new id) and as the last one used (offered as "Use <folder> (used last)")), matching flow
   (`ui/ImageFolderPanel.tsx`), photo table (`ui/PhotoPanel.tsx`, `data/photos.ts`), "Process images"
   (`ui/ProcessPanel.tsx`, `export/images/`: `fitSize` shape-only with size cap, never below v5.0's 40 px/in (min 100 px), Web Worker, `<job folder>Processed_Images`
   + `AXISBUILDER_JOB.txt` marker; never replaces without asking; stops on another job's marker). Writing needs Edge/Chrome.
@@ -962,3 +962,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   remembered by job name and as the last one used (`recallFolderFor`: this job, then the same name, then the last one, only offered);
   the browser's permission click is now "Restore <folder>" on the Images step and "Restore photos" in the preview; the photo links
   were never lost. Also fixed: on the sample job the first "Choose another folder" click was undone by the sample photos. Test added.
+- 2026-10-31 – Restore files (feature/report-r4, user: every picture on the report side was missing after a reopen too; must work in
+  Chrome and Edge): one "Restore files" bar under the top bar in both workspaces, listing the drawing photo folder, job folder, report
+  folders and the report's files picked one by one that wait for the browser's OK (`itemsToRestore`); one click asks for all
+  (`restoreItems`; any the browser refuses or will not ask about stay for the next click), then the folder bars, picked pictures,
+  report pages and drawing photos read again (`restoreEvents`). The preview's own restore line from the previous fix is gone (the bar
+  covers it). Tests added. Same File System Access API in Chrome and Edge.

@@ -51,9 +51,9 @@ export function PreviewPanel() {
   // The section sheet plan is drawn only while section sheets are on (engine/sections.ts).
   const plan = useMemo(() => activeSectionPlan(project), [project])
   const drawing = useMemo(() => buildDrawing(project), [project])
-  // A remembered photo folder needs one "Allow" click after reopening or restoring a job: asked here, not only on the
-  // Images step, so the photos come back on whatever step the job opens.
-  const photosAsk = (photos.status === 'allow' || photos.status === 'lost' || (photos.status === 'suggest' && job.source !== 'sample')) && project.settings.generateOverlayDrawing
+  // The photo folder can't be opened, or none is chosen and the last one used is offered. (One that only waits for the browser's
+  // OK is in the Restore files bar under the top bar.)
+  const photosAsk = (photos.status === 'lost' || (photos.status === 'suggest' && job.source !== 'sample')) && project.settings.generateOverlayDrawing
     && project.scanImages.some((l) => l.imageFile)
   const model = useMemo(() => {
     const d = drawing
@@ -172,14 +172,7 @@ export function PreviewPanel() {
       </div>
       {photosAsk && (
         <p className="msg msg-warning preview-photo-folder">
-          {photos.status === 'allow' ? (
-            <>
-              The photos are in <strong>{photos.name}</strong>; the browser asks once before showing them again.{' '}
-              <button type="button" className="btn btn-small btn-primary" onClick={() => void photos.allow()}>
-                Restore photos
-              </button>
-            </>
-          ) : photos.status === 'suggest' ? (
+          {photos.status === 'suggest' ? (
             <>
               No photo folder is chosen for this job.{' '}
               <button type="button" className="btn btn-small btn-primary" onClick={() => void photos.useSuggested()}>
