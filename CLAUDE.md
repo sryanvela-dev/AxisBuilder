@@ -250,7 +250,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `<job> - AUT Coverage.lsp` in cp1252 with `lspBytes`, images found relative to the drawing: `relativeImages` option,
   `writeImageFinder` / `SL_AppInsertImage` in `appLibrary.ts`; then shows the CAD steps), CAD program and checks
   settings. Everything refuses while errors exist, asks before replacing (`ui/writeFiles.ts okToReplace`), and ends with
-  a summary. File names: `export/files.ts` (`exportBaseName`, `reportImageNames` as TightPDF).
+  a summary. File names: `export/files.ts` (`exportBaseName`, `sheetImageNames`: one per sheet, "<name> - Drawing / Overview / Section n.jpg").
 - PDF and report images (Phase 4b, `app/docs/pdf-export.md`): one sheet model per printed sheet
   (`engine/sheetModel.ts`: main sheet = whole drawing fitted to letter, landscape or portrait by its shape; then the
   overview and sections from `engine/sheets.ts`), primitives in paper inches with print color (`aci.ts printRgb`),
@@ -1003,3 +1003,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   `wasmUrl`, so those layers were dropped on screen. The decoders (jbig2, openjpeg, qcms, about 450 KB) are now served in dev and copied
   into the build under `/pdfjs-wasm/` and precached (`pdfjsWasm` in vite.config.ts); `openPdf` passes `wasmUrl`. The report PDF was not
   affected (pdf-lib copies the page as it is). Test added; outputs unchanged.
+- 2026-10-31 – Fixes (feature/report-r4, user): (1) the preview divider keeps one width for the drawing steps and one for the report
+  steps (`PreviewSplitter kind`, localStorage `axisbuilder:previewWidth` as before and `axisbuilder:previewWidth:report`); switching
+  workspaces no longer carries the other's width over. (2) Report images are named by the sheet they show instead of numbered:
+  "<name> - Drawing.jpg", "<name> - Overview.jpg", "<name> - Section 1.jpg", ... (one sheet: "<name>.jpg" as before; `sheetImageNames`
+  replaces `reportImageNames`). Tests updated; drawing outputs unchanged.

@@ -991,7 +991,7 @@ export const SETTINGS = {
   }),
   reportName: text({
     excelLabel: 'Report Image Name', excelSheet: PS, onSheet: false, name: 'File name',
-    description: 'Name of the images, without .jpg; one sheet gives "<name>.jpg", several "<name>_001.jpg", "<name>_002.jpg", ... Blank: the PDF\'s name.',
+    description: 'Name of the images, without .jpg; one sheet gives "<name>.jpg", several "<name> - Drawing.jpg", "<name> - Overview.jpg", "<name> - Section 1.jpg", ... Blank: the PDF\'s name.',
     default: '', group: 'reportImages', step: 'Export', level: 'Basic',
   }),
 

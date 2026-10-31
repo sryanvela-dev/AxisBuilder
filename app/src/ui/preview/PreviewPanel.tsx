@@ -117,7 +117,7 @@ export function PreviewPanel() {
   const vesselMissing = project.vessel.length === null || project.vessel.height === null
   return (
     <aside className={`preview${full ? ' preview-full' : ''}`} aria-label="Drawing preview">
-      {!full && <PreviewSplitter />}
+      {!full && <PreviewSplitter kind="drawing" />}
       <div className="preview-head">
         <strong>Drawing preview</strong>
         <span className="muted">{project.vessel.orientation}</span>
