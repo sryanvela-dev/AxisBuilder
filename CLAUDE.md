@@ -160,7 +160,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (the AUT report, `app/src/report/schema.ts`; null = drawing-only job, older files open with null) and the shared
   project fields `location` and `equipmentName` (blank). Format 8 (Phase R3) adds `crop`, `rotate`, `adjust` and `markup` on every report
   picture and Photos per page (`options.photosPerPage`); all have defaults. Format 9 (2026-10-31) adds `adjust.darken` (0 / 1 / 2) on
-  report pictures, used to darken faint uploaded PDF pages; default 0.
+  report pictures, used to darken faint uploaded PDF pages; default 0. Format 10 (Phase R5) adds to picture marks: label text style
+  (`bold`, `font`, `bgOpacity`, `halo`), a box's `angle`, an arrow's `head` and a live label's `template`; all have defaults.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -432,6 +433,25 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   left out on screen), `useUploadPdfs` (pages drawn into the pictures map under
   `pdfPageKey`, so PageSvg draws them). Export: `reportPdfName(job, client)` = `<job> - <client> - AUT Report.pdf`, uploaded PDFs
   read again and copied, summary of what was left out.
+- Report R5 (markup editor, design section 14, "R5 as built" in `app/docs/report-design.md`): behind `MARKUP_ENABLED`
+  (`src/featureFlags.ts`, the REPORT_ENABLED rule, `VITE_MARKUP` overrides; marks in a file print either way). Pure side: `report/markGeometry.ts`
+  (the "view" = page inches of the picture as it prints; stored 0-1 fractions after EXIF, before the turn; turn and crop are a similarity, so
+  edits are worked out in view inches: box turn, label box / leader start at the nearest edge, hit test, handles, move / resize / turn, freehand
+  smoothing, Shift angle lock, snapping to the picture's edges / centre and other marks with guides), `report/markTools.ts` (what each tool
+  makes, `applyPrefToMark`, `findPrinted` = the slot a picture prints in, `editorFrame`), `report/markEdits.ts` (add, delete with badges
+  renumbered, duplicate, order, lock, `copyMarkupTo`, label styles incl. built-in Finding / Note / Reading), `report/liveLabels.ts` (template
+  fields from scan / MUT rows; `refreshLiveLabels` in `syncReport` stores the last filled text, so a deleted row prints it and Review warns),
+  `report/imageProcess.ts` (auto levels with a 0.5% clip measured on the crop; redaction black or mosaic-blur on RGBA pixels; used by the
+  browser PDF embed `preparePictures`, the Node path `test/report/pages/nodeFiles.ts`, and the Pages view's processed thumbnails
+  `useProcessedThumbs`, so redacted pixels never reach the PDF), `report/pages/badgeKey.ts` (the badge key under a picture; `placeImage` /
+  `fitWithKey` make room without squashing it). `report/marks.ts` draws every kind (turned boxes, multiplied highlighter, arrow heads,
+  callouts with halo / see-through box, badges) for the editor, the Pages view and the PDF; uploaded PDF pages carry `marks` + `pageSize`
+  (`pdfPageMarks`). Page model: `ImageItem.autoLevels / redactions / place`, `TextItem.halo`, `PathItem.blend`; `imageKey` includes the pixel
+  edits. UI `ui/report/markup/`: `useMarkupEditor` (host-agnostic: tool, selection, drags, keys; one `app.edit` per change, nudges grouped),
+  `MarkupStage`, `MarkupToolbar` + `MarkupPanel` (under the picture), `MarkupWindow` + `MarkupButton` (host A, next to every Crop button and on
+  PDF pages; crop is a mode), `InPlaceEditor` (host B: double-click a picture in the Pages view), `MarkupOpener` + `targets.ts` (Review's Go
+  to on a picture opens the editor), `prefs.ts` (last tool / colour / widths in localStorage `axisbuilder:markup`). Saved label styles are the
+  record list `labelStyles` in `report/savedLists.ts`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -1047,3 +1067,16 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Data page, from that section's bookmarks; 3 columns, 4 above 45 scans; filled top to bottom; each a link); it flows onto more
   contents pages ("Scans (continued)") and the two-pass numbering counts them (`contentsLayout`, `contentsPageCount`). Tests added;
   drawing outputs unchanged.
+- 2026-10-31 – AUT report Phase R5 (branch feature/report-r5, user request, run unattended): the markup editor for every report picture,
+  behind the new `MARKUP_ENABLED` flag (hosting.md 3a). Tools: select / move / resize / turn / delete / duplicate / order / lock, Shift
+  multi-select, arrow nudges, right-click menu; box and ellipse (outline / filled / highlighted); highlighter freehand and straight (Shift 0 /
+  45 / 90 degrees), widths Fine to Extra wide plus a slider, flat or round ends, multiplied; pen (smoothed), line, arrow (closed / open / dot /
+  none); colour presets with meanings plus any colour; snapping with alignment guides; redaction (black or blurred) that removes the pixels in
+  the PDF and the Pages view (not offered on PDF pages; Review warns if one is there); auto brightness / contrast with a before / after; copy
+  markup to other pictures. Labels: callouts (rounded, square, pill, plain with halo), leader re-attaching to the nearest edge, outline and
+  see-through box, numbered badges with their key under the picture, live data labels from scan / MUT rows, print-true point sizes, saved
+  label styles (built-in Finding / Note / Reading; in the saved-lists file), Roboto / Montserrat. Two hosts: the full-size window (from every
+  picture and the Pages view) and in place in the Pages view (double-click). Project file format 10 (mark fields; migration from 9). Review: the
+  "redaction comes later" note replaced; live labels whose row was deleted print their last text and Go to opens the editor. Golden jobs,
+  compat v5.0 and the .lsp / DXF fingerprints unchanged. Clicked through in the dev preview with the sample's photos (made-up folder); not
+  yet tried by the user. No VBA or workbook changes.

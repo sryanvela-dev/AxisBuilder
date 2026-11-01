@@ -49,7 +49,7 @@ export function renumberBadges(marks: readonly Mark[]): Mark[] {
   return changed ? out : (marks as Mark[])
 }
 
-/** Marks deleted (locked ones too: the editor asks first); badges renumbered. */
+/** Marks deleted (the editor leaves locked ones out of `ids`); badges renumbered. */
 export function removeMarks(marks: readonly Mark[], ids: ReadonlySet<string>): Mark[] {
   return renumberBadges(marks.filter((m) => !ids.has(m.id)))
 }
