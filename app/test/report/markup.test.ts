@@ -14,7 +14,7 @@ import {
   type MarkFrame,
 } from '../../src/report/markGeometry.ts'
 import { contrastOf, markItemsOf } from '../../src/report/marks.ts'
-import { applyPrefToMark, DEFAULT_PREFS, toolStyle } from '../../src/report/markTools.ts'
+import { applyPrefToMark, DEFAULT_PREFS, prefsOfMark, toolStyle } from '../../src/report/markTools.ts'
 import { imagePoint, type ImageItem } from '../../src/report/pageModel.ts'
 import { keyEntries, keyHeight } from '../../src/report/pages/badgeKey.ts'
 import { buildReport } from '../../src/report/pages/index.ts'
@@ -261,6 +261,36 @@ describe('tool looks (user, 2026-11-01)', () => {
     // Drawn without an edge: no stroked item.
     const frame: MarkFrame = { x: 0, y: 0, w: 4, h: 3, crop: null, rotate: 0, upright: { w: 400, h: 300 } }
     expect(markItemsOf(frame, box).every((it) => !('stroke' in it) || it.stroke === null)).toBe(true)
+  })
+
+  it('a clear label box is only its edge; the text takes the label colour unless one is picked', () => {
+    const st = toolStyle('label', { ...DEFAULT_PREFS, labelBox: 'clear', color: '#1d5fa8', width: 3 })
+    expect(st.fill).toBeNull()
+    expect(st.textColor).toBe('#1d5fa8')
+    const lab = markSchema.parse({ id: 'l', kind: 'label', at: [0.5, 0.5], text: 'Pit', leader: [0.1, 0.1], style: st })
+    const frame: MarkFrame = { x: 0, y: 0, w: 4, h: 3, crop: null, rotate: 0, upright: { w: 400, h: 300 } }
+    const items = markItemsOf(frame, lab)
+    // No filled box; the box edge and leader at the chosen width.
+    expect(items.some((it) => it.t === 'path' && it.fill !== null && it.d.length > 3 && it.fillOpacity < 1)).toBe(false)
+    expect(items.filter((it) => it.t === 'path' && it.stroke === '#1d5fa8' && it.width === 3).length).toBeGreaterThanOrEqual(2)
+    const red = applyPrefToMark(lab, { color: '#d62828' })
+    expect(red.style.textColor).toBe('#d62828')
+    const picked = applyPrefToMark(red, { textColor: '#1a1a1a' })
+    expect(applyPrefToMark(picked, { color: '#2e9e44' }).style.textColor).toBe('#1a1a1a')
+    expect(prefsOfMark(picked, DEFAULT_PREFS)).toMatchObject({ labelBox: 'clear', textColor: '#1a1a1a', width: 3, color: '#d62828' })
+    expect(prefsOfMark(red, DEFAULT_PREFS).textColor).toBe('')
+    const filled = applyPrefToMark(red, { labelBox: 'filled' })
+    expect(filled.style.fill).toBe('#d62828')
+    expect(filled.style.textColor).toBe(contrastOf('#d62828'))
+  })
+
+  it('the contrast outline goes round the leader arrowhead too', () => {
+    const st = toolStyle('label', { ...DEFAULT_PREFS, halo: true, color: '#d62828' })
+    const lab = markSchema.parse({ id: 'l', kind: 'label', at: [0.5, 0.5], text: 'Pit', leader: [0.1, 0.1], leaderEnd: 'arrow', style: st })
+    const frame: MarkFrame = { x: 0, y: 0, w: 4, h: 3, crop: null, rotate: 0, upright: { w: 400, h: 300 } }
+    const halo = contrastOf('#d62828')
+    // The head is a closed path: one copy in the halo colour under it.
+    expect(markItemsOf(frame, lab).some((it) => it.t === 'path' && it.fill === halo && it.d.some((c) => c[0] === 'Z'))).toBe(true)
   })
 
   it('a new text box is rounded with no outline', () => {

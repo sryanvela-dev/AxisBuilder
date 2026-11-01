@@ -1028,7 +1028,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   unreadable): the reference page list is now cards (picture, full-width Title, then Prints / Frame / Darken / buttons with visible
   labels). An upright sheet or picture (taller than wide, as turned) prints on a portrait letter page under a portrait standard frame
   (`FRAME_PORTRAIT`, `CONTENT_PORTRAIT` in report/pages/layout.ts: header fields in one column, 0" reference beside; about 70% of a
-  letter sheet instead of 55%); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
+  letter sheet instead of 55%; the header made as short as the landscape one on 2026-11-01); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
   `adjust.darken`, migration from 8): the PDF page is printed again over itself with blend mode Multiply, once or twice (stays vector;
   white stays white), the Pages view the same with mix-blend-mode; `setUploadDarken`. Tests added; drawing outputs unchanged.
 - 2026-10-31 – Fix (feature/report-r4, user: an uploaded scanned U-1A form showed only its table lines in the Pages view; Darken did not help):
@@ -1105,3 +1105,13 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   keystroke, so the label on the picture types out as you type; one undo step per edit (grouped, closed on Enter or leaving the box), Esc
   puts back the text it had. Bottom line: the selection actions are icons (duplicate, forward, back, lock, delete) so the text box keeps its
   room and nothing sits on it; the picture name gives way first. Top line: room for the picked colour's ring at the left edge. Outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): the markup window's settings move into a side panel on the left (Done and undo / redo,
+  the tools in three columns with Crop and Redact last, the selected mark with its icon actions and text box, then the settings stacked
+  with captions; it scrolls up and down only); no top line; the bottom line keeps the hint, auto brightness, "Copy these marks to other
+  pictures…" (was "Copy markup to…"), the name and zoom. With one mark selected the settings show its own look (`prefsOfMark`). Labels:
+  leader and edge width (Thin / Medium / Thick), text colour (Auto or any colour; `ToolPrefs.textColor`, a picked one survives colour
+  changes), box Filled or Clear, outline only (label `fill` null; `ToolPrefs.labelBox`), "No box (text only)" for the plain callout, and
+  the contrast outline now also goes round the leader's arrowhead and a clear box's edge. Report: the portrait standard frame's header is as
+  short as the landscape one (field list, the 0" reference and the chips in two narrow columns beside it; `FRAME_PORTRAIT` header rule
+  1.32 in, content from 1.86 in, about 7.5 x 8.6 in), so an upright reference sheet prints higher and bigger. Tests added; drawing outputs
+  and fingerprints unchanged.

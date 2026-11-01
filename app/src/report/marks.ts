@@ -156,6 +156,8 @@ function labelItems(f: MarkFrame, m: Extract<Mark, { kind: 'label' }>): PageItem
   const s = m.style
   const box = labelRect(f, m)
   const radius = labelRadius(m, box)
+  // A label with no fill is a clear box: only its edge, in the label's colour (user, 2026-11-01).
+  const clear = s.fill === null
   const fillColor = s.fill ?? s.stroke ?? '#d62828'
   const out: PageItem[] = []
   if (m.leader) {
@@ -165,12 +167,22 @@ function labelItems(f: MarkFrame, m: Extract<Mark, { kind: 'label' }>): PageItem
       const color = s.stroke ?? fillColor
       const ls = { ...s, stroke: color }
       const tip = lineEnd(start, end, ls, m.leaderEnd)
-      // A thin halo under the leader keeps it visible on dark and light parts of the photo alike.
-      if (s.halo) out.push(path(polyline([start, tip.stop]), ls, { stroke: contrastOf(color), width: s.width + 1.2, fill: null, opacity: s.opacity * 0.7, cap: 'round' }))
+      // A thin halo under the leader and its end keeps them visible on dark and light parts of the photo alike.
+      if (s.halo) {
+        const h = contrastOf(color)
+        out.push(path(polyline([start, tip.stop]), ls, { stroke: h, width: s.width + 1.2, fill: null, opacity: s.opacity * 0.7, cap: 'round' }))
+        for (const it of tip.items) {
+          if (it.t === 'path') out.push({ ...it, stroke: h, fill: it.fill ? h : null, width: (it.width ?? 0) + 1.2, opacity: it.opacity * 0.7, cap: 'round' })
+        }
+      }
       out.push(path(polyline([start, tip.stop]), ls, { fill: null }), ...tip.items)
     }
   }
-  if (m.callout !== 'plain') {
+  if (m.callout !== 'plain' && clear) {
+    const edge = s.stroke ?? '#d62828'
+    if (s.halo) out.push(path(rectPath(box, radius), s, { fill: null, stroke: contrastOf(edge), width: s.width + 1.2, opacity: s.opacity * 0.7, cap: 'round' }))
+    out.push(path(rectPath(box, radius), s, { fill: null, stroke: edge, cap: 'round' }))
+  } else if (m.callout !== 'plain') {
     out.push(path(rectPath(box, radius), s, {
       fill: fillColor, fillOpacity: s.bgOpacity,
       stroke: s.halo ? contrastOf(fillColor) : (s.stroke !== fillColor ? s.stroke : null), width: 0.75, cap: 'round',

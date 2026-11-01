@@ -3654,64 +3654,170 @@ svg.report-page .report-paper {
   gap: 6px;
 }
 
-/* Full-screen layout (user, 2026-11-01): one line at the top (title, the tool's settings, undo / redo, Done), the tools as
-   a rail down the left, the picture taking the rest, one line at the bottom (selection, text, picture options, zoom). */
+/* Full-screen layout (user, 2026-11-01): a side panel on the left (Done, the tools, the selected mark, the settings; it
+   scrolls up and down only), the picture taking the rest, one line at the bottom (hint, picture options, name, zoom). */
 .markup-window .markup-editor {
   gap: 6px;
-}
-
-.markup-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  min-height: 36px;
-}
-
-.markup-head > h2 {
-  margin: 0;
-  font-size: 16px;
-  white-space: nowrap;
-}
-
-.markup-head > .markup-toolbar {
-  flex: 0 1 auto;
-}
-
-.markup-head .markup-settings {
-  min-height: 0;
 }
 
 .markup-body {
   flex: 1;
   min-height: 0;
   display: flex;
+  gap: 10px;
+}
+
+.markup-side {
+  flex: none;
+  width: 236px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 2px 6px 8px 2px;
+  scrollbar-width: thin;
+}
+
+.markup-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-.markup-rail {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Two columns, so every tool shows without scrolling, even on a short screen. */
-.markup-rail-tools {
+.markup-side .markup-tools {
   display: grid;
-  grid-template-columns: repeat(2, 78px);
+  grid-template-columns: repeat(3, 1fr);
   gap: 3px;
 }
 
-.markup-rail .markup-tool {
-  width: 78px;
+.markup-side .markup-tool {
   min-width: 0;
   padding: 4px 2px;
   font-size: 11px;
+  line-height: 1.15;
 }
 
-.markup-rail .markup-tool:disabled {
+.markup-side .markup-tool:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.markup-side .markup-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.markup-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+
+.markup-caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.markup-subcaption {
+  margin-top: 2px;
+}
+
+.markup-swatches,
+.markup-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The ring round the picked colour sits outside the swatch. */
+.markup-swatches {
+  padding: 3px;
+}
+
+.markup-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.markup-side select,
+.markup-side input[type='text'],
+.markup-side textarea {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.markup-side .markup-inline select {
+  flex: 1;
+  width: auto;
+}
+
+.markup-side input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.markup-side .check-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.markup-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+
+.markup-selection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.markup-selection .markup-text {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.markup-selection .markup-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+
+.markup-selection .markup-group[role='group'] {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.markup-selection textarea {
+  resize: vertical;
+}
+
+.markup-done-hint {
+  margin: 0;
+  font-size: 12px;
 }
 
 .markup-window .markup-body > .markup-stage-wrap {
@@ -3719,117 +3825,51 @@ svg.report-page .report-paper {
   min-width: 0;
 }
 
+/* The bottom line: one fixed-height line; the hint and the picture's name give way before anything wraps. */
 .markup-footer {
-  position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 4px 10px;
-  min-height: 34px;
+  gap: 10px;
+  height: 40px;
+  min-height: 40px;
+  overflow: hidden;
 }
 
-.markup-footer > .markup-row {
-  display: contents;
+.markup-footer > * {
+  flex-shrink: 0;
 }
 
-.markup-footer .markup-group > .muted:first-child {
-  white-space: nowrap;
-}
-
-.markup-footer textarea {
-  height: 30px;
-  min-height: 30px;
-}
-
-.markup-footer .markup-grow {
-  flex: 1 1 220px;
-}
-
-.markup-hint {
-  font-size: 13px;
-}
-
-.markup-printed {
+.markup-footer > .markup-hint {
+  flex: 1 1 0;
+  min-width: 0;
   font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.markup-footer > .markup-printed {
+  flex: 0 1 auto;
   min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   max-width: 45vw;
 }
 
-.markup-footer .markup-popover {
-  top: auto;
-  bottom: 40px;
-}
-
-/* Both bars stay one line so the picture never changes size: the settings scroll sideways if the window is narrow. */
-.markup-head {
-  flex-wrap: nowrap;
-}
-
-.markup-head > .markup-toolbar {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.markup-head .markup-settings {
-  flex-wrap: nowrap;
-}
-
-.markup-head .markup-group,
 .markup-footer .markup-group {
   flex-wrap: nowrap;
   white-space: nowrap;
 }
 
-.markup-head > .markup-spacer {
-  flex: 0 0 4px;
+.markup-side .markup-buttons select {
+  flex: 1;
+  width: auto;
 }
 
-/* The bottom line too: the label text box and the picture's name give way before anything wraps. */
-.markup-footer {
-  flex-wrap: nowrap;
-  overflow: hidden;
-  height: 40px;
+.markup-selection textarea {
+  height: 56px;
   min-height: 40px;
-}
-
-.markup-footer .markup-grow {
-  flex: 1 1 140px;
-  min-width: 110px;
-}
-
-.markup-footer .markup-printed {
-  flex: 0 1 auto;
-}
-
-.markup-footer > *:not(.markup-row):not(.markup-printed),
-.markup-footer > .markup-row > *:not(.markup-grow):not(.markup-printed) {
-  flex-shrink: 0;
-}
-
-/* The ring round the picked colour sits outside the swatch: room for it at the left edge of the scrolling settings line. */
-.markup-head > .markup-toolbar {
-  padding: 3px 4px;
-}
-
-/* The label's text box (and a badge's key) fills its slot, never wider, so nothing sits on top of it. */
-.markup-footer .markup-grow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.markup-footer .markup-grow > textarea,
-.markup-footer .markup-grow > input {
-  flex: 1 1 auto;
-  width: 0;
-  min-width: 0;
-}
-
-.markup-footer select {
-  max-width: 150px;
 }

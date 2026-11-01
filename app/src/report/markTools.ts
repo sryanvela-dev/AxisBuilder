@@ -59,11 +59,15 @@ export interface ToolPrefs {
   halo: boolean
   /** Label and badge box background opacity. */
   bgOpacity: number
+  /** Label and badge text colour; '' = automatic (stands out on the box, or the label's colour without one). */
+  textColor: string
+  /** A label's box: filled with its colour, or clear (only the edge). */
+  labelBox: 'filled' | 'clear'
 }
 
 export const DEFAULT_PREFS: ToolPrefs = {
   color: '#d62828', width: 1.5, shape: 'outline', hlWidth: 12, hlEnds: 'flat', textSize: 9, callout: 'rounded', leaderEnd: 'arrow', head: 'closed', redact: 'black',
-  bold: false, font: 'roboto', halo: false, bgOpacity: 0.9,
+  bold: false, font: 'roboto', halo: false, bgOpacity: 0.9, textColor: '', labelBox: 'filled',
 }
 
 /** Colour presets with their meaning (design 14): red finding, yellow highlight, green acceptable, blue note. */
@@ -89,6 +93,12 @@ export const MIN_DRAG = 0.06
 const see = (m: ShapeMode) => m === 'highlighted' || m === 'highlightedPlain'
 const base = (s: Partial<MarkStyle>): MarkStyle => markSchema.parse({ id: 'x', kind: 'badge', at: [0, 0], n: 1, style: s }).style
 
+/** A label's automatic text colour: the label's colour on plain text or a clear box, else what stands out on the fill. */
+export function autoTextColor(stroke: string | null, fill: string | null, callout: string): string {
+  const c = stroke ?? fill ?? '#d62828'
+  return callout === 'plain' || fill === null ? c : contrastOf(fill)
+}
+
 /** The style a tool gives a new mark. */
 export function toolStyle(tool: ToolId, p: ToolPrefs): MarkStyle {
   switch (tool) {
@@ -98,10 +108,15 @@ export function toolStyle(tool: ToolId, p: ToolPrefs): MarkStyle {
       return base({ stroke: p.color, width: p.hlWidth, opacity: HIGHLIGHT_OPACITY, ends: p.hlEnds })
     case 'pen': case 'line': case 'arrow':
       return base({ stroke: p.color, width: p.width })
-    case 'label':
-      return base({ stroke: p.color, fill: p.color, textColor: p.callout === 'plain' ? p.color : contrastOf(p.color), textSize: p.textSize, width: p.width, bold: p.bold, font: p.font, halo: p.halo, bgOpacity: p.bgOpacity })
+    case 'label': {
+      const clear = p.labelBox === 'clear'
+      return base({
+        stroke: p.color, fill: clear ? null : p.color, textColor: p.textColor || autoTextColor(p.color, clear ? null : p.color, p.callout), textSize: p.textSize, width: p.width,
+        bold: p.bold, font: p.font, halo: p.halo, bgOpacity: p.bgOpacity,
+      })
+    }
     case 'badge':
-      return base({ stroke: p.color, fill: p.color, textColor: contrastOf(p.color), textSize: p.textSize + 1, width: 1, bold: true, font: p.font, halo: p.halo, bgOpacity: p.bgOpacity })
+      return base({ stroke: p.color, fill: p.color, textColor: p.textColor || contrastOf(p.color), textSize: p.textSize + 1, width: 1, bold: true, font: p.font, halo: p.halo, bgOpacity: p.bgOpacity })
     default:
       return base({})
   }
@@ -191,13 +206,15 @@ export function applyPrefToMark(m: Mark, change: Partial<ToolPrefs>): Mark {
       if (s.stroke !== null || s.fill === null) s.stroke = c
       if (s.fill !== null) s.fill = c
     } else if (k === 'label') {
+      const auto = s.textColor === autoTextColor(s.stroke, s.fill, m.callout)
       s.stroke = c
-      s.fill = c
-      s.textColor = m.callout === 'plain' ? c : contrastOf(c)
+      if (s.fill !== null) s.fill = c
+      if (auto) s.textColor = autoTextColor(s.stroke, s.fill, m.callout)
     } else if (k === 'badge') {
+      const auto = s.textColor === contrastOf(s.fill ?? s.stroke ?? '#d62828')
       s.stroke = c
       s.fill = c
-      s.textColor = contrastOf(c)
+      if (auto) s.textColor = contrastOf(c)
     } else if (k !== 'redaction') s.stroke = c
   }
   if (change.width !== undefined && (k === 'rect' || k === 'ellipse' || k === 'pen' || k === 'line' || k === 'arrow' || k === 'label')) s.width = change.width
@@ -216,10 +233,18 @@ export function applyPrefToMark(m: Mark, change: Partial<ToolPrefs>): Mark {
     if (change.halo !== undefined) s.halo = change.halo
     if (change.bgOpacity !== undefined) s.bgOpacity = change.bgOpacity
   }
+  if (k === 'label' && change.labelBox !== undefined && (change.labelBox === 'clear') !== (s.fill === null)) {
+    const auto = s.textColor === autoTextColor(s.stroke, s.fill, m.callout)
+    s.fill = change.labelBox === 'clear' ? null : (s.stroke ?? '#d62828')
+    if (auto) s.textColor = autoTextColor(s.stroke, s.fill, m.callout)
+  }
   if (k === 'label' && change.callout !== undefined && change.callout !== m.callout) {
-    // Plain text takes the label's colour; boxed text the contrast to its box.
-    s.textColor = change.callout === 'plain' ? (s.fill ?? s.stroke ?? '#d62828') : contrastOf(s.fill ?? s.stroke ?? '#d62828')
+    // Plain text takes the label's colour; boxed text the contrast to its box (unless a text colour was picked).
+    if (s.textColor === autoTextColor(s.stroke, s.fill, m.callout)) s.textColor = autoTextColor(s.stroke, s.fill, change.callout)
     out = { ...m, callout: change.callout }
+  }
+  if ((k === 'label' || k === 'badge') && change.textColor !== undefined) {
+    s.textColor = change.textColor || (k === 'badge' ? contrastOf(s.fill ?? s.stroke ?? '#d62828') : autoTextColor(s.stroke, s.fill, (out as typeof m & { callout: string }).callout))
   }
   if (k === 'label' && change.leaderEnd !== undefined) out = { ...(out as typeof m), leaderEnd: change.leaderEnd }
   if (k === 'arrow' && change.head !== undefined) out = { ...m, head: change.head }
@@ -272,4 +297,29 @@ export function editorFrame(upright: { w: number; h: number }, edits: { crop: Fr
 /** The pictures marks can be copied to: every other picture of the report that has a file. */
 export function copyTargets(r: Report, from: ImagePlace): { at: ImagePlace; file: string }[] {
   return imageItems(r).filter((x) => x.file && !samePlace(x.place, from)).map((x) => ({ at: x.place, file: x.file! }))
+}
+
+/** The toolbar's settings as one mark has them (what the panel shows while it is selected); the rest from `p`. */
+export function prefsOfMark(m: Mark, p: ToolPrefs): ToolPrefs {
+  const s = m.style
+  const out: ToolPrefs = { ...p, color: s.stroke ?? s.fill ?? p.color }
+  switch (m.kind) {
+    case 'rect': case 'ellipse':
+      return { ...out, width: s.width, shape: s.fill === null ? 'outline' : s.stroke === null ? 'highlightedPlain' : s.fillOpacity < 1 ? 'highlighted' : 'filled' }
+    case 'highlight':
+      return { ...out, hlWidth: s.width, hlEnds: s.ends === 'round' ? 'round' : 'flat' }
+    case 'pen': case 'line':
+      return { ...out, width: s.width }
+    case 'arrow':
+      return { ...out, width: s.width, head: m.head }
+    case 'label':
+      return {
+        ...out, width: s.width, textSize: s.textSize, bold: s.bold, font: s.font, halo: s.halo, bgOpacity: s.bgOpacity, callout: m.callout, leaderEnd: m.leaderEnd,
+        labelBox: s.fill === null ? 'clear' : 'filled', textColor: s.textColor === autoTextColor(s.stroke, s.fill, m.callout) ? '' : s.textColor,
+      }
+    case 'badge':
+      return { ...out, textSize: s.textSize - 1, font: s.font, halo: s.halo, bgOpacity: s.bgOpacity, textColor: s.textColor === contrastOf(s.fill ?? s.stroke ?? '#d62828') ? '' : s.textColor }
+    case 'redaction':
+      return { ...out, redact: m.mode }
+  }
 }

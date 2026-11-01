@@ -51,8 +51,9 @@ describe('markup editor (rendered)', () => {
 
   it('a PDF page offers no redaction and says why', () => {
     const html = renderToStaticMarkup(withJob(job([]), createElement(Editor, { allowRedaction: false })))
-    expect(html).not.toContain('<span>Redact</span>')
-    expect(html).toContain('Redaction: pictures only (not PDF pages or drawings)')
+    // Shown greyed out (last in the tools), with the reason in its tooltip.
+    expect(html).toContain('disabled="" aria-label="Redact (pictures only)"')
+    expect(html).toContain('there are no pixels to remove')
   })
 
   it('a redaction shows as a stand-in on the stage (the PDF removes the pixels)', () => {

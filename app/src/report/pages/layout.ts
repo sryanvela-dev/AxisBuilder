@@ -60,19 +60,20 @@ export const CONTENT: Rect = { x: FRAME.left, y: 1.86, w: FRAME.right - FRAME.le
 
 /**
  * The standard frame on a portrait letter page, for reference pages whose sheet is upright (user, 2026-10-31): the
- * header fields in one column beside the logo (the landscape side column's chips join the list), the 0" reference on
- * the right; content about 7.5 x 7.7 in, so an upright letter sheet prints at about 70% instead of 55%.
+ * header as tall as the landscape one (user, 2026-11-01: a taller one pushed the sheet down): the field list beside the
+ * logo, the 0" reference on the right with the side column's chips in two narrower columns under it; content about
+ * 7.5 x 8.6 in, so an upright letter sheet prints at about 78% instead of 55%.
  */
 export const FRAME_PORTRAIT = {
   left: 0.5,
   right: 8.0,
   top: 0.45,
-  headerRule: 2.2,
-  titleBase: 2.54,
+  headerRule: FRAME.headerRule,
+  titleBase: FRAME.titleBase,
   footerRule: 10.56,
   footerBase: 10.7,
 } as const
-export const CONTENT_PORTRAIT: Rect = { x: FRAME_PORTRAIT.left, y: 2.74, w: FRAME_PORTRAIT.right - FRAME_PORTRAIT.left, h: 10.44 - 2.74 }
+export const CONTENT_PORTRAIT: Rect = { x: FRAME_PORTRAIT.left, y: CONTENT.y, w: FRAME_PORTRAIT.right - FRAME_PORTRAIT.left, h: 10.44 - CONTENT.y }
 
 export type PageSize = { w: number; h: number }
 export const isPortrait = (size: PageSize) => size.h > size.w
@@ -236,9 +237,7 @@ export function frameItems(c: FrameContext, title: string, subtitle = '', pageSi
   const kv = firstAxis < 0 ? all : all.slice(0, firstAxis)
   const axes = firstAxis < 0 ? [] : all.filter((f) => /AxisDirectionText$/.test(f.ref.source))
   const after = firstAxis < 0 ? [] : all.slice(firstAxis).filter((f) => !/AxisDirectionText$/.test(f.ref.source))
-  // Portrait: no room for the side column's chips; they join the field list.
-  if (portrait) kv.push(...after)
-  const chips = portrait ? [] : after
+  const chips = after
   const size = 7.6
   const rowH = 0.168
   const kvX = 2.18
@@ -257,13 +256,16 @@ export function frameItems(c: FrameContext, title: string, subtitle = '', pageSi
     axes.forEach((f, i) => items.push(text(refX, FRAME.top + 0.12 + (i + 1) * 0.15, fitText(`${f.ref.label} = ${f.value}`, F.body, size, fr.right - refX), F.body, size)))
   }
   const chipTop = FRAME.top + 0.12 + (axes.length + 1) * 0.15 + 0.06
+  // Portrait: two narrower columns, each label as wide as it needs, so the chips fit beside the field list.
+  const colW = portrait ? (fr.right - refX) / 2 : 2.0
+  const labelW = [0, 1].map((col) => (portrait ? Math.max(0, ...chips.filter((_, i) => i % 2 === col).map((f) => measure(f.ref.label, F.label, size))) + 0.06 : 0.92))
   chips.forEach((f, i) => {
     const col = i % 2
     const row = Math.floor(i / 2)
-    const x = refX + col * 2.0
+    const x = refX + col * colW
     const base = chipTop + row * 0.17
     items.push(text(x, base, f.ref.label, F.label, size, COLORS.deep))
-    items.push(text(x + 0.92, base, fitText(f.value, F.body, size, 1.0), F.body, size))
+    items.push(text(x + labelW[col], base, fitText(f.value, F.body, size, portrait ? colW - labelW[col] - 0.06 : 1.0), F.body, size))
   })
   items.push(line(fr.left, fr.headerRule, fr.right, fr.headerRule, 2, COLORS.blue))
 

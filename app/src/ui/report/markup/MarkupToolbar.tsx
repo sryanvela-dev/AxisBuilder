@@ -9,7 +9,7 @@ import { pictureName } from '../../../report/checks.ts'
 import { defaultTemplate, liveText, LIVE_FIELDS } from '../../../report/liveLabels.ts'
 import { applyLabelStyle, copyMarkupTo, labelStyleChoices, labelStyleOf, setFields, type LabelStyle } from '../../../report/markEdits.ts'
 import {
-  applyPrefToMark, COLOR_PRESETS, copyTargets, HIGHLIGHT_WIDTHS, SHAPE_MODES, TEXT_SIZES, TOOLS, WIDTH_PRESETS, type ToolId, type ToolPrefs,
+  applyPrefToMark, COLOR_PRESETS, copyTargets, HIGHLIGHT_WIDTHS, prefsOfMark, SHAPE_MODES, TEXT_SIZES, TOOLS, WIDTH_PRESETS, type ToolId, type ToolPrefs,
 } from '../../../report/markTools.ts'
 import { setPictureEdits } from '../../../report/pagesEdits.ts'
 import { addRecord, type SavedRecord } from '../../../report/savedLists.ts'
@@ -20,7 +20,7 @@ import type { MarkupEditorState } from './useMarkupEditor.ts'
 
 const SHAPE_NAMES = { outline: 'Outline', filled: 'Filled', highlighted: 'Highlighted', highlightedPlain: 'Highlighted, no outline' } as const
 const SHAPE_TIPS = { outline: 'Edge only', filled: 'Solid fill', highlighted: 'See-through fill with a solid edge', highlightedPlain: 'See-through fill, no edge' } as const
-const CALLOUTS = [['rounded', 'Rounded box'], ['square', 'Square box'], ['pill', 'Pill'], ['plain', 'Text with halo']] as const
+const CALLOUTS = [['rounded', 'Rounded box'], ['square', 'Square box'], ['pill', 'Pill'], ['plain', 'No box (text only)']] as const
 const LEADER_ENDS = [['arrow', 'Arrow'], ['dot', 'Dot'], ['none', 'No end']] as const
 const HEADS = [['closed', 'Closed'], ['open', 'Open'], ['dot', 'Dot'], ['none', 'None']] as const
 
@@ -29,7 +29,7 @@ function settingsFor(kinds: ReadonlySet<string>) {
   const has = (...k: string[]) => k.some((x) => kinds.has(x))
   return {
     color: has('rect', 'ellipse', 'highlight', 'highlightLine', 'pen', 'line', 'arrow', 'label', 'badge'),
-    width: has('rect', 'ellipse', 'pen', 'line', 'arrow'),
+    width: has('rect', 'ellipse', 'pen', 'line', 'arrow', 'label'),
     shape: has('rect', 'ellipse'),
     highlight: has('highlight', 'highlightLine'),
     head: has('arrow'),
@@ -69,11 +69,23 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
     }
   }
 
-  const rail = part === 'tools'
+  // With one mark selected the settings show its own look; otherwise what the next mark gets.
+  const shown = one ? prefsOfMark(one, prefs) : prefs
+  const swatches = (value: string, onPick: (c: string) => void, what: string) => (
+    <span className="markup-swatches">
+      {COLOR_PRESETS.map((c) => (
+        <button key={c.color} type="button" className={`markup-swatch${value === c.color ? ' on' : ''}`} style={{ background: c.color }}
+          title={c.name} aria-label={`${what}: ${c.name}`} aria-pressed={value === c.color} onClick={() => onPick(c.color)} />
+      ))}
+      <input type="color" value={value || '#1a1a1a'} title={`Another ${what.toLowerCase()}`} aria-label={`Another ${what.toLowerCase()}`} onChange={(e) => onPick(e.target.value)} />
+    </span>
+  )
+  const tools = TOOLS.filter((t) => t.id !== 'redaction')
+  const redaction = TOOLS.find((t) => t.id === 'redaction')!
   return (
-    <div className={rail ? 'markup-rail' : 'markup-toolbar'} role="toolbar" aria-label={part === 'settings' ? 'Tool settings' : 'Markup tools'} aria-orientation={rail ? 'vertical' : undefined}>
-      {part !== 'settings' && <div className={rail ? 'markup-rail-tools' : 'markup-row markup-tools'}>
-        {TOOLS.filter((t) => t.id !== 'redaction' || ed.allowRedaction).map((t) => (
+    <div className="markup-toolbar" role="toolbar" aria-label={part === 'settings' ? 'Tool settings' : 'Markup tools'}>
+      {part !== 'settings' && <div className="markup-tools">
+        {tools.map((t) => (
           <button key={t.id} type="button" className={`markup-tool${tool === t.id ? ' on' : ''}`} aria-pressed={tool === t.id} title={`${t.hint} (${t.key})`} onClick={() => ed.setTool(t.id as ToolId)}>
             <span className="markup-icon" aria-hidden="true">{t.icon}</span>
             <span>{t.label}</span>
@@ -85,121 +97,157 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
             <span>Crop</span>
           </button>
         )}
-        {!ed.allowRedaction && (rail
-          ? (
-            <button type="button" className="markup-tool" disabled aria-label="Redact (pictures only)"
-              title="Redaction is for pictures only: a PDF page or a drawing is copied into the report as vectors, so there are no pixels to remove">
-              <span className="markup-icon" aria-hidden="true">▇</span>
-              <span>Redact</span>
-            </button>
-          )
-          : <span className="muted markup-note" title="A PDF page is copied into the report as it is, so its pixels can't be removed">Redaction: pictures only (not PDF pages or drawings)</span>)}
+        {/* Redact last (user, 2026-11-01); greyed out where there are no pixels to remove. */}
+        {ed.allowRedaction ? (
+          <button type="button" className={`markup-tool${tool === 'redaction' ? ' on' : ''}`} aria-pressed={tool === 'redaction'} title={`${redaction.hint} (${redaction.key})`} onClick={() => ed.setTool('redaction')}>
+            <span className="markup-icon" aria-hidden="true">{redaction.icon}</span>
+            <span>{redaction.label}</span>
+          </button>
+        ) : (
+          <button type="button" className="markup-tool" disabled aria-label="Redact (pictures only)"
+            title="Redaction is for pictures only: a PDF page or a drawing is copied into the report as vectors, so there are no pixels to remove">
+            <span className="markup-icon" aria-hidden="true">{redaction.icon}</span>
+            <span>Redact</span>
+          </button>
+        )}
       </div>}
 
-      {part !== 'tools' && <div className="markup-row markup-settings">
+      {part !== 'tools' && <div className="markup-settings">
         {show.color && (
-          <span className="markup-group" role="group" aria-label="Colour">
-            {COLOR_PRESETS.map((c) => (
-              <button key={c.color} type="button" className={`markup-swatch${prefs.color === c.color ? ' on' : ''}`} style={{ background: c.color }}
-                title={c.name} aria-label={c.name} aria-pressed={prefs.color === c.color} onClick={() => pref({ color: c.color }, 'Change colour')} />
-            ))}
-            <input type="color" value={prefs.color} title="Another colour" aria-label="Another colour" onChange={(e) => pref({ color: e.target.value }, 'Change colour')} />
-          </span>
+          <div className="markup-field" role="group" aria-label="Colour">
+            <span className="markup-caption">Colour</span>
+            {swatches(shown.color, (c) => pref({ color: c }, 'Change colour'), 'Colour')}
+          </div>
         )}
         {show.width && (
-          <span className="markup-group" role="group" aria-label="Line width">
-            {WIDTH_PRESETS.map((w) => (
-              <button key={w.w} type="button" className={`btn btn-small${prefs.width === w.w ? ' on' : ''}`} aria-pressed={prefs.width === w.w} title={`${w.name} line (${w.w} pt at print size)`} onClick={() => pref({ width: w.w }, 'Change line width')}>{w.name}</button>
-            ))}
-          </span>
+          <div className="markup-field" role="group" aria-label="Line width">
+            <span className="markup-caption">{show.label && !show.shape ? 'Leader and edge width' : 'Line width'}</span>
+            <span className="markup-buttons">
+              {WIDTH_PRESETS.map((w) => (
+                <button key={w.w} type="button" className={`btn btn-small${shown.width === w.w ? ' on' : ''}`} aria-pressed={shown.width === w.w} title={`${w.name} line (${w.w} pt at print size)`} onClick={() => pref({ width: w.w }, 'Change line width')}>{w.name}</button>
+              ))}
+            </span>
+          </div>
         )}
         {show.shape && (
-          <span className="markup-group" role="group" aria-label="Box style">
-            {SHAPE_MODES.map((s) => (
-              <button key={s} type="button" className={`btn btn-small${prefs.shape === s ? ' on' : ''}`} aria-pressed={prefs.shape === s}
-                title={SHAPE_TIPS[s]} onClick={() => pref({ shape: s }, 'Change box style')}>{SHAPE_NAMES[s]}</button>
-            ))}
-          </span>
+          <div className="markup-field" role="group" aria-label="Box style">
+            <span className="markup-caption">Box style</span>
+            <span className="markup-buttons">
+              {SHAPE_MODES.map((s) => (
+                <button key={s} type="button" className={`btn btn-small${shown.shape === s ? ' on' : ''}`} aria-pressed={shown.shape === s}
+                  title={SHAPE_TIPS[s]} onClick={() => pref({ shape: s }, 'Change box style')}>{SHAPE_NAMES[s]}</button>
+              ))}
+            </span>
+          </div>
         )}
         {show.highlight && (
-          <span className="markup-group" role="group" aria-label="Highlighter width">
-            {HIGHLIGHT_WIDTHS.map((w) => (
-              <button key={w.w} type="button" className={`btn btn-small${prefs.hlWidth === w.w ? ' on' : ''}`} aria-pressed={prefs.hlWidth === w.w} title={`${w.name} (${w.w} pt)`} onClick={() => pref({ hlWidth: w.w }, 'Change highlighter width')}>{w.name}</button>
-            ))}
-            <input type="range" min={2} max={48} step={1} value={prefs.hlWidth} aria-label="Highlighter width in points" title={`${prefs.hlWidth} pt`}
+          <div className="markup-field" role="group" aria-label="Highlighter width">
+            <span className="markup-caption">Highlighter width</span>
+            <span className="markup-buttons">
+              {HIGHLIGHT_WIDTHS.map((w) => (
+                <button key={w.w} type="button" className={`btn btn-small${shown.hlWidth === w.w ? ' on' : ''}`} aria-pressed={shown.hlWidth === w.w} title={`${w.name} (${w.w} pt)`} onClick={() => pref({ hlWidth: w.w }, 'Change highlighter width')}>{w.name}</button>
+              ))}
+            </span>
+            <input type="range" min={2} max={48} step={1} value={shown.hlWidth} aria-label="Highlighter width in points" title={`${shown.hlWidth} pt`}
               onChange={(e) => ed.setPrefs({ hlWidth: Number(e.target.value) })} onPointerUp={(e) => pref({ hlWidth: Number((e.target as HTMLInputElement).value) }, 'Change highlighter width')} />
-            <select value={prefs.hlEnds} aria-label="Highlighter ends" title="Flat (marker) or round ends" onChange={(e) => pref({ hlEnds: e.target.value as ToolPrefs['hlEnds'] }, 'Change highlighter ends')}>
+            <select value={shown.hlEnds} aria-label="Highlighter ends" title="Flat (marker) or round ends" onChange={(e) => pref({ hlEnds: e.target.value as ToolPrefs['hlEnds'] }, 'Change highlighter ends')}>
               <option value="flat">Flat ends</option>
               <option value="round">Round ends</option>
             </select>
-          </span>
+          </div>
         )}
         {show.head && (
-          <label className="markup-group">
-            <span className="muted">Head</span>
-            <select value={prefs.head} onChange={(e) => pref({ head: e.target.value as ToolPrefs['head'] }, 'Change arrow head')}>
+          <label className="markup-field">
+            <span className="markup-caption">Arrow head</span>
+            <select value={shown.head} onChange={(e) => pref({ head: e.target.value as ToolPrefs['head'] }, 'Change arrow head')}>
               {HEADS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
           </label>
         )}
         {show.text && (
-          <span className="markup-group" role="group" aria-label="Label look">
-            <select value={prefs.textSize} aria-label="Text size in points at print size" title="Text size in points, as printed" onChange={(e) => pref({ textSize: Number(e.target.value) }, 'Change text size')}>
-              {TEXT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
-            </select>
+          <div className="markup-field" role="group" aria-label="Text">
+            <span className="markup-caption">Text</span>
+            <span className="markup-buttons">
+              <select value={shown.textSize} aria-label="Text size in points at print size" title="Text size in points, as printed" onChange={(e) => pref({ textSize: Number(e.target.value) }, 'Change text size')}>
+                {TEXT_SIZES.map((s) => <option key={s} value={s}>{s} pt</option>)}
+              </select>
+              {show.label && <button type="button" className={`btn btn-small${shown.bold ? ' on' : ''}`} aria-pressed={shown.bold} title="Bold" aria-label="Bold" onClick={() => pref({ bold: !shown.bold }, 'Change bold')}><b>B</b></button>}
+            </span>
             {show.label && (
-              <>
-                <button type="button" className={`btn btn-small${prefs.bold ? ' on' : ''}`} aria-pressed={prefs.bold} title="Bold" aria-label="Bold" onClick={() => pref({ bold: !prefs.bold }, 'Change bold')}><b>B</b></button>
-                <select value={prefs.font} aria-label="Font" onChange={(e) => pref({ font: e.target.value as ToolPrefs['font'] }, 'Change font')}>
-                  <option value="roboto">Roboto</option>
-                  <option value="montserrat">Montserrat (headings)</option>
-                </select>
-                <select value={prefs.callout} aria-label="Callout style" onChange={(e) => pref({ callout: e.target.value as ToolPrefs['callout'] }, 'Change callout')}>
-                  {CALLOUTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
-                </select>
-                <select value={prefs.leaderEnd} aria-label="Leader end" title="End of the leader (drag from the target to place a label with a leader)" onChange={(e) => pref({ leaderEnd: e.target.value as ToolPrefs['leaderEnd'] }, 'Change leader end')}>
-                  {LEADER_ENDS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
-                </select>
-              </>
+              <select value={shown.font} aria-label="Font" onChange={(e) => pref({ font: e.target.value as ToolPrefs['font'] }, 'Change font')}>
+                <option value="roboto">Roboto</option>
+                <option value="montserrat">Montserrat (headings)</option>
+              </select>
             )}
-            <label className="check-inline" title="A thin contrasting outline (a halo on plain text), so it reads on any photo">
-              <input type="checkbox" checked={prefs.halo} onChange={(e) => pref({ halo: e.target.checked }, 'Change outline')} />
-              Outline
+            <span className="markup-caption markup-subcaption">Text colour</span>
+            <span className="markup-swatches">
+              <button type="button" className={`btn btn-small${shown.textColor === '' ? ' on' : ''}`} aria-pressed={shown.textColor === ''}
+                title="Stands out on the box (or the label's colour without one)" onClick={() => pref({ textColor: '' }, 'Change text colour')}>Auto</button>
+            </span>
+            {swatches(shown.textColor, (c) => pref({ textColor: c }, 'Change text colour'), 'Text colour')}
+          </div>
+        )}
+        {show.label && (
+          <div className="markup-field" role="group" aria-label="Label box">
+            <span className="markup-caption">Box</span>
+            <select value={shown.callout} aria-label="Box shape" onChange={(e) => pref({ callout: e.target.value as ToolPrefs['callout'] }, 'Change callout')}>
+              {CALLOUTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+            </select>
+            {shown.callout !== 'plain' && (
+              <span className="markup-buttons">
+                <button type="button" className={`btn btn-small${shown.labelBox === 'filled' ? ' on' : ''}`} aria-pressed={shown.labelBox === 'filled'} title="Filled with the label's colour" onClick={() => pref({ labelBox: 'filled' }, 'Change label box')}>Filled</button>
+                <button type="button" className={`btn btn-small${shown.labelBox === 'clear' ? ' on' : ''}`} aria-pressed={shown.labelBox === 'clear'} title="Clear: only the edge, in the label's colour" onClick={() => pref({ labelBox: 'clear' }, 'Change label box')}>Clear, outline only</button>
+              </span>
+            )}
+            {shown.callout !== 'plain' && shown.labelBox === 'filled' && (
+              <label className="check-inline" title="How solid the box behind the text is">
+                <span className="muted">See-through</span>
+                <input type="range" min={0.4} max={1} step={0.05} value={shown.bgOpacity} aria-label="Box background opacity"
+                  onChange={(e) => ed.setPrefs({ bgOpacity: Number(e.target.value) })} onPointerUp={(e) => pref({ bgOpacity: Number((e.target as HTMLInputElement).value) }, 'Change box background')} />
+              </label>
+            )}
+            <label className="markup-inline">
+              <span className="muted">Leader end</span>
+              <select value={shown.leaderEnd} aria-label="Leader end" title="End of the leader (drag from the target to place a label with a leader)" onChange={(e) => pref({ leaderEnd: e.target.value as ToolPrefs['leaderEnd'] }, 'Change leader end')}>
+                {LEADER_ENDS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+              </select>
             </label>
-            <label className="check-inline" title="How solid the box behind the text is">
-              <span className="muted">Box</span>
-              <input type="range" min={0.4} max={1} step={0.05} value={prefs.bgOpacity} aria-label="Box background opacity"
-                onChange={(e) => ed.setPrefs({ bgOpacity: Number(e.target.value) })} onPointerUp={(e) => pref({ bgOpacity: Number((e.target as HTMLInputElement).value) }, 'Change box background')} />
-            </label>
-          </span>
+          </div>
+        )}
+        {show.text && (
+          <label className="markup-field check-inline" title="A thin contrasting outline round the box, the leader and its end (a halo on plain text), so it reads on any photo">
+            <input type="checkbox" checked={shown.halo} onChange={(e) => pref({ halo: e.target.checked }, 'Change outline')} />
+            Contrast outline
+          </label>
         )}
         {show.redact && (
-          <span className="markup-group" role="group" aria-label="Redaction">
-            {(['black', 'blur'] as const).map((r) => (
-              <button key={r} type="button" className={`btn btn-small${prefs.redact === r ? ' on' : ''}`} aria-pressed={prefs.redact === r} onClick={() => pref({ redact: r }, 'Change redaction')}>
-                {r === 'black' ? 'Black box' : 'Blurred'}
-              </button>
-            ))}
+          <div className="markup-field" role="group" aria-label="Redaction">
+            <span className="markup-caption">Redaction</span>
+            <span className="markup-buttons">
+              {(['black', 'blur'] as const).map((r) => (
+                <button key={r} type="button" className={`btn btn-small${shown.redact === r ? ' on' : ''}`} aria-pressed={shown.redact === r} onClick={() => pref({ redact: r }, 'Change redaction')}>
+                  {r === 'black' ? 'Black box' : 'Blurred'}
+                </button>
+              ))}
+            </span>
             <span className="muted">The PDF holds the picture with these pixels removed.</span>
-          </span>
+          </div>
         )}
         {(show.text || tool === 'label' || tool === 'badge') && (
-          <span className="markup-group">
+          <div className="markup-field" role="group" aria-label="Label styles">
+            <span className="markup-caption">Saved styles</span>
             <select value="" aria-label="Label styles" title="Apply a label style (to the selected labels, or to the next one you place)" onChange={(e) => pickStyle(e.target.value)}>
-              <option value="">{ed.newStyle && !selected.length ? `Style: ${ed.newStyle.name}` : 'Apply a style…'}</option>
+              <option value="">{ed.newStyle && !selected.length ? `Next label: ${ed.newStyle.name}` : 'Apply a style…'}</option>
               {styles.map((s) => <option key={`${s.name}-${s.kind}`} value={s.name}>{s.name}{s.kind === 'badge' ? ' (badge)' : ''}</option>)}
             </select>
             {one && (one.kind === 'label' || one.kind === 'badge') && <SaveStyle mark={one} onSave={(s) => changeLists((l) => addRecord(l, 'labelStyles', s))} />}
-          </span>
+          </div>
         )}
       </div>}
-
     </div>
   )
 }
 
-/** Under the picture: what to do with the selection, a label's text or live link, a badge's key, the picture's auto
- * brightness / contrast, copy markup and undo / redo (below the picture, so it never moves when these appear). */
 /** Undo and redo (the app's own history, so Ctrl+Z / Ctrl+Y work too). */
 export function UndoRedo() {
   const app = useApp()
@@ -212,14 +260,15 @@ export function UndoRedo() {
 }
 
 /**
- * `compact` (the full-screen window): everything on one bottom line that wraps only when it must, the tool hint while
- * nothing is selected, no undo / redo (they sit at the top), `extra` (print size and zoom) at the right end.
+ * The selected marks (side panel: what they are, duplicate / order / lock / delete, a label's text or live link, a
+ * badge's key) and the picture (bottom line: the tool hint, auto brightness / contrast, copy the marks to other
+ * pictures, then `extra`: name, print size, zoom). `part` 'all' shows both, one after the other.
  */
-export function MarkupPanel({ ed, original, setOriginal, compact = false, hint = '', extra }: {
+export function MarkupPanel({ ed, original, setOriginal, part = 'all', hint = '', extra }: {
   ed: MarkupEditorState
   original: boolean
   setOriginal: (on: boolean) => void
-  compact?: boolean
+  part?: 'all' | 'selection' | 'picture'
   hint?: string
   extra?: React.ReactNode
 }) {
@@ -229,46 +278,51 @@ export function MarkupPanel({ ed, original, setOriginal, compact = false, hint =
   const one = selected.length === 1 ? selected[0] : null
   const autoLevels = ed.item?.edits.adjust.autoLevels ?? false
   const [copying, setCopying] = useState(false)
+  const locked = selected.length > 0 && selected.every((m) => m.locked)
   return (
-    <div className={compact ? 'markup-footer' : 'markup-toolbar markup-panel'}>
-      {compact && selected.length === 0 && <span className="muted markup-hint">{hint}</span>}
-      {selected.length > 0 && (
-        <div className="markup-row">
-          <span className="muted">{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</span>
-          {/* The bottom line (compact) shows these as icons, so the label's text box keeps its room. */}
-          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label="Duplicate" title="Duplicate (Ctrl+D)" onClick={ed.actions.duplicate}>{compact ? '⧉' : 'Duplicate'}</button>
-          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label="Bring forward" title="Bring forward (]); Shift+] to the front" onClick={() => ed.actions.order('forward')}>{compact ? '↑' : 'Forward'}</button>
-          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label="Send back" title="Send back ([); Shift+[ to the back" onClick={() => ed.actions.order('back')}>{compact ? '↓' : 'Back'}</button>
-          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label={selected.every((m) => m.locked) ? 'Unlock' : 'Lock'} title="Lock or unlock: a locked mark can't be moved or deleted (Ctrl+L)" onClick={ed.actions.lock}>{compact ? (selected.every((m) => m.locked) ? '🔓' : '🔒') : selected.every((m) => m.locked) ? 'Unlock' : 'Lock'}</button>
-          <button type="button" className={compact ? 'icon-btn icon-danger' : 'btn btn-small btn-danger'} aria-label="Delete" title="Delete (Del)" onClick={ed.actions.remove}>{compact ? '🗑' : 'Delete'}</button>
+    <>
+      {part !== 'picture' && selected.length > 0 && (
+        <div className="markup-selection">
+          <div className="markup-selection-head">
+            <strong>{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</strong>
+            <span className="markup-buttons">
+              <button type="button" className="icon-btn" aria-label="Duplicate" title="Duplicate (Ctrl+D)" onClick={ed.actions.duplicate}>⧉</button>
+              <button type="button" className="icon-btn" aria-label="Bring forward" title="Bring forward (]); Shift+] to the front" onClick={() => ed.actions.order('forward')}>↑</button>
+              <button type="button" className="icon-btn" aria-label="Send back" title="Send back ([); Shift+[ to the back" onClick={() => ed.actions.order('back')}>↓</button>
+              <button type="button" className="icon-btn" aria-label={locked ? 'Unlock' : 'Lock'} title="Lock or unlock: a locked mark can't be moved or deleted (Ctrl+L)" onClick={ed.actions.lock}>{locked ? '🔓' : '🔒'}</button>
+              <button type="button" className="icon-btn icon-danger" aria-label="Delete" title="Delete (Del)" onClick={ed.actions.remove}>🗑</button>
+            </span>
+          </div>
+          {one?.kind === 'label' && <LabelText ed={ed} mark={one} project={project} />}
+          {one?.kind === 'badge' && <BadgeText ed={ed} mark={one} />}
+          <p className="muted markup-done-hint">Enter or a click elsewhere when you are done with it.</p>
         </div>
       )}
-      {one?.kind === 'label' && <LabelText ed={ed} mark={one} project={project} />}
-      {one?.kind === 'badge' && <BadgeText ed={ed} mark={one} />}
-
-      <div className="markup-row">
-        {compact && <span className="markup-spacer" />}
-        {ed.allowRedaction && (
-          <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
-            <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
-              (p) => setPictureEdits(p, ed.at, { adjust: { ...(ed.item?.edits.adjust ?? { autoLevels: false, darken: 0 }), autoLevels: e.target.checked } }))} />
-            Auto brightness / contrast
-          </label>
+      {part !== 'selection' && (
+        <div className="markup-footer">
+          <span className="muted markup-hint">{hint}</span>
+          {ed.allowRedaction && (
+            <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
+              <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
+                (p) => setPictureEdits(p, ed.at, { adjust: { ...(ed.item?.edits.adjust ?? { autoLevels: false, darken: 0 }), autoLevels: e.target.checked } }))} />
+              Auto brightness / contrast
+            </label>
           )}
-        {autoLevels && ed.allowRedaction && (
-          <button type="button" className={`btn btn-small${original ? ' on' : ''}`} title="Hold to see the picture before the adjustment"
-            onPointerDown={() => setOriginal(true)} onPointerUp={() => setOriginal(false)} onPointerLeave={() => setOriginal(false)}
-            onKeyDown={(e) => e.key === ' ' && setOriginal(true)} onKeyUp={() => setOriginal(false)}>
-            Hold: before
-          </button>
-        )}
-        <button type="button" className="btn btn-small" disabled={ed.stored.length === 0} title="Copy these marks (or the selected ones) to other pictures" onClick={() => setCopying(true)}>Copy markup to…</button>
-        {!compact && <span className="markup-spacer" />}
-        {!compact && <UndoRedo />}
-        {extra}
-      </div>
+          {autoLevels && ed.allowRedaction && (
+            <button type="button" className={`btn btn-small${original ? ' on' : ''}`} title="Hold to see the picture before the adjustment"
+              onPointerDown={() => setOriginal(true)} onPointerUp={() => setOriginal(false)} onPointerLeave={() => setOriginal(false)}
+              onKeyDown={(e) => e.key === ' ' && setOriginal(true)} onKeyUp={() => setOriginal(false)}>
+              Hold: before
+            </button>
+          )}
+          <button type="button" className="btn btn-small" disabled={ed.stored.length === 0}
+            title="Put copies of this picture's marks (or only the selected ones) on other pictures of the report, in the same places, e.g. the same arrow on every scan screenshot"
+            onClick={() => setCopying(true)}>Copy these marks to other pictures…</button>
+          {extra}
+        </div>
+      )}
       {copying && <CopyMarkupDialog ed={ed} onClose={() => setCopying(false)} />}
-    </div>
+    </>
   )
 }
 
