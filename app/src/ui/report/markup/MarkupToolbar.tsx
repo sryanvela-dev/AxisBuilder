@@ -235,11 +235,12 @@ export function MarkupPanel({ ed, original, setOriginal, compact = false, hint =
       {selected.length > 0 && (
         <div className="markup-row">
           <span className="muted">{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</span>
-          <button type="button" className="btn btn-small" title="Duplicate (Ctrl+D)" onClick={ed.actions.duplicate}>Duplicate</button>
-          <button type="button" className="btn btn-small" title="Bring forward (]); Shift+] to the front" onClick={() => ed.actions.order('forward')}>Forward</button>
-          <button type="button" className="btn btn-small" title="Send back ([); Shift+[ to the back" onClick={() => ed.actions.order('back')}>Back</button>
-          <button type="button" className="btn btn-small" title="Lock or unlock: a locked mark can't be moved or deleted (Ctrl+L)" onClick={ed.actions.lock}>{selected.every((m) => m.locked) ? 'Unlock' : 'Lock'}</button>
-          <button type="button" className="btn btn-small btn-danger" title="Delete (Del)" onClick={ed.actions.remove}>Delete</button>
+          {/* The bottom line (compact) shows these as icons, so the label's text box keeps its room. */}
+          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label="Duplicate" title="Duplicate (Ctrl+D)" onClick={ed.actions.duplicate}>{compact ? '⧉' : 'Duplicate'}</button>
+          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label="Bring forward" title="Bring forward (]); Shift+] to the front" onClick={() => ed.actions.order('forward')}>{compact ? '↑' : 'Forward'}</button>
+          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label="Send back" title="Send back ([); Shift+[ to the back" onClick={() => ed.actions.order('back')}>{compact ? '↓' : 'Back'}</button>
+          <button type="button" className={compact ? 'icon-btn' : 'btn btn-small'} aria-label={selected.every((m) => m.locked) ? 'Unlock' : 'Lock'} title="Lock or unlock: a locked mark can't be moved or deleted (Ctrl+L)" onClick={ed.actions.lock}>{compact ? (selected.every((m) => m.locked) ? '🔓' : '🔒') : selected.every((m) => m.locked) ? 'Unlock' : 'Lock'}</button>
+          <button type="button" className={compact ? 'icon-btn icon-danger' : 'btn btn-small btn-danger'} aria-label="Delete" title="Delete (Del)" onClick={ed.actions.remove}>{compact ? '🗑' : 'Delete'}</button>
         </div>
       )}
       {one?.kind === 'label' && <LabelText ed={ed} mark={one} project={project} />}
@@ -311,12 +312,18 @@ function SaveStyle({ mark, onSave }: { mark: Mark; onSave: (s: LabelStyle) => vo
   )
 }
 
-/** A text box that stores its value when you leave it (or Enter): one undo step per edit. Esc puts it back. */
-function useTextDraft(value: string, focus: number, onCommit: (v: string) => void, onDone?: () => void) {
+/**
+ * A mark's text box. Each keystroke is stored at once, so the label on the picture types out as you type; the whole
+ * edit is one undo step (`onCommit` stores under a group, `onEnd` closes it when you leave the box). Enter finishes
+ * (`onDone`), Esc puts back the text it had when you came in.
+ */
+function useTextDraft(value: string, focus: number, onCommit: (v: string) => void, onEnd: () => void, onDone?: () => void) {
   const [draft, setDraft] = useState(value)
   const [base, setBase] = useState(value)
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null)
   const finished = useRef(false)
+  /** The text when the box got the cursor (what Esc goes back to). */
+  const before = useRef<string | null>(null)
   // The stored value changed (undo, another mark selected): the box shows it.
   if (base !== value) {
     setBase(value)
@@ -330,10 +337,18 @@ function useTextDraft(value: string, focus: number, onCommit: (v: string) => voi
   }, [focus])
   return {
     ref, value: draft,
-    onChange: (e: { target: { value: string } }) => setDraft(e.target.value),
+    onChange: (e: { target: { value: string } }) => {
+      setDraft(e.target.value)
+      onCommit(e.target.value)
+    },
+    onFocus: () => {
+      before.current = value
+    },
     onBlur: () => {
       if (finished.current) finished.current = false
       else if (draft !== value) onCommit(draft)
+      before.current = null
+      onEnd()
     },
     onKeyDown: (e: React.KeyboardEvent) => {
       // Enter finishes the text and lets go of the mark (Shift+Enter: a new line); the keys go back to the editor.
@@ -342,12 +357,15 @@ function useTextDraft(value: string, focus: number, onCommit: (v: string) => voi
         e.stopPropagation()
         if (draft !== value) onCommit(draft)
         finished.current = true
+        onEnd()
         ;((e.target as HTMLElement).closest('[tabindex="-1"]') as HTMLElement | null)?.focus({ preventScroll: true })
         onDone?.()
       }
       if (e.key === 'Escape') {
         e.stopPropagation()
-        setDraft(value)
+        const back = before.current ?? value
+        setDraft(back)
+        if (back !== value) onCommit(back)
         const root = (e.target as HTMLElement).closest('[tabindex="-1"]') as HTMLElement | null
         setTimeout(() => (root ? root.focus({ preventScroll: true }) : ref.current?.blur()))
       }
@@ -360,12 +378,15 @@ const linkValue = (l: Mark['link']) => (l ? `${l.list}|${l.occurrence}|${l.id}` 
 /** A label's text, or its live data link and template. */
 function LabelText({ ed, mark, project }: { ed: MarkupEditorState; mark: Extract<Mark, { kind: 'label' }>; project: import('../../../data/schema.ts').Project }) {
   const live = mark.link !== null && mark.template.trim() !== ''
-  const text = useTextDraft(mark.text, live ? 0 : ed.textFocus, (v) => ed.actions.change('Edit label text', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'label' ? { ...m, text: v } : m))), () => ed.setSel(new Set()))
+  const app = useApp()
+  const end = () => app.dispatch({ type: 'endEditGroup' })
+  const group = `markup-text:${JSON.stringify(ed.at)}:${mark.id}`
+  const text = useTextDraft(mark.text, live ? 0 : ed.textFocus, (v) => ed.actions.change('Edit label text', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'label' ? { ...m, text: v } : m)), group), end, () => ed.setSel(new Set()))
   const template = useTextDraft(mark.template, live ? ed.textFocus : 0, (v) => ed.actions.change('Edit live label', (ms) => setFields(ms, new Set([mark.id]), (m) => {
     if (m.kind !== 'label') return m
     const next = { ...m, template: v }
     return { ...next, text: liveText(project, next) ?? m.text }
-  })), () => ed.setSel(new Set()))
+  }), group), end, () => ed.setSel(new Set()))
   const setLink = (v: string) => ed.actions.change(v ? 'Link the label' : 'Unlink the label', (ms) => setFields(ms, new Set([mark.id]), (m) => {
     if (m.kind !== 'label') return m
     if (!v) return { ...m, link: null, template: '' }
@@ -424,7 +445,9 @@ function LabelText({ ed, mark, project }: { ed: MarkupEditorState; mark: Extract
 
 /** A badge's key text (printed under the picture). */
 function BadgeText({ ed, mark }: { ed: MarkupEditorState; mark: Extract<Mark, { kind: 'badge' }> }) {
-  const text = useTextDraft(mark.text, ed.textFocus, (v) => ed.actions.change('Edit badge key', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'badge' ? { ...m, text: v } : m))), () => ed.setSel(new Set()))
+  const app = useApp()
+  const text = useTextDraft(mark.text, ed.textFocus, (v) => ed.actions.change('Edit badge key', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'badge' ? { ...m, text: v } : m)), `markup-text:${JSON.stringify(ed.at)}:${mark.id}`),
+    () => app.dispatch({ type: 'endEditGroup' }), () => ed.setSel(new Set()))
   return (
     <div className="markup-row markup-text">
       <label className="markup-group markup-grow">

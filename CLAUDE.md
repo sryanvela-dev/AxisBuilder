@@ -1101,3 +1101,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   selected mark, a click off it only lets go); Enter in a label's text finishes it and lets go (Shift+Enter: new line). New box style
   "Highlighted, no outline" (`SHAPE_MODES` 'highlightedPlain'); new labels default to rounded with no outline (`DEFAULT_PREFS.halo` false;
   stored markup settings get version 2, which drops an older kept outline once). Tests added; outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): a label's text (and a badge's key, a live label's template) is stored at every
+  keystroke, so the label on the picture types out as you type; one undo step per edit (grouped, closed on Enter or leaving the box), Esc
+  puts back the text it had. Bottom line: the selection actions are icons (duplicate, forward, back, lock, delete) so the text box keeps its
+  room and nothing sits on it; the picture name gives way first. Top line: room for the picked colour's ring at the left edge. Outputs unchanged.

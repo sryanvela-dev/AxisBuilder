@@ -3799,7 +3799,7 @@ svg.report-page .report-paper {
 
 .markup-footer .markup-grow {
   flex: 1 1 140px;
-  min-width: 140px;
+  min-width: 110px;
 }
 
 .markup-footer .markup-printed {
@@ -3807,6 +3807,29 @@ svg.report-page .report-paper {
 }
 
 .markup-footer > *:not(.markup-row):not(.markup-printed),
-.markup-footer > .markup-row > *:not(.markup-grow) {
+.markup-footer > .markup-row > *:not(.markup-grow):not(.markup-printed) {
   flex-shrink: 0;
+}
+
+/* The ring round the picked colour sits outside the swatch: room for it at the left edge of the scrolling settings line. */
+.markup-head > .markup-toolbar {
+  padding: 3px 4px;
+}
+
+/* The label's text box (and a badge's key) fills its slot, never wider, so nothing sits on top of it. */
+.markup-footer .markup-grow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.markup-footer .markup-grow > textarea,
+.markup-footer .markup-grow > input {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+}
+
+.markup-footer select {
+  max-width: 150px;
 }
