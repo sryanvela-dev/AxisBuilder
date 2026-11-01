@@ -30,7 +30,7 @@ import { refKey, type ReadPicture } from './reportFiles.ts'
 import { useReport } from './reportContext.ts'
 
 /** The window: a title, the tool, OK and Cancel. Escape cancels, Enter (outside a box) is OK. */
-export function PictureWindow(props: { title: string; children: ReactNode; onOk: () => void; onCancel: () => void; okLabel?: string; noCancel?: boolean; className?: string }) {
+export function PictureWindow(props: { title: string; children: ReactNode; onOk: () => void; onCancel: () => void; okLabel?: string; noCancel?: boolean; className?: string; /** The tool draws its own title and buttons. */ bare?: boolean }) {
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
@@ -46,9 +46,9 @@ export function PictureWindow(props: { title: string; children: ReactNode; onOk:
       }
     }}>
       <div className={`dialog picture-window${props.className ? ` ${props.className}` : ''}`} role="dialog" aria-modal="true" aria-label={props.title} tabIndex={-1} ref={box}>
-        <h2>{props.title}</h2>
+        {!props.bare && <h2>{props.title}</h2>}
         {props.children}
-        <div className="dialog-buttons">
+        {!props.bare && <div className="dialog-buttons">
           {!props.noCancel && (
             <button type="button" className="btn" onClick={props.onCancel}>
               Cancel
@@ -57,7 +57,7 @@ export function PictureWindow(props: { title: string; children: ReactNode; onOk:
           <button type="button" className="btn btn-primary" onClick={props.onOk}>
             {props.okLabel ?? 'OK'}
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   )

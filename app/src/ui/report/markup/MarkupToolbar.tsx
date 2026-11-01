@@ -38,11 +38,13 @@ function settingsFor(kinds: ReadonlySet<string>) {
   }
 }
 
-export function MarkupToolbar({ ed, showCrop, onCrop }: {
+export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
   ed: MarkupEditorState
   /** The crop tool (window host only). */
   showCrop?: boolean
   onCrop?: () => void
+  /** Both rows (in place), or only the tools as a vertical rail / only the settings row (the full-screen window). */
+  part?: 'all' | 'tools' | 'settings'
 }) {
   const { savedLists, changeLists } = useReport()
   const { tool, prefs, selected } = ed
@@ -66,9 +68,10 @@ export function MarkupToolbar({ ed, showCrop, onCrop }: {
     }
   }
 
+  const rail = part === 'tools'
   return (
-    <div className="markup-toolbar" role="toolbar" aria-label="Markup tools">
-      <div className="markup-row markup-tools">
+    <div className={rail ? 'markup-rail' : 'markup-toolbar'} role="toolbar" aria-label={part === 'settings' ? 'Tool settings' : 'Markup tools'} aria-orientation={rail ? 'vertical' : undefined}>
+      {part !== 'settings' && <div className={rail ? 'markup-rail-tools' : 'markup-row markup-tools'}>
         {TOOLS.filter((t) => t.id !== 'redaction' || ed.allowRedaction).map((t) => (
           <button key={t.id} type="button" className={`markup-tool${tool === t.id ? ' on' : ''}`} aria-pressed={tool === t.id} title={`${t.hint} (${t.key})`} onClick={() => ed.setTool(t.id as ToolId)}>
             <span className="markup-icon" aria-hidden="true">{t.icon}</span>
@@ -81,10 +84,18 @@ export function MarkupToolbar({ ed, showCrop, onCrop }: {
             <span>Crop</span>
           </button>
         )}
-        {!ed.allowRedaction && <span className="muted markup-note" title="A PDF page is copied into the report as it is, so its pixels can't be removed">Redaction: pictures only (not PDF pages or drawings)</span>}
-      </div>
+        {!ed.allowRedaction && (rail
+          ? (
+            <button type="button" className="markup-tool" disabled aria-label="Redact (pictures only)"
+              title="Redaction is for pictures only: a PDF page or a drawing is copied into the report as vectors, so there are no pixels to remove">
+              <span className="markup-icon" aria-hidden="true">▇</span>
+              <span>Redact</span>
+            </button>
+          )
+          : <span className="muted markup-note" title="A PDF page is copied into the report as it is, so its pixels can't be removed">Redaction: pictures only (not PDF pages or drawings)</span>)}
+      </div>}
 
-      <div className="markup-row markup-settings">
+      {part !== 'tools' && <div className="markup-row markup-settings">
         {show.color && (
           <span className="markup-group" role="group" aria-label="Colour">
             {COLOR_PRESETS.map((c) => (
@@ -180,7 +191,7 @@ export function MarkupToolbar({ ed, showCrop, onCrop }: {
             {one && (one.kind === 'label' || one.kind === 'badge') && <SaveStyle mark={one} onSave={(s) => changeLists((l) => addRecord(l, 'labelStyles', s))} />}
           </span>
         )}
-      </div>
+      </div>}
 
     </div>
   )
@@ -188,7 +199,29 @@ export function MarkupToolbar({ ed, showCrop, onCrop }: {
 
 /** Under the picture: what to do with the selection, a label's text or live link, a badge's key, the picture's auto
  * brightness / contrast, copy markup and undo / redo (below the picture, so it never moves when these appear). */
-export function MarkupPanel({ ed, original, setOriginal }: { ed: MarkupEditorState; original: boolean; setOriginal: (on: boolean) => void }) {
+/** Undo and redo (the app's own history, so Ctrl+Z / Ctrl+Y work too). */
+export function UndoRedo() {
+  const app = useApp()
+  return (
+    <span className="markup-group">
+      <button type="button" className="icon-btn" disabled={!app.canUndo} onClick={app.undo} title={app.undoLabel ? `Undo: ${app.undoLabel} (Ctrl+Z)` : 'Undo (Ctrl+Z)'} aria-label="Undo">↶</button>
+      <button type="button" className="icon-btn" disabled={!app.canRedo} onClick={app.redo} title={app.redoLabel ? `Redo: ${app.redoLabel} (Ctrl+Y)` : 'Redo (Ctrl+Y)'} aria-label="Redo">↷</button>
+    </span>
+  )
+}
+
+/**
+ * `compact` (the full-screen window): everything on one bottom line that wraps only when it must, the tool hint while
+ * nothing is selected, no undo / redo (they sit at the top), `extra` (print size and zoom) at the right end.
+ */
+export function MarkupPanel({ ed, original, setOriginal, compact = false, hint = '', extra }: {
+  ed: MarkupEditorState
+  original: boolean
+  setOriginal: (on: boolean) => void
+  compact?: boolean
+  hint?: string
+  extra?: React.ReactNode
+}) {
   const app = useApp()
   const project = app.state.job!.history.present
   const { selected } = ed
@@ -196,7 +229,8 @@ export function MarkupPanel({ ed, original, setOriginal }: { ed: MarkupEditorSta
   const autoLevels = ed.item?.edits.adjust.autoLevels ?? false
   const [copying, setCopying] = useState(false)
   return (
-    <div className="markup-toolbar markup-panel">
+    <div className={compact ? 'markup-footer' : 'markup-toolbar markup-panel'}>
+      {compact && selected.length === 0 && <span className="muted markup-hint">{hint}</span>}
       {selected.length > 0 && (
         <div className="markup-row">
           <span className="muted">{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</span>
@@ -211,6 +245,7 @@ export function MarkupPanel({ ed, original, setOriginal }: { ed: MarkupEditorSta
       {one?.kind === 'badge' && <BadgeText ed={ed} mark={one} />}
 
       <div className="markup-row">
+        {compact && <span className="markup-spacer" />}
         {ed.allowRedaction && (
           <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
             <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
@@ -226,9 +261,9 @@ export function MarkupPanel({ ed, original, setOriginal }: { ed: MarkupEditorSta
           </button>
         )}
         <button type="button" className="btn btn-small" disabled={ed.stored.length === 0} title="Copy these marks (or the selected ones) to other pictures" onClick={() => setCopying(true)}>Copy markup to…</button>
-        <span className="markup-spacer" />
-        <button type="button" className="icon-btn" disabled={!app.canUndo} onClick={app.undo} title={app.undoLabel ? `Undo: ${app.undoLabel} (Ctrl+Z)` : 'Undo (Ctrl+Z)'} aria-label="Undo">↶</button>
-        <button type="button" className="icon-btn" disabled={!app.canRedo} onClick={app.redo} title={app.redoLabel ? `Redo: ${app.redoLabel} (Ctrl+Y)` : 'Redo (Ctrl+Y)'} aria-label="Redo">↷</button>
+        {!compact && <span className="markup-spacer" />}
+        {!compact && <UndoRedo />}
+        {extra}
       </div>
       {copying && <CopyMarkupDialog ed={ed} onClose={() => setCopying(false)} />}
     </div>

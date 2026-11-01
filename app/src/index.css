@@ -3691,3 +3691,134 @@ svg.report-page .report-paper {
   align-items: center;
   gap: 6px;
 }
+
+/* Full-screen layout (user, 2026-11-01): one line at the top (title, the tool's settings, undo / redo, Done), the tools as
+   a rail down the left, the picture taking the rest, one line at the bottom (selection, text, picture options, zoom). */
+.markup-window .markup-editor {
+  gap: 6px;
+}
+
+.markup-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 36px;
+}
+
+.markup-head > h2 {
+  margin: 0;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.markup-head > .markup-toolbar {
+  flex: 0 1 auto;
+}
+
+.markup-head .markup-settings {
+  min-height: 0;
+}
+
+.markup-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.markup-rail {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.markup-rail-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.markup-rail .markup-tool {
+  width: 76px;
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: 11px;
+}
+
+.markup-rail .markup-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.markup-window .markup-body > .markup-stage-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.markup-footer {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  min-height: 34px;
+}
+
+.markup-footer > .markup-row {
+  display: contents;
+}
+
+.markup-footer .markup-group > .muted:first-child {
+  white-space: nowrap;
+}
+
+.markup-footer textarea {
+  height: 30px;
+  min-height: 30px;
+}
+
+.markup-footer .markup-grow {
+  flex: 1 1 220px;
+}
+
+.markup-hint {
+  font-size: 13px;
+}
+
+.markup-printed {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.markup-footer .markup-popover {
+  top: auto;
+  bottom: 40px;
+}
+
+/* Both bars stay one line so the picture never changes size: the settings scroll sideways if the window is narrow. */
+.markup-head {
+  flex-wrap: nowrap;
+}
+
+.markup-head > .markup-toolbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.markup-head .markup-settings {
+  flex-wrap: nowrap;
+}
+
+.markup-head .markup-group,
+.markup-footer .markup-group {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.markup-head > .markup-spacer {
+  flex: 0 0 4px;
+}

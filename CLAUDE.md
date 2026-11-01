@@ -1089,3 +1089,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Pages view (`SheetSvg` + marks) and the PDF; double-click in the Pages view or "Mark up …" in its bar (window host draws the sheet on
   white paper under the marks). No redaction / crop / auto levels on drawings (Review warns about a redaction). Test added; drawing outputs
   unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: too much space lost top and bottom): the full-screen markup window has one line at the
+  top (title, the tool's settings, undo / redo, Done; scrolls sideways if narrow), the tools as a vertical rail on the left
+  (`MarkupToolbar part="tools"`, Redact shown greyed out where it doesn't apply), the picture filling the rest, and one line at the bottom
+  (`MarkupPanel compact`: hint or selection actions and text, auto levels, copy markup, print size, zoom). Both bars keep one line, so the
+  picture never changes size when something is selected. In place in the Pages view keeps its two floating bars. Outputs unchanged.

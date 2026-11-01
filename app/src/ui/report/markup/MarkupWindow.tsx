@@ -19,7 +19,7 @@ import { refKey, type ReadPicture } from '../reportFiles.ts'
 import { useReport } from '../reportContext.ts'
 import { pdfPageKey } from '../useReportPages.ts'
 import { MarkupStage } from './MarkupStage.tsx'
-import { MarkupPanel, MarkupToolbar } from './MarkupToolbar.tsx'
+import { MarkupPanel, MarkupToolbar, UndoRedo } from './MarkupToolbar.tsx'
 import { useLevelsThumb } from './useLevelsThumb.ts'
 import { useMarkupEditor } from './useMarkupEditor.ts'
 
@@ -69,8 +69,8 @@ export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClos
     const d = target.drawing
     const frame = editorFrame({ w: d.item.region.w, h: d.item.region.h }, { crop: null, rotate: 0 }, printed)
     return (
-      <PictureWindow title={title} okLabel="Done" noCancel onOk={onClose} onCancel={onClose} className="markup-window">
-        <EditorBody target={target} pic={null} frame={frame} printedW={printed?.frame.w ?? null} printedPage={printed ? printed.page + 1 : null}
+      <PictureWindow title={title} okLabel="Done" noCancel onOk={onClose} onCancel={onClose} className="markup-window" bare>
+        <EditorBody target={target} title={title} onDone={onClose} pic={null} frame={frame} printedW={printed?.frame.w ?? null} printedPage={printed ? printed.page + 1 : null}
           sheet={{ item: { ...d.item, box: { x: frame.x, y: frame.y, w: frame.w, h: frame.h }, marks: undefined }, thumbs: d.thumbs }} />
       </PictureWindow>
     )
@@ -78,7 +78,7 @@ export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClos
   // A PDF page's marks are in fractions of the page as stored (before its turn); its size comes from the printed page.
   const upright = target.pdfPage ? (printed?.frame.upright ?? (pic ? { w: pic.info.width, h: pic.info.height } : null)) : pic ? uprightSize(pic.info) : null
   return (
-    <PictureWindow title={title} okLabel="Done" noCancel onOk={onClose} onCancel={onClose} className="markup-window">
+    <PictureWindow title={title} okLabel="Done" noCancel onOk={onClose} onCancel={onClose} className="markup-window" bare={mode === 'markup' && !!pic && !!upright}>
       {!pic || !upright ? (
         <p className="msg msg-warning">{pic === null ? 'The picture could not be read: choose its folder or file again, then try.' : 'Reading the picture...'}</p>
       ) : mode === 'crop' ? (
@@ -92,15 +92,17 @@ export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClos
           </div>
         </>
       ) : (
-        <EditorBody target={target} pic={pic} frame={editorFrame(upright, target.pdfPage ? { crop: null, rotate: edits.rotate } : edits, printed)} printedW={printed?.frame.w ?? null}
+        <EditorBody target={target} title={title} onDone={onClose} pic={pic} frame={editorFrame(upright, target.pdfPage ? { crop: null, rotate: edits.rotate } : edits, printed)} printedW={printed?.frame.w ?? null}
           printedPage={printed ? printed.page + 1 : null} onCrop={target.pdfPage ? undefined : () => setMode('crop')} />
       )}
     </PictureWindow>
   )
 }
 
-function EditorBody({ target, pic, frame, printedW, printedPage, onCrop, sheet }: {
+function EditorBody({ target, title, onDone, pic, frame, printedW, printedPage, onCrop, sheet }: {
   target: MarkupTarget
+  title: string
+  onDone: () => void
   pic: ReadPicture | null
   frame: MarkFrame
   printedW: number | null
@@ -148,17 +150,26 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop, sheet }
       }
       ed.onKeyDown(e)
     }}>
-      <MarkupToolbar ed={ed} showCrop={!!onCrop} onCrop={onCrop} />
-      <div className="markup-stage-wrap" ref={wrap}>
-        <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} paper={!!sheet}>
-          {sheet && <SheetSvg it={sheet.item} thumbs={sheet.thumbs} minW={1 / ppi} id={`${sheetId}-sheet`} />}
-        </MarkupStage>
+      <div className="markup-head">
+        <h2>{title}</h2>
+        <MarkupToolbar ed={ed} part="settings" />
+        <span className="markup-spacer" />
+        <UndoRedo />
+        <button type="button" className="btn btn-primary" onClick={onDone} title="Close (Esc)">Done</button>
       </div>
-      <div className="muted markup-status" role="status">
-        <span>{hint}</span>
-        <span className="markup-scale">
-          {printedW !== null ? `Prints ${printedW.toFixed(2)} in wide (page ${printedPage}).` : `Not in the report yet: shown as if ${frame.w.toFixed(1)} in wide.`}
-          {' '}Marks and text are to the printed scale.
+      <div className="markup-body">
+        <MarkupToolbar ed={ed} part="tools" showCrop={!!onCrop} onCrop={onCrop} />
+        <div className="markup-stage-wrap" ref={wrap}>
+          <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} paper={!!sheet}>
+            {sheet && <SheetSvg it={sheet.item} thumbs={sheet.thumbs} minW={1 / ppi} id={`${sheetId}-sheet`} />}
+          </MarkupStage>
+        </div>
+      </div>
+      <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} compact hint={hint} extra={(
+        <>
+          <span className="muted markup-printed" title="Marks and text are drawn to the printed scale at every zoom">
+            {printedW !== null ? `Prints ${printedW.toFixed(2)} in wide (p. ${printedPage})` : `Not in the report yet (as if ${frame.w.toFixed(1)} in wide)`}
+          </span>
           <span className="markup-group" role="group" aria-label="Zoom">
             <button type="button" className={`btn btn-small${zoom === 'fit' ? ' on' : ''}`} aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}
               title="The whole picture on screen">Fit ({Math.round((fitPpi / CSS_PPI) * 100)}%)</button>
@@ -167,9 +178,8 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop, sheet }
             <button type="button" className={`btn btn-small${zoom === 2 ? ' on' : ''}`} aria-pressed={zoom === 2} aria-label="Zoom to 200 percent of print size" onClick={() => setZoom(2)}
               title="Twice the print size, for fine work">200%</button>
           </span>
-        </span>
-      </div>
-      <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} />
+        </>
+      )} />
     </div>
   )
 }
