@@ -3613,3 +3613,20 @@ svg.report-page .report-paper {
   top: auto;
   bottom: 36px;
 }
+
+.pages-full-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pages-full-stage svg.report-page-full {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.markup-inplace-bottom {
+  top: auto;
+  bottom: 8px;
+}
