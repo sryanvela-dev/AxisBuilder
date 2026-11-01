@@ -147,6 +147,8 @@ export function useMarkupEditor(props: EditorProps) {
     if (e.button !== 0) return
     e.preventDefault()
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    // The editor (its host's focusable root) takes the keys from here on.
+    ;(e.currentTarget.closest('[tabindex="-1"]') as HTMLElement | null)?.focus({ preventScroll: true })
     setMenu(null)
     const p = viewAt(e)
     const client: Pt = [e.clientX, e.clientY]

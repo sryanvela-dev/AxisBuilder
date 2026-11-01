@@ -34,7 +34,8 @@ export function PictureWindow(props: { title: string; children: ReactNode; onOk:
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
-    box.current?.focus()
+    // A tool inside that took the focus first (the markup editor) keeps it.
+    if (!box.current?.contains(document.activeElement)) box.current?.focus()
     return () => previous?.focus?.()
   }, [])
   return (
