@@ -904,6 +904,9 @@ untouched.
   button, on PDF pages, and from the Pages view's bar); crop is a mode of the same window. Host B: double-click a picture in the Pages view;
   the page is dimmed, the toolbar floats at the top and the selection / picture settings at the bottom; Esc, a click on the dimmed page or
   Done leaves. A single click on a picture in the Pages view no longer jumps to its step (so the double-click can land); elsewhere it does.
+- **Full screen (user, 2026-11-01).** The markup window fills the screen. Zoom: Fit (the whole picture as large as the screen allows,
+  the percentage of print size shown), Actual size (1 in on paper = 96 CSS pixels, i.e. true size when the screen's scaling is at its
+  recommended setting; scroll to move around) or 200%; the choice is kept per browser (`axisbuilder:markupZoom`).
 - **Print-true.** The editor draws in page inches of the picture as it prints (its slot: `findPrinted`; a picture that doesn't print yet is
   shown 6.5 in wide), so text in points looks as big as it will on paper. The marks are drawn by the page's own code (`report/marks.ts`), so the
   editor, the Pages view and the PDF are the same drawing. The editor shows the picture turned and cropped as it prints; marks outside the

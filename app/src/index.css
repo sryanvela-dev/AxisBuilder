@@ -3630,3 +3630,64 @@ svg.report-page .report-paper {
   top: auto;
   bottom: 8px;
 }
+
+/* The markup window fills the screen (user, 2026-11-01): the picture as large as it can be, or at actual print size. */
+.dialog-backdrop:has(.markup-window) {
+  padding: 0;
+}
+
+.dialog.markup-window {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  padding: 10px 16px;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.markup-window > h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.markup-window > .dialog-buttons {
+  margin-top: 6px;
+}
+
+.markup-window > .markup-editor,
+.markup-window > .crop-tool {
+  flex: 1;
+  min-height: 0;
+}
+
+.markup-window .markup-stage-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: auto;
+  background: var(--page-bg);
+  border-radius: 6px;
+}
+
+.markup-window .markup-stage {
+  margin: auto;
+}
+
+.markup-window .markup-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.markup-window .markup-scale {
+  float: none;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

@@ -1080,3 +1080,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   "redaction comes later" note replaced; live labels whose row was deleted print their last text and Go to opens the editor. Golden jobs,
   compat v5.0 and the .lsp / DXF fingerprints unchanged. Clicked through in the dev preview with the sample's photos (made-up folder); not
   yet tried by the user. No VBA or workbook changes.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: the editor should be full screen to see the true size): the markup window fills the
+  screen; zoom Fit / Actual size (96 CSS px per printed inch) / 200%, kept per browser (`axisbuilder:markupZoom`); the picture area
+  scrolls when larger than the screen. Outputs unchanged.

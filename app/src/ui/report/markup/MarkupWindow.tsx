@@ -33,17 +33,22 @@ export interface MarkupTarget {
   name: string
 }
 
-/** Screen size the window gives the picture, from the window's own size. */
-function useStageRoom(): { w: number; h: number } {
-  const get = () => ({ w: Math.max(320, Math.min(1180, window.innerWidth - 96)), h: Math.max(240, Math.min(760, window.innerHeight - 330)) })
-  const [room, setRoom] = useState(get)
+/** The room the full-screen window leaves the picture (the stage area's own size, followed as the window resizes). */
+function useStageRoom(ref: React.RefObject<HTMLDivElement | null>): { w: number; h: number } {
+  const [room, setRoom] = useState({ w: 900, h: 560 })
   useEffect(() => {
-    const on = () => setRoom(get())
-    window.addEventListener('resize', on)
-    return () => window.removeEventListener('resize', on)
-  }, [])
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setRoom({ w: Math.max(200, el.clientWidth - 16), h: Math.max(160, el.clientHeight - 16) }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
   return room
 }
+
+/** CSS pixels per inch: the browser's "actual size" (1 in = 96 CSS px; true on paper scale when the screen's scaling is set right). */
+const CSS_PPI = 96
+type Zoom = 'fit' | 1 | 2
 
 /** The full-size markup window for one picture. */
 export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClose: () => void }) {
@@ -82,8 +87,27 @@ export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClos
 }
 
 function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { target: MarkupTarget; pic: ReadPicture; frame: MarkFrame; printedW: number | null; printedPage: number | null; onCrop?: () => void }) {
-  const room = useStageRoom()
-  const ppi = Math.min(room.w / frame.w, room.h / frame.h)
+  const wrap = useRef<HTMLDivElement>(null)
+  const room = useStageRoom(wrap)
+  // Fit (the whole picture on screen) or actual print size (1x, 2x), kept per browser.
+  const [zoom, setZoomState] = useState<Zoom>(() => {
+    try {
+      const z = localStorage.getItem('axisbuilder:markupZoom')
+      return z === '1' ? 1 : z === '2' ? 2 : 'fit'
+    } catch {
+      return 'fit'
+    }
+  })
+  const setZoom = (z: Zoom) => {
+    setZoomState(z)
+    try {
+      localStorage.setItem('axisbuilder:markupZoom', String(z))
+    } catch {
+      // not kept
+    }
+  }
+  const fitPpi = Math.min(room.w / frame.w, room.h / frame.h)
+  const ppi = zoom === 'fit' ? fitPpi : zoom * CSS_PPI
   const ed = useMarkupEditor({ at: target.at, frame, ppi, allowRedaction: !target.pdfPage })
   const [original, setOriginal] = useState(false)
   const levels = (ed.item?.edits.adjust.autoLevels ?? false) && !target.pdfPage
@@ -102,16 +126,24 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { tar
       ed.onKeyDown(e)
     }}>
       <MarkupToolbar ed={ed} showCrop={!!onCrop} onCrop={onCrop} />
-      <div className="markup-stage-wrap">
+      <div className="markup-stage-wrap" ref={wrap}>
         <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} />
       </div>
-      <p className="muted markup-status" role="status">
-        {hint}
-        {' '}
+      <div className="muted markup-status" role="status">
+        <span>{hint}</span>
         <span className="markup-scale">
-          {printedW !== null ? `Shown at print size: prints ${printedW.toFixed(2)} in wide (page ${printedPage}).` : `Not in the report yet: shown as if ${frame.w.toFixed(1)} in wide.`}
+          {printedW !== null ? `Prints ${printedW.toFixed(2)} in wide (page ${printedPage}).` : `Not in the report yet: shown as if ${frame.w.toFixed(1)} in wide.`}
+          {' '}Marks and text are to the printed scale.
+          <span className="markup-group" role="group" aria-label="Zoom">
+            <button type="button" className={`btn btn-small${zoom === 'fit' ? ' on' : ''}`} aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}
+              title="The whole picture on screen">Fit ({Math.round((fitPpi / CSS_PPI) * 100)}%)</button>
+            <button type="button" className={`btn btn-small${zoom === 1 ? ' on' : ''}`} aria-pressed={zoom === 1} onClick={() => setZoom(1)}
+              title="Actual print size: one inch on paper is one inch on screen (with the screen's scaling at its recommended setting); scroll to move around">Actual size</button>
+            <button type="button" className={`btn btn-small${zoom === 2 ? ' on' : ''}`} aria-pressed={zoom === 2} onClick={() => setZoom(2)}
+              title="Twice the print size, for fine work">200%</button>
+          </span>
         </span>
-      </p>
+      </div>
       <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} />
     </div>
   )
