@@ -25,14 +25,14 @@ describe('report pages: the whole report', () => {
     const order = [...new Set(doc.pages.map((p) => p.sectionId))]
     expect(order).toEqual(['cover', 'contents', 'scope-summary', 'calibration', 'drawings', 'scan-sheet', 'manual-ut', 'cscan', 'equipment', 'guide'])
     expect(doc.pages.filter((p) => p.sectionId === 'cscan')).toHaveLength(17)
-    expect(doc.pages).toHaveLength(29)
+    expect(doc.pages).toHaveLength(28)
   })
 
   it('cover portrait, every other page landscape; every page but the cover has "Page X of Y"', () => {
     expect(doc.pages[0].size).toEqual(LETTER_PORTRAIT)
     expect(doc.pages.slice(1).every((p) => p.size.w === LETTER_LANDSCAPE.w)).toBe(true)
     expect(texts(doc.pages[0]).some((t) => t.startsWith('Page '))).toBe(false)
-    doc.pages.slice(1).forEach((p, i) => expect(texts(p)).toContain(`Page ${i + 2} of 29`))
+    doc.pages.slice(1).forEach((p, i) => expect(texts(p)).toContain(`Page ${i + 2} of 28`))
   })
 
   it('the contents list each section with the page it starts on, each a link to it', () => {
@@ -186,7 +186,7 @@ describe('report pages: the whole report', () => {
 
   it('fixed pages: two pages each, nothing left as a placeholder (fixedPages.test.ts has the rest)', () => {
     expect(doc.pages.filter((p) => p.sectionId === 'equipment').map((p) => p.label)).toEqual(['AUT Equipment', 'AUT Equipment 2'])
-    expect(doc.pages.filter((p) => p.sectionId === 'guide').map((p) => p.label)).toEqual(['Guide to Interpretation', 'Guide to Interpretation 2'])
+    expect(doc.pages.filter((p) => p.sectionId === 'guide').map((p) => p.label)).toEqual(['Guide to Interpretation'])
     expect(doc.notes.some((n) => /placeholder|template picture/.test(n))).toBe(false)
   })
 })

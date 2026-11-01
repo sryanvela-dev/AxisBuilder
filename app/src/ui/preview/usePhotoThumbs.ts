@@ -9,7 +9,7 @@ import type { PhotoFolder } from '../photoFolder.ts'
 
 const THUMB_SIDE = 384
 
-export async function thumbnail(file: File): Promise<string> {
+async function thumbnail(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, THUMB_SIDE / Math.max(bitmap.width, bitmap.height))
   const canvas = new OffscreenCanvas(Math.max(1, Math.round(bitmap.width * scale)), Math.max(1, Math.round(bitmap.height * scale)))

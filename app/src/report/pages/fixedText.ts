@@ -2,16 +2,13 @@
 // part starts a page). 'side' parts put the text on the left and the pictures in a column on the right; 'below' parts
 // put the text across the page and the pictures in a row under it, as large as the page allows. Text that does not fit
 // flows onto another page, so nothing is clipped. Pictures are bundled with the app (src/assets/report/, printed as they
-// are, with labels over them), diagrams the app draws as vectors (diagrams.ts) or an example job's sheet printed as
-// vectors (report/exampleJobs.ts).
+// are, with labels over them) or diagrams the app draws as vectors (diagrams.ts).
 
-import { exampleSheet } from '../exampleJobs.ts'
 import { fontBox, measure, wrapText } from '../fonts.ts'
 import { imageKey, type ImageRef, type PageItem, type Rect } from '../pageModel.ts'
-import type { FixedPagePart, FixedPicture, PictureLabel } from '../templates/types.ts'
+import type { FixedPicture, PictureLabel } from '../templates/types.ts'
 import { content, standardPage, type PageBuilder } from './common.ts'
 import { DIAGRAM_ASPECT, diagramItems } from './diagrams.ts'
-import { sheetItem } from './drawing.ts'
 import { COLORS, F, fitBox, lineHeight, text } from './layout.ts'
 
 const SIZE = 9.5
@@ -26,25 +23,17 @@ const GAP = 0.2
 /** A 'below' part's pictures go onto a page of their own when less than this height is left under the text. */
 const MIN_BELOW = 2.2
 
-type Shown = FixedPicture
-
 /** The bundled picture of an asset slot (its file under src/assets/report/). */
 export const assetRef = (file: string): ImageRef => ({ source: 'asset', file })
 
-/** The pictures of a part that print (an unknown example job is left out). */
-export const shownPictures = (part: FixedPagePart): Shown[] =>
-  part.pictures.filter((x) => x.kind !== 'example' || exampleSheet(x.job) !== null)
-
 /** Width / height of a picture as it prints. */
-function aspectOf(pic: Shown): number {
+function aspectOf(pic: FixedPicture): number {
   if (pic.kind === 'asset') return pic.px.w / pic.px.h
-  if (pic.kind === 'drawn') return DIAGRAM_ASPECT[pic.diagram]
-  const it = sheetItem(exampleSheet(pic.job)!, { x: 0, y: 0, w: 1, h: 1 })
-  return it.region.w / it.region.h
+  return DIAGRAM_ASPECT[pic.diagram]
 }
 
 /** The picture fitted into `box` (its shape kept, never wider than its maxW), caption under it. */
-function pictureItems(pic: Shown, box: Rect): PageItem[] {
+function pictureItems(pic: FixedPicture, box: Rect): PageItem[] {
   const room = { ...box, w: pic.kind === 'asset' && pic.maxW ? Math.min(box.w, pic.maxW) : box.w, h: box.h - (pic.caption ? CAPTION_H : 0) }
   room.x = box.x + (box.w - room.w) / 2
   const items: PageItem[] = []
@@ -54,14 +43,9 @@ function pictureItems(pic: Shown, box: Rect): PageItem[] {
     const ref = assetRef(pic.file)
     items.push({ t: 'image', ref, ...placed, upright: { ...pic.px }, orientation: 1, rotate: 0, crop: null, marks: [], key: imageKey(ref, null) })
     for (const l of pic.labels ?? []) items.push(...labelItems(l, placed))
-  } else if (pic.kind === 'drawn') {
+  } else {
     placed = fitBox(DIAGRAM_ASPECT[pic.diagram], room, 'top')
     items.push(...diagramItems(pic.diagram, placed))
-  } else {
-    const it = sheetItem(exampleSheet(pic.job)!, room)
-    it.box = fitBox(it.region.w / it.region.h, room, 'top')
-    placed = it.box
-    items.push(it, { t: 'rect', ...placed, fill: null, stroke: COLORS.line, width: 0.75, radius: 0 })
   }
   if (pic.caption) items.push(text(placed.x + placed.w / 2, placed.y + placed.h + 0.06 + fontBox(F.label, CAPTION).ascent, pic.caption, F.label, CAPTION, COLORS.muted, 'center'))
   return items
@@ -88,7 +72,7 @@ function labelItems(l: PictureLabel, pic: Rect): PageItem[] {
 }
 
 /** The height a column of pictures takes at width `w` (each at most its maxW wide). */
-function columnHeight(pics: readonly Shown[], w: number): number {
+function columnHeight(pics: readonly FixedPicture[], w: number): number {
   return pics.reduce((h, p, i) => h + (i ? GAP : 0) + Math.min(w, p.kind === 'asset' && p.maxW ? p.maxW : w) / aspectOf(p) + (p.caption ? CAPTION_H : 0), 0)
 }
 
@@ -102,7 +86,7 @@ export const buildFixedText: PageBuilder = (c, def, title) => {
   const pages: PageItem[][] = []
 
   for (const part of fixed.parts) {
-    const pics = shownPictures(part)
+    const pics = part.pictures
     const side = part.layout === 'side' && pics.length > 0
     const textW = side ? area.w - SIDE_W - 0.3 : area.w
     pages.push([])

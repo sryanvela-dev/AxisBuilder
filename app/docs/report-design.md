@@ -449,27 +449,22 @@ left). Text that does not fit flows onto another page. As built (branch feature/
   at that point: black panel, grey grid, 0 / 50 / 100 %, a white full-wave (rectified) trace with front wall, internal
   reflector and back wall echoes over a low noise floor, and a red gate. It replaced the old workbook's picture (image35,
   which said "stoke" for "stroke"); that picture is no longer in the repo.
-- **Guide to Interpretation** (2 pages): page 1 the corrosion example text with the example C-scan data page under it
-  (10.00 x 5.01 in), labelled: a brand navy outline (1.75 pt on a white 3.25 pt line, user 2026-11-01) round each part the text names and a navy tab with white text naming it (C-SCAN (plan view),
-  COLOR SCALE, A-SCAN, B-SCAN (Y-axis section); `labels` on the asset slot, in fractions of the picture); page 2 the rollouts text with the V-100 example rollout (7.21 x 5.14 in, caption "Horizontal vessel").
+- **Guide to Interpretation** (1 page): the corrosion example text with the example C-scan data page under it
+  (10.00 x 5.01 in), labelled: a brand navy outline (1.75 pt on a white 3.25 pt line, user 2026-11-01) round each part
+  the text names and a navy tab with white text naming it (C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis
+  section); `labels` on the asset slot, in fractions of the picture).
 - **Picture slots** (`FixedPicture` in `templates/types.ts`): `asset` = a file in `src/assets/report/` with its pixel size
   (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded; optional `labels` drawn over
-  it); `drawn` = a diagram the app draws (`pages/diagrams.ts`); `example` = an example job's
-  main sheet printed as vectors (`report/exampleJobs.ts`: the job's data and its photo folder under `public/`; the
-  "Overlays" set, photos and no hatch; its scan IDs prefixed `example:<job>:` so its photos never mix with the job's own).
+  it); `drawn` = a diagram the app draws (`pages/diagrams.ts`).
 - **The pictures**, cleared by the user (2026-11-01) from the old IEPC AUT Report workbook and copied unchanged:
   `aut-scanner.png` (image31), `proscan-xt.png` (image32), `example-cscan.jpg` (image36). (image35, the scan views
   diagram, was first converted to JPEG, then replaced by the drawn diagram above.) Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
   small C-scan copy, the old logo, the old rollouts). The browser finds them by `import.meta.glob`
   (`ui/report/reportAssets.ts`; the build hashes and precaches them like the logo), Node from the folder.
-- **Horizontal rollout** (`guide-rollout-horizontal`): the V-100 sample job (`ui/sampleJobData.ts`, photos in
-  `public/sample-photos/`), so it always shows the app's current drawing style and no client names. The browser reads
-  its photos from the site (`ui/report/useExampleThumbs.ts`: thumbnails for the Pages view, `examplePhotoReader` for the
-  PDF), Node (`npm run report:pdf`, tests) from `public/sample-photos/` (`sheetPhotosFor`).
-- **No vertical rollout** (user, 2026-11-01: not needed, it would be too much). The `guide-rollout-vertical` slot, its
-  Review note and the `pending` slot kind were removed. The user may later drop the example rollout too: that is
-  deleting the Guide's second part in `generic.ts` (the Guide becomes one page; `EXAMPLE_JOBS` and the photo routing
-  can then go as well).
+- **No example rollouts** (user, 2026-11-01): the old workbook's "Examples of rollouts with scans overlaid" is left out;
+  the report's own rollout drawings explain themselves. Built and dropped the same day: a vertical example (too much)
+  and the V-100 sample's rollout drawn as an example sheet (the example-job code, `report/exampleJobs.ts` and its photo
+  routing, was removed with it).
 
 ---
 
@@ -870,7 +865,7 @@ compat v5.0 and the .lsp / DXF fingerprints unchanged.
     Analysis"); template version not raised (no job has printed with version 1 yet).
   - A blank equipment type reads "equipment" in the scope and summary sentences.
   - Fixed pages: the old workbook's pictures were not in the repo; each printed a marked placeholder box ("Picture to come: ...").
-    Replaced on 2026-11-01 by the bundled pictures and the V-100 example rollout (6.12); no placeholder prints any more.
+    Replaced on 2026-11-01 by the bundled pictures and the drawn scan views diagram (6.12); no placeholder prints any more.
   - Redaction marks are not drawn; Review lists each picture that has one ("redaction comes in a later version").
 
 ## R4 as built (2026-10-31, branch feature/report-r4)

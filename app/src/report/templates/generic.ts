@@ -170,7 +170,8 @@ export const GENERIC_AUT: ReportTemplate = {
   ],
 
   // Integrity EPC's own boilerplate (no client content); pictures bundled with the app (src/assets/report/, cleared by
-  // the user 2026-11-01) and the V-100 example job's rollout drawn as vectors.
+  // the user 2026-11-01) and the scan views diagram the app draws. No example rollout (user, 2026-11-01: the report's
+  // own rollout explains itself).
   fixedPages: [
     {
       sectionId: 'equipment',
@@ -214,14 +215,6 @@ export const GENERIC_AUT: ReportTemplate = {
               { text: 'B-SCAN (Y-axis section)', box: [0.195, 0.754, 0.999, 0.949], at: [0.245, 0.775] },
             ],
           },
-        ],
-      }, {
-        layout: 'below',
-        paragraphs: [
-          { heading: 'Examples of rollouts with scans overlaid', text: 'Vertical tank and horizontal vessel rollouts with the AUT scans overlaid.' },
-        ],
-        pictures: [
-          { slot: 'guide-rollout-horizontal', kind: 'example', job: 'v100', caption: 'Horizontal vessel' },
         ],
       }],
     },

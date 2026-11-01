@@ -10,7 +10,6 @@ import { photoNeeds, type SheetModel } from '../../engine/sheetModel.ts'
 import { reportPdfName } from '../../export/files.ts'
 import { preparePhotos } from '../../export/pdf/photos.ts'
 import type { ReportFontId } from '../../report/fonts.ts'
-import { withExamplePhotos } from '../../report/exampleJobs.ts'
 import { buildReport } from '../../report/pages/index.ts'
 import { jobTitle } from '../../state/session.ts'
 import { plural } from '../../state/steps.ts'
@@ -26,7 +25,6 @@ import { readPdfInfo } from '../../report/pdfInfo.ts'
 import { isPdfUpload } from '../../report/pagesEdits.ts'
 import { allowReportFiles, preparePictures, readUploadFile, refKey } from './reportFiles.ts'
 import { useReport } from './reportContext.ts'
-import { examplePhotoReader } from './useExampleThumbs.ts'
 import { FONT_URLS } from './reportFonts.ts'
 import type { ReportStepProps } from './ReportWorkspace.tsx'
 
@@ -80,7 +78,7 @@ export function ExportStep({ status }: ReportStepProps) {
       const doc = buildReport({ project: p, image: (ref) => known.get(refKey(ref))?.info ?? null, previewHidden: new Set(previewPrefs().hidden), pdfPages: (f) => pdfSizes.get(f) ?? null })
       const prepared = await preparePictures(doc, pages.sources, PICTURE_DPI, (d, t) => setBusy(`Preparing pictures: ${d} of ${t}`))
       const models: SheetModel[] = doc.pages.flatMap((pg) => pg.items.flatMap((i) => (i.t === 'sheet' ? [i.model] : [])))
-      const sheetPhotos = await preparePhotos(photoNeeds(models), withExamplePhotos(browserPhotoReader(p, drawingPhotos.photoFolder), examplePhotoReader), p.settings.pdfPhotoDpi, (d, t) => setBusy(`Preparing drawing photos: ${d} of ${t}`))
+      const sheetPhotos = await preparePhotos(photoNeeds(models), browserPhotoReader(p, drawingPhotos.photoFolder), p.settings.pdfPhotoDpi, (d, t) => setBusy(`Preparing drawing photos: ${d} of ${t}`))
       setBusy('Writing the PDF...')
       const fonts = {} as Record<ReportFontId, Uint8Array>
       for (const [id, url] of Object.entries(FONT_URLS) as [ReportFontId, string][]) fonts[id] = await fetchBytes(url)

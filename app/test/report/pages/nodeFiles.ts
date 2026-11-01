@@ -14,7 +14,6 @@ import type { Project } from '../../../src/data/schema.ts'
 import { photoNeeds, type SheetModel } from '../../../src/engine/sheetModel.ts'
 import { preparePhotos, type PhotoReader } from '../../../src/export/pdf/photos.ts'
 import type { ReportFontId } from '../../../src/report/fonts.ts'
-import { EXAMPLE_JOBS, exampleProject, withExamplePhotos } from '../../../src/report/exampleJobs.ts'
 import { applyPixelEdits, cropPixels, hasPixelEdits, uprightPixels } from '../../../src/report/imageProcess.ts'
 import { readImageInfo } from '../../../src/report/imageInfo.ts'
 import { imageNeeds, type ImageInfo, type ImageRef, type ReportDocument } from '../../../src/report/pageModel.ts'
@@ -30,7 +29,6 @@ export const DRAWING_FONT = new Uint8Array(readFileSync(join(SRC, 'assets', 'fon
 export const LOGO_FILE = join(SRC, 'assets', 'brand', 'integrity-epc-logo.png')
 /** The template's bundled pictures (the fixed pages). */
 export const REPORT_ASSETS = join(SRC, 'assets', 'report')
-const PUBLIC = join(SRC, '..', 'public')
 
 /** Folders for each picture source (brand and asset are the app's own). */
 export type ReportFolders = Partial<Record<'photos' | 'screenshots' | 'cover' | 'calibration' | 'uploads', string>>
@@ -110,13 +108,9 @@ export function folderPhotoReader(p: Project, folder: string): PhotoReader {
   }
 }
 
-/** The drawing photos the document's drawing pages show: the job's from its folder, the example jobs' from public/. */
+/** The drawing photos the document's drawing pages show. */
 export async function sheetPhotosFor(p: Project, doc: Pick<ReportDocument, 'pages'>, folder: string | undefined, dpi: number) {
   const models: SheetModel[] = doc.pages.flatMap((pg) => pg.items.flatMap((i) => (i.t === 'sheet' ? [i.model] : [])))
-  const own = folderPhotoReader(p, folder ?? '')
-  const example = (job: string) => {
-    const q = exampleProject(job)
-    return q ? folderPhotoReader(q, join(PUBLIC, EXAMPLE_JOBS[job].photos)) : null
-  }
-  return (await preparePhotos(photoNeeds(models), withExamplePhotos(own, example), dpi)).photos
+  if (!folder) return new Map()
+  return (await preparePhotos(photoNeeds(models), folderPhotoReader(p, folder), dpi)).photos
 }

@@ -458,10 +458,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   IEPC AUT Report workbook, unchanged; nothing else from `Claude outputs/` goes into the repo), ImageSource `asset`, browser URLs by
   `import.meta.glob` (`ui/report/reportAssets.ts`, precached), optional `labels` (outline + tab over a part of it: the Guide's C-scan
   names C-SCAN, COLOR SCALE, A-SCAN, B-SCAN); `drawn` = a diagram drawn as vectors by `report/pages/diagrams.ts` (the Equipment
-  page's scan views: plate with C / B / D-scan faces, transducer, and a white full-wave A-scan on black); `example` = an example job's main sheet as vectors, "Overlays"
-  (`report/exampleJobs.ts`: `EXAMPLE_JOBS`, v100 = the sample job, photos from `public/sample-photos/`; scan IDs prefixed
-  `example:<job>:`, `withExamplePhotos` routes the PDF's photo reader, `ui/report/useExampleThumbs.ts` the Pages view's thumbnails,
-  `sheetPhotosFor` in Node). No vertical rollout (user, 2026-11-01).
+  page's scan views: plate with C / B / D-scan faces, transducer, and a white full-wave A-scan on black). No example rollouts on
+  the Guide (user, 2026-11-01: the report's own rollout explains itself).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -1153,3 +1151,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   (white full-wave trace on black, grid, gate, echoes named). The old picture (scan-views-diagram.jpg) is removed. The Guide's
   example C-scan gets labels over it (outline + tab, first orange, then brand navy #104777 on a white line, 1.75 pt, at the user's request: C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis section)).
   Outputs of the drawing unchanged.
+- 2026-11-01 – Report fixed pages (feature/report-fixed-pages, user: the example rollout explains nothing the report's own rollout
+  doesn't): the Guide's example rollout removed; the Guide is one page (the labelled example C-scan). The example-job code went with
+  it (`report/exampleJobs.ts`, `ui/report/useExampleThumbs.ts`, the photo routing in the report Export step, Pages view and Node
+  `sheetPhotosFor`, slot kind `example`). Outputs of the drawing unchanged.
