@@ -449,7 +449,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (`pdfPageMarks`). Page model: `ImageItem.autoLevels / redactions / place`, `TextItem.halo`, `PathItem.blend`; `imageKey` includes the pixel
   edits. UI `ui/report/markup/`: `useMarkupEditor` (host-agnostic: tool, selection, drags, keys; one `app.edit` per change, nudges grouped),
   `MarkupStage`, `MarkupToolbar` + `MarkupPanel` (under the picture), `MarkupWindow` + `MarkupButton` (host A, next to every Crop button and on
-  PDF pages; crop is a mode), `InPlaceEditor` (host B: double-click a picture in the Pages view), `MarkupOpener` + `targets.ts` (Review's Go
+  PDF pages; crop is a mode; also a double-click on a picture or drawing in the Pages view), `MarkupOpener` + `targets.ts` (Review's Go
   to on a picture opens the editor), `prefs.ts` (last tool / colour / widths in localStorage `axisbuilder:markup`). Saved label styles are the
   record list `labelStyles` in `report/savedLists.ts`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
@@ -1094,3 +1094,10 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   (`MarkupToolbar part="tools"`, Redact shown greyed out where it doesn't apply), the picture filling the rest, and one line at the bottom
   (`MarkupPanel compact`: hint or selection actions and text, auto levels, copy markup, print size, zoom). Both bars keep one line, so the
   picture never changes size when something is selected. In place in the Pages view keeps its two floating bars. Outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): the in-place editor in the Pages view is removed (`InPlaceEditor.tsx`); a double-click
+  there opens the full-screen window. Window: the title left the top line (the colours start at the left edge); the picture's name is in the
+  bottom line with its print size, cut short with "..." and the full name on hover; the tools rail has two columns (no scrolling); the bottom
+  line keeps one fixed-height line. A new mark stays selected until Enter, Esc or a click elsewhere (a drawing tool moves / resizes the
+  selected mark, a click off it only lets go); Enter in a label's text finishes it and lets go (Shift+Enter: new line). New box style
+  "Highlighted, no outline" (`SHAPE_MODES` 'highlightedPlain'); new labels default to rounded with no outline (`DEFAULT_PREFS.halo` false;
+  stored markup settings get version 2, which drops an older kept outline once). Tests added; outputs unchanged.

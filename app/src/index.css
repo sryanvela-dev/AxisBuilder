@@ -3550,39 +3550,6 @@ svg.report-page .report-paper {
   float: right;
 }
 
-/* In place in the Pages view (host B): the page dimmed around the picture being edited. */
-.markup-inplace {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-}
-
-.markup-inplace-dim {
-  position: absolute;
-  inset: 0;
-  background: rgb(10 14 20 / 0.55);
-}
-
-.markup-inplace-bar {
-  position: absolute;
-  z-index: 2;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(1100px, calc(100% - 16px));
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
-}
-
-.markup-inplace-stage {
-  position: absolute;
-  z-index: 1;
-  box-shadow: 0 0 0 2px var(--focus);
-}
-
 /* The tool's settings row keeps its height whatever the tool, so the picture never jumps. */
 .markup-settings {
   min-height: 32px;
@@ -3624,11 +3591,6 @@ svg.report-page .report-paper {
   position: absolute;
   inset: 0;
   height: 100%;
-}
-
-.markup-inplace-bottom {
-  top: auto;
-  bottom: 8px;
 }
 
 /* The markup window fills the screen (user, 2026-11-01): the picture as large as it can be, or at actual print size. */
@@ -3731,17 +3693,17 @@ svg.report-page .report-paper {
   flex: none;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
 }
 
+/* Two columns, so every tool shows without scrolling, even on a short screen. */
 .markup-rail-tools {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: repeat(2, 78px);
+  gap: 3px;
 }
 
 .markup-rail .markup-tool {
-  width: 76px;
+  width: 78px;
   min-width: 0;
   padding: 4px 2px;
   font-size: 11px;
@@ -3790,6 +3752,10 @@ svg.report-page .report-paper {
 .markup-printed {
   font-size: 13px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 45vw;
 }
 
 .markup-footer .markup-popover {
@@ -3821,4 +3787,26 @@ svg.report-page .report-paper {
 
 .markup-head > .markup-spacer {
   flex: 0 0 4px;
+}
+
+/* The bottom line too: the label text box and the picture's name give way before anything wraps. */
+.markup-footer {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  height: 40px;
+  min-height: 40px;
+}
+
+.markup-footer .markup-grow {
+  flex: 1 1 140px;
+  min-width: 140px;
+}
+
+.markup-footer .markup-printed {
+  flex: 0 1 auto;
+}
+
+.markup-footer > *:not(.markup-row):not(.markup-printed),
+.markup-footer > .markup-row > *:not(.markup-grow) {
+  flex-shrink: 0;
 }

@@ -18,7 +18,8 @@ import { useApp } from '../../appContext.ts'
 import { useReport } from '../reportContext.ts'
 import type { MarkupEditorState } from './useMarkupEditor.ts'
 
-const SHAPE_NAMES = { outline: 'Outline', filled: 'Filled', highlighted: 'Highlighted' } as const
+const SHAPE_NAMES = { outline: 'Outline', filled: 'Filled', highlighted: 'Highlighted', highlightedPlain: 'Highlighted, no outline' } as const
+const SHAPE_TIPS = { outline: 'Edge only', filled: 'Solid fill', highlighted: 'See-through fill with a solid edge', highlightedPlain: 'See-through fill, no edge' } as const
 const CALLOUTS = [['rounded', 'Rounded box'], ['square', 'Square box'], ['pill', 'Pill'], ['plain', 'Text with halo']] as const
 const LEADER_ENDS = [['arrow', 'Arrow'], ['dot', 'Dot'], ['none', 'No end']] as const
 const HEADS = [['closed', 'Closed'], ['open', 'Open'], ['dot', 'Dot'], ['none', 'None']] as const
@@ -43,7 +44,7 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
   /** The crop tool (window host only). */
   showCrop?: boolean
   onCrop?: () => void
-  /** Both rows (in place), or only the tools as a vertical rail / only the settings row (the full-screen window). */
+  /** Both rows, or only the tools as a vertical rail / only the settings row (the full-screen window). */
   part?: 'all' | 'tools' | 'settings'
 }) {
   const { savedLists, changeLists } = useReport()
@@ -116,7 +117,7 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
           <span className="markup-group" role="group" aria-label="Box style">
             {SHAPE_MODES.map((s) => (
               <button key={s} type="button" className={`btn btn-small${prefs.shape === s ? ' on' : ''}`} aria-pressed={prefs.shape === s}
-                title={s === 'highlighted' ? 'See-through fill with a solid edge' : s === 'filled' ? 'Solid fill' : 'Edge only'} onClick={() => pref({ shape: s }, 'Change box style')}>{SHAPE_NAMES[s]}</button>
+                title={SHAPE_TIPS[s]} onClick={() => pref({ shape: s }, 'Change box style')}>{SHAPE_NAMES[s]}</button>
             ))}
           </span>
         )}
@@ -310,11 +311,12 @@ function SaveStyle({ mark, onSave }: { mark: Mark; onSave: (s: LabelStyle) => vo
   )
 }
 
-/** A text box that stores its value when you leave it (or Ctrl+Enter): one undo step per edit. Esc puts it back. */
-function useTextDraft(value: string, focus: number, onCommit: (v: string) => void) {
+/** A text box that stores its value when you leave it (or Enter): one undo step per edit. Esc puts it back. */
+function useTextDraft(value: string, focus: number, onCommit: (v: string) => void, onDone?: () => void) {
   const [draft, setDraft] = useState(value)
   const [base, setBase] = useState(value)
   const ref = useRef<HTMLTextAreaElement & HTMLInputElement>(null)
+  const finished = useRef(false)
   // The stored value changed (undo, another mark selected): the box shows it.
   if (base !== value) {
     setBase(value)
@@ -329,13 +331,25 @@ function useTextDraft(value: string, focus: number, onCommit: (v: string) => voi
   return {
     ref, value: draft,
     onChange: (e: { target: { value: string } }) => setDraft(e.target.value),
-    onBlur: () => draft !== value && onCommit(draft),
+    onBlur: () => {
+      if (finished.current) finished.current = false
+      else if (draft !== value) onCommit(draft)
+    },
     onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) (e.target as HTMLElement).blur()
+      // Enter finishes the text and lets go of the mark (Shift+Enter: a new line); the keys go back to the editor.
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (draft !== value) onCommit(draft)
+        finished.current = true
+        ;((e.target as HTMLElement).closest('[tabindex="-1"]') as HTMLElement | null)?.focus({ preventScroll: true })
+        onDone?.()
+      }
       if (e.key === 'Escape') {
         e.stopPropagation()
         setDraft(value)
-        setTimeout(() => ref.current?.blur())
+        const root = (e.target as HTMLElement).closest('[tabindex="-1"]') as HTMLElement | null
+        setTimeout(() => (root ? root.focus({ preventScroll: true }) : ref.current?.blur()))
       }
     },
   }
@@ -346,12 +360,12 @@ const linkValue = (l: Mark['link']) => (l ? `${l.list}|${l.occurrence}|${l.id}` 
 /** A label's text, or its live data link and template. */
 function LabelText({ ed, mark, project }: { ed: MarkupEditorState; mark: Extract<Mark, { kind: 'label' }>; project: import('../../../data/schema.ts').Project }) {
   const live = mark.link !== null && mark.template.trim() !== ''
-  const text = useTextDraft(mark.text, live ? 0 : ed.textFocus, (v) => ed.actions.change('Edit label text', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'label' ? { ...m, text: v } : m))))
+  const text = useTextDraft(mark.text, live ? 0 : ed.textFocus, (v) => ed.actions.change('Edit label text', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'label' ? { ...m, text: v } : m))), () => ed.setSel(new Set()))
   const template = useTextDraft(mark.template, live ? ed.textFocus : 0, (v) => ed.actions.change('Edit live label', (ms) => setFields(ms, new Set([mark.id]), (m) => {
     if (m.kind !== 'label') return m
     const next = { ...m, template: v }
     return { ...next, text: liveText(project, next) ?? m.text }
-  })))
+  })), () => ed.setSel(new Set()))
   const setLink = (v: string) => ed.actions.change(v ? 'Link the label' : 'Unlink the label', (ms) => setFields(ms, new Set([mark.id]), (m) => {
     if (m.kind !== 'label') return m
     if (!v) return { ...m, link: null, template: '' }
@@ -401,7 +415,7 @@ function LabelText({ ed, mark, project }: { ed: MarkupEditorState; mark: Extract
       ) : (
         <label className="markup-group markup-grow">
           <span className="muted">Text</span>
-          <textarea rows={2} {...text} aria-label="Label text" placeholder="Label text (Ctrl+Enter to finish)" />
+          <textarea rows={2} {...text} aria-label="Label text" placeholder="Label text (Enter to finish, Shift+Enter for a new line)" />
         </label>
       )}
     </div>
@@ -410,7 +424,7 @@ function LabelText({ ed, mark, project }: { ed: MarkupEditorState; mark: Extract
 
 /** A badge's key text (printed under the picture). */
 function BadgeText({ ed, mark }: { ed: MarkupEditorState; mark: Extract<Mark, { kind: 'badge' }> }) {
-  const text = useTextDraft(mark.text, ed.textFocus, (v) => ed.actions.change('Edit badge key', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'badge' ? { ...m, text: v } : m))))
+  const text = useTextDraft(mark.text, ed.textFocus, (v) => ed.actions.change('Edit badge key', (ms) => setFields(ms, new Set([mark.id]), (m) => (m.kind === 'badge' ? { ...m, text: v } : m))), () => ed.setSel(new Set()))
   return (
     <div className="markup-row markup-text">
       <label className="markup-group markup-grow">

@@ -5,6 +5,8 @@
 import { DEFAULT_PREFS, TOOL_IDS, type ToolId, type ToolPrefs } from '../../../report/markTools.ts'
 
 const KEY = 'axisbuilder:markup'
+/** 2 (2026-11-01): labels start without an outline, so an outline kept before then is dropped once. */
+const VERSION = 2
 
 export interface StoredPrefs {
   tool: ToolId
@@ -18,7 +20,9 @@ export function readPrefs(): StoredPrefs {
     const tool = raw && TOOL_IDS.includes(raw.tool as ToolId) ? (raw.tool as ToolId) : 'select'
     const prefs = { ...DEFAULT_PREFS }
     const got = (raw?.prefs ?? {}) as Record<string, unknown>
+    const old = (raw as { v?: unknown } | null)?.v !== VERSION
     for (const k of Object.keys(DEFAULT_PREFS) as (keyof ToolPrefs)[]) {
+      if (old && k === 'halo') continue
       if (typeof got[k] === typeof DEFAULT_PREFS[k]) (prefs as Record<string, unknown>)[k] = got[k]
     }
     return { tool, prefs }
@@ -29,7 +33,7 @@ export function readPrefs(): StoredPrefs {
 
 export function writePrefs(p: StoredPrefs): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(p))
+    localStorage.setItem(KEY, JSON.stringify({ v: VERSION, ...p }))
   } catch {
     // Not kept: the next editor starts from the defaults.
   }

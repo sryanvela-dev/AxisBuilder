@@ -14,6 +14,7 @@ import {
   type MarkFrame,
 } from '../../src/report/markGeometry.ts'
 import { contrastOf, markItemsOf } from '../../src/report/marks.ts'
+import { applyPrefToMark, DEFAULT_PREFS, toolStyle } from '../../src/report/markTools.ts'
 import { imagePoint, type ImageItem } from '../../src/report/pageModel.ts'
 import { keyEntries, keyHeight } from '../../src/report/pages/badgeKey.ts'
 import { buildReport } from '../../src/report/pages/index.ts'
@@ -241,6 +242,31 @@ describe('mark edits', () => {
     const c = pictureAt(out.report!, { kind: 'photo', index: 2 })!.edits.markup
     expect(c[0].kind === 'arrow' && c[0].from).toEqual([0.1, 0.1])
     expect(appendCopies([], []).marks).toEqual([])
+  })
+})
+
+describe('tool looks (user, 2026-11-01)', () => {
+  it('a highlighted box can have no outline, and keeps none through a colour change', () => {
+    const st = toolStyle('rect', { ...DEFAULT_PREFS, shape: 'highlightedPlain', color: '#f2c200' })
+    expect(st.stroke).toBeNull()
+    expect(st.fill).toBe('#f2c200')
+    expect(st.fillOpacity).toBeLessThan(1)
+    const box = markSchema.parse({ id: 'a', kind: 'rect', box: { x0: 0.1, y0: 0.1, x1: 0.5, y1: 0.5 }, style: st })
+    const blue = applyPrefToMark(box, { color: '#1d5fa8' })
+    expect(blue.style.stroke).toBeNull()
+    expect(blue.style.fill).toBe('#1d5fa8')
+    const edged = applyPrefToMark(blue, { shape: 'highlighted' })
+    expect(edged.style.stroke).toBe('#1d5fa8')
+    expect(applyPrefToMark(edged, { shape: 'highlightedPlain' }).style.stroke).toBeNull()
+    // Drawn without an edge: no stroked item.
+    const frame: MarkFrame = { x: 0, y: 0, w: 4, h: 3, crop: null, rotate: 0, upright: { w: 400, h: 300 } }
+    expect(markItemsOf(frame, box).every((it) => !('stroke' in it) || it.stroke === null)).toBe(true)
+  })
+
+  it('a new text box is rounded with no outline', () => {
+    expect(DEFAULT_PREFS.callout).toBe('rounded')
+    expect(DEFAULT_PREFS.halo).toBe(false)
+    expect(toolStyle('label', DEFAULT_PREFS).halo).toBe(false)
   })
 })
 

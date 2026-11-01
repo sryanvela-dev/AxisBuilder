@@ -35,7 +35,8 @@ export const TOOLS: readonly ToolInfo[] = [
   { id: 'redaction', label: 'Redact', key: 'X', icon: '▇', hint: 'Redaction: drag a box; the PDF removes those pixels (black or blurred)' },
 ]
 
-export const SHAPE_MODES = ['outline', 'filled', 'highlighted'] as const
+/** Box and ellipse looks: edge only, solid, see-through fill with an edge, see-through fill without one. */
+export const SHAPE_MODES = ['outline', 'filled', 'highlighted', 'highlightedPlain'] as const
 export type ShapeMode = (typeof SHAPE_MODES)[number]
 
 /** What the toolbar holds for new marks (kept per browser). */
@@ -54,7 +55,7 @@ export interface ToolPrefs {
   redact: 'black' | 'blur'
   bold: boolean
   font: 'roboto' | 'montserrat'
-  /** Contrasting outline / halo on labels and badges. */
+  /** Contrasting outline / halo on labels and badges (off by default: user, 2026-11-01). */
   halo: boolean
   /** Label and badge box background opacity. */
   bgOpacity: number
@@ -62,7 +63,7 @@ export interface ToolPrefs {
 
 export const DEFAULT_PREFS: ToolPrefs = {
   color: '#d62828', width: 1.5, shape: 'outline', hlWidth: 12, hlEnds: 'flat', textSize: 9, callout: 'rounded', leaderEnd: 'arrow', head: 'closed', redact: 'black',
-  bold: false, font: 'roboto', halo: true, bgOpacity: 0.9,
+  bold: false, font: 'roboto', halo: false, bgOpacity: 0.9,
 }
 
 /** Colour presets with their meaning (design 14): red finding, yellow highlight, green acceptable, blue note. */
@@ -85,13 +86,14 @@ export const HIGHLIGHTED_FILL = 0.25
 /** Smallest drag that makes a box, line or arrow (view inches); less is a click. */
 export const MIN_DRAG = 0.06
 
+const see = (m: ShapeMode) => m === 'highlighted' || m === 'highlightedPlain'
 const base = (s: Partial<MarkStyle>): MarkStyle => markSchema.parse({ id: 'x', kind: 'badge', at: [0, 0], n: 1, style: s }).style
 
 /** The style a tool gives a new mark. */
 export function toolStyle(tool: ToolId, p: ToolPrefs): MarkStyle {
   switch (tool) {
     case 'rect': case 'ellipse':
-      return base({ stroke: p.color, width: p.width, fill: p.shape === 'outline' ? null : p.color, fillOpacity: p.shape === 'highlighted' ? HIGHLIGHTED_FILL : 1 })
+      return base({ stroke: p.shape === 'highlightedPlain' ? null : p.color, width: p.width, fill: p.shape === 'outline' ? null : p.color, fillOpacity: see(p.shape) ? HIGHLIGHTED_FILL : 1 })
     case 'highlight': case 'highlightLine':
       return base({ stroke: p.color, width: p.hlWidth, opacity: HIGHLIGHT_OPACITY, ends: p.hlEnds })
     case 'pen': case 'line': case 'arrow':
@@ -186,7 +188,7 @@ export function applyPrefToMark(m: Mark, change: Partial<ToolPrefs>): Mark {
   if (change.color !== undefined) {
     const c = change.color
     if (k === 'rect' || k === 'ellipse') {
-      s.stroke = c
+      if (s.stroke !== null || s.fill === null) s.stroke = c
       if (s.fill !== null) s.fill = c
     } else if (k === 'label') {
       s.stroke = c
@@ -202,8 +204,10 @@ export function applyPrefToMark(m: Mark, change: Partial<ToolPrefs>): Mark {
   if (change.hlWidth !== undefined && k === 'highlight') s.width = change.hlWidth
   if (change.hlEnds !== undefined && k === 'highlight') s.ends = change.hlEnds
   if (change.shape !== undefined && (k === 'rect' || k === 'ellipse')) {
-    s.fill = change.shape === 'outline' ? null : (s.stroke ?? '#d62828')
-    s.fillOpacity = change.shape === 'highlighted' ? HIGHLIGHTED_FILL : 1
+    const c = s.stroke ?? s.fill ?? '#d62828'
+    s.stroke = change.shape === 'highlightedPlain' ? null : c
+    s.fill = change.shape === 'outline' ? null : c
+    s.fillOpacity = see(change.shape) ? HIGHLIGHTED_FILL : 1
   }
   if (k === 'label' || k === 'badge') {
     if (change.textSize !== undefined) s.textSize = k === 'badge' ? change.textSize + 1 : change.textSize

@@ -49,6 +49,8 @@ function useStageRoom(ref: React.RefObject<HTMLDivElement | null>): { w: number;
   return room
 }
 
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 /** CSS pixels per inch: the browser's "actual size" (1 in = 96 CSS px; true on paper scale when the screen's scaling is set right). */
 const CSS_PPI = 96
 type Zoom = 'fit' | 1 | 2
@@ -139,6 +141,7 @@ function EditorBody({ target, title, onDone, pic, frame, printedW, printedPage, 
   const root = useRef<HTMLDivElement>(null)
   const sheetId = useId().replace(/:/g, '')
   useEffect(() => root.current?.focus(), [])
+  const printed = printedW !== null ? `prints ${printedW.toFixed(2)} in wide on p. ${printedPage}` : `not in the report yet (as if ${frame.w.toFixed(1)} in wide)`
   const hint = ed.status || TOOLS.find((t) => t.id === ed.tool)?.hint || ''
   return (
     <div className="markup-editor" ref={root} tabIndex={-1} onKeyDown={(e) => {
@@ -151,7 +154,7 @@ function EditorBody({ target, title, onDone, pic, frame, printedW, printedPage, 
       ed.onKeyDown(e)
     }}>
       <div className="markup-head">
-        <h2>{title}</h2>
+        <h2 className="visually-hidden">{title}</h2>
         <MarkupToolbar ed={ed} part="settings" />
         <span className="markup-spacer" />
         <UndoRedo />
@@ -167,8 +170,8 @@ function EditorBody({ target, title, onDone, pic, frame, printedW, printedPage, 
       </div>
       <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} compact hint={hint} extra={(
         <>
-          <span className="muted markup-printed" title="Marks and text are drawn to the printed scale at every zoom">
-            {printedW !== null ? `Prints ${printedW.toFixed(2)} in wide (p. ${printedPage})` : `Not in the report yet (as if ${frame.w.toFixed(1)} in wide)`}
+          <span className="muted markup-printed" title={`${target.name}: ${printed}. Marks and text are drawn to the printed scale at every zoom`}>
+            <strong>{capital(target.name)}</strong> · {printed}
           </span>
           <span className="markup-group" role="group" aria-label="Zoom">
             <button type="button" className={`btn btn-small${zoom === 'fit' ? ' on' : ''}`} aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}

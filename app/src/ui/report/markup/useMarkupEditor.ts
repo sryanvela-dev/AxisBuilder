@@ -1,7 +1,7 @@
 // The markup editor's state and behaviour (design 14 "Editor", R5), host-agnostic: it takes the picture (its place in
 // the report), the frame the marks are drawn in (view inches: the picture as it prints, turned and cropped) and the zoom
-// (screen pixels per view inch), and holds the tool, the selection, drags and keys. A host (the full-size window, or
-// the picture in place on a page in the Pages view) draws <MarkupToolbar> and <MarkupStage> where it likes.
+// (screen pixels per view inch), and holds the tool, the selection, drags and keys. The full-screen window draws
+// <MarkupToolbar> and <MarkupStage> where it likes.
 //
 // Every finished change is one app.edit() (one undo step): a drag is stored when the pointer goes up (the stage shows a
 // draft while dragging), a run of arrow-key nudges on the same marks merges into one step.
@@ -176,6 +176,22 @@ export function useMarkupEditor(props: EditorProps) {
       drag.current = { kind: 'band', p0: p }
       return
     }
+    // A drawing tool with a mark still selected (the one just made): its handles and body move and resize it, a click
+    // anywhere else only lets go of it; the next drag draws.
+    if (selection.size) {
+      const h = handleAt(p)
+      if (h) {
+        drag.current = { kind: 'handle', start: marks, id: h.id, h: h.h, moved: false, client }
+        return
+      }
+      const hit = markAt(frame, marks, p, tol)
+      if (hit && selection.has(hit.id) && !hit.locked) {
+        drag.current = { kind: 'move', start: marks, p0: p, ids: new Set([...selection].filter((id) => !marks.find((m) => m.id === id)?.locked)), moved: false, client }
+        return
+      }
+      setSel(new Set())
+      return
+    }
     const start = snapped(p, e.altKey)
     if (isFreehand(tool)) drag.current = { kind: 'stroke', pts: [p] }
     else drag.current = { kind: 'create', a: start, client }
@@ -227,13 +243,12 @@ export function useMarkupEditor(props: EditorProps) {
     }
   }
 
-  const add = (made: NewMark, what: string, select: boolean) => {
+  /** A new mark stays selected (to adjust, restyle or type into) until Enter, Esc or a click elsewhere. */
+  const add = (made: NewMark, what: string, typeText: boolean) => {
     const { marks: next, id } = addMark(stored, made)
     commit(`Add ${what}`, next)
-    if (select) {
-      setSel(new Set([id]))
-      setTextFocus((n) => n + 1)
-    }
+    setSel(new Set([id]))
+    if (typeText) setTextFocus((n) => n + 1)
   }
 
   const onPointerUp = (e: ReactPointerEvent<SVGSVGElement>) => {
@@ -372,6 +387,7 @@ export function useMarkupEditor(props: EditorProps) {
       const s = e.shiftKey ? NUDGE_BIG : NUDGE
       actions.nudge(arrows[key][0] * s, arrows[key][1] * s)
     } else if (key === 'delete' || key === 'backspace') actions.remove()
+    else if (key === 'enter' && selection.size) setSel(new Set())
     else if (ctrl && key === 'd') actions.duplicate()
     else if (ctrl && key === 'a') actions.selectAll()
     else if (ctrl && key === 'l') actions.lock()

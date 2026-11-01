@@ -3,9 +3,8 @@
 // page goes to the report step that fills it. Beside each report step, the pages panel shows the pages that step
 // affects; clicking one opens it here.
 //
-// Markup (R5, MARKUP_ENABLED): "Mark up …" in the bar opens a picture of the page in the full-size markup window;
-// double-clicking a picture marks it up in place on the page (InPlaceEditor). A single click on a picture doesn't
-// leave the view, so the double-click can land.
+// Markup (R5, MARKUP_ENABLED): "Mark up …" in the bar, or a double-click on a picture or drawing of the page, opens it
+// in the full-screen markup window. A single click on a picture doesn't leave the view, so the double-click can land.
 
 import { useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
 import { MARKUP_ENABLED } from '../../featureFlags.ts'
@@ -15,10 +14,7 @@ import type { MarkFrame } from '../../report/markGeometry.ts'
 import { sheetFrame, type ImageRef, type ReportDocument, type ReportPage } from '../../report/pageModel.ts'
 import { pictureAt } from '../../report/pagesEdits.ts'
 import { useApp } from '../appContext.ts'
-import { InPlaceEditor } from './markup/InPlaceEditor.tsx'
 import { MarkupWindow, type MarkupTarget } from './markup/MarkupWindow.tsx'
-import { refKey } from './reportFiles.ts'
-import { pdfPageKey } from './useReportPages.ts'
 import { reportStepInfo } from '../../state/reportSteps.ts'
 import type { ReportStepId } from '../../state/session.ts'
 import { PreviewSplitter } from '../preview/PreviewSplitter.tsx'
@@ -38,8 +34,6 @@ interface ViewProps {
 interface PagePicture extends MarkupTarget {
   frame: MarkFrame
 }
-
-const samePlace = (a: ImagePlace, b: ImagePlace) => JSON.stringify(a) === JSON.stringify(b)
 
 /** The pictures of a page that belong to the report (not the logo), with their frames. */
 function pagePictures(page: ReportPage, name: (at: ImagePlace, file: string) => string, thumbs: ReadonlyMap<string, string>): PagePicture[] {
@@ -69,10 +63,9 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
   const app = useApp()
   const report = app.state.job?.history.present.report ?? null
   const pics = MARKUP_ENABLED && report ? pagePictures(page, (at, file) => pictureName(report, at, pictureAt(report, at)?.file ?? file), sheetThumbs) : []
-  const [editing, setEditing] = useState<ImagePlace | null>(null)
   const [windowFor, setWindowFor] = useState<MarkupTarget | null>(null)
   const [hint, setHint] = useState('')
-  const busy = editing !== null || windowFor !== null
+  const busy = windowFor !== null
   useEffect(() => addReportFonts(), [])
   useEffect(() => {
     const el = svg.current
@@ -131,20 +124,17 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
     const d = drag.current
     drag.current = null
     if (!d || d.moved) return
-    // A click on a picture waits for a double-click (mark it up here); elsewhere it goes to the step that fills the page.
-    if (pictureAtPoint(e.clientX, e.clientY)) setHint('Double-click the picture to mark it up here, or use Mark up above.')
+    // A click on a picture waits for a double-click (mark it up); elsewhere it goes to the step that fills the page.
+    if (pictureAtPoint(e.clientX, e.clientY)) setHint('Double-click the picture to mark it up.')
     else onGo(page.step)
   }
   function onDoubleClick(e: React.MouseEvent<SVGSVGElement>) {
     const p = pictureAtPoint(e.clientX, e.clientY)
     if (p) {
       setHint('')
-      setEditing(p.at)
+      setWindowFor(p)
     }
   }
-  // The picture being marked up in place, as the page shows it now (its box follows the page as marks change it).
-  const editPic = editing ? pics.find((p) => samePlace(p.at, editing)) ?? null : null
-  const k = Math.max(box.w / screen.w, box.h / screen.h)
   const minW = Math.max(box.w / screen.w, box.h / screen.h)
   return (
     <div className="pages-full" role="dialog" aria-label="Report pages">
@@ -161,7 +151,7 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
         {pics.length > 0 && !busy && (
           <span className="button-row">
             {pics.map((p, n) => (
-              <button key={n} type="button" className="btn btn-small" onClick={() => setWindowFor(p)} title="Open this picture in the full-size markup window (or double-click it on the page to mark it up here)">
+              <button key={n} type="button" className="btn btn-small" onClick={() => setWindowFor(p)} title="Open this picture in the full-screen markup window (or double-click it on the page)">
                 Mark up {p.name.replace(/^(The|A) /, (w) => w.toLowerCase())}…
               </button>
             ))}
@@ -202,12 +192,6 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
           onPointerUp={onPointerUp}
           onDoubleClick={onDoubleClick}
         />
-        {editPic && (
-          <InPlaceEditor at={editPic.at} name={editPic.name} frame={editPic.frame} ppi={1 / k}
-            left={screen.w / 2 + (editPic.frame.x - (box.x + box.w / 2)) / k} top={screen.h / 2 + (editPic.frame.y - (box.y + box.h / 2)) / k}
-            pic={(editPic.pdfPage ? pictures.get(pdfPageKey(editPic.pdfPage.file, editPic.pdfPage.page)) : editPic.picture ? pictures.get(refKey(editPic.picture)) : null) ?? null}
-            allowRedaction={!editPic.pdfPage && !editPic.drawing} drawing={editPic.drawing} onDone={() => setEditing(null)} />
-        )}
       </div>
       {windowFor && <MarkupWindow target={windowFor} onClose={() => setWindowFor(null)} />}
     </div>

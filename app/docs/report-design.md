@@ -913,6 +913,14 @@ untouched.
   released), in fractions of the printed sheet region, drawn by the same mark code over the sheet in the Pages view and the PDF. No
   redaction, crop or auto levels on a drawing (vectors); a redaction there is left out and Review warns. A sheet's marks stay with its key,
   so if a section plan changes, section n's marks stay on section n.
+- **One host (user, 2026-11-01).** The small in-place editor (host B) is gone: a double-click on a picture or drawing in the Pages view opens
+  the full-screen window. Its top line holds only the tool's settings (undo / redo and Done at the right), so the colours always start in the
+  same place; the picture's name sits in the bottom line with its print size ("The rollout drawing · prints 8.54 in wide on p. 5", cut short
+  with its full text on hover); the tools rail has two columns (no scrolling); both lines have a fixed height. A new mark stays selected (to
+  adjust, restyle or type) until Enter, Esc or a click elsewhere; while it is selected, a drawing tool moves / resizes it instead of starting
+  another, and a click off it only lets go. Enter in a label's text box finishes the text and lets go (Shift+Enter: a new line). Box style
+  "Highlighted, no outline" (see-through fill, no edge); new labels are rounded with no outline (the outline setting's default is off; an
+  outline kept in the browser before this is dropped once, `axisbuilder:markup` version 2).
 - **Print-true.** The editor draws in page inches of the picture as it prints (its slot: `findPrinted`; a picture that doesn't print yet is
   shown 6.5 in wide), so text in points looks as big as it will on paper. The marks are drawn by the page's own code (`report/marks.ts`), so the
   editor, the Pages view and the PDF are the same drawing. The editor shows the picture turned and cropped as it prints; marks outside the
