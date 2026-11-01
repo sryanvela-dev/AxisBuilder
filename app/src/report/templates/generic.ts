@@ -169,27 +169,54 @@ export const GENERIC_AUT: ReportTemplate = {
       text: 'When performing scans on components at elevated temperatures (above 100 °F), temperature correction calculations are performed: UT thickness x (1.007 - 0.0001 x temperature in °F) = temperature corrected thickness.' },
   ],
 
-  // Integrity EPC's own boilerplate (no client content); pictures are template assets, placed in R3.
+  // Integrity EPC's own boilerplate (no client content); pictures bundled with the app (src/assets/report/, cleared by
+  // the user 2026-11-01) and the V-100 example job's rollout drawn as vectors.
   fixedPages: [
     {
       sectionId: 'equipment',
-      paragraphs: [
-        { heading: 'AUT Scanner Equipment', text: 'Integrity EPC utilizes state-of-the-art computerized robotic technology and advanced ultrasonic testing techniques to provide the oil & gas industry one of the most comprehensive inspection programs in our industry: Automated Ultrasonic Testing (AUT). AUT is a fully automated ultrasonic inspection technique, which utilizes a multi-channel ultrasonic imaging system and encoded robotic scanners. The major advantage of AUT is that it provides detailed inspection data at a high rate of speed with exceptional accuracy and repeatability.' },
-        { text: 'AUT is capable of inspecting pressure vessels, piping, storage tanks, and other equipment while in service for potential service related damage. AUT offers a full volumetric inspection providing details on shell material degradation such as erosion, corrosion, hydrogen blisters, hydrogen induced cracking (HIC), and related interlinking cracking.' },
-        { text: 'This system can also be utilized in weld inspection for the detection of both service and fabrication related defects implementing the pulse-echo or Time of Flight Diffraction (TOFD) techniques.' },
-        { heading: 'Advantages', text: 'In-service examinations at elevated temperatures (up to 500 °F direct scanner contact). High-speed data acquisition, up to 30 inches per second. Minimizes the need for costly internal entry. Detailed information for fitness for service evaluation. Exceptional repeatability, encoded scanning accurate to 0.001". Multi-tasking capabilities utilizing a full array of transducers simultaneously.' },
-        { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. B-scan (B-prime) display represents an end view along the X-axis index." },
-      ],
-      images: ['equipment-scanner', 'equipment-unit', 'equipment-cscan', 'equipment-bscan'],
+      parts: [{
+        layout: 'side',
+        paragraphs: [
+          { heading: 'AUT Scanner Equipment', text: 'Integrity EPC utilizes state-of-the-art computerized robotic technology and advanced ultrasonic testing techniques to provide the oil & gas industry one of the most comprehensive inspection programs in our industry: Automated Ultrasonic Testing (AUT). AUT is a fully automated ultrasonic inspection technique, which utilizes a multi-channel ultrasonic imaging system and encoded robotic scanners. The major advantage of AUT is that it provides detailed inspection data at a high rate of speed with exceptional accuracy and repeatability.' },
+          { text: 'AUT is capable of inspecting pressure vessels, piping, storage tanks, and other equipment while in service for potential service related damage. AUT offers a full volumetric inspection providing details on shell material degradation such as erosion, corrosion, hydrogen blisters, hydrogen induced cracking (HIC), and related interlinking cracking.' },
+          { text: 'This system can also be utilized in weld inspection for the detection of both service and fabrication related defects implementing the pulse-echo or Time of Flight Diffraction (TOFD) techniques.' },
+          { heading: 'Advantages', text: 'In-service examinations at elevated temperatures (up to 500 °F direct scanner contact). High-speed data acquisition, up to 30 inches per second. Minimizes the need for costly internal entry. Detailed information for fitness for service evaluation. Exceptional repeatability, encoded scanning accurate to 0.001". Multi-tasking capabilities utilizing a full array of transducers simultaneously.' },
+        ],
+        pictures: [
+          { slot: 'equipment-scanner', kind: 'asset', file: 'aut-scanner.png', px: { w: 685, h: 546 }, caption: 'AUT scanner' },
+          { slot: 'equipment-unit', kind: 'asset', file: 'proscan-xt.png', px: { w: 378, h: 276 }, caption: 'ProScan XT', maxW: 2 },
+        ],
+      }, {
+        layout: 'below',
+        paragraphs: [
+          { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. B-scan (B-prime) display represents an end view along the X-axis index." },
+        ],
+        pictures: [
+          { slot: 'equipment-bscan', kind: 'asset', file: 'scan-views-diagram.png', px: { w: 1589, h: 990 } },
+        ],
+      }],
     },
     {
       sectionId: 'guide',
-      paragraphs: [
-        { heading: 'Example: AUT scan with corrosion present', text: 'C-scan (plan view), B-scan (Y-axis cross sectional view) and A-scan (waveform), with the O.D. and I.D. surfaces marked.' },
-        { text: 'Referring to the UT depth color palette, the blue areas in the C-scan image represent the nominal thickness and the green, yellow and red areas represent I.D. wall loss.' },
-        { heading: 'Examples of rollouts with scans overlaid', text: 'Vertical tank and horizontal vessel rollouts with the AUT scans overlaid.' },
-      ],
-      images: ['guide-cscan-example', 'guide-rollout-vertical', 'guide-rollout-horizontal'],
+      parts: [{
+        layout: 'below',
+        paragraphs: [
+          { heading: 'Example: AUT scan with corrosion present', text: 'C-scan (plan view), B-scan (Y-axis cross sectional view) and A-scan (waveform), with the O.D. and I.D. surfaces marked.' },
+          { text: 'Referring to the UT depth color palette, the blue areas in the C-scan image represent the nominal thickness and the green, yellow and red areas represent I.D. wall loss.' },
+        ],
+        pictures: [
+          { slot: 'guide-cscan-example', kind: 'asset', file: 'example-cscan.jpg', px: { w: 1532, h: 767 } },
+        ],
+      }, {
+        layout: 'below',
+        paragraphs: [
+          { heading: 'Examples of rollouts with scans overlaid', text: 'Vertical tank and horizontal vessel rollouts with the AUT scans overlaid.' },
+        ],
+        pictures: [
+          { slot: 'guide-rollout-vertical', kind: 'pending', note: "The guide's vertical rollout example is coming." },
+          { slot: 'guide-rollout-horizontal', kind: 'example', job: 'v100', caption: 'Horizontal vessel' },
+        ],
+      }],
     },
   ],
 }

@@ -432,14 +432,44 @@ loss; temperature and corrected values when turned on). Missing screenshot -> a 
 **6.11 Uploaded pages** – images fitted under the standard frame with a title; PDF pages copied as vectors, either
 fitted under the frame or full size (4.6).
 
-**6.12 Equipment, Guide to Interpretation** – fixed text from the template, re-laid out so nothing is clipped. Their
-pictures are template assets bundled with the app. **For now taken from IEPC AUT Report.xlsm** (user, 2026-10-28;
-extracted to `References/_xlsm_images/`, not committed until checked for client content). Notes from looking at them:
-the AUT Solutions scanner and ProScan unit, the C-scan screenshots and the B-scan / C-scan diagram are fine; the
-equipment-type photos (sphere, exchanger, tank, vessel, column) are about 400 px wide with 2004 date stamps and will
-print soft; the corrosion-mapping examples and the two rollout examples on the Guide are old drawings (one names a
-client tank). Suggested later swap: newer photos, and examples made from the V-100 sample job in
-AxisBuilder's own style. Old logo image not used (the brand logo is).
+**6.12 Equipment, Guide to Interpretation** – fixed text and pictures from the template (`fixedPages` in
+`templates/generic.ts`, built by `pages/fixedText.ts`), laid out so nothing is clipped. Each page is made of parts and
+every part starts a page: **side** (text on the left, pictures in a 3.4 in column on the right) or **below** (text across
+the page, pictures in a row under it, as large as the page allows; on a page of their own when less than 2.2 in is
+left). Text that does not fit flows onto another page. As built (branch feature/report-fixed-pages, 2026-11-01):
+- **AUT Equipment** (2 pages): page 1 the scanner text and Advantages, with the AUT scanner (3.40 x 2.71 in, caption
+  "AUT scanner") and the ProScan XT (2.00 x 1.46 in, never wider than 2 in; caption "ProScan XT") in the right column;
+  page 2 Displays with the C-scan / B-scan / A-scan diagram under it (8.07 x 5.03 in). No example C-scan on this page
+  (the `equipment-cscan` slot was removed, user 2026-11-01).
+- **Guide to Interpretation** (2 pages): page 1 the corrosion example text with the example C-scan data page under it
+  (10.00 x 5.01 in); page 2 the rollouts text with the V-100 example rollout (7.21 x 5.14 in, caption "Horizontal vessel").
+- **Picture slots** (`FixedPicture` in `templates/types.ts`): `asset` = a file in `src/assets/report/` with its pixel size
+  (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded); `example` = an example job's
+  main sheet printed as vectors (`report/exampleJobs.ts`: the job's data and its photo folder under `public/`; the
+  "Overlays" set, photos and no hatch; its scan IDs prefixed `example:<job>:` so its photos never mix with the job's own);
+  `pending` = not decided yet: left out (the page closes up) and Review lists the slot's note on the section, never
+  blocking.
+- **The pictures**, cleared by the user (2026-11-01) from the old IEPC AUT Report workbook and copied unchanged:
+  `aut-scanner.png` (image31), `proscan-xt.png` (image32), `scan-views-diagram.png` (image35), `example-cscan.jpg`
+  (image36). Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
+  small C-scan copy, the old logo, the old rollouts). The browser finds them by `import.meta.glob`
+  (`ui/report/reportAssets.ts`; the build hashes and precaches them like the logo), Node from the folder.
+- **Horizontal rollout** (`guide-rollout-horizontal`): the V-100 sample job (`ui/sampleJobData.ts`, photos in
+  `public/sample-photos/`), so it always shows the app's current drawing style and no client names. The browser reads
+  its photos from the site (`ui/report/useExampleThumbs.ts`: thumbnails for the Pages view, `examplePhotoReader` for the
+  PDF), Node (`npm run report:pdf`, tests) from `public/sample-photos/` (`sheetPhotosFor`).
+- **Vertical rollout** (`guide-rollout-vertical`, later): `pending` with the note "The guide's vertical rollout example
+  is coming." Two ways to add it, each a small change:
+  1. *A second example job, drawn the same vector way.* The user hands over a saved vertical job (`.axb`) and its scan
+     photo folder, cleared for the repo. `npm run sample:make` gets an output option (today it writes only
+     `src/ui/sampleJobData.ts` and `public/sample-photos/`) and writes e.g. `src/report/exampleVerticalData.ts` and
+     `public/example-vertical-photos/`, taking out what it takes from the sample: client, unit, inspector, notes and the
+     image folder paths (the job name, equipment name and location should be neutral too, and any report left off).
+     Then one entry in `EXAMPLE_JOBS` and the slot becomes `{ kind: 'example', job: '<name>', caption: 'Vertical tank' }`.
+  2. *A cleared picture.* The user drops it into `src/assets/report/` (PNG or JPEG, no client names) and the slot becomes
+     `{ kind: 'asset', file: '<name>', px: { w, h }, caption: 'Vertical tank' }`.
+  Either way the two rollouts share the row under the text, and `test/report/pages/fixedPages.test.ts` (pending slots,
+  the asset folder list) changes with it.
 
 ---
 
@@ -839,9 +869,8 @@ compat v5.0 and the .lsp / DXF fingerprints unchanged.
   - Template column headers reworded to the style sample ("UT readings", "Area (sq in)", "Min. 'T'", "Wall loss", "Comments /
     Analysis"); template version not raised (no job has printed with version 1 yet).
   - A blank equipment type reads "equipment" in the scope and summary sentences.
-  - Fixed pages: the old workbook's pictures are not in the repo; each prints a marked placeholder box ("Picture to come: ...").
-    The template names equipment-scanner, equipment-unit, equipment-cscan, equipment-bscan (AUT Equipment) and
-    guide-cscan-example, guide-rollout-vertical, guide-rollout-horizontal (Guide to Interpretation).
+  - Fixed pages: the old workbook's pictures were not in the repo; each printed a marked placeholder box ("Picture to come: ...").
+    Replaced on 2026-11-01 by the bundled pictures and the V-100 example rollout (6.12); no placeholder prints any more.
   - Redaction marks are not drawn; Review lists each picture that has one ("redaction comes in a later version").
 
 ## R4 as built (2026-10-31, branch feature/report-r4)

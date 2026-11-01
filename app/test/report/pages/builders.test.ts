@@ -25,19 +25,19 @@ describe('report pages: the whole report', () => {
     const order = [...new Set(doc.pages.map((p) => p.sectionId))]
     expect(order).toEqual(['cover', 'contents', 'scope-summary', 'calibration', 'drawings', 'scan-sheet', 'manual-ut', 'cscan', 'equipment', 'guide'])
     expect(doc.pages.filter((p) => p.sectionId === 'cscan')).toHaveLength(17)
-    expect(doc.pages).toHaveLength(27)
+    expect(doc.pages).toHaveLength(29)
   })
 
   it('cover portrait, every other page landscape; every page but the cover has "Page X of Y"', () => {
     expect(doc.pages[0].size).toEqual(LETTER_PORTRAIT)
     expect(doc.pages.slice(1).every((p) => p.size.w === LETTER_LANDSCAPE.w)).toBe(true)
     expect(texts(doc.pages[0]).some((t) => t.startsWith('Page '))).toBe(false)
-    doc.pages.slice(1).forEach((p, i) => expect(texts(p)).toContain(`Page ${i + 2} of 27`))
+    doc.pages.slice(1).forEach((p, i) => expect(texts(p)).toContain(`Page ${i + 2} of 29`))
   })
 
   it('the contents list each section with the page it starts on, each a link to it', () => {
     expect(doc.contents.map((e) => [e.title, e.page + 1])).toEqual([
-      ['Scope & Summary', 3], ['Calibration', 4], ['Drawings', 5], ['Scan Sheet', 7], ['Manual UT', 8], ['C-Scan Data', 9], ['AUT Equipment', 26], ['Guide to Interpretation', 27],
+      ['Scope & Summary', 3], ['Calibration', 4], ['Drawings', 5], ['Scan Sheet', 7], ['Manual UT', 8], ['C-Scan Data', 9], ['AUT Equipment', 26], ['Guide to Interpretation', 28],
     ])
     const links = doc.pages[1].items.filter((i) => i.t === 'link')
     expect(links.slice(0, doc.contents.length).map((l) => (l as { page: number }).page)).toEqual(doc.contents.map((e) => e.page))
@@ -184,10 +184,10 @@ describe('report pages: the whole report', () => {
     expect(d.contents.map((e) => e.title)).toContain('AUT Scan Sheet')
   })
 
-  it('fixed pages print placeholders for the pictures not in the app yet, and say so', () => {
-    const eq = doc.pages.find((p) => p.sectionId === 'equipment')!
-    expect(pageText(eq)).toContain('Picture to come: Equipment scanner')
-    expect(doc.notes.some((n) => n.startsWith('AUT Equipment: 4 template pictures'))).toBe(true)
+  it('fixed pages: two pages each, nothing left as a placeholder (fixedPages.test.ts has the rest)', () => {
+    expect(doc.pages.filter((p) => p.sectionId === 'equipment').map((p) => p.label)).toEqual(['AUT Equipment', 'AUT Equipment 2'])
+    expect(doc.pages.filter((p) => p.sectionId === 'guide').map((p) => p.label)).toEqual(['Guide to Interpretation', 'Guide to Interpretation 2'])
+    expect(doc.notes.some((n) => /placeholder|template picture/.test(n))).toBe(false)
   })
 })
 

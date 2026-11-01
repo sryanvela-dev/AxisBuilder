@@ -101,13 +101,31 @@ export interface TextBlockDef {
   when?: string
 }
 
+/** A picture on a fixed page: a picture bundled with the app, a drawing of an example job, or a slot not decided yet. */
+export type FixedPicture =
+  /** A file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is. */
+  | { slot: string; kind: 'asset'; file: string; px: { w: number; h: number }; caption?: string; /** Never wider than this (inches). */ maxW?: number }
+  /** An example job's main sheet (report/exampleJobs.ts), printed as vectors with its scan photos (Overlays). */
+  | { slot: string; kind: 'example'; job: string; caption?: string }
+  /** Not decided yet: left out (the page closes up) and Review notes it with this text, never blocking. */
+  | { slot: string; kind: 'pending'; note: string }
+
+/**
+ * Part of a fixed page: paragraphs and their pictures. Every part starts a page. 'side': the text on the left and the
+ * pictures in a column on the right; 'below': the text across the page and the pictures in a row under it, as large
+ * as the rest of the page allows.
+ */
+export interface FixedPagePart {
+  layout: 'side' | 'below'
+  /** Paragraphs, each with an optional heading. */
+  paragraphs: { heading?: string; text: string }[]
+  pictures: FixedPicture[]
+}
+
 /** A fixed page (Equipment, Guide to Interpretation): text and pictures bundled with the app. */
 export interface FixedPageDef {
   sectionId: string
-  /** Paragraphs, each with an optional heading. */
-  paragraphs: { heading?: string; text: string }[]
-  /** Template assets (file names under the app's report assets), placed by the page builder. */
-  images: string[]
+  parts: FixedPagePart[]
 }
 
 /** Client MUT / CML naming (later, XTO). */

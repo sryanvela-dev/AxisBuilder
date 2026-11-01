@@ -38,6 +38,7 @@ import { ResultsStep } from './ResultsStep.tsx'
 import { SetupStep } from './SetupStep.tsx'
 import { SummaryStep } from './SummaryStep.tsx'
 import { MarkupOpener } from './markup/MarkupOpener.tsx'
+import { useExampleThumbs } from './useExampleThumbs.ts'
 import { useProcessedThumbs, useReportDocument, useReportPictures, useUploadPdfs } from './useReportPages.ts'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
@@ -121,7 +122,9 @@ export function ReportWorkspace() {
   const processed = useProcessedThumbs(doc, pictures)
   const shown = useMemo(() => (processed.size ? new Map([...pictures, ...processed]) : pictures), [pictures, processed])
   const drawingPhotos = useJobFolders().photos
-  const sheetThumbs = usePhotoThumbs(project, drawingPhotos.photoFolder, project.settings.generateOverlayDrawing)
+  const ownThumbs = usePhotoThumbs(project, drawingPhotos.photoFolder, project.settings.generateOverlayDrawing)
+  // The Guide's example rollout (an example job's sheet) has photos of its own.
+  const sheetThumbs = useExampleThumbs(doc, ownThumbs)
   const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists, pages: { doc, pictures: shown, sources, retry, pdfInfo: pdfs.info } }),
     [photos, screenshots, lists, changeLists, doc, shown, sources, retry, pdfs.info])
   const page = useRef<HTMLElement>(null)

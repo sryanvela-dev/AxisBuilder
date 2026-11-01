@@ -452,6 +452,14 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   PDF pages; crop is a mode; also a double-click on a picture or drawing in the Pages view), `MarkupOpener` + `targets.ts` (Review's Go
   to on a picture opens the editor), `prefs.ts` (last tool / colour / widths in localStorage `axisbuilder:markup`). Saved label styles are the
   record list `labelStyles` in `report/savedLists.ts`.
+- Report fixed pages (AUT Equipment, Guide to Interpretation; design 6.12): the template's `fixedPages` are parts (`side` = text
+  left, pictures in a column; `below` = text across, pictures in a row under it, as large as the page allows; every part starts a
+  page). Picture slots (`FixedPicture`): `asset` = a file in `src/assets/report/` (the four pictures the user cleared from the old
+  IEPC AUT Report workbook, unchanged; nothing else from `Claude outputs/` goes into the repo), ImageSource `asset`, browser URLs by
+  `import.meta.glob` (`ui/report/reportAssets.ts`, precached); `example` = an example job's main sheet as vectors, "Overlays"
+  (`report/exampleJobs.ts`: `EXAMPLE_JOBS`, v100 = the sample job, photos from `public/sample-photos/`; scan IDs prefixed
+  `example:<job>:`, `withExamplePhotos` routes the PDF's photo reader, `ui/report/useExampleThumbs.ts` the Pages view's thumbnails,
+  `sheetPhotosFor` in Node); `pending` = left out with a Review note (the vertical rollout; both ways to add it in design 6.12).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -1128,3 +1136,11 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   buttons became one "Insert field…" dropdown and the picture name steps aside while a text box is open, so the template is wider (about
   330 px). (4) Styles… ends with "Edit or delete saved styles…": rename, "Use selected look" (gives the style the selected label's look),
   delete (asks first); built-in styles listed as fixed. Tests added; outputs unchanged.
+- 2026-11-01 – Report fixed pages (branch feature/report-fixed-pages, user request): AUT Equipment and Guide to Interpretation no longer
+  print "Picture to come" boxes. Four pictures cleared by the user copied unchanged into `app/src/assets/report/` (aut-scanner.png,
+  proscan-xt.png, scan-views-diagram.png, example-cscan.jpg; precached); the `equipment-cscan` slot removed. Equipment: text with the
+  scanner and the ProScan (2 in wide) beside it, then Displays with the diagram (8.1 x 5.0 in); Guide: the example C-scan (10 x 5 in),
+  then the V-100 sample's rollout drawn as vectors with its photos (7.2 x 5.1 in, `report/exampleJobs.ts`). Each page is now two
+  pages. The vertical rollout is left out with a Review note until decided (two routes in report-design 6.12). Template
+  `fixedPages` reshaped into parts with typed picture slots. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged. No VBA
+  or workbook changes.

@@ -6,12 +6,12 @@ import type { Project } from '../data/schema.ts'
 import type { PhotoFolder } from './photoFolder.ts'
 import { sampleProject } from './sampleJob.ts'
 
-/** The sample job's photo folder: the photos it links, each read on first use. */
-export function samplePhotoFolder(names: string[]): PhotoFolder {
+/** The sample job's photo folder (or an example job's, public/<dir>/): the photos it links, each read on first use. */
+export function samplePhotoFolder(names: string[], dir = 'sample-photos'): PhotoFolder {
   const read = new Map<string, Promise<File | null>>()
   const load = async (name: string): Promise<File | null> => {
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}sample-photos/${encodeURIComponent(name)}`)
+      const res = await fetch(`${import.meta.env.BASE_URL}${dir}/${encodeURIComponent(name)}`)
       if (!res.ok) return null
       return new File([await res.blob()], name, { type: 'image/jpeg' })
     } catch {

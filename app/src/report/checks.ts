@@ -167,6 +167,15 @@ export function checkReport(p: Project): ReportCheck[] {
     })
   }
 
+  // A fixed page's picture not decided yet is left out of the page (never blocking).
+  for (const f of t.fixedPages) {
+    const def = t.sections.find((d) => d.id === f.sectionId)
+    if (!def || !sectionOn(report, def)) continue
+    for (const part of f.parts) for (const pic of part.pictures) {
+      if (pic.kind === 'pending') out.push({ severity: 'note', place: { kind: 'section', id: def.id }, text: pic.note, fix: 'Nothing to do: the page closes up without it until it is added to the app.' })
+    }
+  }
+
   // --- Calibration -------------------------------------------------------------------------------
   if (report.options.tempCorrection.on && report.options.tempCorrection.tempF === null) {
     out.push({ severity: 'error', place: field('calibration', 'report-field-temperature'), text: 'Temperature correction is on but has no temperature.',
