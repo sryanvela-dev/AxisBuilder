@@ -37,7 +37,8 @@ import { ReportContext, type ReportShared } from './reportContext.ts'
 import { ResultsStep } from './ResultsStep.tsx'
 import { SetupStep } from './SetupStep.tsx'
 import { SummaryStep } from './SummaryStep.tsx'
-import { useReportDocument, useReportPictures, useUploadPdfs } from './useReportPages.ts'
+import { MarkupOpener } from './markup/MarkupOpener.tsx'
+import { useProcessedThumbs, useReportDocument, useReportPictures, useUploadPdfs } from './useReportPages.ts'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
 const STATE_TEXT: Record<StepState, string> = { done: 'Done', attention: 'Needs attention', notStarted: 'Not started' }
@@ -116,10 +117,13 @@ export function ReportWorkspace() {
   const prefs = usePreviewPrefs()
   const previewHidden = useMemo(() => new Set(prefs.hidden), [prefs.hidden])
   const doc = useReportDocument(project, pictures, previewHidden, pdfs.info)
+  // Pictures with auto levels or redactions are shown from their processed thumbnails (the PDF's own pixel code).
+  const processed = useProcessedThumbs(doc, pictures)
+  const shown = useMemo(() => (processed.size ? new Map([...pictures, ...processed]) : pictures), [pictures, processed])
   const drawingPhotos = useJobFolders().photos
   const sheetThumbs = usePhotoThumbs(project, drawingPhotos.photoFolder, project.settings.generateOverlayDrawing)
-  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists, pages: { doc, pictures, sources, retry, pdfInfo: pdfs.info } }),
-    [photos, screenshots, lists, changeLists, doc, pictures, sources, retry, pdfs.info])
+  const shared = useMemo<ReportShared>(() => ({ photos, screenshots, savedLists: lists, changeLists, pages: { doc, pictures: shown, sources, retry, pdfInfo: pdfs.info } }),
+    [photos, screenshots, lists, changeLists, doc, shown, sources, retry, pdfs.info])
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     page.current?.scrollTo(0, 0)
@@ -173,9 +177,10 @@ export function ReportWorkspace() {
         </main>
         {doc && (
           <ErrorBoundary where="Report pages">
-            <PagesPanel doc={doc} pictures={pictures} sheetThumbs={sheetThumbs} step={step} onGo={go} loading={loading} />
+            <PagesPanel doc={doc} pictures={shown} sheetThumbs={sheetThumbs} step={step} onGo={go} loading={loading} />
           </ErrorBoundary>
         )}
+        <MarkupOpener />
       </div>
       <footer className="page-footer">
         <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>

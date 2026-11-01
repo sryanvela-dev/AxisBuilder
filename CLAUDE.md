@@ -160,7 +160,8 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   (the AUT report, `app/src/report/schema.ts`; null = drawing-only job, older files open with null) and the shared
   project fields `location` and `equipmentName` (blank). Format 8 (Phase R3) adds `crop`, `rotate`, `adjust` and `markup` on every report
   picture and Photos per page (`options.photosPerPage`); all have defaults. Format 9 (2026-10-31) adds `adjust.darken` (0 / 1 / 2) on
-  report pictures, used to darken faint uploaded PDF pages; default 0.
+  report pictures, used to darken faint uploaded PDF pages; default 0. Format 10 (Phase R5) adds to picture marks: label text style
+  (`bold`, `font`, `bgOpacity`, `halo`), a box's `angle`, an arrow's `head` and a live label's `template`; all have defaults.
   Item measurements may be null (not entered yet, e.g. an imported OCR REVIEW
   value); `findMissingData` lists them and export must refuse until they are filled in. A setting with `hidden: true`
   (v5.0-only: hatch pattern/angle, Original Image Folder, Overlay Pixels Per Inch, DraftSight Image Pixels Per Unit,
@@ -432,6 +433,25 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   left out on screen), `useUploadPdfs` (pages drawn into the pictures map under
   `pdfPageKey`, so PageSvg draws them). Export: `reportPdfName(job, client)` = `<job> - <client> - AUT Report.pdf`, uploaded PDFs
   read again and copied, summary of what was left out.
+- Report R5 (markup editor, design section 14, "R5 as built" in `app/docs/report-design.md`): behind `MARKUP_ENABLED`
+  (`src/featureFlags.ts`, the REPORT_ENABLED rule, `VITE_MARKUP` overrides; marks in a file print either way). Pure side: `report/markGeometry.ts`
+  (the "view" = page inches of the picture as it prints; stored 0-1 fractions after EXIF, before the turn; turn and crop are a similarity, so
+  edits are worked out in view inches: box turn, label box / leader start at the nearest edge, hit test, handles, move / resize / turn, freehand
+  smoothing, Shift angle lock, snapping to the picture's edges / centre and other marks with guides), `report/markTools.ts` (what each tool
+  makes, `applyPrefToMark`, `findPrinted` = the slot a picture prints in, `editorFrame`), `report/markEdits.ts` (add, delete with badges
+  renumbered, duplicate, order, lock, `copyMarkupTo`, label styles incl. built-in Finding / Note / Reading), `report/liveLabels.ts` (template
+  fields from scan / MUT rows; `refreshLiveLabels` in `syncReport` stores the last filled text, so a deleted row prints it and Review warns),
+  `report/imageProcess.ts` (auto levels with a 0.5% clip measured on the crop; redaction black or mosaic-blur on RGBA pixels; used by the
+  browser PDF embed `preparePictures`, the Node path `test/report/pages/nodeFiles.ts`, and the Pages view's processed thumbnails
+  `useProcessedThumbs`, so redacted pixels never reach the PDF), `report/pages/badgeKey.ts` (the badge key under a picture; `placeImage` /
+  `fitWithKey` make room without squashing it). `report/marks.ts` draws every kind (turned boxes, multiplied highlighter, arrow heads,
+  callouts with halo / see-through box, badges) for the editor, the Pages view and the PDF; uploaded PDF pages carry `marks` + `pageSize`
+  (`pdfPageMarks`). Page model: `ImageItem.autoLevels / redactions / place`, `TextItem.halo`, `PathItem.blend`; `imageKey` includes the pixel
+  edits. UI `ui/report/markup/`: `useMarkupEditor` (host-agnostic: tool, selection, drags, keys; one `app.edit` per change, nudges grouped),
+  `MarkupStage`, `MarkupToolbar` + `MarkupPanel` (under the picture), `MarkupWindow` + `MarkupButton` (host A, next to every Crop button and on
+  PDF pages; crop is a mode; also a double-click on a picture or drawing in the Pages view), `MarkupOpener` + `targets.ts` (Review's Go
+  to on a picture opens the editor), `prefs.ts` (last tool / colour / widths in localStorage `axisbuilder:markup`). Saved label styles are the
+  record list `labelStyles` in `report/savedLists.ts`.
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -1008,7 +1028,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   unreadable): the reference page list is now cards (picture, full-width Title, then Prints / Frame / Darken / buttons with visible
   labels). An upright sheet or picture (taller than wide, as turned) prints on a portrait letter page under a portrait standard frame
   (`FRAME_PORTRAIT`, `CONTENT_PORTRAIT` in report/pages/layout.ts: header fields in one column, 0" reference beside; about 70% of a
-  letter sheet instead of 55%); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
+  letter sheet instead of 55%; the header made as short as the landscape one on 2026-11-01); `standardPage` / `content` / `frameItems` take the page size. Darken (project file format 9,
   `adjust.darken`, migration from 8): the PDF page is printed again over itself with blend mode Multiply, once or twice (stays vector;
   white stays white), the Pages view the same with mix-blend-mode; `setUploadDarken`. Tests added; drawing outputs unchanged.
 - 2026-10-31 – Fix (feature/report-r4, user: an uploaded scanned U-1A form showed only its table lines in the Pages view; Darken did not help):
@@ -1047,3 +1067,64 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Data page, from that section's bookmarks; 3 columns, 4 above 45 scans; filled top to bottom; each a link); it flows onto more
   contents pages ("Scans (continued)") and the two-pass numbering counts them (`contentsLayout`, `contentsPageCount`). Tests added;
   drawing outputs unchanged.
+- 2026-10-31 – AUT report Phase R5 (branch feature/report-r5, user request, run unattended): the markup editor for every report picture,
+  behind the new `MARKUP_ENABLED` flag (hosting.md 3a). Tools: select / move / resize / turn / delete / duplicate / order / lock, Shift
+  multi-select, arrow nudges, right-click menu; box and ellipse (outline / filled / highlighted); highlighter freehand and straight (Shift 0 /
+  45 / 90 degrees), widths Fine to Extra wide plus a slider, flat or round ends, multiplied; pen (smoothed), line, arrow (closed / open / dot /
+  none); colour presets with meanings plus any colour; snapping with alignment guides; redaction (black or blurred) that removes the pixels in
+  the PDF and the Pages view (not offered on PDF pages; Review warns if one is there); auto brightness / contrast with a before / after; copy
+  markup to other pictures. Labels: callouts (rounded, square, pill, plain with halo), leader re-attaching to the nearest edge, outline and
+  see-through box, numbered badges with their key under the picture, live data labels from scan / MUT rows, print-true point sizes, saved
+  label styles (built-in Finding / Note / Reading; in the saved-lists file), Roboto / Montserrat. Two hosts: the full-size window (from every
+  picture and the Pages view) and in place in the Pages view (double-click). Project file format 10 (mark fields; migration from 9). Review: the
+  "redaction comes later" note replaced; live labels whose row was deleted print their last text and Go to opens the editor. Golden jobs,
+  compat v5.0 and the .lsp / DXF fingerprints unchanged. Clicked through in the dev preview with the sample's photos (made-up folder); not
+  yet tried by the user. No VBA or workbook changes.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: the editor should be full screen to see the true size): the markup window fills the
+  screen; zoom Fit / Actual size (96 CSS px per printed inch) / 200%, kept per browser (`axisbuilder:markupZoom`); the picture area
+  scrolls when larger than the screen. Outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: couldn't mark up the CAD drawings in the Pages view): the report's drawing sheets
+  (rollout, overlay, overview / section sheets, custom-sheet drawing views) take marks: `report.drawingMarkup` by sheet key (format 10,
+  unreleased), ImagePlace `drawing`, `SheetItem.marks / place`, `sheetFrame`, `withDrawingMarks` in report/pages/drawing.ts, drawn in the
+  Pages view (`SheetSvg` + marks) and the PDF; double-click in the Pages view or "Mark up …" in its bar (window host draws the sheet on
+  white paper under the marks). No redaction / crop / auto levels on drawings (Review warns about a redaction). Test added; drawing outputs
+  unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: too much space lost top and bottom): the full-screen markup window has one line at the
+  top (title, the tool's settings, undo / redo, Done; scrolls sideways if narrow), the tools as a vertical rail on the left
+  (`MarkupToolbar part="tools"`, Redact shown greyed out where it doesn't apply), the picture filling the rest, and one line at the bottom
+  (`MarkupPanel compact`: hint or selection actions and text, auto levels, copy markup, print size, zoom). Both bars keep one line, so the
+  picture never changes size when something is selected. In place in the Pages view keeps its two floating bars. Outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): the in-place editor in the Pages view is removed (`InPlaceEditor.tsx`); a double-click
+  there opens the full-screen window. Window: the title left the top line (the colours start at the left edge); the picture's name is in the
+  bottom line with its print size, cut short with "..." and the full name on hover; the tools rail has two columns (no scrolling); the bottom
+  line keeps one fixed-height line. A new mark stays selected until Enter, Esc or a click elsewhere (a drawing tool moves / resizes the
+  selected mark, a click off it only lets go); Enter in a label's text finishes it and lets go (Shift+Enter: new line). New box style
+  "Highlighted, no outline" (`SHAPE_MODES` 'highlightedPlain'); new labels default to rounded with no outline (`DEFAULT_PREFS.halo` false;
+  stored markup settings get version 2, which drops an older kept outline once). Tests added; outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): a label's text (and a badge's key, a live label's template) is stored at every
+  keystroke, so the label on the picture types out as you type; one undo step per edit (grouped, closed on Enter or leaving the box), Esc
+  puts back the text it had. Bottom line: the selection actions are icons (duplicate, forward, back, lock, delete) so the text box keeps its
+  room and nothing sits on it; the picture name gives way first. Top line: room for the picked colour's ring at the left edge. Outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): the markup window's settings move into a side panel on the left (Done and undo / redo,
+  the tools in three columns with Crop and Redact last, the selected mark with its icon actions and text box, then the settings stacked
+  with captions; it scrolls up and down only); no top line; the bottom line keeps the hint, auto brightness, "Copy these marks to other
+  pictures…" (was "Copy markup to…"), the name and zoom. With one mark selected the settings show its own look (`prefsOfMark`). Labels:
+  leader and edge width (Thin / Medium / Thick), text colour (Auto or any colour; `ToolPrefs.textColor`, a picked one survives colour
+  changes), box Filled or Clear, outline only (label `fill` null; `ToolPrefs.labelBox`), "No box (text only)" for the plain callout, and
+  the contrast outline now also goes round the leader's arrowhead and a clear box's edge. Report: the portrait standard frame's header is as
+  short as the landscape one (field list, the 0" reference and the chips in two narrow columns beside it; `FRAME_PORTRAIT` header rule
+  1.32 in, content from 1.86 in, about 7.5 x 8.6 in), so an upright reference sheet prints higher and bigger. Tests added; drawing outputs
+  and fingerprints unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: the side panel was not wanted): back to the earlier layout, the tools as a ONE-column
+  rail on the left (Crop, then Redact last; scrolls up and down only if the screen is short), the colour palette and the tool's settings in
+  the top line (fixed 44 px, compact controls: line / leader width, text size, bold, font, Auto text + text colour, box shape, box fill
+  Filled / Filled, see-through / Clear, outline only (replaces the opacity slider: 0.9 / 0.6), leader end, Outline, Styles… and a save
+  icon; all fit on one line at about 1500 px), the selection, its icons and the label's text in the bottom line with "Copy marks to other
+  pictures…", the name and zoom. The label features and the portrait header from the previous entry stay.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): (1) a label switched to Clear would not go back to Filled: picking a saved style
+  with nothing selected stuck to every later label and overrode the toolbar; now the style just sets the toolbar (`prefsOfStyle`, the sticky
+  `newStyle` removed), so Filled and every other setting apply after it. (2) "Copy marks to other pictures…" removed from the editor (the
+  pure `copyMarkupTo` / `copyTargets` stay); the label text box takes the room (about 490 px at 1536 px wide). (3) Live labels: the field
+  buttons became one "Insert field…" dropdown and the picture name steps aside while a text box is open, so the template is wider (about
+  330 px). (4) Styles… ends with "Edit or delete saved styles…": rename, "Use selected look" (gives the style the selected label's look),
+  delete (asks first); built-in styles listed as fixed. Tests added; outputs unchanged.

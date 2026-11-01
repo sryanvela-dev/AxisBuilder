@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import pkg from './package.json' with { type: 'json' }
-import { reportEnabledFor } from './src/featureFlags.ts'
+import { markupEnabledFor, reportEnabledFor } from './src/featureFlags.ts'
 
 // pdf.js decodes scanned PDF layers (CCITT fax and JBIG2 masks), JPEG 2000 pictures and ICC colors with these WebAssembly
 // files, fetched from `wasmUrl` by their own names (ui/report/pdfPages.ts). Served as they are in dev, copied unhashed into
@@ -37,6 +37,10 @@ export default defineConfig(({ command }) => ({
     // The AUT report (src/featureFlags.ts): on in dev, tests and Pages previews; off in the production build of main.
     __REPORT_ENABLED__: JSON.stringify(
       reportEnabledFor({ command, test: process.env.VITEST !== undefined, pagesBranch: process.env.CF_PAGES_BRANCH, override: process.env.VITE_REPORT }),
+    ),
+    // The report pictures' markup editor (R5): the same rule; VITE_MARKUP overrides it.
+    __MARKUP_ENABLED__: JSON.stringify(
+      markupEnabledFor({ command, test: process.env.VITEST !== undefined, pagesBranch: process.env.CF_PAGES_BRANCH, override: process.env.VITE_MARKUP }),
     ),
   },
   // The PDF writer (pdf-lib + fontkit, about 1.1 MB) is its own chunk, loaded only when a PDF is made.

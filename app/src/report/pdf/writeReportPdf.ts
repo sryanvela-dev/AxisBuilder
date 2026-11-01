@@ -3,14 +3,17 @@
 // - the brand fonts (Montserrat, Roboto) embedded whole (pdf-lib's subsetting dropped letters in Edge), real text
 // - rules, boxes, tables and picture marks as vector paths
 // - each picture embedded once (by its key) and placed with its phone (EXIF) orientation, turn and crop applied by
-//   the placement matrix and a clip, never left to the viewer; marks drawn over it, clipped to it
+//   the placement matrix and a clip, never left to the viewer; marks drawn over it, clipped to it. A picture with
+//   redactions is embedded only with those pixels removed (the caller prepares it, report/imageProcess.ts), so the
+//   covered area is not in the file at all
+// - highlighter strokes multiplied (blend mode Multiply), plain labels with a halo (the letters stroked first)
 // - drawing sheets through the drawing PDF's own code (export/pdf/writePdf drawSheetModel), so they always match
 // - uploaded PDF pages copied as vectors (embedPage)
 // - links from the contents, bookmarks for every section and every scan, title and author
 
 import fontkit from '@pdf-lib/fontkit'
 import {
-  LineCapStyle, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRef, appendBezierCurve, clip, closePath, concatTransformationMatrix,
+  LineCapStyle, LineJoinStyle, PDFDocument, TextRenderingMode, setLineJoin, setTextRenderingMode, PDFHexString, PDFName, PDFNumber, PDFRef, appendBezierCurve, clip, closePath, concatTransformationMatrix,
   beginText, drawObject, endPath, endText, fill, fillAndStroke, lineTo, moveTo, popGraphicsState, pushGraphicsState, rectangle, setFillingRgbColor, setFontAndSize, setGraphicsState,
   setLineCap, setLineWidth, setStrokingRgbColor, setTextMatrix, showText, stroke, type PDFEmbeddedPage, type PDFFont, type PDFImage, type PDFOperator, type PDFPage,
 } from 'pdf-lib'
@@ -18,7 +21,7 @@ import { photoNeeds } from '../../engine/sheetModel.ts'
 import { drawSheetModel, type PdfPhoto } from '../../export/pdf/writePdf.ts'
 import { measure, type ReportFontId } from '../fonts.ts'
 import { markItems } from '../marks.ts'
-import { rectPath, storedToPage, type Bookmark, type ImageItem, type PageItem, type PathCmd, type ReportDocument } from '../pageModel.ts'
+import { rectPath, sheetFrame, storedToPage, type Bookmark, type ImageItem, type PageItem, type PathCmd, type PdfPageItem, type ReportDocument } from '../pageModel.ts'
 import type { FracBox } from '../schema.ts'
 
 /** A picture ready to embed: its bytes and what part of the upright picture they show. */
@@ -106,6 +109,7 @@ export async function writeReportPdf(input: ReportPdfInput): Promise<Uint8Array>
         w.ops(pushGraphicsState(), rectangle(box.x * PT, (H - box.y - box.h) * PT, box.w * PT, box.h * PT), clip(), endPath())
         drawSheetModel({ doc: pdf, page: pages[i], font: drawingFont, images: photos, ocgs: new Map() }, it.model, [PT * k, 0, 0, PT * k, PT * (box.x - region.x * k), PT * (H - box.y - (region.y + region.h) * k)])
         w.ops(popGraphicsState())
+        if (it.marks?.length) w.marks(markItems({ ...sheetFrame(it), marks: it.marks }), it.box)
       } else if (it.t === 'pdfPage') {
         const e = embedded.get(`${it.file}#${it.page}`)
         if (e) w.pdfPage(e, it)
@@ -190,11 +194,11 @@ class ReportPageWriter {
   private X = (x: number) => round(x * PT)
   private Y = (y: number) => round((this.H - y) * PT)
 
-  private opacity(stroke: number, fillA: number): PDFName {
-    const key = `${stroke}/${fillA}`
+  private opacity(stroke: number, fillA: number, multiply = false): PDFName {
+    const key = `${stroke}/${fillA}${multiply ? '/m' : ''}`
     let name = this.gs.get(key)
     if (!name) {
-      name = this.page.node.newExtGState('GS', this.pdf.context.obj({ Type: 'ExtGState', CA: stroke, ca: fillA }))
+      name = this.page.node.newExtGState('GS', this.pdf.context.obj(multiply ? { Type: 'ExtGState', CA: stroke, ca: fillA, BM: 'Multiply' } : { Type: 'ExtGState', CA: stroke, ca: fillA }))
       this.gs.set(key, name)
     }
     return name
@@ -204,11 +208,11 @@ class ReportPageWriter {
     return d.map((c) => (c[0] === 'M' ? moveTo(this.X(c[1]), this.Y(c[2])) : c[0] === 'L' ? lineTo(this.X(c[1]), this.Y(c[2])) : c[0] === 'C' ? appendBezierCurve(this.X(c[1]), this.Y(c[2]), this.X(c[3]), this.Y(c[4]), this.X(c[5]), this.Y(c[6])) : closePath()))
   }
 
-  private paint(d: readonly PathCmd[], strokeColor: string | null, fillColor: string | null, width: number, opacity = 1, fillOpacity = 1, cap: 'round' | 'butt' = 'butt') {
+  private paint(d: readonly PathCmd[], strokeColor: string | null, fillColor: string | null, width: number, opacity = 1, fillOpacity = 1, cap: 'round' | 'butt' = 'butt', multiply = false) {
     if (!strokeColor && !fillColor) return
     const o: PDFOperator[] = [pushGraphicsState()]
-    if (opacity < 1 || fillOpacity < 1) o.push(setGraphicsState(this.opacity(opacity, opacity * fillOpacity)))
-    if (strokeColor) o.push(setStrokingRgbColor(...hex(strokeColor)), setLineWidth(width), setLineCap(cap === 'round' ? LineCapStyle.Round : LineCapStyle.Butt))
+    if (opacity < 1 || fillOpacity < 1 || multiply) o.push(setGraphicsState(this.opacity(opacity, opacity * fillOpacity, multiply)))
+    if (strokeColor) o.push(setStrokingRgbColor(...hex(strokeColor)), setLineWidth(width), setLineCap(cap === 'round' ? LineCapStyle.Round : LineCapStyle.Butt), setLineJoin(LineJoinStyle.Round))
     if (fillColor) o.push(setFillingRgbColor(...hex(fillColor)))
     o.push(...this.pathOps(d), strokeColor && fillColor ? fillAndStroke() : fillColor ? fill() : stroke(), popGraphicsState())
     this.ops(...o)
@@ -221,6 +225,11 @@ class ReportPageWriter {
         const font = this.fonts[it.font]
         const w = measure(it.text, it.font, it.size)
         const x = it.align === 'center' ? it.x - w / 2 : it.align === 'right' ? it.x - w : it.x
+        if (it.halo) {
+          // The halo: the same letters stroked wide in the halo colour first, then filled on top.
+          this.ops(pushGraphicsState(), beginText(), setFontAndSize(this.fontKey(it.font), it.size), setTextRenderingMode(TextRenderingMode.Outline), setStrokingRgbColor(...hex(it.halo.color)),
+            setLineWidth(it.halo.width), setLineJoin(LineJoinStyle.Round), setTextMatrix(1, 0, 0, 1, this.X(x), this.Y(it.y)), showText(font.encodeText(it.text)), endText(), popGraphicsState())
+        }
         this.ops(beginText(), setFontAndSize(this.fontKey(it.font), it.size), setFillingRgbColor(...hex(it.color)), setTextMatrix(1, 0, 0, 1, this.X(x), this.Y(it.y)), showText(font.encodeText(it.text)), endText())
         return
       }
@@ -231,7 +240,7 @@ class ReportPageWriter {
         this.paint(rectPath(it, it.radius), it.stroke, it.fill, it.width)
         return
       case 'path':
-        this.paint(it.d, it.stroke, it.fill, it.width, it.opacity, it.fillOpacity, it.cap)
+        this.paint(it.d, it.stroke, it.fill, it.width, it.opacity, it.fillOpacity, it.cap, it.blend === 'multiply')
         return
       case 'image':
         this.image(it)
@@ -263,15 +272,18 @@ class ReportPageWriter {
       drawObject(name),
       popGraphicsState(),
     )
-    const marks = markItems(it)
-    if (marks.length) {
-      this.ops(pushGraphicsState(), rectangle(this.X(it.x), this.Y(it.y + it.h), round(it.w * PT), round(it.h * PT)), clip(), endPath())
-      for (const m of marks) this.item(m)
-      this.ops(popGraphicsState())
-    }
+    this.marks(markItems(it), it)
   }
 
-  pdfPage(e: PDFEmbeddedPage, it: Extract<PageItem, { t: 'pdfPage' }>) {
+  /** Marks over a picture or page, clipped to its box. */
+  marks(marks: readonly PageItem[], box: { x: number; y: number; w: number; h: number }) {
+    if (!marks.length) return
+    this.ops(pushGraphicsState(), rectangle(this.X(box.x), this.Y(box.y + box.h), round(box.w * PT), round(box.h * PT)), clip(), endPath())
+    for (const m of marks) this.item(m)
+    this.ops(popGraphicsState())
+  }
+
+  pdfPage(e: PDFEmbeddedPage, it: PdfPageItem) {
     const name = this.page.node.newXObject('Pg', e.ref)
     const [a, b, c, d, ee, f] = storedToPage({ ...it.box, crop: null, rotate: it.rotate }, 1)
     const W = e.width
@@ -290,6 +302,13 @@ class ReportPageWriter {
       for (let i = 0; i < more; i++) this.ops(drawObject(name))
     }
     this.ops(popGraphicsState())
+    this.marks(pdfPageMarks(it), it.box)
   }
 }
 
+
+/** The marks over an uploaded PDF page as page items (the page as stored is the marks' 0-1 frame, turned with it). */
+export function pdfPageMarks(it: PdfPageItem): PageItem[] {
+  if (!it.marks?.length || !it.pageSize) return []
+  return markItems({ ...it.box, crop: null, rotate: it.rotate, upright: it.pageSize, marks: it.marks })
+}

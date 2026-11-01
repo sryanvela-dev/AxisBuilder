@@ -3,7 +3,7 @@
 // app.edit() call, so one undo step, and a change that changes nothing returns the same project.
 
 import type { Project } from '../data/schema.ts'
-import { imageItems, type ImagePlace } from './imageItems.ts'
+import { drawingEdits, imageItems, type ImagePlace } from './imageItems.ts'
 import {
   blockSchema,
   customSheetSchema,
@@ -34,8 +34,9 @@ function moved<T>(list: readonly T[], from: number, to: number): T[] | null {
 
 // --- Picture edits, by where the picture is ---------------------------------------------------------
 
-/** A picture's file and edits, or undefined when the place holds none. */
+/** A picture's file and edits, or undefined when the place holds none (a drawing sheet always has its marks, maybe none). */
 export function pictureAt(r: Report, at: ImagePlace) {
+  if (at.kind === 'drawing') return { place: at, file: null, edits: drawingEdits(r.drawingMarkup?.[at.key] ?? []) }
   return imageItems(r).find((x) => same(x.place, at))
 }
 
@@ -46,6 +47,11 @@ export function setPictureEdits(p: Project, at: ImagePlace, change: Partial<Imag
     if (!item || Object.entries(change).every(([k, v]) => same(item.edits[k as keyof ImageEdits], v))) return r
     const apply = <T extends object>(x: T): T => ({ ...x, ...change })
     switch (at.kind) {
+      case 'drawing': {
+        if (!change.markup) return r
+        const rest = Object.fromEntries(Object.entries(r.drawingMarkup ?? {}).filter(([k]) => k !== at.key))
+        return { ...r, drawingMarkup: change.markup.length ? { ...rest, [at.key]: change.markup } : rest }
+      }
       case 'cover': return { ...r, coverPhotoEdits: apply(r.coverPhotoEdits) }
       case 'calibration': return { ...r, calibration: { ...r.calibration, dynamicImageEdits: apply(r.calibration.dynamicImageEdits) } }
       case 'photo': return { ...r, photos: r.photos.map((x, i) => (i === at.index ? apply(x) : x)) }

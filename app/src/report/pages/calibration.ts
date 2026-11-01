@@ -113,7 +113,7 @@ export const buildCalibration: PageBuilder = (c, def, title) => {
   const noteH = notes.reduce((a, n) => a + wrapText(n, F.body, 7.8, rightW).length * 0.145 + 0.08, 0)
   const shotArea = { x: rx, y: area.y, w: rightW, h: area.h - noteH - 0.4 }
   items.push(text(rx, area.y - 0.06, 'Dynamic calibration', F.heading, 9, COLORS.blue))
-  const shot = placeImage(c, c.r.calibration.dynamicImage ? { source: 'calibration', file: c.r.calibration.dynamicImage } : null, c.r.calibration.dynamicImageEdits, { ...shotArea, y: shotArea.y + 0.06 }, 'No calibration screenshot', 'top', true)
+  const shot = placeImage(c, c.r.calibration.dynamicImage ? { source: 'calibration', file: c.r.calibration.dynamicImage } : null, c.r.calibration.dynamicImageEdits, { ...shotArea, y: shotArea.y + 0.06 }, 'No calibration screenshot', 'top', true, { kind: 'calibration' })
   items.push(...shot.items)
   let y = shot.box.y + shot.box.h + 0.18
   for (const n of notes) {

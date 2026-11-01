@@ -19,6 +19,7 @@ import { Thumb } from '../ImageFolderPanel.tsx'
 import { ReportBox, ReportCheckbox, ReportSelect } from './boxes.tsx'
 import { CustomSheets } from './CustomSheets.tsx'
 import { CropButton } from './PictureWindow.tsx'
+import { MarkupButton } from './markup/MarkupWindow.tsx'
 import { Uploads } from './Uploads.tsx'
 import { ReportFolderBar } from './FilePick.tsx'
 import { perPageOf } from '../../report/pages/photos.ts'
@@ -293,6 +294,7 @@ function PhotoTable() {
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a photo left', (q) => rotatePhoto(q, i, 'left'))} aria-label={`Turn ${label} left`} title="Turn left (a quarter, anticlockwise)">⟲</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a photo right', (q) => rotatePhoto(q, i, 'right'))} aria-label={`Turn ${label} right`} title="Turn right (a quarter, clockwise)">⟳</button>
                   <CropButton small at={{ kind: 'photo', index: i }} picture={{ source: 'photos', file: ph.file }} name={`photo ${i + 1}`} />
+                  <MarkupButton small at={{ kind: 'photo', index: i }} picture={{ source: 'photos', file: ph.file }} name={`photo ${i + 1}`} />
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a photo', (q) => movePhotoTo(q, i, i - 1))} disabled={i === 0} aria-label={`Move ${label} up`} title="Move up">↑</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a photo', (q) => movePhotoTo(q, i, i + 1))} disabled={i === list.length - 1} aria-label={`Move ${label} down`} title="Move down">↓</button>
                   <button type="button" className="icon-btn icon-danger" onClick={() => app.edit('Remove a photo', (q) => removePhoto(q, i))} aria-label={`Remove ${label}`} title="Remove from the report (the file stays)">✕</button>

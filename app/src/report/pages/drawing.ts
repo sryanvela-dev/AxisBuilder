@@ -8,18 +8,28 @@ import { buildDrawing, type LayerGroup } from '../../engine/drawing.ts'
 import { activeSectionPlan } from '../../engine/sections.ts'
 import { sheetModels, viewRegion, type SheetModel } from '../../engine/sheetModel.ts'
 import { exportRuns } from '../../export/exportSets.ts'
-import type { Bookmark, PageItem, Rect } from '../pageModel.ts'
-import { content, standardPage, type PageBuilder } from './common.ts'
+import { withLiveText } from '../liveLabels.ts'
+import type { Bookmark, Rect, SheetItem } from '../pageModel.ts'
+import { content, standardPage, type BuildContext, type PageBuilder } from './common.ts'
 import { fitBox } from './layout.ts'
 
 /**
  * The sheet's printed extents (paper inches, y up), every text to its full height plus a small margin (`viewRegion`),
  * fitted into a box on the page.
  */
-export function sheetItem(model: SheetModel, area: Rect): PageItem {
+export function sheetItem(model: SheetModel, area: Rect): SheetItem {
   const r = viewRegion(model)
   const region = { ...r, w: Math.max(r.w, 0.01), h: Math.max(r.h, 0.01) }
   return { t: 'sheet', model, region, box: fitBox(region.w / region.h, area) }
+}
+
+/**
+ * A drawing sheet with its marks (format 10, stored under `key` in the report's drawingMarkup): live labels filled now,
+ * redactions left out (a drawing is vectors; Review warns).
+ */
+export function withDrawingMarks(c: BuildContext, it: SheetItem, key: string): SheetItem {
+  const marks = (c.r.drawingMarkup?.[key] ?? []).filter((m) => m.kind !== 'redaction').map((m) => withLiveText(c.p, m))
+  return { ...it, place: { kind: 'drawing', key }, ...(marks.length ? { marks } : {}) }
 }
 
 /** Whether the drawing has overlays to print (scans and "Use scan images"). */
@@ -40,18 +50,18 @@ export const buildDrawings: PageBuilder = (c, def, title) => {
   const area = content()
   const hiddenFor = (set: 'scans' | 'overlays'): ReadonlySet<LayerGroup> => exportRuns(set === 'scans' ? 'Scans' : 'Overlays', c.previewHidden)[0].hidden
   const overlays = overlaysUsable(p)
-  const sheets: { label: string; model: SheetModel }[] = []
-  if (opts.rollout) sheets.push({ label: 'Rollout drawing', model: sheetModels(p, drawing, null, { hidden: hiddenFor('scans') })[0] })
-  if (opts.overlay && overlays) sheets.push({ label: 'Scan overlay drawing', model: sheetModels(p, drawing, null, { hidden: hiddenFor('overlays') })[0] })
+  const sheets: { label: string; model: SheetModel; key: string }[] = []
+  if (opts.rollout) sheets.push({ label: 'Rollout drawing', model: sheetModels(p, drawing, null, { hidden: hiddenFor('scans') })[0], key: 'rollout' })
+  if (opts.overlay && overlays) sheets.push({ label: 'Scan overlay drawing', model: sheetModels(p, drawing, null, { hidden: hiddenFor('overlays') })[0], key: 'overlay' })
   // Section sheets (overview first), on their own: they no longer need the rollout ticked.
   const sets = plan ? sectionSets(opts.sections, overlays) : []
   for (const set of sets) {
     const tag = sets.length > 1 && set === 'overlays' ? ' (overlay)' : ''
     for (const m of sheetModels(p, drawing, plan, { hidden: hiddenFor(set) }).slice(1)) {
-      sheets.push({ label: (m.kind === 'overview' ? 'Overview' : m.title.charAt(0) + m.title.slice(1).toLowerCase()) + tag, model: m })
+      sheets.push({ label: (m.kind === 'overview' ? 'Overview' : m.title.charAt(0) + m.title.slice(1).toLowerCase()) + tag, model: m, key: `${set}:${m.kind === 'overview' ? 'overview' : m.section?.n ?? m.title}` })
     }
   }
-  const pages = sheets.map((s) => standardPage(c, def, s.label, title, s.label, [sheetItem(s.model, area)]))
+  const pages = sheets.map((s) => standardPage(c, def, s.label, title, s.label, [withDrawingMarks(c, sheetItem(s.model, area), s.key)]))
   const bookmarks: Bookmark[] = sheets.map((s, i) => ({ title: s.label, page: i, children: [] }))
   return { pages, bookmarks }
 }

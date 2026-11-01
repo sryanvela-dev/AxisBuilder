@@ -14,7 +14,7 @@ import type { PageItem, Rect } from '../pageModel.ts'
 import type { Block, CustomSheet } from '../schema.ts'
 import { content, placeImage, standardPage, type BuildContext, type PageBuilder } from './common.ts'
 import { cscanBoxes, scanStats } from './cscan.ts'
-import { sheetItem } from './drawing.ts'
+import { sheetItem, withDrawingMarks } from './drawing.ts'
 import { COLORS, F, fitBox, placeholder, text, textBlock } from './layout.ts'
 import { layoutTable, tableItems, type TableRow } from './table.ts'
 
@@ -68,13 +68,13 @@ function viewModel(c: BuildContext, view: Extract<Block, { kind: 'view' }>['view
   return null
 }
 
-function blockItems(c: BuildContext, b: Block, slot: Rect): PageItem[] {
+function blockItems(c: BuildContext, b: Block, slot: Rect, sheetId: string, block: number): PageItem[] {
   switch (b.kind) {
     case 'image': {
       const capH = b.caption.trim() ? 0.36 : 0
-      const placed = placeImage(c, { source: 'photos', file: b.file }, b, { ...slot, h: slot.h - capH }, 'Picture not found')
+      const placed = placeImage(c, { source: 'photos', file: b.file }, b, { ...slot, h: slot.h - capH }, 'Picture not found', 'center', false, { kind: 'sheetImage', sheetId, block })
       const out = [...placed.items]
-      if (capH) out.push(...textBlock(b.caption.trim(), placed.box.x, placed.box.y + placed.box.h + 0.05, Math.max(placed.box.w, 2), F.body, 9, COLORS.text, { align: 'center', maxLines: 2, k: 1.3 }).items)
+      if (capH) out.push(...textBlock(b.caption.trim(), placed.box.x, placed.bottom + 0.05, Math.max(placed.box.w, 2), F.body, 9, COLORS.text, { align: 'center', maxLines: 2, k: 1.3 }).items)
       return out
     }
     case 'view': {
@@ -83,8 +83,9 @@ function blockItems(c: BuildContext, b: Block, slot: Rect): PageItem[] {
         c.notes.push(`A custom sheet's ${b.view === 'head1' ? 'head 1' : b.view === 'head2' ? 'head 2' : typeof b.view === 'string' ? b.view.replace(':', ' sheet ') : 'drawing'} view is not in the drawing; a placeholder prints.`)
         return placeholder(slot, 'View not available')
       }
-      if (!v.region) return [sheetItem(v.model, slot)]
-      return [{ t: 'sheet', model: v.model, region: v.region, box: fitBox(v.region.w / v.region.h, slot) }]
+      const key = `sheet:${sheetId}:${block}`
+      if (!v.region) return [withDrawingMarks(c, sheetItem(v.model, slot), key)]
+      return [withDrawingMarks(c, { t: 'sheet', model: v.model, region: v.region, box: fitBox(v.region.w / v.region.h, slot) }, key)]
     }
     case 'cscanBoxes': {
       const row = b.scanId ? scanRows(c.p, c.r).find((r) => r.scan.id.trim().toLowerCase() === b.scanId!.trim().toLowerCase()) ?? null : null
@@ -124,7 +125,7 @@ export function customSheetPages(c: BuildContext, def: Parameters<PageBuilder>[1
   const area = content()
   return sheets.map((sh) => {
     const slots = sheetSlots(sh.layout, area)
-    const items = sh.blocks.slice(0, slots.length).flatMap((b, i) => blockItems(c, b, slots[i]))
+    const items = sh.blocks.slice(0, slots.length).flatMap((b, i) => blockItems(c, b, slots[i], sh.id, i))
     if (sh.blocks.length > slots.length) c.notes.push(`Custom sheet "${sh.title}": ${sh.blocks.length - slots.length} block(s) more than its layout holds are left out.`)
     const title = sh.title.trim() || def.title
     return standardPage(c, def, title, title, '', items)

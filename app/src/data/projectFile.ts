@@ -44,6 +44,9 @@ export const MIGRATIONS: Readonly<Record<number, Migration>> = {
   // Format 9 adds Darken on report pictures (`adjust.darken`, 0 = off; used for faint uploaded PDF pages). Default 0, so
   // nothing needs converting.
   8: (data) => ({ ...data, schemaVersion: 9 }),
+  // Format 10 (R5, markup editor) adds to marks: label text style (bold, font, box background, halo), a box mark's
+  // angle, arrow heads and live label templates. All have defaults, so nothing needs converting.
+  9: (data) => ({ ...data, schemaVersion: 10 }),
 }
 
 export interface OpenOptions {

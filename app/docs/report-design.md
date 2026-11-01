@@ -890,3 +890,95 @@ Where the build fills in or differs from the design above:
 - **Export.** `<job> - <client> - AUT Report.pdf` (`export/files.ts reportPdfName`; no client: `<job> - AUT Report.pdf`). The summary
   lists pages, size, pictures that could not be read, uploaded PDFs that could not be used and the document's notes, or "Nothing was
   left out". Word export still later.
+
+## R5 as built (2026-10-31, branch feature/report-r5)
+
+Built: the markup editor of section 14 for every report picture (photos, the cover photo, the calibration and data-page screenshots,
+custom-sheet pictures, uploaded pictures and uploaded PDF pages), with both hosts, every tool and label, redaction that removes the pixels,
+auto brightness / contrast and copy markup. Behind `MARKUP_ENABLED` (same rule as `REPORT_ENABLED`, `VITE_MARKUP` overrides; marks already in
+a file print either way). Project file format 10. Golden jobs, compat v5.0 and the .lsp / DXF fingerprints unchanged; the drawing engine is
+untouched.
+
+- **One editor, two hosts.** `useMarkupEditor` holds the tool, selection, drags and keys and knows nothing about where it is shown; it takes
+  the picture's place, the frame its marks are drawn in and the zoom. Host A is the full-size picture window ("Mark up…" next to every Crop
+  button, on PDF pages, and from the Pages view's bar); crop is a mode of the same window. Host B: double-click a picture in the Pages view;
+  the page is dimmed, the toolbar floats at the top and the selection / picture settings at the bottom; Esc, a click on the dimmed page or
+  Done leaves. A single click on a picture in the Pages view no longer jumps to its step (so the double-click can land); elsewhere it does.
+- **Full screen (user, 2026-11-01).** The markup window fills the screen. Zoom: Fit (the whole picture as large as the screen allows,
+  the percentage of print size shown), Actual size (1 in on paper = 96 CSS pixels, i.e. true size when the screen's scaling is at its
+  recommended setting; scroll to move around) or 200%; the choice is kept per browser (`axisbuilder:markupZoom`).
+- **Drawing sheets (user, 2026-11-01).** The drawings the report prints (rollout, scan overlay, overview and section sheets, and drawing
+  views on custom sheets) take marks too: double-click one in the Pages view, or "Mark up the … drawing" in its bar. Stored per sheet in
+  `report.drawingMarkup` (keys 'rollout', 'overlay', '<scans|overlays>:overview' / ':<n>', 'sheet:<id>:<block>'; part of format 10, not yet
+  released), in fractions of the printed sheet region, drawn by the same mark code over the sheet in the Pages view and the PDF. No
+  redaction, crop or auto levels on a drawing (vectors); a redaction there is left out and Review warns. A sheet's marks stay with its key,
+  so if a section plan changes, section n's marks stay on section n.
+- **One host (user, 2026-11-01).** The small in-place editor (host B) is gone: a double-click on a picture or drawing in the Pages view opens
+  the full-screen window. Its top line holds only the tool's settings (undo / redo and Done at the right), so the colours always start in the
+  same place; the picture's name sits in the bottom line with its print size ("The rollout drawing · prints 8.54 in wide on p. 5", cut short
+  with its full text on hover); the tools rail has two columns (no scrolling); both lines have a fixed height. A new mark stays selected (to
+  adjust, restyle or type) until Enter, Esc or a click elsewhere; while it is selected, a drawing tool moves / resizes it instead of starting
+  another, and a click off it only lets go. Enter in a label's text box finishes the text and lets go (Shift+Enter: a new line). Box style
+  "Highlighted, no outline" (see-through fill, no edge); new labels are rounded with no outline (the outline setting's default is off; an
+  outline kept in the browser before this is dropped once, `axisbuilder:markup` version 2).
+- **Side panel (user, 2026-11-01; undone the same day, see the next bullet).** The settings left the top line for a side panel on the left that scrolls up and down only: Done and
+  undo / redo, the tools (three columns, Crop and Redact last), the selected mark (what it is, duplicate / forward / back / lock / delete as
+  icons, its text box or live data link, "Enter or a click elsewhere when you are done"), then the settings, each with a caption (Colour,
+  Line width or Leader and edge width, Box style, Highlighter width, Arrow head, Text with size / bold / font / text colour, Box with shape /
+  Filled or Clear, outline only / see-through / leader end, Contrast outline, Redaction, Saved styles). With one mark selected they show
+  its own look. "Copy markup to…" is now "Copy these marks to other pictures…" with a tooltip saying what it does. Labels gained a leader
+  and edge width, a text colour (Auto or any) and the clear box; the contrast outline goes round the leader's arrowhead too.
+- **Back to the top line (user, 2026-11-01).** The side panel was not wanted: the tools are a one-column rail on the left again (Redact
+  last), the colour palette and the settings sit in the top line (compact: widths and the label box as dropdowns, "Filled / Filled,
+  see-through / Clear, outline only" in place of the opacity slider, "Auto text" plus a text colour picker, Styles… and a save icon), and
+  the selection with its text box in the bottom line. The label options above stay.
+- **Portrait frame header (user, 2026-11-01).** An upright reference page's header is as short as the landscape one (the chips in two
+  narrow columns beside the field list), so the sheet starts at 1.86 in and gets about 8.6 in of height.
+- **Print-true.** The editor draws in page inches of the picture as it prints (its slot: `findPrinted`; a picture that doesn't print yet is
+  shown 6.5 in wide), so text in points looks as big as it will on paper. The marks are drawn by the page's own code (`report/marks.ts`), so the
+  editor, the Pages view and the PDF are the same drawing. The editor shows the picture turned and cropped as it prints; marks outside the
+  crop are hidden (Review notes them).
+- **Undo.** Every finished change is one undo step (a drag is stored when the pointer goes up; a run of arrow-key nudges on the same marks is
+  one step until the selection changes). Changes are stored at once: the window has Done, no Cancel.
+- **Keys.** Tool letters (V select, R box, E ellipse, H highlighter, G straight highlight, P pen, L line, A arrow, T label, B badge, X redact,
+  C crop in the window), Del, Ctrl+D, Ctrl+A, ] / [ (Shift: front / back), Ctrl+L, arrows (Shift: 0.2 in), Esc (cancels the drag, closes the
+  menu, clears the selection, then the tool, then leaves). **Shift** squares boxes, holds lines and the straight highlighter to 0 / 45 / 90
+  degrees, keeps a box's shape while resizing, turns in 15 degree steps, and frees a move from snapping; **Alt** frees a drawn point from
+  snapping (Shift was already taken while drawing).
+- **Snapping.** Moved marks line up with the picture's edges and centre and with every other mark's edges and centre (each axis on its own,
+  pink guides); new points snap to the picture's corners, edge middles and centre and to other marks' corners and centres, else line up with
+  them. The editor has its own snapping in view inches (`snapMove`, `snapPoint`) rather than `engine/snap.ts`, whose lines-and-circles model
+  fits the drawing, not boxes moving as a whole.
+- **Turn.** Boxes and ellipses turn (handle above the box); lines, arrows and strokes turn by their ends; labels, badges and redactions don't.
+  The angle is in the picture's own pixels, so it turns with a quarter turn of the picture.
+- **Colours.** Presets red (finding), yellow (highlight), green (acceptable), blue (note), black, white, plus the browser's colour picker
+  (the app's `ColorPicker` is for CAD colour numbers). One last colour for every tool (kept per browser), so the highlighter takes the colour
+  you last used; pick yellow for a classic highlight.
+- **Labels.** Text in Roboto 500 (700 bold) or Montserrat 600 / 700, multi-line (Ctrl+Enter finishes typing); padding and corner radius from
+  the text size; the box is see-through by the "Box" slider (default 90%); "Outline" = a thin near-black or white edge (whichever contrasts
+  with the box) and a halo round plain text and under leaders. The leader leaves the box at the point on its outline nearest the leader's end,
+  so it re-attaches when the label moves. A label drag places it with a leader (the drag starts at what it points at).
+- **Badges.** Numbered in placing order, renumbered after a delete; the key prints under the picture (a small badge in the badge's colour,
+  then its text; two columns once it is 4.5 in wide with 4 or more lines); only badges with key text are in the key. Page builders fit the
+  picture into what is left of its slot (`fitWithKey`), so it shrinks, never squashes. An uploaded PDF page at full size gets no key.
+- **Live data labels.** Linked to a scan or a shell / head MUT row; template fields {scan} / {id}, {minT}, {avgT}, {maxT}, {wallLoss},
+  {nominal}, {component}, {readings}; a missing value prints "–", an unknown field stays as typed. The filled text is stored on the mark
+  after every edit (`refreshLiveLabels` in `syncReport`) and filled again when the pages are built, so a deleted row prints the last text and
+  Review warns (Go to opens the editor on that picture).
+- **Redaction.** Black boxes set the pixels to black; blurred boxes become a coarse mosaic (at least 4 blocks across the short side, at most
+  24 along the long one, so it looks the same at any resolution) smoothed into a blur. The PDF embeds the changed pixels only (browser canvas;
+  the Node path decodes, turns, crops, changes and encodes with jpeg-js), so the original area is not in the file; tested by decoding the
+  embedded image and searching the PDF for the original's bytes. The Pages view shows a processed thumbnail made with the same code (solid
+  stand-ins until it is ready); the editor shows black boxes as they are and blurred ones as a live blur of the picture. Not offered on PDF
+  pages (the page is copied as it is; the editor says so); one already there is left out and Review warns. A picture used in two places is
+  redacted only where it carries the box.
+- **Auto brightness / contrast.** `adjust.autoLevels`: each channel stretched from its 0.5th to 99.5th percentile, measured on the printed
+  part (the crop), on screen and in the PDF; "Hold: before" shows the picture without it. Not offered for PDF pages.
+- **Saved label styles.** A record list `labelStyles` in the saved lists (in the saved-lists file); built-in Finding (red box, white bold,
+  arrow), Note (blue) and Reading (yellow badge) are offered first and never stored. "Styles…" restyles the selected labels / badges, or (nothing
+  selected) sets the toolbar to that look for the next one; the save icon names the selected one's look; "Edit or delete saved styles…" at
+  the end of the list renames a style, gives it the selected label's look or deletes it (also possible in the Saved lists dialog).
+- **Copy markup to other pictures.** Removed from the editor (user, 2026-11-01: not needed); the pure functions remain.
+- **Review.** The R4 note "redaction comes in a later version" is gone; a redacted picture gets a note that the PDF removes those pixels.
+- **Not built / left for later.** Drop shadow and underline on labels (section 14 "optional"); turning labels and redactions; marks drawn
+  on a cropped-away part (the editor shows only what prints); per-tool colours.

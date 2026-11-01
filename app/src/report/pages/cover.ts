@@ -90,7 +90,7 @@ export const buildCover: PageBuilder = (c, def) => {
   // Cover photo between the fields and the people, fitted (no photo: the space closes up).
   if (c.r.coverPhoto) {
     const area = { x: L, y, w: R - L, h: Math.min(4.2, footTop - 0.35 - y) }
-    if (area.h > 1) items.push(...placeImage(c, { source: 'cover', file: c.r.coverPhoto }, c.r.coverPhotoEdits, area, 'No cover photo').items)
+    if (area.h > 1) items.push(...placeImage(c, { source: 'cover', file: c.r.coverPhoto }, c.r.coverPhotoEdits, area, 'No cover photo', 'center', false, { kind: 'cover' }).items)
   }
 
   // Foot strip.

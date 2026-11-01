@@ -3346,3 +3346,608 @@ svg.report-page .report-paper {
   height: 140px;
   color: #7a8594;
 }
+
+/* --- Report pictures: the markup editor (R5) ------------------------------------------------------ */
+
+.markup-window {
+  width: min(1240px, 100%);
+}
+
+.markup-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  outline: none;
+}
+
+.markup-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.markup-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.markup-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.markup-grow {
+  flex: 1 1 260px;
+}
+
+.markup-grow input,
+.markup-grow textarea {
+  flex: 1;
+  min-width: 160px;
+}
+
+.markup-spacer {
+  flex: 1;
+}
+
+.markup-tools {
+  gap: 2px;
+}
+
+.markup-tool {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 58px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.markup-tool:hover {
+  border-color: var(--line);
+}
+
+.markup-tool.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.markup-icon {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.markup-note {
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.markup-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.markup-swatch.on {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.markup-toolbar .btn.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.markup-toolbar input[type='color'] {
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: none;
+}
+
+.markup-stage-wrap {
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  max-width: 100%;
+}
+
+.markup-stage {
+  position: relative;
+  flex: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.markup-stage svg {
+  display: block;
+}
+
+.markup-menu {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+}
+
+.markup-menu button {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.markup-menu button:hover,
+.markup-menu button:focus-visible {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.markup-menu kbd {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.markup-popover {
+  position: absolute;
+  z-index: 6;
+  top: 40px;
+  right: 0;
+  width: min(420px, 100%);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+
+.markup-popover h3 {
+  margin: 0 0 8px;
+}
+
+.markup-targets {
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markup-status {
+  margin: 0;
+  min-height: 1.4em;
+}
+
+.markup-scale {
+  float: right;
+}
+
+/* The tool's settings row keeps its height whatever the tool, so the picture never jumps. */
+.markup-settings {
+  min-height: 32px;
+}
+
+.markup-toolbar select,
+.markup-toolbar input[type='text'],
+.markup-toolbar input[type='range'] {
+  width: auto;
+  margin: 0;
+}
+
+.markup-toolbar input[type='range'] {
+  width: 90px;
+}
+
+.markup-toolbar textarea {
+  width: auto;
+  margin: 0;
+  resize: vertical;
+}
+
+.markup-toolbar label {
+  margin: 0;
+}
+
+.markup-panel .markup-popover {
+  top: auto;
+  bottom: 36px;
+}
+
+.pages-full-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pages-full-stage svg.report-page-full {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+/* The markup window fills the screen (user, 2026-11-01): the picture as large as it can be, or at actual print size. */
+.dialog-backdrop:has(.markup-window) {
+  padding: 0;
+}
+
+.dialog.markup-window {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  padding: 10px 16px;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.markup-window > h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.markup-window > .dialog-buttons {
+  margin-top: 6px;
+}
+
+.markup-window > .markup-editor,
+.markup-window > .crop-tool {
+  flex: 1;
+  min-height: 0;
+}
+
+.markup-window .markup-stage-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: auto;
+  background: var(--page-bg);
+  border-radius: 6px;
+}
+
+.markup-window .markup-stage {
+  margin: auto;
+}
+
+.markup-window .markup-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.markup-window .markup-scale {
+  float: none;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Full-screen layout (user, 2026-11-01): one line at the top (the tool's settings, undo / redo, Done), the tools as a
+   one-column rail down the left (scrolls up and down if the screen is short, never sideways), the picture taking the
+   rest, one line at the bottom (selection and its text, picture options, name, zoom). */
+.markup-window .markup-editor {
+  gap: 6px;
+}
+
+.markup-head {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 40px;
+}
+
+.markup-head > .markup-toolbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  /* Room for the ring round the picked colour. */
+  padding: 3px 4px;
+}
+
+.markup-head > .markup-spacer {
+  flex: 0 0 4px;
+}
+
+.markup-head .markup-settings {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 14px;
+  min-height: 0;
+}
+
+.markup-head .markup-field {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* The settings' captions are for the screen reader in the top line (each group says what it is on hover). */
+.markup-head .markup-caption {
+  display: none;
+}
+
+.markup-swatches,
+.markup-buttons,
+.markup-inline {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.markup-head select,
+.markup-head input[type='text'] {
+  width: auto;
+  margin: 0;
+}
+
+.markup-head input[type='range'] {
+  width: 80px;
+}
+
+.markup-head .check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+.markup-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.markup-rail {
+  flex: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.markup-rail .markup-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.markup-rail .markup-tool {
+  width: 80px;
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.markup-rail .markup-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.markup-window .markup-body > .markup-stage-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The bottom line: one fixed-height line; the label's text box, the hint and the picture's name give way first. */
+.markup-footer {
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  min-height: 40px;
+  overflow: hidden;
+}
+
+.markup-footer > * {
+  flex-shrink: 0;
+}
+
+.markup-footer > .markup-row {
+  display: contents;
+}
+
+.markup-footer > .markup-row > * {
+  flex-shrink: 0;
+}
+
+.markup-footer .markup-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.markup-footer .markup-group > .muted:first-child {
+  white-space: nowrap;
+}
+
+.markup-footer .markup-row > .markup-grow {
+  flex: 1 1 140px;
+  min-width: 110px;
+}
+
+.markup-footer .markup-grow > textarea,
+.markup-footer .markup-grow > input {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  height: 30px;
+  min-height: 30px;
+  margin: 0;
+}
+
+.markup-footer select {
+  max-width: 150px;
+  margin: 0;
+}
+
+.markup-footer > .markup-hint {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.markup-footer > .markup-printed {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45vw;
+}
+
+/* Compact controls in the top line, so a label's settings fit on one line at about 1500 px. */
+.markup-head select {
+  min-height: 30px;
+  padding: 3px 6px;
+  font-size: 13px;
+}
+
+.markup-head .btn-small {
+  font-size: 13px;
+}
+
+.markup-head .markup-settings {
+  gap: 10px;
+}
+
+.markup-head .markup-field {
+  gap: 4px;
+}
+
+.markup-head {
+  gap: 4px 8px;
+}
+
+.markup-head .markup-group {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* A fixed height whatever the tool shows, so the picture never changes size. */
+.markup-head {
+  height: 44px;
+  min-height: 44px;
+}
+
+/* Bottom line (user, 2026-11-01): with Copy marks gone the label text box and the live-data template take the room. */
+.markup-footer .markup-row > .markup-grow {
+  flex: 3 1 360px;
+  min-width: 220px;
+}
+
+.markup-footer > .markup-printed {
+  max-width: 30vw;
+}
+
+.markup-footer .markup-prints {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 220px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Edit or delete saved styles: fixed, so the top line's sideways scroll doesn't clip it. */
+.markup-popover.markup-styles {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  left: auto;
+  width: min(520px, calc(100vw - 32px));
+  z-index: 30;
+  white-space: normal;
+}
+
+.markup-style-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markup-style-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.markup-style-list input {
+  flex: 1;
+  min-width: 0;
+}
+
+.markup-style-sample {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 22px;
+  border: 1.5px solid;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The Styles dropdown keeps its short width; its longest choice ("Edit or delete saved styles…") shows when opened. */
+.markup-head select[aria-label='Label styles'] {
+  width: 84px;
+}
+
+/* While a label's or badge's text box is open, the picture's name steps aside so the text has the room. */
+.markup-footer:has(.markup-text) > .markup-printed {
+  display: none;
+}
+
+.markup-footer .markup-row > .markup-grow:has(input[aria-label='Live label template']) {
+  min-width: 300px;
+}

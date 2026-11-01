@@ -9,12 +9,24 @@ import { scanRenames } from '../data/columns.ts'
 import { followRow } from '../data/overrides.ts'
 import { idKey, type Project } from '../data/schema.ts'
 import { mapMarkup } from './imageItems.ts'
+import { refreshLiveLabels } from './liveLabels.ts'
 import { linkedReadings } from './report.ts'
 import type { Mark, Reading, Report, ScanResult } from './schema.ts'
 
 const WATCHED = ['shellMut', 'headMut', 'shellNozzles', 'headNozzles'] as const
 
+/**
+ * The report kept in step with the drawing after an edit (see the file comment); live data labels then get their
+ * stored text filled from the data as it is now (report/liveLabels.ts), so a deleted row leaves its last text.
+ */
 export function syncReport(prev: Project, next: Project): Project {
+  const synced = syncRows(prev, next)
+  if (!synced.report) return synced
+  const live = refreshLiveLabels(synced, synced.report)
+  return live === synced.report ? synced : { ...synced, report: live }
+}
+
+function syncRows(prev: Project, next: Project): Project {
   const report = next.report
   if (!report) return next
   // A report that was just started is already in step (createReport); otherwise only these lists matter.

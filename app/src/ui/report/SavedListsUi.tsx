@@ -133,7 +133,7 @@ export function SavedListsDialog({ onClose }: { onClose: () => void }) {
                       <li key={i}>
                         {editing?.list === id && editing.index === i ? (
                           <div className="saved-edit">
-                            {Object.entries(r).map(([k, v]) => (
+                            {Object.entries(r).filter(([k]) => id !== 'labelStyles' || k === 'name').map(([k, v]) => (
                               <label key={k} className="saved-edit-field">
                                 <span className="muted">{fieldName(k)}</span>
                                 {k === 'track' ? (

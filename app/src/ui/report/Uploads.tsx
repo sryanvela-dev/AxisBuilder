@@ -18,6 +18,7 @@ import { useApp } from '../appContext.ts'
 import { ReportBox, ReportSelect } from './boxes.tsx'
 import { placeOptions, placeValue } from './placeOptions.ts'
 import { CropButton, PictureWindow } from './PictureWindow.tsx'
+import { MarkupButton } from './markup/MarkupWindow.tsx'
 import { refKey, uploadSlot } from './reportFiles.ts'
 import { useReport } from './reportContext.ts'
 import { pdfPageKey } from './useReportPages.ts'
@@ -268,6 +269,8 @@ function UploadTable() {
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a reference page left', (q) => setUpload(q, i, { rotate: turned(u.rotate, 'left') }))} aria-label={`Turn ${label} left`} title="Turn left (a quarter, anticlockwise)">⟲</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Turn a reference page right', (q) => setUpload(q, i, { rotate: turned(u.rotate, 'right') }))} aria-label={`Turn ${label} right`} title="Turn right (a quarter, clockwise)">⟳</button>
                   {!pdf && <CropButton small at={{ kind: 'upload', index: i }} picture={{ source: 'uploads', file: u.file }} name={u.file} />}
+                  <MarkupButton small at={{ kind: 'upload', index: i }} picture={pdf ? null : { source: 'uploads', file: u.file }} pdfPage={pdf ? { file: u.file, page: u.page ?? 1 } : undefined}
+                    name={pdf ? `${u.file} page ${u.page ?? 1}` : u.file} />
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a reference page', (q) => moveUpload(q, i, i - 1))} disabled={i === 0} aria-label={`Move ${label} up`} title="Move up">↑</button>
                   <button type="button" className="icon-btn" onClick={() => app.edit('Move a reference page', (q) => moveUpload(q, i, i + 1))} disabled={i === list.length - 1} aria-label={`Move ${label} down`} title="Move down">↓</button>
                   <button type="button" className="icon-btn icon-danger" onClick={() => app.edit('Remove a reference page', (q) => removeUpload(q, i))} aria-label={`Remove ${label}`} title="Remove from the report (the file stays)">✕</button>
