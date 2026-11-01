@@ -1115,3 +1115,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   short as the landscape one (field list, the 0" reference and the chips in two narrow columns beside it; `FRAME_PORTRAIT` header rule
   1.32 in, content from 1.86 in, about 7.5 x 8.6 in), so an upright reference sheet prints higher and bigger. Tests added; drawing outputs
   and fingerprints unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: the side panel was not wanted): back to the earlier layout, the tools as a ONE-column
+  rail on the left (Crop, then Redact last; scrolls up and down only if the screen is short), the colour palette and the tool's settings in
+  the top line (fixed 44 px, compact controls: line / leader width, text size, bold, font, Auto text + text colour, box shape, box fill
+  Filled / Filled, see-through / Clear, outline only (replaces the opacity slider: 0.9 / 0.6), leader end, Outline, Styles… and a save
+  icon; all fit on one line at about 1500 px), the selection, its icons and the label's text in the bottom line with "Copy marks to other
+  pictures…", the name and zoom. The label features and the portrait header from the previous entry stay.

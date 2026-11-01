@@ -921,13 +921,17 @@ untouched.
   another, and a click off it only lets go. Enter in a label's text box finishes the text and lets go (Shift+Enter: a new line). Box style
   "Highlighted, no outline" (see-through fill, no edge); new labels are rounded with no outline (the outline setting's default is off; an
   outline kept in the browser before this is dropped once, `axisbuilder:markup` version 2).
-- **Side panel (user, 2026-11-01).** The settings left the top line for a side panel on the left that scrolls up and down only: Done and
+- **Side panel (user, 2026-11-01; undone the same day, see the next bullet).** The settings left the top line for a side panel on the left that scrolls up and down only: Done and
   undo / redo, the tools (three columns, Crop and Redact last), the selected mark (what it is, duplicate / forward / back / lock / delete as
   icons, its text box or live data link, "Enter or a click elsewhere when you are done"), then the settings, each with a caption (Colour,
   Line width or Leader and edge width, Box style, Highlighter width, Arrow head, Text with size / bold / font / text colour, Box with shape /
   Filled or Clear, outline only / see-through / leader end, Contrast outline, Redaction, Saved styles). With one mark selected they show
   its own look. "Copy markup to…" is now "Copy these marks to other pictures…" with a tooltip saying what it does. Labels gained a leader
   and edge width, a text colour (Auto or any) and the clear box; the contrast outline goes round the leader's arrowhead too.
+- **Back to the top line (user, 2026-11-01).** The side panel was not wanted: the tools are a one-column rail on the left again (Redact
+  last), the colour palette and the settings sit in the top line (compact: widths and the label box as dropdowns, "Filled / Filled,
+  see-through / Clear, outline only" in place of the opacity slider, "Auto text" plus a text colour picker, Styles… and a save icon), and
+  the selection with its text box in the bottom line. The label options above stay.
 - **Portrait frame header (user, 2026-11-01).** An upright reference page's header is as short as the landscape one (the chips in two
   narrow columns beside the field list), so the sheet starts at 1.86 in and gets about 8.6 in of height.
 - **Print-true.** The editor draws in page inches of the picture as it prints (its slot: `findPrinted`; a picture that doesn't print yet is

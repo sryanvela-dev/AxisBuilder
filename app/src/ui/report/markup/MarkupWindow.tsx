@@ -153,26 +153,22 @@ function EditorBody({ target, title, onDone, pic, frame, printedW, printedPage, 
       }
       ed.onKeyDown(e)
     }}>
+      <div className="markup-head">
+        <h2 className="visually-hidden">{title}</h2>
+        <MarkupToolbar ed={ed} part="settings" />
+        <span className="markup-spacer" />
+        <UndoRedo />
+        <button type="button" className="btn btn-primary" onClick={onDone} title="Close (Esc)">Done</button>
+      </div>
       <div className="markup-body">
-        {/* The side panel (user, 2026-11-01): Done, the tools, their settings and the selected mark, top to bottom; it
-            scrolls up and down only. */}
-        <aside className="markup-side" aria-label="Markup tools and settings">
-          <div className="markup-side-head">
-            <h2 className="visually-hidden">{title}</h2>
-            <UndoRedo />
-            <button type="button" className="btn btn-primary" onClick={onDone} title="Close (Esc)">Done</button>
-          </div>
-          <MarkupToolbar ed={ed} part="tools" showCrop={!!onCrop} onCrop={onCrop} />
-          <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} part="selection" />
-          <MarkupToolbar ed={ed} part="settings" />
-        </aside>
+        <MarkupToolbar ed={ed} part="tools" showCrop={!!onCrop} onCrop={onCrop} />
         <div className="markup-stage-wrap" ref={wrap}>
           <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} paper={!!sheet}>
             {sheet && <SheetSvg it={sheet.item} thumbs={sheet.thumbs} minW={1 / ppi} id={`${sheetId}-sheet`} />}
           </MarkupStage>
         </div>
       </div>
-      <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} part="picture" hint={hint} extra={(
+      <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} hint={hint} extra={(
         <>
           <span className="muted markup-printed" title={`${target.name}: ${printed}. Marks and text are drawn to the printed scale at every zoom`}>
             <strong>{capital(target.name)}</strong> · {printed}

@@ -21,7 +21,10 @@ import type { MarkupEditorState } from './useMarkupEditor.ts'
 const SHAPE_NAMES = { outline: 'Outline', filled: 'Filled', highlighted: 'Highlighted', highlightedPlain: 'Highlighted, no outline' } as const
 const SHAPE_TIPS = { outline: 'Edge only', filled: 'Solid fill', highlighted: 'See-through fill with a solid edge', highlightedPlain: 'See-through fill, no edge' } as const
 const CALLOUTS = [['rounded', 'Rounded box'], ['square', 'Square box'], ['pill', 'Pill'], ['plain', 'No box (text only)']] as const
-const LEADER_ENDS = [['arrow', 'Arrow'], ['dot', 'Dot'], ['none', 'No end']] as const
+/** A filled label box: solid, or see-through (the picture shows through). */
+const SOLID = 0.9
+const SEE_THROUGH = 0.6
+const LEADER_ENDS = [['arrow', 'Leader: arrow'], ['dot', 'Leader: dot'], ['none', 'Leader: no end']] as const
 const HEADS = [['closed', 'Closed'], ['open', 'Open'], ['dot', 'Dot'], ['none', 'None']] as const
 
 /** Which settings a tool or a mark kind shows. */
@@ -83,7 +86,8 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
   const tools = TOOLS.filter((t) => t.id !== 'redaction')
   const redaction = TOOLS.find((t) => t.id === 'redaction')!
   return (
-    <div className="markup-toolbar" role="toolbar" aria-label={part === 'settings' ? 'Tool settings' : 'Markup tools'}>
+    <div className={part === 'tools' ? 'markup-toolbar markup-rail' : 'markup-toolbar'} role="toolbar" aria-label={part === 'settings' ? 'Tool settings' : 'Markup tools'}
+      aria-orientation={part === 'tools' ? 'vertical' : undefined}>
       {part !== 'settings' && <div className="markup-tools">
         {tools.map((t) => (
           <button key={t.id} type="button" className={`markup-tool${tool === t.id ? ' on' : ''}`} aria-pressed={tool === t.id} title={`${t.hint} (${t.key})`} onClick={() => ed.setTool(t.id as ToolId)}>
@@ -122,11 +126,11 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
         {show.width && (
           <div className="markup-field" role="group" aria-label="Line width">
             <span className="markup-caption">{show.label && !show.shape ? 'Leader and edge width' : 'Line width'}</span>
-            <span className="markup-buttons">
-              {WIDTH_PRESETS.map((w) => (
-                <button key={w.w} type="button" className={`btn btn-small${shown.width === w.w ? ' on' : ''}`} aria-pressed={shown.width === w.w} title={`${w.name} line (${w.w} pt at print size)`} onClick={() => pref({ width: w.w }, 'Change line width')}>{w.name}</button>
-              ))}
-            </span>
+            <select value={WIDTH_PRESETS.some((w) => w.w === shown.width) ? shown.width : ''} aria-label={show.label && !show.shape ? 'Leader and edge width' : 'Line width'}
+              title={show.label && !show.shape ? "Width of the leader and of a clear box's edge, at print size" : 'Line width at print size'} onChange={(e) => pref({ width: Number(e.target.value) }, 'Change line width')}>
+              {!WIDTH_PRESETS.some((w) => w.w === shown.width) && <option value="">{shown.width} pt</option>}
+              {WIDTH_PRESETS.map((w) => <option key={w.w} value={w.w}>{w.name} {show.label && !show.shape ? 'leader' : 'line'}</option>)}
+            </select>
           </div>
         )}
         {show.shape && (
@@ -176,15 +180,14 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
             {show.label && (
               <select value={shown.font} aria-label="Font" onChange={(e) => pref({ font: e.target.value as ToolPrefs['font'] }, 'Change font')}>
                 <option value="roboto">Roboto</option>
-                <option value="montserrat">Montserrat (headings)</option>
+                <option value="montserrat">Montserrat</option>
               </select>
             )}
-            <span className="markup-caption markup-subcaption">Text colour</span>
-            <span className="markup-swatches">
+            <span className="markup-swatches" role="group" aria-label="Text colour">
               <button type="button" className={`btn btn-small${shown.textColor === '' ? ' on' : ''}`} aria-pressed={shown.textColor === ''}
-                title="Stands out on the box (or the label's colour without one)" onClick={() => pref({ textColor: '' }, 'Change text colour')}>Auto</button>
+                title="Text colour: automatic (stands out on the box, or the label's colour without one)" onClick={() => pref({ textColor: '' }, 'Change text colour')}>Auto text</button>
+              <input type="color" value={shown.textColor || '#1a1a1a'} title="Pick the text colour" aria-label="Text colour" onChange={(e) => pref({ textColor: e.target.value }, 'Change text colour')} />
             </span>
-            {swatches(shown.textColor, (c) => pref({ textColor: c }, 'Change text colour'), 'Text colour')}
           </div>
         )}
         {show.label && (
@@ -194,20 +197,15 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
               {CALLOUTS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
             </select>
             {shown.callout !== 'plain' && (
-              <span className="markup-buttons">
-                <button type="button" className={`btn btn-small${shown.labelBox === 'filled' ? ' on' : ''}`} aria-pressed={shown.labelBox === 'filled'} title="Filled with the label's colour" onClick={() => pref({ labelBox: 'filled' }, 'Change label box')}>Filled</button>
-                <button type="button" className={`btn btn-small${shown.labelBox === 'clear' ? ' on' : ''}`} aria-pressed={shown.labelBox === 'clear'} title="Clear: only the edge, in the label's colour" onClick={() => pref({ labelBox: 'clear' }, 'Change label box')}>Clear, outline only</button>
-              </span>
-            )}
-            {shown.callout !== 'plain' && shown.labelBox === 'filled' && (
-              <label className="check-inline" title="How solid the box behind the text is">
-                <span className="muted">See-through</span>
-                <input type="range" min={0.4} max={1} step={0.05} value={shown.bgOpacity} aria-label="Box background opacity"
-                  onChange={(e) => ed.setPrefs({ bgOpacity: Number(e.target.value) })} onPointerUp={(e) => pref({ bgOpacity: Number((e.target as HTMLInputElement).value) }, 'Change box background')} />
-              </label>
+              <select value={shown.labelBox === 'clear' ? 'clear' : shown.bgOpacity < 0.8 ? 'see' : 'filled'} aria-label="Box fill"
+                title="Filled with the label's colour, see-through, or clear (only the edge)"
+                onChange={(e) => pref(e.target.value === 'clear' ? { labelBox: 'clear' } : { labelBox: 'filled', bgOpacity: e.target.value === 'see' ? SEE_THROUGH : SOLID }, 'Change label box')}>
+                <option value="filled">Filled</option>
+                <option value="see">Filled, see-through</option>
+                <option value="clear">Clear, outline only</option>
+              </select>
             )}
             <label className="markup-inline">
-              <span className="muted">Leader end</span>
               <select value={shown.leaderEnd} aria-label="Leader end" title="End of the leader (drag from the target to place a label with a leader)" onChange={(e) => pref({ leaderEnd: e.target.value as ToolPrefs['leaderEnd'] }, 'Change leader end')}>
                 {LEADER_ENDS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
               </select>
@@ -217,7 +215,7 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
         {show.text && (
           <label className="markup-field check-inline" title="A thin contrasting outline round the box, the leader and its end (a halo on plain text), so it reads on any photo">
             <input type="checkbox" checked={shown.halo} onChange={(e) => pref({ halo: e.target.checked }, 'Change outline')} />
-            Contrast outline
+            Outline
           </label>
         )}
         {show.redact && (
@@ -237,7 +235,7 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
           <div className="markup-field" role="group" aria-label="Label styles">
             <span className="markup-caption">Saved styles</span>
             <select value="" aria-label="Label styles" title="Apply a label style (to the selected labels, or to the next one you place)" onChange={(e) => pickStyle(e.target.value)}>
-              <option value="">{ed.newStyle && !selected.length ? `Next label: ${ed.newStyle.name}` : 'Apply a style…'}</option>
+              <option value="">{ed.newStyle && !selected.length ? `Next label: ${ed.newStyle.name}` : 'Styles…'}</option>
               {styles.map((s) => <option key={`${s.name}-${s.kind}`} value={s.name}>{s.name}{s.kind === 'badge' ? ' (badge)' : ''}</option>)}
             </select>
             {one && (one.kind === 'label' || one.kind === 'badge') && <SaveStyle mark={one} onSave={(s) => changeLists((l) => addRecord(l, 'labelStyles', s))} />}
@@ -260,15 +258,14 @@ export function UndoRedo() {
 }
 
 /**
- * The selected marks (side panel: what they are, duplicate / order / lock / delete, a label's text or live link, a
- * badge's key) and the picture (bottom line: the tool hint, auto brightness / contrast, copy the marks to other
- * pictures, then `extra`: name, print size, zoom). `part` 'all' shows both, one after the other.
+ * The bottom line: the tool hint while nothing is selected, else the selected marks (what they are, duplicate / forward /
+ * back / lock / delete as icons, a label's text or live link, a badge's key); then auto brightness / contrast, copy the
+ * marks to other pictures and `extra` (name, print size, zoom).
  */
-export function MarkupPanel({ ed, original, setOriginal, part = 'all', hint = '', extra }: {
+export function MarkupPanel({ ed, original, setOriginal, hint = '', extra }: {
   ed: MarkupEditorState
   original: boolean
   setOriginal: (on: boolean) => void
-  part?: 'all' | 'selection' | 'picture'
   hint?: string
   extra?: React.ReactNode
 }) {
@@ -280,49 +277,40 @@ export function MarkupPanel({ ed, original, setOriginal, part = 'all', hint = ''
   const [copying, setCopying] = useState(false)
   const locked = selected.length > 0 && selected.every((m) => m.locked)
   return (
-    <>
-      {part !== 'picture' && selected.length > 0 && (
-        <div className="markup-selection">
-          <div className="markup-selection-head">
-            <strong>{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</strong>
-            <span className="markup-buttons">
-              <button type="button" className="icon-btn" aria-label="Duplicate" title="Duplicate (Ctrl+D)" onClick={ed.actions.duplicate}>⧉</button>
-              <button type="button" className="icon-btn" aria-label="Bring forward" title="Bring forward (]); Shift+] to the front" onClick={() => ed.actions.order('forward')}>↑</button>
-              <button type="button" className="icon-btn" aria-label="Send back" title="Send back ([); Shift+[ to the back" onClick={() => ed.actions.order('back')}>↓</button>
-              <button type="button" className="icon-btn" aria-label={locked ? 'Unlock' : 'Lock'} title="Lock or unlock: a locked mark can't be moved or deleted (Ctrl+L)" onClick={ed.actions.lock}>{locked ? '🔓' : '🔒'}</button>
-              <button type="button" className="icon-btn icon-danger" aria-label="Delete" title="Delete (Del)" onClick={ed.actions.remove}>🗑</button>
-            </span>
-          </div>
-          {one?.kind === 'label' && <LabelText ed={ed} mark={one} project={project} />}
-          {one?.kind === 'badge' && <BadgeText ed={ed} mark={one} />}
-          <p className="muted markup-done-hint">Enter or a click elsewhere when you are done with it.</p>
-        </div>
+    <div className="markup-footer">
+      {selected.length === 0 && <span className="muted markup-hint">{hint}</span>}
+      {selected.length > 0 && (
+        <span className="markup-buttons">
+          <span className="muted">{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</span>
+          <button type="button" className="icon-btn" aria-label="Duplicate" title="Duplicate (Ctrl+D)" onClick={ed.actions.duplicate}>⧉</button>
+          <button type="button" className="icon-btn" aria-label="Bring forward" title="Bring forward (]); Shift+] to the front" onClick={() => ed.actions.order('forward')}>↑</button>
+          <button type="button" className="icon-btn" aria-label="Send back" title="Send back ([); Shift+[ to the back" onClick={() => ed.actions.order('back')}>↓</button>
+          <button type="button" className="icon-btn" aria-label={locked ? 'Unlock' : 'Lock'} title="Lock or unlock: a locked mark can't be moved or deleted (Ctrl+L)" onClick={ed.actions.lock}>{locked ? '🔓' : '🔒'}</button>
+          <button type="button" className="icon-btn icon-danger" aria-label="Delete" title="Delete (Del)" onClick={ed.actions.remove}>🗑</button>
+        </span>
       )}
-      {part !== 'selection' && (
-        <div className="markup-footer">
-          <span className="muted markup-hint">{hint}</span>
-          {ed.allowRedaction && (
-            <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
-              <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
-                (p) => setPictureEdits(p, ed.at, { adjust: { ...(ed.item?.edits.adjust ?? { autoLevels: false, darken: 0 }), autoLevels: e.target.checked } }))} />
-              Auto brightness / contrast
-            </label>
-          )}
-          {autoLevels && ed.allowRedaction && (
-            <button type="button" className={`btn btn-small${original ? ' on' : ''}`} title="Hold to see the picture before the adjustment"
-              onPointerDown={() => setOriginal(true)} onPointerUp={() => setOriginal(false)} onPointerLeave={() => setOriginal(false)}
-              onKeyDown={(e) => e.key === ' ' && setOriginal(true)} onKeyUp={() => setOriginal(false)}>
-              Hold: before
-            </button>
-          )}
-          <button type="button" className="btn btn-small" disabled={ed.stored.length === 0}
-            title="Put copies of this picture's marks (or only the selected ones) on other pictures of the report, in the same places, e.g. the same arrow on every scan screenshot"
-            onClick={() => setCopying(true)}>Copy these marks to other pictures…</button>
-          {extra}
-        </div>
+      {one?.kind === 'label' && <LabelText ed={ed} mark={one} project={project} />}
+      {one?.kind === 'badge' && <BadgeText ed={ed} mark={one} />}
+      {ed.allowRedaction && (
+        <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
+          <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
+            (p) => setPictureEdits(p, ed.at, { adjust: { ...(ed.item?.edits.adjust ?? { autoLevels: false, darken: 0 }), autoLevels: e.target.checked } }))} />
+          Auto brightness / contrast
+        </label>
       )}
+      {autoLevels && ed.allowRedaction && (
+        <button type="button" className={`btn btn-small${original ? ' on' : ''}`} title="Hold to see the picture before the adjustment"
+          onPointerDown={() => setOriginal(true)} onPointerUp={() => setOriginal(false)} onPointerLeave={() => setOriginal(false)}
+          onKeyDown={(e) => e.key === ' ' && setOriginal(true)} onKeyUp={() => setOriginal(false)}>
+          Hold: before
+        </button>
+      )}
+      <button type="button" className="btn btn-small" disabled={ed.stored.length === 0}
+        title="Put copies of this picture's marks (or only the selected ones) on other pictures of the report, in the same places, e.g. the same arrow on every scan screenshot"
+        onClick={() => setCopying(true)}>Copy marks to other pictures…</button>
+      {extra}
       {copying && <CopyMarkupDialog ed={ed} onClose={() => setCopying(false)} />}
-    </>
+    </div>
   )
 }
 
@@ -344,7 +332,7 @@ function kindName(m: Mark): string {
 function SaveStyle({ mark, onSave }: { mark: Mark; onSave: (s: LabelStyle) => void }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  if (!open) return <button type="button" className="btn btn-small" title="Keep this label's look as a style on this computer" onClick={() => setOpen(true)}>Save style…</button>
+  if (!open) return <button type="button" className="icon-btn" aria-label="Save this look as a style" title="Save this label's look as a style on this computer (it then shows in the styles list)" onClick={() => setOpen(true)}>💾</button>
   const save = () => {
     const s = labelStyleOf(mark, name.trim())
     if (s && name.trim()) onSave(s)
