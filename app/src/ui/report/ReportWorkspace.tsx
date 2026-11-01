@@ -37,6 +37,7 @@ import { ReportContext, type ReportShared } from './reportContext.ts'
 import { ResultsStep } from './ResultsStep.tsx'
 import { SetupStep } from './SetupStep.tsx'
 import { SummaryStep } from './SummaryStep.tsx'
+import { MarkupOpener } from './markup/MarkupOpener.tsx'
 import { useProcessedThumbs, useReportDocument, useReportPictures, useUploadPdfs } from './useReportPages.ts'
 
 const STATE_ICON: Record<StepState, string> = { done: '✓', attention: '!', notStarted: '○' }
@@ -179,6 +180,7 @@ export function ReportWorkspace() {
             <PagesPanel doc={doc} pictures={shown} sheetThumbs={sheetThumbs} step={step} onGo={go} loading={loading} />
           </ErrorBoundary>
         )}
+        <MarkupOpener />
       </div>
       <footer className="page-footer">
         <span className="muted footer-hint">Ctrl+Z undo, Ctrl+Y redo, Ctrl+S save</span>

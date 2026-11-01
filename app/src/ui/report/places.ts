@@ -5,7 +5,9 @@ import type { ReportCheckPlace } from '../../report/checks.ts'
 import type { ImagePlace } from '../../report/imageItems.ts'
 import { templateOf } from '../../report/templates/registry.ts'
 import { placeStep, type ReportIssue } from '../../state/reportSteps.ts'
+import { MARKUP_ENABLED } from '../../featureFlags.ts'
 import { useApp } from '../appContext.ts'
+import { openMarkup } from './markup/targets.ts'
 
 /** The element of a report picture: its row or box on its step. */
 export function picturePlaceId(at: ImagePlace): string {
@@ -38,7 +40,11 @@ export function jumpToReport(place: ReportCheckPlace) {
   el.querySelector<HTMLElement>('input, select, textarea')?.focus({ preventScroll: true })
 }
 
-/** Goes to where an issue is fixed: the step of its place (a summary sentence's value may be on Calibration), then the row. */
+/**
+ * Goes to where an issue is fixed: the step of its place (a summary sentence's value may be on Calibration), then the
+ * row. A picture's issue (a live label that lost its row, marks outside the crop, redactions) also opens the markup
+ * editor on that picture (R5).
+ */
 export function useGoToIssue() {
   const app = useApp()
   return (i: ReportIssue) => {
@@ -47,5 +53,6 @@ export function useGoToIssue() {
     const step = place ? placeStep(place, report ? templateOf(report.templateId) : undefined) : i.step
     app.dispatch({ type: 'goToReportStep', step })
     if (place) window.setTimeout(() => jumpToReport(place), 60)
+    if (place?.kind === 'picture' && MARKUP_ENABLED) window.setTimeout(() => openMarkup(place.at), 120)
   }
 }

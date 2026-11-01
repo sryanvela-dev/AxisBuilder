@@ -120,3 +120,20 @@ describe('markup tools: what each tool makes', () => {
     expect(findPrinted(doc, { kind: 'photo', index: 5 })).toBeNull()
   })
 })
+
+describe('opening the editor from elsewhere (Review Go to)', () => {
+  it('finds the picture of a place: its file and source, or the PDF page', async () => {
+    const { markupTargetFor } = await import('../../src/ui/report/markup/targets.ts')
+    const { uploadSchema } = await import('../../src/report/schema.ts')
+    const p = sampleWithReport((q) => {
+      q.report!.photos = [photoSchema.parse({ file: 'a.jpg' })]
+      q.report!.uploads = [uploadSchema.parse({ file: 'ga.pdf', page: 2 }), uploadSchema.parse({ file: 'plate.jpg', page: null })]
+    })
+    expect(markupTargetFor(p.report!, { kind: 'photo', index: 0 })).toMatchObject({ picture: { source: 'photos', file: 'a.jpg' } })
+    expect(markupTargetFor(p.report!, { kind: 'upload', index: 0 })).toMatchObject({ picture: null, pdfPage: { file: 'ga.pdf', page: 2 } })
+    expect(markupTargetFor(p.report!, { kind: 'upload', index: 1 })).toMatchObject({ picture: { source: 'uploads', file: 'plate.jpg' } })
+    const scan = p.report!.scanResults[0]
+    expect(markupTargetFor(p.report!, { kind: 'dataImage', scanId: scan.scanId })).toMatchObject({ picture: { source: 'screenshots', file: scan.dataImage } })
+    expect(markupTargetFor(p.report!, { kind: 'cover' })).toBeNull()
+  })
+})

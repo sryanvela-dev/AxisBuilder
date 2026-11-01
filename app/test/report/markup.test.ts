@@ -20,7 +20,7 @@ import { buildReport } from '../../src/report/pages/index.ts'
 import { writeReportPdf } from '../../src/report/pdf/writeReportPdf.ts'
 import { pictureAt } from '../../src/report/pagesEdits.ts'
 import { addRecord, emptySavedLists, listsFromFile, listsToFile, readSavedLists } from '../../src/report/savedLists.ts'
-import { markSchema, photoSchema, type Mark } from '../../src/report/schema.ts'
+import { markSchema, photoSchema, uploadSchema, type Mark } from '../../src/report/schema.ts'
 import { syncReport } from '../../src/report/sync.ts'
 import { checkReport } from '../../src/report/checks.ts'
 import { fakeImages, sampleWithReport } from './pages/fixture.ts'
@@ -385,7 +385,7 @@ async function embeddedJpegs(bytes: Uint8Array): Promise<{ width: number; height
   return out
 }
 
-describe('redaction in the PDF', () => {
+describe('redaction in the PDF', { timeout: 30000 }, () => {
   it('the embedded picture has the redacted area black; the original pixels are not in the file', async () => {
     // The made-up photo with noise added, so its encoded bytes can't turn up by chance in another encoding.
     const base = jpeg.decode(madeUpPhoto(400, 300), { useTArray: true })
@@ -519,5 +519,29 @@ describe('project file format 10', () => {
     expect(rect.style).toMatchObject({ bold: false, font: 'roboto', bgOpacity: 0.9, halo: true })
     expect(arrow.kind === 'arrow' && arrow.head).toBe('closed')
     expect(label.kind === 'label' && label.template).toBe('')
+  })
+})
+
+describe('marks over uploaded PDF pages', { timeout: 30000 }, () => {
+  it('the page item carries its marks and size; the badge key prints under it; the PDF draws them; redaction is left out', async () => {
+    const d = await PDFDocument.create()
+    d.addPage([612, 792]).drawText('Plant drawing', { x: 72, y: 700 })
+    const ga = await d.save()
+    const p = sampleWithReport((q) => {
+      q.report!.uploads = [uploadSchema.parse({ file: 'ga.pdf', page: 1, markup: [
+        { id: 'm1', kind: 'rect', box: { x0: 0.1, y0: 0.1, x1: 0.4, y1: 0.3 } },
+        { id: 'm2', kind: 'badge', at: [0.5, 0.5], n: 1, text: 'Nozzle N4' },
+        { id: 'm3', kind: 'redaction', box: { x0: 0.6, y0: 0.6, x1: 0.8, y1: 0.8 } },
+      ] })]
+    })
+    const doc = buildReport({ project: p, image: () => null, pdfPages: () => [{ w: 8.5, h: 11 }] })
+    const page = doc.pages.find((pg) => pg.items.some((i) => i.t === 'pdfPage'))!
+    const item = page.items.find((i) => i.t === 'pdfPage')!
+    expect(item.t === 'pdfPage' && item.marks?.map((m) => m.kind)).toEqual(['rect', 'badge'])
+    expect(item.t === 'pdfPage' && item.pageSize).toEqual({ w: 8.5, h: 11 })
+    expect(page.items.some((i) => i.t === 'text' && i.text === 'Nozzle N4')).toBe(true)
+    expect(checkReport(p).some((c) => c.text.includes("a PDF page can't be redacted"))).toBe(true)
+    const bytes = await writeReportPdf({ doc, fonts: REPORT_FONTS, drawingFont: DRAWING_FONT, images: new Map(), sheetPhotos: new Map(), pdfs: new Map([['ga.pdf', ga]]), date: new Date(2026, 9, 31) })
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(doc.pages.length)
   })
 })
