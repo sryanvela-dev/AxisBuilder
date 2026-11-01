@@ -170,7 +170,7 @@ export const GENERIC_AUT: ReportTemplate = {
   ],
 
   // Integrity EPC's own boilerplate (no client content); pictures bundled with the app (src/assets/report/, cleared by
-  // the user 2026-11-01) and the scan views diagram the app draws. No example rollout (user, 2026-11-01: the report's
+  // the user 2026-11-01; the scan views picture supplied by the user the same day). No example rollout (user, 2026-11-01: the report's
   // own rollout explains itself).
   fixedPages: [
     {
@@ -184,8 +184,8 @@ export const GENERIC_AUT: ReportTemplate = {
           { heading: 'Advantages', text: 'In-service examinations at elevated temperatures (up to 500 °F direct scanner contact). High-speed data acquisition, up to 30 inches per second. Minimizes the need for costly internal entry. Detailed information for fitness for service evaluation. Exceptional repeatability, encoded scanning accurate to 0.001". Multi-tasking capabilities utilizing a full array of transducers simultaneously.' },
         ],
         pictures: [
-          { slot: 'equipment-scanner', kind: 'asset', file: 'aut-scanner.png', px: { w: 685, h: 546 }, caption: 'AUT scanner' },
-          { slot: 'equipment-unit', kind: 'asset', file: 'proscan-xt.png', px: { w: 378, h: 276 }, caption: 'ProScan XT', maxW: 2 },
+          { slot: 'equipment-scanner', file: 'aut-scanner.png', px: { w: 685, h: 546 }, caption: 'AUT scanner' },
+          { slot: 'equipment-unit', file: 'proscan-xt.png', px: { w: 378, h: 276 }, caption: 'ProScan XT', maxW: 2 },
         ],
       }, {
         layout: 'below',
@@ -193,7 +193,7 @@ export const GENERIC_AUT: ReportTemplate = {
           { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. B-scan (B-prime) display represents an end view along the X-axis index." },
         ],
         pictures: [
-          { slot: 'equipment-bscan', kind: 'drawn', diagram: 'scan-views' },
+          { slot: 'equipment-bscan', file: 'scan-views.jpg', px: { w: 2000, h: 1419 } },
         ],
       }],
     },
@@ -207,7 +207,7 @@ export const GENERIC_AUT: ReportTemplate = {
         ],
         pictures: [
           {
-            slot: 'guide-cscan-example', kind: 'asset', file: 'example-cscan.jpg', px: { w: 1532, h: 767 },
+            slot: 'guide-cscan-example', file: 'example-cscan.jpg', px: { w: 1532, h: 767 },
             labels: [
               { text: 'C-SCAN (plan view)', box: [0.003, 0.055, 0.941, 0.712], at: [0.055, 0.09] },
               { text: 'COLOR SCALE', box: [0.943, 0.058, 0.999, 0.268], at: [0.999, 0.28], right: true },

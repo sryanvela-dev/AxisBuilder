@@ -28,7 +28,7 @@ export interface ReportFileSources {
 /** Every picture the report shows, once each. */
 export function reportImageRefs(r: Report): ImageRef[] {
   const out: ImageRef[] = [{ source: 'brand', file: 'integrity-epc-logo.png' }]
-  for (const f of templateOf(r.templateId).fixedPages) for (const part of f.parts) for (const pic of part.pictures) if (pic.kind === 'asset') out.push({ source: 'asset', file: pic.file })
+  for (const f of templateOf(r.templateId).fixedPages) for (const part of f.parts) for (const pic of part.pictures) out.push({ source: 'asset', file: pic.file })
   if (r.coverPhoto) out.push({ source: 'cover', file: r.coverPhoto })
   if (r.calibration.dynamicImage) out.push({ source: 'calibration', file: r.calibration.dynamicImage })
   for (const p of r.photos) out.push({ source: 'photos', file: p.file })

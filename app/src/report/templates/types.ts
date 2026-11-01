@@ -111,12 +111,16 @@ export interface PictureLabel {
   right?: boolean
 }
 
-/** A picture on a fixed page: a picture bundled with the app, or a diagram the app draws. */
-export type FixedPicture =
-  /** A file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is, with labels over it. */
-  | { slot: string; kind: 'asset'; file: string; px: { w: number; h: number }; caption?: string; /** Never wider than this (inches). */ maxW?: number; labels?: PictureLabel[] }
-  /** A diagram drawn as vectors by the app (report/pages/diagrams.ts). */
-  | { slot: string; kind: 'drawn'; diagram: 'scan-views'; caption?: string }
+/** A picture on a fixed page: a file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is, with labels over it. */
+export interface FixedPicture {
+  slot: string
+  file: string
+  px: { w: number; h: number }
+  caption?: string
+  /** Never wider than this (inches). */
+  maxW?: number
+  labels?: PictureLabel[]
+}
 
 /**
  * Part of a fixed page: paragraphs and their pictures. Every part starts a page. 'side': the text on the left and the

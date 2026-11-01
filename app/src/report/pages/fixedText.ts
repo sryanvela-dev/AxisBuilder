@@ -2,13 +2,12 @@
 // part starts a page). 'side' parts put the text on the left and the pictures in a column on the right; 'below' parts
 // put the text across the page and the pictures in a row under it, as large as the page allows. Text that does not fit
 // flows onto another page, so nothing is clipped. Pictures are bundled with the app (src/assets/report/, printed as they
-// are, with labels over them) or diagrams the app draws as vectors (diagrams.ts).
+// are, with labels over them).
 
 import { fontBox, measure, wrapText } from '../fonts.ts'
 import { imageKey, type ImageRef, type PageItem, type Rect } from '../pageModel.ts'
 import type { FixedPicture, PictureLabel } from '../templates/types.ts'
 import { content, standardPage, type PageBuilder } from './common.ts'
-import { DIAGRAM_ASPECT, diagramItems } from './diagrams.ts'
 import { COLORS, F, fitBox, lineHeight, text } from './layout.ts'
 
 const SIZE = 9.5
@@ -27,26 +26,16 @@ const MIN_BELOW = 2.2
 export const assetRef = (file: string): ImageRef => ({ source: 'asset', file })
 
 /** Width / height of a picture as it prints. */
-function aspectOf(pic: FixedPicture): number {
-  if (pic.kind === 'asset') return pic.px.w / pic.px.h
-  return DIAGRAM_ASPECT[pic.diagram]
-}
+const aspectOf = (pic: FixedPicture): number => pic.px.w / pic.px.h
 
 /** The picture fitted into `box` (its shape kept, never wider than its maxW), caption under it. */
 function pictureItems(pic: FixedPicture, box: Rect): PageItem[] {
-  const room = { ...box, w: pic.kind === 'asset' && pic.maxW ? Math.min(box.w, pic.maxW) : box.w, h: box.h - (pic.caption ? CAPTION_H : 0) }
+  const room = { ...box, w: pic.maxW ? Math.min(box.w, pic.maxW) : box.w, h: box.h - (pic.caption ? CAPTION_H : 0) }
   room.x = box.x + (box.w - room.w) / 2
-  const items: PageItem[] = []
-  let placed: Rect
-  if (pic.kind === 'asset') {
-    placed = fitBox(pic.px.w / pic.px.h, room, 'top')
-    const ref = assetRef(pic.file)
-    items.push({ t: 'image', ref, ...placed, upright: { ...pic.px }, orientation: 1, rotate: 0, crop: null, marks: [], key: imageKey(ref, null) })
-    for (const l of pic.labels ?? []) items.push(...labelItems(l, placed))
-  } else {
-    placed = fitBox(DIAGRAM_ASPECT[pic.diagram], room, 'top')
-    items.push(...diagramItems(pic.diagram, placed))
-  }
+  const placed = fitBox(aspectOf(pic), room, 'top')
+  const ref = assetRef(pic.file)
+  const items: PageItem[] = [{ t: 'image', ref, ...placed, upright: { ...pic.px }, orientation: 1, rotate: 0, crop: null, marks: [], key: imageKey(ref, null) }]
+  for (const l of pic.labels ?? []) items.push(...labelItems(l, placed))
   if (pic.caption) items.push(text(placed.x + placed.w / 2, placed.y + placed.h + 0.06 + fontBox(F.label, CAPTION).ascent, pic.caption, F.label, CAPTION, COLORS.muted, 'center'))
   return items
 }
@@ -73,7 +62,7 @@ function labelItems(l: PictureLabel, pic: Rect): PageItem[] {
 
 /** The height a column of pictures takes at width `w` (each at most its maxW wide). */
 function columnHeight(pics: readonly FixedPicture[], w: number): number {
-  return pics.reduce((h, p, i) => h + (i ? GAP : 0) + Math.min(w, p.kind === 'asset' && p.maxW ? p.maxW : w) / aspectOf(p) + (p.caption ? CAPTION_H : 0), 0)
+  return pics.reduce((h, p, i) => h + (i ? GAP : 0) + Math.min(w, p.maxW ?? w) / aspectOf(p) + (p.caption ? CAPTION_H : 0), 0)
 }
 
 export const buildFixedText: PageBuilder = (c, def, title) => {
@@ -125,7 +114,7 @@ export const buildFixedText: PageBuilder = (c, def, title) => {
       if (h > area.h) w *= area.h / h
       let py = area.y
       for (const pic of pics) {
-        const pw = Math.min(w, pic.kind === 'asset' && pic.maxW ? pic.maxW : w)
+        const pw = Math.min(w, pic.maxW ?? w)
         const ph = pw / aspectOf(pic) + (pic.caption ? CAPTION_H : 0)
         pages[first].push(...pictureItems(pic, { x: area.x + area.w - SIDE_W, y: py, w: SIDE_W, h: ph }))
         py += ph + GAP

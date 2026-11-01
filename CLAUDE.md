@@ -454,11 +454,10 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   record list `labelStyles` in `report/savedLists.ts`.
 - Report fixed pages (AUT Equipment, Guide to Interpretation; design 6.12): the template's `fixedPages` are parts (`side` = text
   left, pictures in a column; `below` = text across, pictures in a row under it, as large as the page allows; every part starts a
-  page). Picture slots (`FixedPicture`): `asset` = a file in `src/assets/report/` (three pictures the user cleared from the old
-  IEPC AUT Report workbook, unchanged; nothing else from `Claude outputs/` goes into the repo), ImageSource `asset`, browser URLs by
-  `import.meta.glob` (`ui/report/reportAssets.ts`, precached), optional `labels` (outline + tab over a part of it: the Guide's C-scan
-  names C-SCAN, COLOR SCALE, A-SCAN, B-SCAN); `drawn` = a diagram drawn as vectors by `report/pages/diagrams.ts` (the Equipment
-  page's scan views: plate with C / B / D-scan faces, transducer, and a white full-wave A-scan on black). No example rollouts on
+  page). Picture slots (`FixedPicture`): a file in `src/assets/report/` (three pictures the user cleared from the old IEPC AUT
+  Report workbook, unchanged, and the Equipment page's scan views picture `scan-views.jpg` the user supplied; nothing else from
+  `Claude outputs/` goes into the repo), ImageSource `asset`, browser URLs by `import.meta.glob` (`ui/report/reportAssets.ts`,
+  precached), optional `labels` (outline + tab over a part of it: the Guide's C-scan names C-SCAN, COLOR SCALE, A-SCAN, B-SCAN). No example rollouts on
   the Guide (user, 2026-11-01: the report's own rollout explains itself).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
@@ -1155,3 +1154,7 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   doesn't): the Guide's example rollout removed; the Guide is one page (the labelled example C-scan). The example-job code went with
   it (`report/exampleJobs.ts`, `ui/report/useExampleThumbs.ts`, the photo routing in the report Export step, Pages view and Node
   `sheetPhotosFor`, slot kind `example`). Outputs of the drawing unchanged.
+- 2026-11-01 – Report fixed pages (feature/report-fixed-pages, user): the Equipment page's scan views picture is the user's new
+  rendering (block with transducer, C / B / D-scan faces, Y / X-axis strokes and a white A-scan on black), saved as
+  `src/assets/report/scan-views.jpg` (2000 x 1419, quality-90 JPEG, 266 KB). The app-drawn diagram (`report/pages/diagrams.ts`,
+  slot kind `drawn`) is removed; every slot is a bundled picture (`FixedPicture` has no `kind`). Outputs of the drawing unchanged.
