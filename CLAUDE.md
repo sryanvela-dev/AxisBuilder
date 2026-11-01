@@ -1158,3 +1158,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   rendering (block with transducer, C / B / D-scan faces, Y / X-axis strokes and a white A-scan on black), saved as
   `src/assets/report/scan-views.jpg` (2000 x 1419, quality-90 JPEG, 266 KB). The app-drawn diagram (`report/pages/diagrams.ts`,
   slot kind `drawn`) is removed; every slot is a bundled picture (`FixedPicture` has no `kind`). Outputs of the drawing unchanged.
+- 2026-11-01 – Report fixed pages (feature/report-fixed-pages, user): `scan-views.jpg` is now the full-size final picture (3440 x 2440
+  PNG from the user) saved at about 300 dpi of its printed width: 2450 x 1738, quality-90 JPEG, 389 KB. Wording: the Displays paragraph
+  ends "D-scan display represents an end view along the X-axis index." (the picture labels that face D-SCAN; was "B-scan (B-prime)");
+  the Guide's first paragraph reads "C-scan (plan view), B-scan (Y-axis cross-sectional view) and A-scan (waveform), labelled on the
+  example." (the example has no O.D. / I.D. marks). Template version stays 1 (no job has printed with it yet). Outputs of the drawing
+  unchanged.

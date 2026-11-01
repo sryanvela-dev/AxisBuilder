@@ -441,7 +441,7 @@ left). Text that does not fit flows onto another page. As built (branch feature/
   "AUT scanner") and the ProScan XT (2.00 x 1.46 in, never wider than 2 in; caption "ProScan XT") in the right column;
   page 2 Displays with the scan views picture under it. No example C-scan on this page (the `equipment-cscan` slot was
   removed, user 2026-11-01).
-- **Scan views picture** (`scan-views.jpg`, 2000 x 1419, supplied by the user 2026-11-01): a rendered block with the AUT
+- **Scan views picture** (`scan-views.jpg`, the user's final picture of 3440 x 2440 saved at 2450 x 1738, about 300 dpi at 8.1 in, quality-90 JPEG; 2026-11-01): a rendered block with the AUT
   transducer and its raster path (C-SCAN on the top face, B-SCAN on the front face, D-SCAN on the end face), the Y-axis
   and X-axis stroke arrows, an internal reflector, and the A-scan at it (white trace on black, gate, internal reflector
   and back wall echoes). It replaced first the old workbook's picture (image35, which said "stoke" for "stroke") and then a

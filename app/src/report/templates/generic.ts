@@ -190,10 +190,10 @@ export const GENERIC_AUT: ReportTemplate = {
       }, {
         layout: 'below',
         paragraphs: [
-          { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. B-scan (B-prime) display represents an end view along the X-axis index." },
+          { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. D-scan display represents an end view along the X-axis index." },
         ],
         pictures: [
-          { slot: 'equipment-bscan', file: 'scan-views.jpg', px: { w: 2000, h: 1419 } },
+          { slot: 'equipment-bscan', file: 'scan-views.jpg', px: { w: 2450, h: 1738 } },
         ],
       }],
     },
@@ -202,7 +202,7 @@ export const GENERIC_AUT: ReportTemplate = {
       parts: [{
         layout: 'below',
         paragraphs: [
-          { heading: 'Example: AUT scan with corrosion present', text: 'C-scan (plan view), B-scan (Y-axis cross sectional view) and A-scan (waveform), with the O.D. and I.D. surfaces marked.' },
+          { heading: 'Example: AUT scan with corrosion present', text: 'C-scan (plan view), B-scan (Y-axis cross-sectional view) and A-scan (waveform), labelled on the example.' },
           { text: 'Referring to the UT depth color palette, the blue areas in the C-scan image represent the nominal thickness and the green, yellow and red areas represent I.D. wall loss.' },
         ],
         pictures: [
