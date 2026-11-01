@@ -1,5 +1,5 @@
 // The report's pictures in the browser: where each is read from (the report photo folder or a photo picked as a file,
-// the screenshots folder, the remembered cover, calibration and uploaded files, the app's logo), their size and phone (EXIF)
+// the screenshots folder, the remembered cover, calibration and uploaded files, the app's logo and the template's bundled pictures), their size and phone (EXIF)
 // orientation for the page builders, upright thumbnails for the Pages view, and the pictures made ready for the PDF
 // (turned upright, cut to their crop, at about 300 dpi of their printed size; never more than the file has).
 
@@ -10,9 +10,11 @@ import { imageNeeds } from '../../report/pageModel.ts'
 import { applyPixelEdits, hasPixelEdits } from '../../report/imageProcess.ts'
 import type { PreparedImage } from '../../report/pdf/writeReportPdf.ts'
 import type { Report } from '../../report/schema.ts'
+import { templateOf } from '../../report/templates/registry.ts'
 import { recallFile, type FileSlot } from '../../state/files.ts'
 import type { KeyValueStore } from '../../state/storage.ts'
 import type { PhotoFolder } from '../photoFolder.ts'
+import { reportAssetUrl } from './reportAssets.ts'
 
 export interface ReportFileSources {
   /** The report photo folder (photos, custom-sheet pictures). */
@@ -26,6 +28,7 @@ export interface ReportFileSources {
 /** Every picture the report shows, once each. */
 export function reportImageRefs(r: Report): ImageRef[] {
   const out: ImageRef[] = [{ source: 'brand', file: 'integrity-epc-logo.png' }]
+  for (const f of templateOf(r.templateId).fixedPages) for (const part of f.parts) for (const pic of part.pictures) out.push({ source: 'asset', file: pic.file })
   if (r.coverPhoto) out.push({ source: 'cover', file: r.coverPhoto })
   if (r.calibration.dynamicImage) out.push({ source: 'calibration', file: r.calibration.dynamicImage })
   for (const p of r.photos) out.push({ source: 'photos', file: p.file })
@@ -61,6 +64,11 @@ export async function readReportFile(src: ReportFileSources, ref: ImageRef): Pro
       case 'brand': {
         const res = await fetch(logoUrl)
         return res.ok ? new File([await res.blob()], ref.file, { type: 'image/png' }) : null
+      }
+      case 'asset': {
+        const url = reportAssetUrl(ref.file)
+        const res = url ? await fetch(url) : null
+        return res?.ok ? new File([await res.blob()], ref.file, { type: /.png$/i.test(ref.file) ? 'image/png' : 'image/jpeg' }) : null
       }
       case 'photos':
         return (src.photos?.names.includes(ref.file) ? await src.photos.getFile(ref.file) : null) ?? (await remembered(src, photoSlot(ref.file), ref.file))
@@ -142,8 +150,8 @@ export async function preparePictures(doc: Pick<ReportDocument, 'pages'>, src: R
       const cw = (c.x1 - c.x0) * uw
       const ch = (c.y1 - c.y0) * uh
       const k = Math.min(1, (n.printedW * dpi) / cw, (n.printedH * dpi) / ch)
-      // The logo is small and has a see-through background: always as it is.
-      if (n.ref.source === 'brand' || (info.orientation === 1 && !n.crop && k >= 0.95 && !hasPixelEdits(n))) {
+      // The logo and the template's bundled pictures: always as they are (the logo has a see-through background).
+      if (n.ref.source === 'brand' || n.ref.source === 'asset' || (info.orientation === 1 && !n.crop && k >= 0.95 && !hasPixelEdits(n))) {
         images.set(n.key, { bytes, format: info.format, orientation: 1, region: null })
       } else {
         const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })

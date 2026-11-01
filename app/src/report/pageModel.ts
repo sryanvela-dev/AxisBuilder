@@ -54,8 +54,11 @@ export interface RectItem extends Rect {
   radius: number
 }
 
-/** Where a picture is read from: the report folders, the files remembered per job, an upload, or the app's brand assets. */
-export type ImageSource = 'photos' | 'screenshots' | 'cover' | 'calibration' | 'uploads' | 'brand'
+/**
+ * Where a picture is read from: the report folders, the files remembered per job, an upload, the app's brand assets (the
+ * logo) or the template's pictures bundled with the app (src/assets/report/, the fixed pages).
+ */
+export type ImageSource = 'photos' | 'screenshots' | 'cover' | 'calibration' | 'uploads' | 'brand' | 'asset'
 
 export interface ImageRef {
   source: ImageSource

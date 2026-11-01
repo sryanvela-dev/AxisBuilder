@@ -27,8 +27,10 @@ export const REPORT_FONTS = Object.fromEntries(
 ) as Record<ReportFontId, Uint8Array>
 export const DRAWING_FONT = new Uint8Array(readFileSync(join(SRC, 'assets', 'fonts', 'Arimo-Regular.ttf')))
 export const LOGO_FILE = join(SRC, 'assets', 'brand', 'integrity-epc-logo.png')
+/** The template's bundled pictures (the fixed pages). */
+export const REPORT_ASSETS = join(SRC, 'assets', 'report')
 
-/** Folders for each picture source (brand is the app's own). */
+/** Folders for each picture source (brand and asset are the app's own). */
 export type ReportFolders = Partial<Record<'photos' | 'screenshots' | 'cover' | 'calibration' | 'uploads', string>>
 
 /** Reads report pictures from folders: info for the builders, bytes for the PDF; `extra` = pictures held in memory. */
@@ -39,7 +41,8 @@ export function folderImages(folders: ReportFolders, extra: ReadonlyMap<string, 
     if (!cache.has(key)) {
       let b: Uint8Array | null = extra.get(ref.file) ?? null
       if (!b && ref.source === 'brand') b = new Uint8Array(readFileSync(LOGO_FILE))
-      const dir = ref.source === 'brand' ? undefined : folders[ref.source]
+      if (!b && ref.source === 'asset' && existsSync(join(REPORT_ASSETS, ref.file))) b = new Uint8Array(readFileSync(join(REPORT_ASSETS, ref.file)))
+      const dir = ref.source === 'brand' || ref.source === 'asset' ? undefined : folders[ref.source]
       if (!b && dir && existsSync(join(dir, ref.file))) b = new Uint8Array(readFileSync(join(dir, ref.file)))
       cache.set(key, b)
     }

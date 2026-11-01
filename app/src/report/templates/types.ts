@@ -101,13 +101,43 @@ export interface TextBlockDef {
   when?: string
 }
 
+/** A label over a bundled picture: an outline round a part of it and a tab naming it (fractions of the picture, 0-1, y down). */
+export interface PictureLabel {
+  text: string
+  /** The part it names: [x0, y0, x1, y1]. */
+  box: [number, number, number, number]
+  /** Top-left corner of the tab, or its top-right with `right`. */
+  at: [number, number]
+  right?: boolean
+}
+
+/** A picture on a fixed page: a file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is, with labels over it. */
+export interface FixedPicture {
+  slot: string
+  file: string
+  px: { w: number; h: number }
+  caption?: string
+  /** Never wider than this (inches). */
+  maxW?: number
+  labels?: PictureLabel[]
+}
+
+/**
+ * Part of a fixed page: paragraphs and their pictures. Every part starts a page. 'side': the text on the left and the
+ * pictures in a column on the right; 'below': the text across the page and the pictures in a row under it, as large
+ * as the rest of the page allows.
+ */
+export interface FixedPagePart {
+  layout: 'side' | 'below'
+  /** Paragraphs, each with an optional heading. */
+  paragraphs: { heading?: string; text: string }[]
+  pictures: FixedPicture[]
+}
+
 /** A fixed page (Equipment, Guide to Interpretation): text and pictures bundled with the app. */
 export interface FixedPageDef {
   sectionId: string
-  /** Paragraphs, each with an optional heading. */
-  paragraphs: { heading?: string; text: string }[]
-  /** Template assets (file names under the app's report assets), placed by the page builder. */
-  images: string[]
+  parts: FixedPagePart[]
 }
 
 /** Client MUT / CML naming (later, XTO). */

@@ -452,6 +452,13 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   PDF pages; crop is a mode; also a double-click on a picture or drawing in the Pages view), `MarkupOpener` + `targets.ts` (Review's Go
   to on a picture opens the editor), `prefs.ts` (last tool / colour / widths in localStorage `axisbuilder:markup`). Saved label styles are the
   record list `labelStyles` in `report/savedLists.ts`.
+- Report fixed pages (AUT Equipment, Guide to Interpretation; design 6.12): the template's `fixedPages` are parts (`side` = text
+  left, pictures in a column; `below` = text across, pictures in a row under it, as large as the page allows; every part starts a
+  page). Picture slots (`FixedPicture`): a file in `src/assets/report/` (three pictures the user cleared from the old IEPC AUT
+  Report workbook, unchanged, and the Equipment page's scan views picture `scan-views.jpg` the user supplied; nothing else from
+  `Claude outputs/` goes into the repo), ImageSource `asset`, browser URLs by `import.meta.glob` (`ui/report/reportAssets.ts`,
+  precached), optional `labels` (outline + tab over a part of it: the Guide's C-scan names C-SCAN, COLOR SCALE, A-SCAN, B-SCAN). No example rollouts on
+  the Guide (user, 2026-11-01: the report's own rollout explains itself).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -1128,3 +1135,32 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   buttons became one "Insert field…" dropdown and the picture name steps aside while a text box is open, so the template is wider (about
   330 px). (4) Styles… ends with "Edit or delete saved styles…": rename, "Use selected look" (gives the style the selected label's look),
   delete (asks first); built-in styles listed as fixed. Tests added; outputs unchanged.
+- 2026-11-01 – Report fixed pages (branch feature/report-fixed-pages, user request): AUT Equipment and Guide to Interpretation no longer
+  print "Picture to come" boxes. Four pictures cleared by the user copied unchanged into `app/src/assets/report/` (aut-scanner.png,
+  proscan-xt.png, scan-views-diagram.jpg, example-cscan.jpg; precached; the diagram converted from a 1.69 MB PNG to a 213 KB
+  quality-90 JPEG with the user's OK); the `equipment-cscan` slot removed. Equipment: text with the
+  scanner and the ProScan (2 in wide) beside it, then Displays with the diagram (8.1 x 5.0 in); Guide: the example C-scan (10 x 5 in),
+  then the V-100 sample's rollout drawn as vectors with its photos (7.2 x 5.1 in, `report/exampleJobs.ts`). Each page is now two
+  pages. No vertical rollout (user: not needed; slot, Review note and the `pending` slot kind removed). Template
+  `fixedPages` reshaped into parts with typed picture slots. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged. No VBA
+  or workbook changes.
+- 2026-11-01 – Report fixed pages follow-up (feature/report-fixed-pages, user): the scan views diagram is now drawn by the app as
+  vectors (`report/pages/diagrams.ts`, slot kind `drawn`): straight lines, sharp at any size, clean labels (C-SCAN top face, B-SCAN
+  front face, D-SCAN (B') end face, Y-axis stroke / X-axis index, front / back wall) and an A-scan like the AUT Solutions display
+  (white full-wave trace on black, grid, gate, echoes named). The old picture (scan-views-diagram.jpg) is removed. The Guide's
+  example C-scan gets labels over it (outline + tab, first orange, then brand navy #104777 on a white line, 1.75 pt, at the user's request: C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis section)).
+  Outputs of the drawing unchanged.
+- 2026-11-01 – Report fixed pages (feature/report-fixed-pages, user: the example rollout explains nothing the report's own rollout
+  doesn't): the Guide's example rollout removed; the Guide is one page (the labelled example C-scan). The example-job code went with
+  it (`report/exampleJobs.ts`, `ui/report/useExampleThumbs.ts`, the photo routing in the report Export step, Pages view and Node
+  `sheetPhotosFor`, slot kind `example`). Outputs of the drawing unchanged.
+- 2026-11-01 – Report fixed pages (feature/report-fixed-pages, user): the Equipment page's scan views picture is the user's new
+  rendering (block with transducer, C / B / D-scan faces, Y / X-axis strokes and a white A-scan on black), saved as
+  `src/assets/report/scan-views.jpg` (2000 x 1419, quality-90 JPEG, 266 KB). The app-drawn diagram (`report/pages/diagrams.ts`,
+  slot kind `drawn`) is removed; every slot is a bundled picture (`FixedPicture` has no `kind`). Outputs of the drawing unchanged.
+- 2026-11-01 – Report fixed pages (feature/report-fixed-pages, user): `scan-views.jpg` is now the full-size final picture (3440 x 2440
+  PNG from the user) saved at about 300 dpi of its printed width: 2450 x 1738, quality-90 JPEG, 389 KB. Wording: the Displays paragraph
+  ends "D-scan display represents an end view along the X-axis index." (the picture labels that face D-SCAN; was "B-scan (B-prime)");
+  the Guide's first paragraph reads "C-scan (plan view), B-scan (Y-axis cross-sectional view) and A-scan (waveform), labelled on the
+  example." (the example has no O.D. / I.D. marks). Template version stays 1 (no job has printed with it yet). Outputs of the drawing
+  unchanged.

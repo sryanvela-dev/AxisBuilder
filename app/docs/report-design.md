@@ -432,14 +432,36 @@ loss; temperature and corrected values when turned on). Missing screenshot -> a 
 **6.11 Uploaded pages** – images fitted under the standard frame with a title; PDF pages copied as vectors, either
 fitted under the frame or full size (4.6).
 
-**6.12 Equipment, Guide to Interpretation** – fixed text from the template, re-laid out so nothing is clipped. Their
-pictures are template assets bundled with the app. **For now taken from IEPC AUT Report.xlsm** (user, 2026-10-28;
-extracted to `References/_xlsm_images/`, not committed until checked for client content). Notes from looking at them:
-the AUT Solutions scanner and ProScan unit, the C-scan screenshots and the B-scan / C-scan diagram are fine; the
-equipment-type photos (sphere, exchanger, tank, vessel, column) are about 400 px wide with 2004 date stamps and will
-print soft; the corrosion-mapping examples and the two rollout examples on the Guide are old drawings (one names a
-client tank). Suggested later swap: newer photos, and examples made from the V-100 sample job in
-AxisBuilder's own style. Old logo image not used (the brand logo is).
+**6.12 Equipment, Guide to Interpretation** – fixed text and pictures from the template (`fixedPages` in
+`templates/generic.ts`, built by `pages/fixedText.ts`), laid out so nothing is clipped. Each page is made of parts and
+every part starts a page: **side** (text on the left, pictures in a 3.4 in column on the right) or **below** (text across
+the page, pictures in a row under it, as large as the page allows; on a page of their own when less than 2.2 in is
+left). Text that does not fit flows onto another page. As built (branch feature/report-fixed-pages, 2026-11-01):
+- **AUT Equipment** (2 pages): page 1 the scanner text and Advantages, with the AUT scanner (3.40 x 2.71 in, caption
+  "AUT scanner") and the ProScan XT (2.00 x 1.46 in, never wider than 2 in; caption "ProScan XT") in the right column;
+  page 2 Displays with the scan views picture under it. No example C-scan on this page (the `equipment-cscan` slot was
+  removed, user 2026-11-01).
+- **Scan views picture** (`scan-views.jpg`, the user's final picture of 3440 x 2440 saved at 2450 x 1738, about 300 dpi at 8.1 in, quality-90 JPEG; 2026-11-01): a rendered block with the AUT
+  transducer and its raster path (C-SCAN on the top face, B-SCAN on the front face, D-SCAN on the end face), the Y-axis
+  and X-axis stroke arrows, an internal reflector, and the A-scan at it (white trace on black, gate, internal reflector
+  and back wall echoes). It replaced first the old workbook's picture (image35, which said "stoke" for "stroke") and then a
+  diagram the app drew as vectors; neither is in the repo any more.
+- **Guide to Interpretation** (1 page): the corrosion example text with the example C-scan data page under it
+  (10.00 x 5.01 in), labelled: a brand navy outline (1.75 pt on a white 3.25 pt line, user 2026-11-01) round each part
+  the text names and a navy tab with white text naming it (C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis
+  section); `labels` on the asset slot, in fractions of the picture).
+- **Picture slots** (`FixedPicture` in `templates/types.ts`): a file in `src/assets/report/` with its pixel size
+  (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded; optional `labels` drawn over
+  it).
+- **The pictures**, cleared by the user (2026-11-01) from the old IEPC AUT Report workbook and copied unchanged:
+  `aut-scanner.png` (image31), `proscan-xt.png` (image32), `example-cscan.jpg` (image36); plus `scan-views.jpg` from the
+  user (above). Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
+  small C-scan copy, the old logo, the old rollouts). The browser finds them by `import.meta.glob`
+  (`ui/report/reportAssets.ts`; the build hashes and precaches them like the logo), Node from the folder.
+- **No example rollouts** (user, 2026-11-01): the old workbook's "Examples of rollouts with scans overlaid" is left out;
+  the report's own rollout drawings explain themselves. Built and dropped the same day: a vertical example (too much)
+  and the V-100 sample's rollout drawn as an example sheet (the example-job code, `report/exampleJobs.ts` and its photo
+  routing, was removed with it).
 
 ---
 
@@ -839,9 +861,8 @@ compat v5.0 and the .lsp / DXF fingerprints unchanged.
   - Template column headers reworded to the style sample ("UT readings", "Area (sq in)", "Min. 'T'", "Wall loss", "Comments /
     Analysis"); template version not raised (no job has printed with version 1 yet).
   - A blank equipment type reads "equipment" in the scope and summary sentences.
-  - Fixed pages: the old workbook's pictures are not in the repo; each prints a marked placeholder box ("Picture to come: ...").
-    The template names equipment-scanner, equipment-unit, equipment-cscan, equipment-bscan (AUT Equipment) and
-    guide-cscan-example, guide-rollout-vertical, guide-rollout-horizontal (Guide to Interpretation).
+  - Fixed pages: the old workbook's pictures were not in the repo; each printed a marked placeholder box ("Picture to come: ...").
+    Replaced on 2026-11-01 by the bundled pictures and the drawn scan views diagram (6.12); no placeholder prints any more.
   - Redaction marks are not drawn; Review lists each picture that has one ("redaction comes in a later version").
 
 ## R4 as built (2026-10-31, branch feature/report-r4)
