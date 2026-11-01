@@ -1151,5 +1151,5 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   vectors (`report/pages/diagrams.ts`, slot kind `drawn`): straight lines, sharp at any size, clean labels (C-SCAN top face, B-SCAN
   front face, D-SCAN (B') end face, Y-axis stroke / X-axis index, front / back wall) and an A-scan like the AUT Solutions display
   (white full-wave trace on black, grid, gate, echoes named). The old picture (scan-views-diagram.jpg) is removed. The Guide's
-  example C-scan gets labels over it (orange outline + tab: C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis section)).
+  example C-scan gets labels over it (outline + tab, first orange, then brand navy #104777 on a white line, 1.75 pt, at the user's request: C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis section)).
   Outputs of the drawing unchanged.

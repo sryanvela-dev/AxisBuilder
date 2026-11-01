@@ -77,9 +77,12 @@ function labelItems(l: PictureLabel, pic: Rect): PageItem[] {
   const h = fontBox(F.title, TAB).cap + 2 * 0.045
   const x = l.right ? fx(l.at[0]) - w : fx(l.at[0])
   const y = fy(l.at[1])
+  // Brand navy on a white line under it, so the outline reads on the bright data colours and on the grey screen alike.
+  const outline = { x: fx(l.box[0]), y: fy(l.box[1]), w: fx(l.box[2]) - fx(l.box[0]), h: fy(l.box[3]) - fy(l.box[1]), fill: null, radius: 0.02 }
   return [
-    { t: 'rect', x: fx(l.box[0]), y: fy(l.box[1]), w: fx(l.box[2]) - fx(l.box[0]), h: fy(l.box[3]) - fy(l.box[1]), fill: null, stroke: COLORS.orange, width: 1.25, radius: 0.02 },
-    { t: 'rect', x, y, w, h, fill: COLORS.orange, stroke: null, width: 0, radius: 0.02 },
+    { t: 'rect', ...outline, stroke: COLORS.white, width: 3.25 },
+    { t: 'rect', ...outline, stroke: COLORS.deep, width: 1.75 },
+    { t: 'rect', x, y, w, h, fill: COLORS.deep, stroke: COLORS.white, width: 0.75, radius: 0.02 },
     text(x + pad, y + 0.045 + fontBox(F.title, TAB).cap, l.text, F.title, TAB, COLORS.white),
   ]
 }

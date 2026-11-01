@@ -450,7 +450,7 @@ left). Text that does not fit flows onto another page. As built (branch feature/
   reflector and back wall echoes over a low noise floor, and a red gate. It replaced the old workbook's picture (image35,
   which said "stoke" for "stroke"); that picture is no longer in the repo.
 - **Guide to Interpretation** (2 pages): page 1 the corrosion example text with the example C-scan data page under it
-  (10.00 x 5.01 in), labelled: an orange outline round each part the text names and a tab naming it (C-SCAN (plan view),
+  (10.00 x 5.01 in), labelled: a brand navy outline (1.75 pt on a white 3.25 pt line, user 2026-11-01) round each part the text names and a navy tab with white text naming it (C-SCAN (plan view),
   COLOR SCALE, A-SCAN, B-SCAN (Y-axis section); `labels` on the asset slot, in fractions of the picture); page 2 the rollouts text with the V-100 example rollout (7.21 x 5.14 in, caption "Horizontal vessel").
 - **Picture slots** (`FixedPicture` in `templates/types.ts`): `asset` = a file in `src/assets/report/` with its pixel size
   (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded; optional `labels` drawn over
