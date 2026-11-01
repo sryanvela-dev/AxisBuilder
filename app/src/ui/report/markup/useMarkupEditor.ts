@@ -22,7 +22,6 @@ import { isFreehand, markFromDrag, markFromStroke, TOOLS, type ToolId, type Tool
 import type { Rect } from '../../../report/pageModel.ts'
 import { pictureAt, setPictureEdits } from '../../../report/pagesEdits.ts'
 import { markSchema, type Mark } from '../../../report/schema.ts'
-import type { LabelStyle } from '../../../report/markEdits.ts'
 import { useApp } from '../../appContext.ts'
 import { readPrefs, writePrefs } from './prefs.ts'
 
@@ -78,8 +77,6 @@ export function useMarkupEditor(props: EditorProps) {
   const [status, setStatus] = useState('')
   /** Bumped to ask the toolbar to put the cursor in the selected label's text box. */
   const [textFocus, setTextFocus] = useState(0)
-  /** A label style picked for new labels and badges (null = the tool's own look). */
-  const [newStyle, setNewStyle] = useState<LabelStyle | null>(null)
   const drag = useRef<Drag | null>(null)
   const marks = draft ?? stored
   const tol = HIT_PX / ppi
@@ -236,7 +233,7 @@ export function useMarkupEditor(props: EditorProps) {
       }
       case 'create': {
         const b = snapped(p, e.altKey)
-        const made = markFromDrag(tool, prefs, frame, d.a, b, e.shiftKey, newStyle)
+        const made = markFromDrag(tool, prefs, frame, d.a, b, e.shiftKey)
         setCreating(made && far(d.client) ? toMark(made) : null)
         return
       }
@@ -284,7 +281,7 @@ export function useMarkupEditor(props: EditorProps) {
       case 'create': {
         const b = Math.hypot(e.clientX - d.client[0], e.clientY - d.client[1]) > CLICK_PX ? snapped(p, e.altKey) : d.a
         setGuides({ x: null, y: null })
-        const made = markFromDrag(tool, prefs, frame, d.a, b, e.shiftKey, newStyle)
+        const made = markFromDrag(tool, prefs, frame, d.a, b, e.shiftKey)
         if (!made) {
           setStatus(TOOLS.find((t) => t.id === tool)?.hint ?? '')
           return
@@ -412,8 +409,8 @@ export function useMarkupEditor(props: EditorProps) {
   const cursor = tool === 'select' ? 'default' : 'crosshair'
 
   return {
-    at, frame, ppi, allowRedaction, item, marks, stored, tool, prefs, selection, selected, creating, guides, band, menu, status, textFocus, cursor, newStyle,
-    setTool, setPrefs, setSel, setMenu, setStatus, setNewStyle, commit, actions,
+    at, frame, ppi, allowRedaction, item, marks, stored, tool, prefs, selection, selected, creating, guides, band, menu, status, textFocus, cursor,
+    setTool, setPrefs, setSel, setMenu, setStatus, commit, actions,
     pointer: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, onContextMenu, onDoubleClick },
     onKeyDown,
   }

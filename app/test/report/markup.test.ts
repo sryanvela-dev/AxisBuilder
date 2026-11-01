@@ -14,13 +14,13 @@ import {
   type MarkFrame,
 } from '../../src/report/markGeometry.ts'
 import { contrastOf, markItemsOf } from '../../src/report/marks.ts'
-import { applyPrefToMark, DEFAULT_PREFS, prefsOfMark, toolStyle } from '../../src/report/markTools.ts'
+import { applyPrefToMark, DEFAULT_PREFS, markFromDrag, prefsOfMark, prefsOfStyle, toolStyle } from '../../src/report/markTools.ts'
 import { imagePoint, type ImageItem } from '../../src/report/pageModel.ts'
 import { keyEntries, keyHeight } from '../../src/report/pages/badgeKey.ts'
 import { buildReport } from '../../src/report/pages/index.ts'
 import { writeReportPdf } from '../../src/report/pdf/writeReportPdf.ts'
 import { pictureAt } from '../../src/report/pagesEdits.ts'
-import { addRecord, emptySavedLists, listsFromFile, listsToFile, readSavedLists } from '../../src/report/savedLists.ts'
+import { addRecord, emptySavedLists, listsFromFile, listsToFile, readSavedLists, removeRecord, updateRecord } from '../../src/report/savedLists.ts'
 import { markSchema, photoSchema, uploadSchema, type Mark } from '../../src/report/schema.ts'
 import { syncReport } from '../../src/report/sync.ts'
 import { checkReport } from '../../src/report/checks.ts'
@@ -246,6 +246,24 @@ describe('mark edits', () => {
 })
 
 describe('tool looks (user, 2026-11-01)', () => {
+  it('a picked style sets the toolbar, so Filled after it still fills the next label (nothing sticks)', () => {
+    const clear = { ...BUILT_IN_LABEL_STYLES[1], name: 'Clear note', fill: null }
+    const p = prefsOfStyle(clear, DEFAULT_PREFS)
+    expect(p).toMatchObject({ labelBox: 'clear', color: '#1d5fa8', textSize: 9, halo: true })
+    const frame = { x: 0, y: 0, w: 4, h: 3, crop: null, rotate: 0 as const, upright: { w: 4, h: 3 } }
+    const next = markFromDrag('label', { ...p, labelBox: 'filled' }, frame, [1, 1], [1, 1], false)!
+    expect(next.style.fill).toBe('#1d5fa8')
+    expect(prefsOfStyle(BUILT_IN_LABEL_STYLES[2], DEFAULT_PREFS).textSize).toBe(9) // a badge prints one point larger than the toolbar size
+  })
+
+  it('saved styles can be renamed, given a new look and deleted', () => {
+    const s = { ...BUILT_IN_LABEL_STYLES[0], name: 'Mine' }
+    let l = addRecord(emptySavedLists(), 'labelStyles', s)
+    l = updateRecord(l, 'labelStyles', 0, { ...s, name: 'Pitting', fill: null })
+    expect(l.records.labelStyles[0]).toMatchObject({ name: 'Pitting', fill: null })
+    expect(removeRecord(l, 'labelStyles', 0).records.labelStyles).toHaveLength(0)
+  })
+
   it('a highlighted box can have no outline, and keeps none through a colour change', () => {
     const st = toolStyle('rect', { ...DEFAULT_PREFS, shape: 'highlightedPlain', color: '#f2c200' })
     expect(st.stroke).toBeNull()

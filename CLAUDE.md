@@ -1121,3 +1121,10 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   Filled / Filled, see-through / Clear, outline only (replaces the opacity slider: 0.9 / 0.6), leader end, Outline, Styles… and a save
   icon; all fit on one line at about 1500 px), the selection, its icons and the label's text in the bottom line with "Copy marks to other
   pictures…", the name and zoom. The label features and the portrait header from the previous entry stay.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user): (1) a label switched to Clear would not go back to Filled: picking a saved style
+  with nothing selected stuck to every later label and overrode the toolbar; now the style just sets the toolbar (`prefsOfStyle`, the sticky
+  `newStyle` removed), so Filled and every other setting apply after it. (2) "Copy marks to other pictures…" removed from the editor (the
+  pure `copyMarkupTo` / `copyTargets` stay); the label text box takes the room (about 490 px at 1536 px wide). (3) Live labels: the field
+  buttons became one "Insert field…" dropdown and the picture name steps aside while a text box is open, so the template is wider (about
+  330 px). (4) Styles… ends with "Edit or delete saved styles…": rename, "Use selected look" (gives the style the selected label's look),
+  delete (asks first); built-in styles listed as fixed. Tests added; outputs unchanged.

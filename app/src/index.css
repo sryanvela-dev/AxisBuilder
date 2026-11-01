@@ -3876,3 +3876,78 @@ svg.report-page .report-paper {
   height: 44px;
   min-height: 44px;
 }
+
+/* Bottom line (user, 2026-11-01): with Copy marks gone the label text box and the live-data template take the room. */
+.markup-footer .markup-row > .markup-grow {
+  flex: 3 1 360px;
+  min-width: 220px;
+}
+
+.markup-footer > .markup-printed {
+  max-width: 30vw;
+}
+
+.markup-footer .markup-prints {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 220px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Edit or delete saved styles: fixed, so the top line's sideways scroll doesn't clip it. */
+.markup-popover.markup-styles {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  left: auto;
+  width: min(520px, calc(100vw - 32px));
+  z-index: 30;
+  white-space: normal;
+}
+
+.markup-style-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markup-style-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.markup-style-list input {
+  flex: 1;
+  min-width: 0;
+}
+
+.markup-style-sample {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 22px;
+  border: 1.5px solid;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The Styles dropdown keeps its short width; its longest choice ("Edit or delete saved styles…") shows when opened. */
+.markup-head select[aria-label='Label styles'] {
+  width: 84px;
+}
+
+/* While a label's or badge's text box is open, the picture's name steps aside so the text has the room. */
+.markup-footer:has(.markup-text) > .markup-printed {
+  display: none;
+}
+
+.markup-footer .markup-row > .markup-grow:has(input[aria-label='Live label template']) {
+  min-width: 300px;
+}

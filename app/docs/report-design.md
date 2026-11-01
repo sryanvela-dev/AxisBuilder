@@ -975,9 +975,10 @@ untouched.
 - **Auto brightness / contrast.** `adjust.autoLevels`: each channel stretched from its 0.5th to 99.5th percentile, measured on the printed
   part (the crop), on screen and in the PDF; "Hold: before" shows the picture without it. Not offered for PDF pages.
 - **Saved label styles.** A record list `labelStyles` in the saved lists (in the saved-lists file); built-in Finding (red box, white bold,
-  arrow), Note (blue) and Reading (yellow badge) are offered first and never stored. "Apply a style…" restyles the selected labels / badges, or
-  sets the look of the next one placed; "Save style…" names the selected one's look. In the Saved lists dialog a style can be renamed or
-  deleted (its look is changed by saving it again).
+  arrow), Note (blue) and Reading (yellow badge) are offered first and never stored. "Styles…" restyles the selected labels / badges, or (nothing
+  selected) sets the toolbar to that look for the next one; the save icon names the selected one's look; "Edit or delete saved styles…" at
+  the end of the list renames a style, gives it the selected label's look or deletes it (also possible in the Saved lists dialog).
+- **Copy markup to other pictures.** Removed from the editor (user, 2026-11-01: not needed); the pure functions remain.
 - **Review.** The R4 note "redaction comes in a later version" is gone; a redacted picture gets a note that the PDF removes those pixels.
 - **Not built / left for later.** Drop shadow and underline on labels (section 14 "optional"); turning labels and redactions; marks drawn
   on a cropped-away part (the editor shows only what prints); per-tool colours.

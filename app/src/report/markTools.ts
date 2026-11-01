@@ -299,6 +299,15 @@ export function copyTargets(r: Report, from: ImagePlace): { at: ImagePlace; file
   return imageItems(r).filter((x) => x.file && !samePlace(x.place, from)).map((x) => ({ at: x.place, file: x.file! }))
 }
 
+/**
+ * A label style as toolbar settings (user, 2026-11-01): picking a style with nothing selected sets the toolbar, so the
+ * next label has that look and any setting changed afterwards still applies.
+ */
+export function prefsOfStyle(s: LabelStyle, p: ToolPrefs): ToolPrefs {
+  const mark = markSchema.parse(s.kind === 'badge' ? { id: 'x', kind: 'badge', at: [0, 0], n: 1 } : { id: 'x', kind: 'label', at: [0, 0], text: '' })
+  return prefsOfMark(applyLabelStyle(mark, s), p)
+}
+
 /** The toolbar's settings as one mark has them (what the panel shows while it is selected); the rest from `p`. */
 export function prefsOfMark(m: Mark, p: ToolPrefs): ToolPrefs {
   const s = m.style

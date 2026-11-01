@@ -2,17 +2,16 @@
 // settings of the tool or of the selected marks (colours with their meaning, widths, box style, highlighter, arrow
 // heads, label look, redaction), what to do with the selection (duplicate, order, lock, delete), a label's text or live
 // data link, a badge's key text, label styles (built in and saved per computer), auto brightness / contrast with a
-// before / after, copy markup to other photos, undo and redo.
+// before / after, undo and redo.
 
 import { useEffect, useRef, useState } from 'react'
-import { pictureName } from '../../../report/checks.ts'
 import { defaultTemplate, liveText, LIVE_FIELDS } from '../../../report/liveLabels.ts'
-import { applyLabelStyle, copyMarkupTo, labelStyleChoices, labelStyleOf, setFields, type LabelStyle } from '../../../report/markEdits.ts'
+import { applyLabelStyle, BUILT_IN_LABEL_STYLES, labelStyleChoices, labelStyleOf, setFields, type LabelStyle } from '../../../report/markEdits.ts'
 import {
-  applyPrefToMark, COLOR_PRESETS, copyTargets, HIGHLIGHT_WIDTHS, prefsOfMark, SHAPE_MODES, TEXT_SIZES, TOOLS, WIDTH_PRESETS, type ToolId, type ToolPrefs,
+  applyPrefToMark, COLOR_PRESETS, HIGHLIGHT_WIDTHS, prefsOfMark, prefsOfStyle, SHAPE_MODES, TEXT_SIZES, TOOLS, WIDTH_PRESETS, type ToolId, type ToolPrefs,
 } from '../../../report/markTools.ts'
 import { setPictureEdits } from '../../../report/pagesEdits.ts'
-import { addRecord, type SavedRecord } from '../../../report/savedLists.ts'
+import { addRecord, removeRecord, updateRecord, type SavedLists, type SavedRecord } from '../../../report/savedLists.ts'
 import type { Mark } from '../../../report/schema.ts'
 import { useApp } from '../../appContext.ts'
 import { useReport } from '../reportContext.ts'
@@ -54,7 +53,9 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
   const { tool, prefs, selected } = ed
   const kinds = new Set<string>(selected.length ? selected.map((m) => m.kind) : [tool])
   const show = settingsFor(kinds)
-  const styles = labelStyleChoices(savedLists.records.labelStyles as SavedRecord<'labelStyles'>[])
+  const saved = savedLists.records.labelStyles as SavedRecord<'labelStyles'>[]
+  const styles = labelStyleChoices(saved)
+  const [managing, setManaging] = useState(false)
   const one = selected.length === 1 ? selected[0] : null
 
   /** A setting: kept for new marks, and applied to the selected marks (one undo step). */
@@ -63,11 +64,16 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
     if (selected.length) ed.actions.change(label, (marks) => setFields(marks, ed.selection, (m) => applyPrefToMark(m, change)))
   }
   const pickStyle = (name: string) => {
+    if (name === MANAGE) {
+      setManaging(true)
+      return
+    }
     const s = styles.find((x) => x.name === name)
     if (!s) return
     if (selected.some((m) => m.kind === 'label' || m.kind === 'badge')) ed.actions.change(`Apply the ${s.name} style`, (marks) => setFields(marks, ed.selection, (m) => applyLabelStyle(m, s)))
     else {
-      ed.setNewStyle(s)
+      // Nothing selected: the style becomes the toolbar's settings, so later changes (e.g. Filled) still apply.
+      ed.setPrefs(prefsOfStyle(s, prefs))
       ed.setTool(s.kind === 'badge' ? 'badge' : 'label')
     }
   }
@@ -235,10 +241,13 @@ export function MarkupToolbar({ ed, showCrop, onCrop, part = 'all' }: {
           <div className="markup-field" role="group" aria-label="Label styles">
             <span className="markup-caption">Saved styles</span>
             <select value="" aria-label="Label styles" title="Apply a label style (to the selected labels, or to the next one you place)" onChange={(e) => pickStyle(e.target.value)}>
-              <option value="">{ed.newStyle && !selected.length ? `Next label: ${ed.newStyle.name}` : 'Styles…'}</option>
+              <option value="">Styles…</option>
               {styles.map((s) => <option key={`${s.name}-${s.kind}`} value={s.name}>{s.name}{s.kind === 'badge' ? ' (badge)' : ''}</option>)}
+              <option value={MANAGE}>Edit or delete saved styles…</option>
             </select>
             {one && (one.kind === 'label' || one.kind === 'badge') && <SaveStyle mark={one} onSave={(s) => changeLists((l) => addRecord(l, 'labelStyles', s))} />}
+            {managing && <ManageStyles saved={saved} mark={one && (one.kind === 'label' || one.kind === 'badge') ? one : null}
+              change={changeLists} onClose={() => setManaging(false)} />}
           </div>
         )}
       </div>}
@@ -259,8 +268,8 @@ export function UndoRedo() {
 
 /**
  * The bottom line: the tool hint while nothing is selected, else the selected marks (what they are, duplicate / forward /
- * back / lock / delete as icons, a label's text or live link, a badge's key); then auto brightness / contrast, copy the
- * marks to other pictures and `extra` (name, print size, zoom).
+ * back / lock / delete as icons, a label's text or live link, a badge's key); then auto brightness / contrast and `extra`
+ * (name, print size, zoom).
  */
 export function MarkupPanel({ ed, original, setOriginal, hint = '', extra }: {
   ed: MarkupEditorState
@@ -274,7 +283,6 @@ export function MarkupPanel({ ed, original, setOriginal, hint = '', extra }: {
   const { selected } = ed
   const one = selected.length === 1 ? selected[0] : null
   const autoLevels = ed.item?.edits.adjust.autoLevels ?? false
-  const [copying, setCopying] = useState(false)
   const locked = selected.length > 0 && selected.every((m) => m.locked)
   return (
     <div className="markup-footer">
@@ -305,11 +313,7 @@ export function MarkupPanel({ ed, original, setOriginal, hint = '', extra }: {
           Hold: before
         </button>
       )}
-      <button type="button" className="btn btn-small" disabled={ed.stored.length === 0}
-        title="Put copies of this picture's marks (or only the selected ones) on other pictures of the report, in the same places, e.g. the same arrow on every scan screenshot"
-        onClick={() => setCopying(true)}>Copy marks to other pictures…</button>
       {extra}
-      {copying && <CopyMarkupDialog ed={ed} onClose={() => setCopying(false)} />}
     </div>
   )
 }
@@ -322,7 +326,7 @@ function kindName(m: Mark): string {
     case 'pen': return 'Pen stroke'
     case 'line': return 'Line'
     case 'arrow': return 'Arrow'
-    case 'label': return m.link && m.template ? 'Live data label' : 'Label'
+    case 'label': return m.link && m.template ? 'Live label' : 'Label'
     case 'badge': return `Badge ${m.n}`
     case 'redaction': return m.mode === 'black' ? 'Redaction (black)' : 'Redaction (blurred)'
   }
@@ -470,10 +474,11 @@ function LabelText({ ed, mark, project }: { ed: MarkupEditorState; mark: Extract
             <span className="muted">Template</span>
             <input type="text" {...template} aria-label="Live label template" />
           </label>
-          <span className="markup-group" role="group" aria-label="Fields">
-            {fields.map((f) => <button key={f.key} type="button" className="btn btn-small" title={f.name} onMouseDown={(e) => e.preventDefault()} onClick={() => insert(f.key)}>{`{${f.key}}`}</button>)}
-          </span>
-          <span className="muted markup-grow">Prints: {mark.text || '(blank)'}</span>
+          <select value="" aria-label="Insert a field" title="Put a field into the template where the cursor was" onChange={(e) => e.target.value && insert(e.target.value)}>
+            <option value="">Insert field…</option>
+            {fields.map((f) => <option key={f.key} value={f.key}>{f.name} {`{${f.key}}`}</option>)}
+          </select>
+          <span className="muted markup-prints" title={mark.text}>Prints: {mark.text || '(blank)'}</span>
         </>
       ) : (
         <label className="markup-group markup-grow">
@@ -500,55 +505,55 @@ function BadgeText({ ed, mark }: { ed: MarkupEditorState; mark: Extract<Mark, { 
   )
 }
 
-/** Copy markup to other pictures: tick them; one undo step. */
-function CopyMarkupDialog({ ed, onClose }: { ed: MarkupEditorState; onClose: () => void }) {
-  const app = useApp()
-  const report = app.state.job!.history.present.report!
-  const targets = copyTargets(report, ed.at)
-  const [picked, setPicked] = useState<Set<number>>(new Set())
-  const [onlySel, setOnlySel] = useState(ed.selected.length > 0)
-  const n = onlySel ? ed.selected.length : ed.stored.length
-  const copy = () => {
-    const at = targets.filter((_, i) => picked.has(i)).map((t) => t.at)
-    app.edit(`Copy markup to ${at.length} picture${at.length === 1 ? '' : 's'}`, (p) => copyMarkupTo(p, ed.at, onlySel ? ed.selection : null, at))
-    ed.setStatus(`${n} mark${n === 1 ? '' : 's'} copied to ${at.length} picture${at.length === 1 ? '' : 's'}.`)
-    onClose()
-  }
+const MANAGE = '\u0000manage'
+
+/**
+ * Edit or delete the styles saved on this computer (user, 2026-11-01): rename, give a style the selected label's look,
+ * delete. The built-in styles can't be changed.
+ */
+function ManageStyles({ saved, mark, change, onClose }: {
+  saved: readonly LabelStyle[]
+  mark: Mark | null
+  change: (fn: (l: SavedLists) => SavedLists) => void
+  onClose: () => void
+}) {
   return (
-    <div className="markup-popover" role="dialog" aria-label="Copy markup to other pictures" onKeyDown={(e) => {
+    <div className="markup-popover markup-styles" role="dialog" aria-label="Saved label styles" onKeyDown={(e) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
         onClose()
       }
     }}>
-      <h3>Copy markup to other pictures</h3>
-      {ed.selected.length > 0 && (
-        <label className="check-inline">
-          <input type="checkbox" checked={onlySel} onChange={(e) => setOnlySel(e.target.checked)} />
-          Only the {ed.selected.length} selected mark{ed.selected.length === 1 ? '' : 's'}
-        </label>
-      )}
-      {targets.length === 0 ? <p className="muted">There are no other pictures in the report yet.</p> : (
-        <ul className="markup-targets">
-          {targets.map((t, i) => (
-            <li key={i}>
-              <label className="check-inline">
-                <input type="checkbox" checked={picked.has(i)} onChange={(e) => {
-                  const next = new Set(picked)
-                  if (e.target.checked) next.add(i)
-                  else next.delete(i)
-                  setPicked(next)
-                }} />
-                {pictureName(report, t.at, t.file)}
-              </label>
+      <h3>Saved label styles</h3>
+      {saved.length === 0 ? <p className="muted">No saved styles yet. Select a label and press 💾 to save its look.</p> : (
+        <ul className="markup-style-list">
+          {saved.map((s, i) => (
+            <li key={`${i}-${s.name}`}>
+              <span className="markup-style-sample" style={{ background: s.fill ?? 'transparent', borderColor: s.stroke ?? s.fill ?? '#888', color: s.textColor }} aria-hidden="true">Aa</span>
+              <input type="text" defaultValue={s.name} aria-label={`Name of the ${s.name} style`}
+                onBlur={(e) => {
+                  const name = e.target.value.trim()
+                  if (name && name !== s.name) change((l) => updateRecord(l, 'labelStyles', i, { ...s, name }))
+                  else e.target.value = s.name
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} />
+              <button type="button" className="btn btn-small" disabled={!mark || (mark.kind === 'badge') !== (s.kind === 'badge')}
+                title={mark ? "Give this style the selected label's look" : 'Select a label first, then press this to give the style its look'}
+                onClick={() => {
+                  const look = mark && labelStyleOf(mark, s.name)
+                  if (look) change((l) => updateRecord(l, 'labelStyles', i, look))
+                }}>Use selected look</button>
+              <button type="button" className="icon-btn icon-danger" aria-label={`Delete the ${s.name} style`} title="Delete this style"
+                onClick={() => {
+                  if (window.confirm(`Delete the saved style "${s.name}"?`)) change((l) => removeRecord(l, 'labelStyles', i))
+                }}>🗑</button>
             </li>
           ))}
         </ul>
       )}
-      <p className="muted">Marks keep their place on the picture (0-1 of its width and height); badges are numbered after the picture's own.</p>
+      <p className="muted">Built in, can't be changed: {BUILT_IN_LABEL_STYLES.map((s) => s.name).join(', ')}.</p>
       <div className="dialog-buttons">
-        <button type="button" className="btn" onClick={onClose}>Cancel</button>
-        <button type="button" className="btn btn-primary" disabled={picked.size === 0 || n === 0} onClick={copy}>Copy {n} mark{n === 1 ? '' : 's'}</button>
+        <button type="button" className="btn btn-primary" onClick={onClose}>Done</button>
       </div>
     </div>
   )
