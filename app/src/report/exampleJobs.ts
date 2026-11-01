@@ -4,7 +4,7 @@
 // public/<photos>/ (precached), read by the browser from the site and by Node (npm run report:pdf) from the folder.
 //
 // Their scan IDs are given a prefix on the sheet (`exampleScanId`), so their photos never mix with the job's own scans.
-// Adding one (e.g. a vertical example) is an entry here: its data file (made like the sample, npm run sample:make) and
+// Adding one is an entry here: its data file (made like the sample, npm run sample:make) and
 // its photo folder.
 
 import { projectFileSchema, type Project } from '../data/schema.ts'

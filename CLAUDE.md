@@ -459,7 +459,7 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   `import.meta.glob` (`ui/report/reportAssets.ts`, precached); `example` = an example job's main sheet as vectors, "Overlays"
   (`report/exampleJobs.ts`: `EXAMPLE_JOBS`, v100 = the sample job, photos from `public/sample-photos/`; scan IDs prefixed
   `example:<job>:`, `withExamplePhotos` routes the PDF's photo reader, `ui/report/useExampleThumbs.ts` the Pages view's thumbnails,
-  `sheetPhotosFor` in Node); `pending` = left out with a Review note (the vertical rollout; both ways to add it in design 6.12).
+  `sheetPhotosFor` in Node). No vertical rollout (user, 2026-11-01).
 - CI: `.github/workflows/app-ci.yml` runs typecheck, test and build on push and pull request when `app/**` changes.
 
 ## Resolved and deferred issues
@@ -1142,6 +1142,6 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   quality-90 JPEG with the user's OK); the `equipment-cscan` slot removed. Equipment: text with the
   scanner and the ProScan (2 in wide) beside it, then Displays with the diagram (8.1 x 5.0 in); Guide: the example C-scan (10 x 5 in),
   then the V-100 sample's rollout drawn as vectors with its photos (7.2 x 5.1 in, `report/exampleJobs.ts`). Each page is now two
-  pages. The vertical rollout is left out with a Review note until decided (two routes in report-design 6.12). Template
+  pages. No vertical rollout (user: not needed; slot, Review note and the `pending` slot kind removed). Template
   `fixedPages` reshaped into parts with typed picture slots. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged. No VBA
   or workbook changes.

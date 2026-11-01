@@ -2,8 +2,7 @@
 // part starts a page). 'side' parts put the text on the left and the pictures in a column on the right; 'below' parts
 // put the text across the page and the pictures in a row under it, as large as the page allows. Text that does not fit
 // flows onto another page, so nothing is clipped. Pictures are bundled with the app (src/assets/report/, printed as they
-// are) or an example job's sheet printed as vectors (report/exampleJobs.ts); a slot not decided yet is left out (the
-// page closes up) and Review notes it (checks.ts).
+// are) or an example job's sheet printed as vectors (report/exampleJobs.ts).
 
 import { exampleSheet } from '../exampleJobs.ts'
 import { fontBox, wrapText } from '../fonts.ts'
@@ -25,14 +24,14 @@ const GAP = 0.2
 /** A 'below' part's pictures go onto a page of their own when less than this height is left under the text. */
 const MIN_BELOW = 2.2
 
-type Shown = Exclude<FixedPicture, { kind: 'pending' }>
+type Shown = FixedPicture
 
 /** The bundled picture of an asset slot (its file under src/assets/report/). */
 export const assetRef = (file: string): ImageRef => ({ source: 'asset', file })
 
-/** The pictures of a part that print (a pending slot is left out; an unknown example job too). */
+/** The pictures of a part that print (an unknown example job is left out). */
 export const shownPictures = (part: FixedPagePart): Shown[] =>
-  part.pictures.filter((x): x is Shown => x.kind === 'asset' || (x.kind === 'example' && exampleSheet(x.job) !== null))
+  part.pictures.filter((x) => x.kind === 'asset' || exampleSheet(x.job) !== null)
 
 /** Width / height of a picture as it prints. */
 function aspectOf(pic: Shown): number {

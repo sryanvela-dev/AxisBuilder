@@ -37,15 +37,12 @@ function clean(change: (r: Report, p: Project) => Report = (r) => r, scans?: Sca
   return { ...p, report: change(report, p) }
 }
 
-/** The note for the Guide's vertical rollout example (not decided yet) is on every report with the Guide on; its own test is below. */
-const VERTICAL_NOTE = "The guide's vertical rollout example is coming."
-const reportChecks = (p: Project) => checkReport(p).filter((c) => c.text !== VERTICAL_NOTE)
-const texts = (p: Project) => reportChecks(p).map((c) => `${c.severity}: ${c.text}`)
+const texts = (p: Project) => checkReport(p).map((c) => `${c.severity}: ${c.text}`)
 
 describe('report checks', () => {
   it('finds nothing on a complete report, and nothing without one', () => {
     expect(texts(clean())).toEqual([])
-    expect(reportChecks(olderSample())).toEqual([])
+    expect(checkReport(olderSample())).toEqual([])
   })
 
   it('needs a nominal on every component (listed once, not on every reading)', () => {
@@ -129,7 +126,7 @@ describe('report checks', () => {
         ...r.readings,
       ],
     }))
-    expect(reportChecks(p).map((c) => `${c.text} ${c.fix}`)).toEqual([
+    expect(checkReport(p).map((c) => `${c.text} ${c.fix}`)).toEqual([
       'N1 has no nominal. Type the nominal.',
       'N2 has no nominal. Enter the pipe size, or switch the row to a custom nominal.',
       'N3 has no nominal. Enter a reading so a wall can be suggested, or pick one.',
@@ -139,7 +136,7 @@ describe('report checks', () => {
 })
 
 describe('report checks, design 9 and 14 in full', () => {
-  const only = (p: Project, sev?: string) => reportChecks(p).filter((c) => !sev || c.severity === sev)
+  const only = (p: Project, sev?: string) => checkReport(p).filter((c) => !sev || c.severity === sev)
 
   it('needs the cover fields: client, Equipment ID, date and an examiner with a name', () => {
     const p0 = clean((r) => ({ ...r, job: { ...r.job, techs: [{ name: ' ', title: 'AUT Assistant' }] } }))
@@ -153,7 +150,7 @@ describe('report checks, design 9 and 14 in full', () => {
       'warning: Scope: the "Opening" sentence is left out until the Equipment ID is filled in.',
       'warning: Summary: the "Scans and coverage" sentence is left out until the Equipment ID is filled in.',
     ])
-    expect(reportChecks(p)[0].place).toEqual({ kind: 'field', step: 'setup', elementId: 'setting-project-client' })
+    expect(checkReport(p)[0].place).toEqual({ kind: 'field', step: 'setup', elementId: 'setting-project-client' })
   })
 
   it('a section that is on with nothing to print is an error with "Turn the section off"', () => {
@@ -238,7 +235,7 @@ describe('report checks, design 9 and 14 in full', () => {
       'warning: Photo 2 (b.jpg) has a live label linked to SCAN 99, which is no longer in the drawing: it prints its last text.',
       'note: Photo 3 (c.jpg): a mark is outside the crop, so it does not print.',
     ])
-    expect(reportChecks(p)[1].place).toEqual({ kind: 'picture', at: { kind: 'photo', index: 1 } })
+    expect(checkReport(p)[1].place).toEqual({ kind: 'picture', at: { kind: 'photo', index: 1 } })
   })
 
   it('custom sheets: empty, a section sheet or head the drawing does not have, a scan no longer drawn', () => {
@@ -263,7 +260,7 @@ describe('report checks, design 9 and 14 in full', () => {
 
   it('summary: sentences left out are listed on Summary and go to where the value is filled in; edited text is listed', () => {
     const p = clean((r) => ({ ...r, text: { ...r.text, summary: { ...r.text.summary, edited: 'My own words.' } }, calibration: { ...r.calibration, transducers: [] } }))
-    const c = reportChecks(p)
+    const c = checkReport(p)
     expect(c.map((x) => `${x.severity}: ${x.text}`)).toEqual([
       'warning: Scope: the "Equipment and indexing" sentence is left out until the transducer (Calibration) is filled in.',
       'warning: The summary text was edited by hand, so it no longer follows the data.',
@@ -272,6 +269,6 @@ describe('report checks, design 9 and 14 in full', () => {
     expect(c[0].listOn).toBe('summary')
     // The template asks for the purpose to be checked.
     const q = clean((r) => ({ ...r, text: { ...r.text, scope: { ...r.text.scope, fields: { purpose: '', areaCovered: '', limitations: '' } } } }))
-    expect(reportChecks(q)[0].fix).toBe('Fill it in and check the wording; the template asks for it.')
+    expect(checkReport(q)[0].fix).toBe('Fill it in and check the wording; the template asks for it.')
   })
 })

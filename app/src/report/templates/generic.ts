@@ -213,7 +213,6 @@ export const GENERIC_AUT: ReportTemplate = {
           { heading: 'Examples of rollouts with scans overlaid', text: 'Vertical tank and horizontal vessel rollouts with the AUT scans overlaid.' },
         ],
         pictures: [
-          { slot: 'guide-rollout-vertical', kind: 'pending', note: "The guide's vertical rollout example is coming." },
           { slot: 'guide-rollout-horizontal', kind: 'example', job: 'v100', caption: 'Horizontal vessel' },
         ],
       }],

@@ -446,9 +446,7 @@ left). Text that does not fit flows onto another page. As built (branch feature/
 - **Picture slots** (`FixedPicture` in `templates/types.ts`): `asset` = a file in `src/assets/report/` with its pixel size
   (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded); `example` = an example job's
   main sheet printed as vectors (`report/exampleJobs.ts`: the job's data and its photo folder under `public/`; the
-  "Overlays" set, photos and no hatch; its scan IDs prefixed `example:<job>:` so its photos never mix with the job's own);
-  `pending` = not decided yet: left out (the page closes up) and Review lists the slot's note on the section, never
-  blocking.
+  "Overlays" set, photos and no hatch; its scan IDs prefixed `example:<job>:` so its photos never mix with the job's own).
 - **The pictures**, cleared by the user (2026-11-01) from the old IEPC AUT Report workbook and copied unchanged:
   `aut-scanner.png` (image31), `proscan-xt.png` (image32), `scan-views-diagram.jpg` (image35), `example-cscan.jpg`
   (image36). The diagram was a 1.69 MB PNG of a photo-like render; it was converted to JPEG at quality 90, same pixel size
@@ -460,18 +458,10 @@ left). Text that does not fit flows onto another page. As built (branch feature/
   `public/sample-photos/`), so it always shows the app's current drawing style and no client names. The browser reads
   its photos from the site (`ui/report/useExampleThumbs.ts`: thumbnails for the Pages view, `examplePhotoReader` for the
   PDF), Node (`npm run report:pdf`, tests) from `public/sample-photos/` (`sheetPhotosFor`).
-- **Vertical rollout** (`guide-rollout-vertical`, later): `pending` with the note "The guide's vertical rollout example
-  is coming." Two ways to add it, each a small change:
-  1. *A second example job, drawn the same vector way.* The user hands over a saved vertical job (`.axb`) and its scan
-     photo folder, cleared for the repo. `npm run sample:make` gets an output option (today it writes only
-     `src/ui/sampleJobData.ts` and `public/sample-photos/`) and writes e.g. `src/report/exampleVerticalData.ts` and
-     `public/example-vertical-photos/`, taking out what it takes from the sample: client, unit, inspector, notes and the
-     image folder paths (the job name, equipment name and location should be neutral too, and any report left off).
-     Then one entry in `EXAMPLE_JOBS` and the slot becomes `{ kind: 'example', job: '<name>', caption: 'Vertical tank' }`.
-  2. *A cleared picture.* The user drops it into `src/assets/report/` (PNG or JPEG, no client names) and the slot becomes
-     `{ kind: 'asset', file: '<name>', px: { w, h }, caption: 'Vertical tank' }`.
-  Either way the two rollouts share the row under the text, and `test/report/pages/fixedPages.test.ts` (pending slots,
-  the asset folder list) changes with it.
+- **No vertical rollout** (user, 2026-11-01: not needed, it would be too much). The `guide-rollout-vertical` slot, its
+  Review note and the `pending` slot kind were removed. The user may later drop the example rollout too: that is
+  deleting the Guide's second part in `generic.ts` (the Guide becomes one page; `EXAMPLE_JOBS` and the photo routing
+  can then go as well).
 
 ---
 

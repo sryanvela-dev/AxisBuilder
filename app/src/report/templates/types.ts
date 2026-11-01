@@ -101,14 +101,12 @@ export interface TextBlockDef {
   when?: string
 }
 
-/** A picture on a fixed page: a picture bundled with the app, a drawing of an example job, or a slot not decided yet. */
+/** A picture on a fixed page: a picture bundled with the app, or a drawing of an example job. */
 export type FixedPicture =
   /** A file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is. */
   | { slot: string; kind: 'asset'; file: string; px: { w: number; h: number }; caption?: string; /** Never wider than this (inches). */ maxW?: number }
-  /** An example job's main sheet (report/exampleJobs.ts), printed as vectors with its scan photos (Overlays). */
+  /** An example job's main sheet (report/exampleJobs.ts), printed as vectors with its scan photos ("Overlays"). */
   | { slot: string; kind: 'example'; job: string; caption?: string }
-  /** Not decided yet: left out (the page closes up) and Review notes it with this text, never blocking. */
-  | { slot: string; kind: 'pending'; note: string }
 
 /**
  * Part of a fixed page: paragraphs and their pictures. Every part starts a page. 'side': the text on the left and the

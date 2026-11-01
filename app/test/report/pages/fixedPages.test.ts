@@ -1,5 +1,5 @@
 // The fixed pages (AUT Equipment, Guide to Interpretation): every picture slot is a bundled picture or an example job's
-// sheet, the vertical rollout is left out with a Review note, each picture is embedded once in the PDF.
+// sheet (no vertical rollout, user 2026-11-01), each picture is embedded once in the PDF.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef } from 'pdf-lib'
@@ -23,19 +23,17 @@ const doc = buildReport({ project: sampleWithReport(), image: fakeImages })
 const pagesOf = (id: string) => doc.pages.filter((p) => p.sectionId === id)
 const imagesOn = (p: ReportPage) => p.items.filter((i): i is ImageItem => i.t === 'image' && i.ref.source === 'asset')
 const textsOn = (p: ReportPage) => p.items.filter((i): i is TextItem => i.t === 'text').map((x) => x.text)
-const VERTICAL_NOTE = "The guide's vertical rollout example is coming."
 
 describe('fixed pages: the pictures', () => {
-  it('every slot is a bundled picture of the right size or an example job; the vertical rollout is the one pending', () => {
+  it('every slot is a bundled picture of the right size or an example job; no vertical rollout', () => {
     for (const s of slots) {
       if (s.kind === 'asset') {
         const info = readImageInfo(new Uint8Array(readFileSync(join(REPORT_ASSETS, s.file))))
         expect(info, s.file).not.toBeNull()
         expect({ w: info!.width, h: info!.height }, s.file).toEqual(s.px)
-      } else if (s.kind === 'example') expect(exampleSheet(s.job), s.slot).not.toBeNull()
+      } else expect(exampleSheet(s.job), s.slot).not.toBeNull()
     }
-    expect(slots.filter((s) => s.kind === 'pending').map((s) => s.slot)).toEqual(['guide-rollout-vertical'])
-    expect(slots.map((s) => s.slot)).toEqual(['equipment-scanner', 'equipment-unit', 'equipment-bscan', 'guide-cscan-example', 'guide-rollout-vertical', 'guide-rollout-horizontal'])
+    expect(slots.map((s) => s.slot)).toEqual(['equipment-scanner', 'equipment-unit', 'equipment-bscan', 'guide-cscan-example', 'guide-rollout-horizontal'])
     expect(slots.some((s) => s.slot === 'equipment-cscan')).toBe(false)
   })
 
@@ -67,7 +65,7 @@ describe('fixed pages: the layout', () => {
     expect(diagram.w / diagram.h).toBeCloseTo(1589 / 990, 6)
   })
 
-  it('Guide: the example C-scan large under its text, then the V-100 rollout as a vector sheet with its photos; the vertical left out', () => {
+  it('Guide: the example C-scan large under its text, then the V-100 rollout as a vector sheet with its photos', () => {
     const [one, two] = pagesOf('guide')
     const [cscan] = imagesOn(one)
     expect(cscan.ref.file).toBe('example-cscan.jpg')
@@ -89,13 +87,8 @@ describe('fixed pages: the layout', () => {
     expect(two.items.filter((i: PageItem) => i.t === 'sheet' || (i.t === 'image' && i.ref.source === 'asset'))).toHaveLength(1)
   })
 
-  it('the vertical rollout is a Review note on the Guide section (never blocking), gone with the Guide off', () => {
-    const notes = checkReport(sampleWithReport()).filter((c) => c.text === VERTICAL_NOTE)
-    expect(notes).toEqual([expect.objectContaining({ severity: 'note', place: { kind: 'section', id: 'guide' } })])
-    const off = sampleWithReport((p) => {
-      p.report!.sections = { guide: { on: false } }
-    })
-    expect(checkReport(off).some((c) => c.text === VERTICAL_NOTE)).toBe(false)
+  it('no Review note about the Guide pictures', () => {
+    expect(checkReport(sampleWithReport()).some((c) => /rollout|guide/i.test(c.text))).toBe(false)
   })
 })
 
