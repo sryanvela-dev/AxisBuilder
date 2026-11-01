@@ -454,9 +454,11 @@ visit. The Excel/VBA version is tagged `v5.0` and stays untouched; the web app m
   record list `labelStyles` in `report/savedLists.ts`.
 - Report fixed pages (AUT Equipment, Guide to Interpretation; design 6.12): the template's `fixedPages` are parts (`side` = text
   left, pictures in a column; `below` = text across, pictures in a row under it, as large as the page allows; every part starts a
-  page). Picture slots (`FixedPicture`): `asset` = a file in `src/assets/report/` (the four pictures the user cleared from the old
+  page). Picture slots (`FixedPicture`): `asset` = a file in `src/assets/report/` (three pictures the user cleared from the old
   IEPC AUT Report workbook, unchanged; nothing else from `Claude outputs/` goes into the repo), ImageSource `asset`, browser URLs by
-  `import.meta.glob` (`ui/report/reportAssets.ts`, precached); `example` = an example job's main sheet as vectors, "Overlays"
+  `import.meta.glob` (`ui/report/reportAssets.ts`, precached), optional `labels` (outline + tab over a part of it: the Guide's C-scan
+  names C-SCAN, COLOR SCALE, A-SCAN, B-SCAN); `drawn` = a diagram drawn as vectors by `report/pages/diagrams.ts` (the Equipment
+  page's scan views: plate with C / B / D-scan faces, transducer, and a white full-wave A-scan on black); `example` = an example job's main sheet as vectors, "Overlays"
   (`report/exampleJobs.ts`: `EXAMPLE_JOBS`, v100 = the sample job, photos from `public/sample-photos/`; scan IDs prefixed
   `example:<job>:`, `withExamplePhotos` routes the PDF's photo reader, `ui/report/useExampleThumbs.ts` the Pages view's thumbnails,
   `sheetPhotosFor` in Node). No vertical rollout (user, 2026-11-01).
@@ -1145,3 +1147,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   pages. No vertical rollout (user: not needed; slot, Review note and the `pending` slot kind removed). Template
   `fixedPages` reshaped into parts with typed picture slots. Golden jobs, compat v5.0, .lsp and DXF fingerprints unchanged. No VBA
   or workbook changes.
+- 2026-11-01 – Report fixed pages follow-up (feature/report-fixed-pages, user): the scan views diagram is now drawn by the app as
+  vectors (`report/pages/diagrams.ts`, slot kind `drawn`): straight lines, sharp at any size, clean labels (C-SCAN top face, B-SCAN
+  front face, D-SCAN (B') end face, Y-axis stroke / X-axis index, front / back wall) and an A-scan like the AUT Solutions display
+  (white full-wave trace on black, grid, gate, echoes named). The old picture (scan-views-diagram.jpg) is removed. The Guide's
+  example C-scan gets labels over it (orange outline + tab: C-SCAN (plan view), COLOR SCALE, A-SCAN, B-SCAN (Y-axis section)).
+  Outputs of the drawing unchanged.

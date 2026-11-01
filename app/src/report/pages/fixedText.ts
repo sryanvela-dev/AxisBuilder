@@ -2,13 +2,15 @@
 // part starts a page). 'side' parts put the text on the left and the pictures in a column on the right; 'below' parts
 // put the text across the page and the pictures in a row under it, as large as the page allows. Text that does not fit
 // flows onto another page, so nothing is clipped. Pictures are bundled with the app (src/assets/report/, printed as they
-// are) or an example job's sheet printed as vectors (report/exampleJobs.ts).
+// are, with labels over them), diagrams the app draws as vectors (diagrams.ts) or an example job's sheet printed as
+// vectors (report/exampleJobs.ts).
 
 import { exampleSheet } from '../exampleJobs.ts'
-import { fontBox, wrapText } from '../fonts.ts'
+import { fontBox, measure, wrapText } from '../fonts.ts'
 import { imageKey, type ImageRef, type PageItem, type Rect } from '../pageModel.ts'
-import type { FixedPagePart, FixedPicture } from '../templates/types.ts'
+import type { FixedPagePart, FixedPicture, PictureLabel } from '../templates/types.ts'
 import { content, standardPage, type PageBuilder } from './common.ts'
+import { DIAGRAM_ASPECT, diagramItems } from './diagrams.ts'
 import { sheetItem } from './drawing.ts'
 import { COLORS, F, fitBox, lineHeight, text } from './layout.ts'
 
@@ -31,11 +33,12 @@ export const assetRef = (file: string): ImageRef => ({ source: 'asset', file })
 
 /** The pictures of a part that print (an unknown example job is left out). */
 export const shownPictures = (part: FixedPagePart): Shown[] =>
-  part.pictures.filter((x) => x.kind === 'asset' || exampleSheet(x.job) !== null)
+  part.pictures.filter((x) => x.kind !== 'example' || exampleSheet(x.job) !== null)
 
 /** Width / height of a picture as it prints. */
 function aspectOf(pic: Shown): number {
   if (pic.kind === 'asset') return pic.px.w / pic.px.h
+  if (pic.kind === 'drawn') return DIAGRAM_ASPECT[pic.diagram]
   const it = sheetItem(exampleSheet(pic.job)!, { x: 0, y: 0, w: 1, h: 1 })
   return it.region.w / it.region.h
 }
@@ -50,6 +53,10 @@ function pictureItems(pic: Shown, box: Rect): PageItem[] {
     placed = fitBox(pic.px.w / pic.px.h, room, 'top')
     const ref = assetRef(pic.file)
     items.push({ t: 'image', ref, ...placed, upright: { ...pic.px }, orientation: 1, rotate: 0, crop: null, marks: [], key: imageKey(ref, null) })
+    for (const l of pic.labels ?? []) items.push(...labelItems(l, placed))
+  } else if (pic.kind === 'drawn') {
+    placed = fitBox(DIAGRAM_ASPECT[pic.diagram], room, 'top')
+    items.push(...diagramItems(pic.diagram, placed))
   } else {
     const it = sheetItem(exampleSheet(pic.job)!, room)
     it.box = fitBox(it.region.w / it.region.h, room, 'top')
@@ -58,6 +65,23 @@ function pictureItems(pic: Shown, box: Rect): PageItem[] {
   }
   if (pic.caption) items.push(text(placed.x + placed.w / 2, placed.y + placed.h + 0.06 + fontBox(F.label, CAPTION).ascent, pic.caption, F.label, CAPTION, COLORS.muted, 'center'))
   return items
+}
+
+const TAB = 9
+/** A label over a picture: a thin outline round the part it names and a filled tab with its name. */
+function labelItems(l: PictureLabel, pic: Rect): PageItem[] {
+  const fx = (f: number) => pic.x + f * pic.w
+  const fy = (f: number) => pic.y + f * pic.h
+  const pad = 0.05
+  const w = measure(l.text, F.title, TAB) + 2 * pad
+  const h = fontBox(F.title, TAB).cap + 2 * 0.045
+  const x = l.right ? fx(l.at[0]) - w : fx(l.at[0])
+  const y = fy(l.at[1])
+  return [
+    { t: 'rect', x: fx(l.box[0]), y: fy(l.box[1]), w: fx(l.box[2]) - fx(l.box[0]), h: fy(l.box[3]) - fy(l.box[1]), fill: null, stroke: COLORS.orange, width: 1.25, radius: 0.02 },
+    { t: 'rect', x, y, w, h, fill: COLORS.orange, stroke: null, width: 0, radius: 0.02 },
+    text(x + pad, y + 0.045 + fontBox(F.title, TAB).cap, l.text, F.title, TAB, COLORS.white),
+  ]
 }
 
 /** The height a column of pictures takes at width `w` (each at most its maxW wide). */

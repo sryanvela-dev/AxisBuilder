@@ -1,5 +1,5 @@
-// The fixed pages (AUT Equipment, Guide to Interpretation): every picture slot is a bundled picture or an example job's
-// sheet (no vertical rollout, user 2026-11-01), each picture is embedded once in the PDF.
+// The fixed pages (AUT Equipment, Guide to Interpretation): every picture slot is a bundled picture, the app's drawn
+// scan views diagram or an example job's sheet (no vertical rollout, user 2026-11-01); each picture embedded once in the PDF.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, PDFRef } from 'pdf-lib'
@@ -25,13 +25,13 @@ const imagesOn = (p: ReportPage) => p.items.filter((i): i is ImageItem => i.t ==
 const textsOn = (p: ReportPage) => p.items.filter((i): i is TextItem => i.t === 'text').map((x) => x.text)
 
 describe('fixed pages: the pictures', () => {
-  it('every slot is a bundled picture of the right size or an example job; no vertical rollout', () => {
+  it('every slot is a bundled picture of the right size, the drawn diagram or an example job; no vertical rollout', () => {
     for (const s of slots) {
       if (s.kind === 'asset') {
         const info = readImageInfo(new Uint8Array(readFileSync(join(REPORT_ASSETS, s.file))))
         expect(info, s.file).not.toBeNull()
         expect({ w: info!.width, h: info!.height }, s.file).toEqual(s.px)
-      } else expect(exampleSheet(s.job), s.slot).not.toBeNull()
+      } else if (s.kind === 'example') expect(exampleSheet(s.job), s.slot).not.toBeNull()
     }
     expect(slots.map((s) => s.slot)).toEqual(['equipment-scanner', 'equipment-unit', 'equipment-bscan', 'guide-cscan-example', 'guide-rollout-horizontal'])
     expect(slots.some((s) => s.slot === 'equipment-cscan')).toBe(false)
@@ -40,7 +40,7 @@ describe('fixed pages: the pictures', () => {
   it('src/assets/report holds exactly the cleared pictures', () => {
     const files = slots.flatMap((s) => (s.kind === 'asset' ? [s.file] : [])).sort()
     expect(readdirSync(REPORT_ASSETS).sort()).toEqual(files)
-    expect(files).toEqual(['aut-scanner.png', 'example-cscan.jpg', 'proscan-xt.png', 'scan-views-diagram.jpg'])
+    expect(files).toEqual(['aut-scanner.png', 'example-cscan.jpg', 'proscan-xt.png'])
   })
 
   it('no "Picture to come" box anywhere, and no placeholder note', () => {
@@ -59,10 +59,36 @@ describe('fixed pages: the layout', () => {
     expect(textsOn(one)).toEqual(expect.arrayContaining(['AUT Scanner Equipment', 'Advantages', 'AUT scanner', 'ProScan XT']))
     expect(textsOn(one)).not.toContain('Displays')
     expect(textsOn(two)).toContain('Displays')
-    const [diagram] = imagesOn(two)
-    expect(diagram.ref.file).toBe('scan-views-diagram.jpg')
-    expect(diagram.w).toBeGreaterThan(7)
-    expect(diagram.w / diagram.h).toBeCloseTo(1589 / 990, 6)
+    // The scan views diagram is drawn as vectors, no picture.
+    expect(imagesOn(two)).toEqual([])
+    expect(textsOn(two)).toEqual(expect.arrayContaining(['A-SCAN', 'B-SCAN', 'C-SCAN', "D-SCAN (B')", 'Y-axis stroke (scan)', 'X-axis index', 'Front wall', 'Internal reflector', 'Back wall']))
+    expect(textsOn(two).some((x) => /stoke/.test(x))).toBe(false)
+    const paths = two.items.filter((i): i is Extract<PageItem, { t: 'path' }> => i.t === 'path')
+    const pts = paths.flatMap((p) => p.d.flatMap((c) => (c[0] === 'Z' ? [] : [[c[c.length - 2], c[c.length - 1]] as [number, number]])))
+    const xs = pts.map((p) => p[0])
+    const ys = pts.map((p) => p[1])
+    const displays = two.items.find((i): i is TextItem => i.t === 'text' && i.text === 'Displays')!
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(CONTENT.x)
+    expect(Math.max(...xs)).toBeLessThanOrEqual(CONTENT.x + CONTENT.w)
+    expect(Math.min(...ys)).toBeGreaterThan(displays.y)
+    expect(Math.max(...ys)).toBeLessThanOrEqual(CONTENT.y + CONTENT.h)
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(6)
+    // The A-scan: a white full-wave trace on black (never below its baseline).
+    const trace = paths.find((p) => p.stroke === '#FFFFFF' && p.d.length > 1000)!
+    expect(trace).toBeDefined()
+    expect(paths.some((p) => p.fill === '#000000')).toBe(true)
+  })
+
+  it('Guide: the example C-scan carries a label for each part the text names', () => {
+    const [one] = pagesOf('guide')
+    const [cscan] = imagesOn(one)
+    expect(textsOn(one)).toEqual(expect.arrayContaining(['C-SCAN (plan view)', 'B-SCAN (Y-axis section)', 'A-SCAN', 'COLOR SCALE']))
+    for (const r of one.items.filter((i) => i.t === 'rect' && i.y > cscan.y - 1e-9)) {
+      if (r.t !== 'rect') continue
+      expect(r.x).toBeGreaterThanOrEqual(cscan.x - 1e-9)
+      expect(r.x + r.w).toBeLessThanOrEqual(cscan.x + cscan.w + 1e-9)
+      expect(r.y + r.h).toBeLessThanOrEqual(cscan.y + cscan.h + 1e-9)
+    }
   })
 
   it('Guide: the example C-scan large under its text, then the V-100 rollout as a vector sheet with its photos', () => {

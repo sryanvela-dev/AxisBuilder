@@ -101,10 +101,22 @@ export interface TextBlockDef {
   when?: string
 }
 
-/** A picture on a fixed page: a picture bundled with the app, or a drawing of an example job. */
+/** A label over a bundled picture: an outline round a part of it and a tab naming it (fractions of the picture, 0-1, y down). */
+export interface PictureLabel {
+  text: string
+  /** The part it names: [x0, y0, x1, y1]. */
+  box: [number, number, number, number]
+  /** Top-left corner of the tab, or its top-right with `right`. */
+  at: [number, number]
+  right?: boolean
+}
+
+/** A picture on a fixed page: a picture bundled with the app, a diagram the app draws, or a drawing of an example job. */
 export type FixedPicture =
-  /** A file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is. */
-  | { slot: string; kind: 'asset'; file: string; px: { w: number; h: number }; caption?: string; /** Never wider than this (inches). */ maxW?: number }
+  /** A file in src/assets/report/ (its pixel size written here; a test checks it), printed as it is, with labels over it. */
+  | { slot: string; kind: 'asset'; file: string; px: { w: number; h: number }; caption?: string; /** Never wider than this (inches). */ maxW?: number; labels?: PictureLabel[] }
+  /** A diagram drawn as vectors by the app (report/pages/diagrams.ts). */
+  | { slot: string; kind: 'drawn'; diagram: 'scan-views'; caption?: string }
   /** An example job's main sheet (report/exampleJobs.ts), printed as vectors with its scan photos ("Overlays"). */
   | { slot: string; kind: 'example'; job: string; caption?: string }
 

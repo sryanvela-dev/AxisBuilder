@@ -439,19 +439,27 @@ the page, pictures in a row under it, as large as the page allows; on a page of 
 left). Text that does not fit flows onto another page. As built (branch feature/report-fixed-pages, 2026-11-01):
 - **AUT Equipment** (2 pages): page 1 the scanner text and Advantages, with the AUT scanner (3.40 x 2.71 in, caption
   "AUT scanner") and the ProScan XT (2.00 x 1.46 in, never wider than 2 in; caption "ProScan XT") in the right column;
-  page 2 Displays with the C-scan / B-scan / A-scan diagram under it (8.07 x 5.03 in). No example C-scan on this page
-  (the `equipment-cscan` slot was removed, user 2026-11-01).
+  page 2 Displays with the scan views diagram under it (about 7.9 x 4.9 in). No example C-scan on this page (the
+  `equipment-cscan` slot was removed, user 2026-11-01).
+- **Scan views diagram** (user, 2026-11-01: cleaner, straight, sharper, the A-scan like the AUT Solutions display):
+  drawn by the app as vectors (`pages/diagrams.ts`, slot kind `drawn`), so it is sharp at any print size. A plate with
+  the raster path on top (C-SCAN, plan view, leader to the top face), the cross-section on its front face (B-SCAN, side
+  view along the Y-axis stroke; front wall O.D., back wall I.D.), its end face (D-SCAN (B'), end view along the X-axis
+  index), the Y-axis stroke and X-axis index arrows, the transducer and its beam to an internal reflector, and the A-SCAN
+  at that point: black panel, grey grid, 0 / 50 / 100 %, a white full-wave (rectified) trace with front wall, internal
+  reflector and back wall echoes over a low noise floor, and a red gate. It replaced the old workbook's picture (image35,
+  which said "stoke" for "stroke"); that picture is no longer in the repo.
 - **Guide to Interpretation** (2 pages): page 1 the corrosion example text with the example C-scan data page under it
-  (10.00 x 5.01 in); page 2 the rollouts text with the V-100 example rollout (7.21 x 5.14 in, caption "Horizontal vessel").
+  (10.00 x 5.01 in), labelled: an orange outline round each part the text names and a tab naming it (C-SCAN (plan view),
+  COLOR SCALE, A-SCAN, B-SCAN (Y-axis section); `labels` on the asset slot, in fractions of the picture); page 2 the rollouts text with the V-100 example rollout (7.21 x 5.14 in, caption "Horizontal vessel").
 - **Picture slots** (`FixedPicture` in `templates/types.ts`): `asset` = a file in `src/assets/report/` with its pixel size
-  (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded); `example` = an example job's
+  (test-checked), printed as it is (ImageSource `asset`, embedded once, never re-encoded; optional `labels` drawn over
+  it); `drawn` = a diagram the app draws (`pages/diagrams.ts`); `example` = an example job's
   main sheet printed as vectors (`report/exampleJobs.ts`: the job's data and its photo folder under `public/`; the
   "Overlays" set, photos and no hatch; its scan IDs prefixed `example:<job>:` so its photos never mix with the job's own).
 - **The pictures**, cleared by the user (2026-11-01) from the old IEPC AUT Report workbook and copied unchanged:
-  `aut-scanner.png` (image31), `proscan-xt.png` (image32), `scan-views-diagram.jpg` (image35), `example-cscan.jpg`
-  (image36). The diagram was a 1.69 MB PNG of a photo-like render; it was converted to JPEG at quality 90, same pixel size
-  (213 KB; user, 2026-11-01), so it no longer adds 1.6 MB to every report PDF. Its labels say "stoke" for "stroke"; only a
-  corrected picture fixes that. Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
+  `aut-scanner.png` (image31), `proscan-xt.png` (image32), `example-cscan.jpg` (image36). (image35, the scan views
+  diagram, was first converted to JPEG, then replaced by the drawn diagram above.) Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
   small C-scan copy, the old logo, the old rollouts). The browser finds them by `import.meta.glob`
   (`ui/report/reportAssets.ts`; the build hashes and precaches them like the logo), Node from the folder.
 - **Horizontal rollout** (`guide-rollout-horizontal`): the V-100 sample job (`ui/sampleJobData.ts`, photos in

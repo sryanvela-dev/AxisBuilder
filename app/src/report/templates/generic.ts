@@ -192,7 +192,7 @@ export const GENERIC_AUT: ReportTemplate = {
           { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. B-scan (B-prime) display represents an end view along the X-axis index." },
         ],
         pictures: [
-          { slot: 'equipment-bscan', kind: 'asset', file: 'scan-views-diagram.jpg', px: { w: 1589, h: 990 } },
+          { slot: 'equipment-bscan', kind: 'drawn', diagram: 'scan-views' },
         ],
       }],
     },
@@ -205,7 +205,15 @@ export const GENERIC_AUT: ReportTemplate = {
           { text: 'Referring to the UT depth color palette, the blue areas in the C-scan image represent the nominal thickness and the green, yellow and red areas represent I.D. wall loss.' },
         ],
         pictures: [
-          { slot: 'guide-cscan-example', kind: 'asset', file: 'example-cscan.jpg', px: { w: 1532, h: 767 } },
+          {
+            slot: 'guide-cscan-example', kind: 'asset', file: 'example-cscan.jpg', px: { w: 1532, h: 767 },
+            labels: [
+              { text: 'C-SCAN (plan view)', box: [0.003, 0.055, 0.941, 0.712], at: [0.055, 0.09] },
+              { text: 'COLOR SCALE', box: [0.943, 0.058, 0.999, 0.268], at: [0.999, 0.28], right: true },
+              { text: 'A-SCAN', box: [0.001, 0.754, 0.193, 0.949], at: [0.06, 0.775] },
+              { text: 'B-SCAN (Y-axis section)', box: [0.195, 0.754, 0.999, 0.949], at: [0.245, 0.775] },
+            ],
+          },
         ],
       }, {
         layout: 'below',
