@@ -907,6 +907,12 @@ untouched.
 - **Full screen (user, 2026-11-01).** The markup window fills the screen. Zoom: Fit (the whole picture as large as the screen allows,
   the percentage of print size shown), Actual size (1 in on paper = 96 CSS pixels, i.e. true size when the screen's scaling is at its
   recommended setting; scroll to move around) or 200%; the choice is kept per browser (`axisbuilder:markupZoom`).
+- **Drawing sheets (user, 2026-11-01).** The drawings the report prints (rollout, scan overlay, overview and section sheets, and drawing
+  views on custom sheets) take marks too: double-click one in the Pages view, or "Mark up the … drawing" in its bar. Stored per sheet in
+  `report.drawingMarkup` (keys 'rollout', 'overlay', '<scans|overlays>:overview' / ':<n>', 'sheet:<id>:<block>'; part of format 10, not yet
+  released), in fractions of the printed sheet region, drawn by the same mark code over the sheet in the Pages view and the PDF. No
+  redaction, crop or auto levels on a drawing (vectors); a redaction there is left out and Review warns. A sheet's marks stay with its key,
+  so if a section plan changes, section n's marks stay on section n.
 - **Print-true.** The editor draws in page inches of the picture as it prints (its slot: `findPrinted`; a picture that doesn't print yet is
   shown 6.5 in wide), so text in points looks as big as it will on paper. The marks are drawn by the page's own code (`report/marks.ts`), so the
   editor, the Pages view and the PDF are the same drawing. The editor shows the picture turned and cropped as it prints; marks outside the

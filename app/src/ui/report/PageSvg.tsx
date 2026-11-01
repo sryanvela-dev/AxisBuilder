@@ -9,7 +9,7 @@ import { useId } from 'react'
 import { drawSteps } from '../../engine/sheetModel.ts'
 import { FONT_CSS } from '../../report/fonts.ts'
 import { markItems } from '../../report/marks.ts'
-import { imagePoint, rectPath, storedToPage, type ImageItem, type PageItem, type ReportPage } from '../../report/pageModel.ts'
+import { imagePoint, rectPath, sheetFrame, storedToPage, type ImageItem, type PageItem, type ReportPage } from '../../report/pageModel.ts'
 import { pdfPageMarks } from '../../report/pdf/writeReportPdf.ts'
 import { pathD, processedKey } from './svgPaths.ts'
 import { Step } from '../preview/SheetsView.tsx'
@@ -90,35 +90,13 @@ function Item({ it, props, id }: { it: PageItem; props: Props; id: string }) {
         </g>
       )
     }
-    case 'sheet': {
-      const { model: m, region, box } = it
-      const k = box.w / region.w
-      const H = m.paper.h
+    case 'sheet':
       return (
-        <g clipPath={`url(#${id})`}>
-          <defs>
-            <clipPath id={id}>
-              <rect x={box.x} y={box.y} width={box.w} height={box.h} />
-            </clipPath>
-            {m.clip && (
-              <clipPath id={`${id}-c`}>
-                <rect x={m.clip.x} y={H - m.clip.y - m.clip.h} width={m.clip.w} height={m.clip.h} />
-              </clipPath>
-            )}
-          </defs>
-          <g className="sheet-model" transform={`translate(${f(box.x - region.x * k)} ${f(box.y + (region.y + region.h - H) * k)}) scale(${f(k)})`}>
-            <g clipPath={m.clip ? `url(#${id}-c)` : undefined}>
-              {drawSteps(m.drawing).map((s, n) => (
-                <Step key={n} s={s} H={H} thumbs={props.sheetThumbs} minW={props.minW / k} soft={m.soft} />
-              ))}
-            </g>
-            {drawSteps(m.sheet).map((s, n) => (
-              <Step key={`s${n}`} s={s} H={H} thumbs={props.sheetThumbs} minW={props.minW / k} soft={m.soft} />
-            ))}
-          </g>
-        </g>
+        <>
+          <SheetSvg it={it} thumbs={props.sheetThumbs} minW={props.minW} id={id} />
+          {it.marks?.length ? markItems({ ...sheetFrame(it), marks: it.marks }).map((m, k) => <BasicItem key={k} it={m} />) : null}
+        </>
       )
-    }
     case 'pdfPage': {
       const pic = props.pictures.get(pdfPageKey(it.file, it.page))
       if (pic) {
@@ -183,6 +161,37 @@ function PdfMarks({ it, id }: { it: Extract<PageItem, { t: 'pdfPage' }>; id: str
       {marks.map((m, k) => (
         <BasicItem key={k} it={m} />
       ))}
+    </g>
+  )
+}
+
+/** A drawing sheet (no marks) as SVG in page inches: the page draws it, and the markup editor under a drawing's marks. */
+export function SheetSvg({ it, thumbs, minW, id }: { it: Extract<PageItem, { t: 'sheet' }>; thumbs: ReadonlyMap<string, string>; minW: number; id: string }) {
+  const { model: m, region, box } = it
+  const k = box.w / region.w
+  const H = m.paper.h
+  return (
+    <g clipPath={`url(#${id})`}>
+      <defs>
+        <clipPath id={id}>
+          <rect x={box.x} y={box.y} width={box.w} height={box.h} />
+        </clipPath>
+        {m.clip && (
+          <clipPath id={`${id}-c`}>
+            <rect x={m.clip.x} y={H - m.clip.y - m.clip.h} width={m.clip.w} height={m.clip.h} />
+          </clipPath>
+        )}
+      </defs>
+      <g className="sheet-model" transform={`translate(${f(box.x - region.x * k)} ${f(box.y + (region.y + region.h - H) * k)}) scale(${f(k)})`}>
+        <g clipPath={m.clip ? `url(#${id}-c)` : undefined}>
+          {drawSteps(m.drawing).map((s, n) => (
+            <Step key={n} s={s} H={H} thumbs={thumbs} minW={minW / k} soft={m.soft} />
+          ))}
+        </g>
+        {drawSteps(m.sheet).map((s, n) => (
+          <Step key={`s${n}`} s={s} H={H} thumbs={thumbs} minW={minW / k} soft={m.soft} />
+        ))}
+      </g>
     </g>
   )
 }

@@ -9,7 +9,7 @@ import type { Report } from '../../../report/schema.ts'
 import type { MarkupTarget } from './MarkupWindow.tsx'
 
 const SOURCE: Record<ImagePlace['kind'], ImageSource> = {
-  photo: 'photos', cover: 'cover', calibration: 'calibration', dataImage: 'screenshots', sheetImage: 'photos', upload: 'uploads',
+  photo: 'photos', cover: 'cover', calibration: 'calibration', dataImage: 'screenshots', sheetImage: 'photos', upload: 'uploads', drawing: 'photos',
 }
 
 /** The markup target of a picture in the report, or null when the place holds no picture file. */

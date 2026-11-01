@@ -14,7 +14,7 @@ import type { PageItem, Rect } from '../pageModel.ts'
 import type { Block, CustomSheet } from '../schema.ts'
 import { content, placeImage, standardPage, type BuildContext, type PageBuilder } from './common.ts'
 import { cscanBoxes, scanStats } from './cscan.ts'
-import { sheetItem } from './drawing.ts'
+import { sheetItem, withDrawingMarks } from './drawing.ts'
 import { COLORS, F, fitBox, placeholder, text, textBlock } from './layout.ts'
 import { layoutTable, tableItems, type TableRow } from './table.ts'
 
@@ -83,8 +83,9 @@ function blockItems(c: BuildContext, b: Block, slot: Rect, sheetId: string, bloc
         c.notes.push(`A custom sheet's ${b.view === 'head1' ? 'head 1' : b.view === 'head2' ? 'head 2' : typeof b.view === 'string' ? b.view.replace(':', ' sheet ') : 'drawing'} view is not in the drawing; a placeholder prints.`)
         return placeholder(slot, 'View not available')
       }
-      if (!v.region) return [sheetItem(v.model, slot)]
-      return [{ t: 'sheet', model: v.model, region: v.region, box: fitBox(v.region.w / v.region.h, slot) }]
+      const key = `sheet:${sheetId}:${block}`
+      if (!v.region) return [withDrawingMarks(c, sheetItem(v.model, slot), key)]
+      return [withDrawingMarks(c, { t: 'sheet', model: v.model, region: v.region, box: fitBox(v.region.w / v.region.h, slot) }, key)]
     }
     case 'cscanBoxes': {
       const row = b.scanId ? scanRows(c.p, c.r).find((r) => r.scan.id.trim().toLowerCase() === b.scanId!.trim().toLowerCase()) ?? null : null

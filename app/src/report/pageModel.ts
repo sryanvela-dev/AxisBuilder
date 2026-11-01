@@ -108,7 +108,14 @@ export interface SheetItem {
   model: SheetModel
   region: { x: number; y: number; w: number; h: number }
   box: Rect
+  /** Marks over the sheet (format 10), in fractions of the printed region (x right, y down); lowest z first. */
+  marks?: Mark[]
+  /** Which drawing sheet of the report this is (its marks are stored under it). */
+  place?: ImagePlace
 }
+
+/** A sheet item's marks frame: its box on the page, the region's shape as the "pixels". */
+export const sheetFrame = (it: Pick<SheetItem, 'box' | 'region'>) => ({ ...it.box, crop: null, rotate: 0 as const, upright: { w: it.region.w, h: it.region.h } })
 
 /** A page of an uploaded PDF, copied as vectors (pdf-lib embedPage) into `box`, turned by `rotate`. */
 export interface PdfPageItem {

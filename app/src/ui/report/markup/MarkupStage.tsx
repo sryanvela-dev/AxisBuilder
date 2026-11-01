@@ -19,7 +19,7 @@ export interface StagePicture {
 
 const num = (n: number) => String(Math.round(n * 100000) / 100000)
 
-export function MarkupStage({ ed, picture, label, children }: { ed: MarkupEditorState; picture: StagePicture | null; label: string; children?: ReactNode }) {
+export function MarkupStage({ ed, picture, label, children, paper }: { ed: MarkupEditorState; picture: StagePicture | null; label: string; children?: ReactNode; /** White paper under the marks (a drawing sheet) instead of the dark picture ground. */ paper?: boolean }) {
   const { frame, ppi } = ed
   const id = useId().replace(/:/g, '')
   const W = Math.round(frame.w * ppi)
@@ -71,7 +71,7 @@ export function MarkupStage({ ed, picture, label, children }: { ed: MarkupEditor
             </filter>
           ))}
         </defs>
-        <rect x={frame.x} y={frame.y} width={frame.w} height={frame.h} fill="#20262d" />
+        <rect x={frame.x} y={frame.y} width={frame.w} height={frame.h} fill={paper ? "#ffffff" : "#20262d"} />
         <g clipPath={`url(#${id}-clip)`}>
           {picture && <image href={picture.href} x={0} y={0} width={1} height={1} preserveAspectRatio="none" transform={matrix} />}
           {children}

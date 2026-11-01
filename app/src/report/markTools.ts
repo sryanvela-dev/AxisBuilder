@@ -6,7 +6,7 @@ import { contrastOf } from './marks.ts'
 import { finishStroke, lockAngle, toFrac, type MarkFrame, type Pt } from './markGeometry.ts'
 import { applyLabelStyle, type LabelStyle, type NewMark } from './markEdits.ts'
 import { imageItems, type ImagePlace } from './imageItems.ts'
-import { visibleAspect, type ReportDocument } from './pageModel.ts'
+import { sheetFrame, visibleAspect, type ReportDocument } from './pageModel.ts'
 import { markSchema, type FracBox, type Mark, type MarkStyle, type Report, type Rotation } from './schema.ts'
 
 export const TOOL_IDS = ['select', 'rect', 'ellipse', 'highlight', 'highlightLine', 'pen', 'line', 'arrow', 'label', 'badge', 'redaction'] as const
@@ -246,6 +246,7 @@ export function findPrinted(doc: ReportDocument | null, at: ImagePlace): Printed
     for (const it of doc.pages[n].items) {
       if (it.t === 'image' && samePlace(it.place, at)) return { page: n, frame: { x: it.x, y: it.y, w: it.w, h: it.h, crop: it.crop, rotate: it.rotate, upright: it.upright } }
       if (it.t === 'pdfPage' && samePlace(it.place, at) && it.pageSize) return { page: n, frame: { ...it.box, crop: null, rotate: it.rotate, upright: it.pageSize } }
+      if (it.t === 'sheet' && samePlace(it.place, at)) return { page: n, frame: sheetFrame(it) }
     }
   }
   return null

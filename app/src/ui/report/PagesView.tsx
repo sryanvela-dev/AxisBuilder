@@ -12,7 +12,7 @@ import { MARKUP_ENABLED } from '../../featureFlags.ts'
 import { pictureName } from '../../report/checks.ts'
 import type { ImagePlace } from '../../report/imageItems.ts'
 import type { MarkFrame } from '../../report/markGeometry.ts'
-import type { ImageRef, ReportDocument, ReportPage } from '../../report/pageModel.ts'
+import { sheetFrame, type ImageRef, type ReportDocument, type ReportPage } from '../../report/pageModel.ts'
 import { pictureAt } from '../../report/pagesEdits.ts'
 import { useApp } from '../appContext.ts'
 import { InPlaceEditor } from './markup/InPlaceEditor.tsx'
@@ -42,13 +42,16 @@ interface PagePicture extends MarkupTarget {
 const samePlace = (a: ImagePlace, b: ImagePlace) => JSON.stringify(a) === JSON.stringify(b)
 
 /** The pictures of a page that belong to the report (not the logo), with their frames. */
-function pagePictures(page: ReportPage, name: (at: ImagePlace, file: string) => string): PagePicture[] {
+function pagePictures(page: ReportPage, name: (at: ImagePlace, file: string) => string, thumbs: ReadonlyMap<string, string>): PagePicture[] {
   const out: PagePicture[] = []
   for (const it of page.items) {
     if (it.t === 'image' && it.place) {
       out.push({ at: it.place, picture: it.ref as ImageRef, name: name(it.place, it.ref.file), frame: { x: it.x, y: it.y, w: it.w, h: it.h, crop: it.crop, rotate: it.rotate, upright: it.upright } })
     } else if (it.t === 'pdfPage' && it.place && it.pageSize) {
       out.push({ at: it.place, picture: null, pdfPage: { file: it.file, page: it.page }, name: name(it.place, `${it.file} page ${it.page}`), frame: { ...it.box, crop: null, rotate: it.rotate, upright: it.pageSize } })
+    } else if (it.t === 'sheet' && it.place) {
+      // A drawing sheet: marks only (user, 2026-11-01).
+      out.push({ at: it.place, picture: null, drawing: { item: it, thumbs }, name: name(it.place, ''), frame: sheetFrame(it) })
     }
   }
   return out
@@ -65,7 +68,7 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
   const [screen, setScreen] = useState({ w: 1000, h: 800 })
   const app = useApp()
   const report = app.state.job?.history.present.report ?? null
-  const pics = MARKUP_ENABLED && report ? pagePictures(page, (at, file) => pictureName(report, at, pictureAt(report, at)?.file ?? file)) : []
+  const pics = MARKUP_ENABLED && report ? pagePictures(page, (at, file) => pictureName(report, at, pictureAt(report, at)?.file ?? file), sheetThumbs) : []
   const [editing, setEditing] = useState<ImagePlace | null>(null)
   const [windowFor, setWindowFor] = useState<MarkupTarget | null>(null)
   const [hint, setHint] = useState('')
@@ -159,7 +162,7 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
           <span className="button-row">
             {pics.map((p, n) => (
               <button key={n} type="button" className="btn btn-small" onClick={() => setWindowFor(p)} title="Open this picture in the full-size markup window (or double-click it on the page to mark it up here)">
-                Mark up {p.name.replace(/^The /, 'the ')}…
+                Mark up {p.name.replace(/^(The|A) /, (w) => w.toLowerCase())}…
               </button>
             ))}
           </span>
@@ -203,7 +206,7 @@ export function PagesView({ doc, pictures, sheetThumbs, start, onClose, onGo }: 
           <InPlaceEditor at={editPic.at} name={editPic.name} frame={editPic.frame} ppi={1 / k}
             left={screen.w / 2 + (editPic.frame.x - (box.x + box.w / 2)) / k} top={screen.h / 2 + (editPic.frame.y - (box.y + box.h / 2)) / k}
             pic={(editPic.pdfPage ? pictures.get(pdfPageKey(editPic.pdfPage.file, editPic.pdfPage.page)) : editPic.picture ? pictures.get(refKey(editPic.picture)) : null) ?? null}
-            allowRedaction={!editPic.pdfPage} onDone={() => setEditing(null)} />
+            allowRedaction={!editPic.pdfPage && !editPic.drawing} drawing={editPic.drawing} onDone={() => setEditing(null)} />
         )}
       </div>
       {windowFor && <MarkupWindow target={windowFor} onClose={() => setWindowFor(null)} />}

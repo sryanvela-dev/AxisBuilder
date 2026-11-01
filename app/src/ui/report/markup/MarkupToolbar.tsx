@@ -81,7 +81,7 @@ export function MarkupToolbar({ ed, showCrop, onCrop }: {
             <span>Crop</span>
           </button>
         )}
-        {!ed.allowRedaction && <span className="muted markup-note" title="A PDF page is copied into the report as it is, so its pixels can't be removed">Redaction: pictures only, not PDF pages</span>}
+        {!ed.allowRedaction && <span className="muted markup-note" title="A PDF page is copied into the report as it is, so its pixels can't be removed">Redaction: pictures only (not PDF pages or drawings)</span>}
       </div>
 
       <div className="markup-row markup-settings">
@@ -211,12 +211,14 @@ export function MarkupPanel({ ed, original, setOriginal }: { ed: MarkupEditorSta
       {one?.kind === 'badge' && <BadgeText ed={ed} mark={one} />}
 
       <div className="markup-row">
-        <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
-          <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
-            (p) => setPictureEdits(p, ed.at, { adjust: { ...(ed.item?.edits.adjust ?? { autoLevels: false, darken: 0 }), autoLevels: e.target.checked } }))} />
-          Auto brightness / contrast
-        </label>
-        {autoLevels && (
+        {ed.allowRedaction && (
+          <label className="check-inline" title="Stretch dim or flat field photos to full brightness and contrast (on screen and in the PDF)">
+            <input type="checkbox" checked={autoLevels} onChange={(e) => app.edit(e.target.checked ? 'Auto brightness / contrast on' : 'Auto brightness / contrast off',
+              (p) => setPictureEdits(p, ed.at, { adjust: { ...(ed.item?.edits.adjust ?? { autoLevels: false, darken: 0 }), autoLevels: e.target.checked } }))} />
+            Auto brightness / contrast
+          </label>
+          )}
+        {autoLevels && ed.allowRedaction && (
           <button type="button" className={`btn btn-small${original ? ' on' : ''}`} title="Hold to see the picture before the adjustment"
             onPointerDown={() => setOriginal(true)} onPointerUp={() => setOriginal(false)} onPointerLeave={() => setOriginal(false)}
             onKeyDown={(e) => e.key === ' ' && setOriginal(true)} onKeyUp={() => setOriginal(false)}>

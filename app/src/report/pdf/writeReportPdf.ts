@@ -21,7 +21,7 @@ import { photoNeeds } from '../../engine/sheetModel.ts'
 import { drawSheetModel, type PdfPhoto } from '../../export/pdf/writePdf.ts'
 import { measure, type ReportFontId } from '../fonts.ts'
 import { markItems } from '../marks.ts'
-import { rectPath, storedToPage, type Bookmark, type ImageItem, type PageItem, type PathCmd, type PdfPageItem, type ReportDocument } from '../pageModel.ts'
+import { rectPath, sheetFrame, storedToPage, type Bookmark, type ImageItem, type PageItem, type PathCmd, type PdfPageItem, type ReportDocument } from '../pageModel.ts'
 import type { FracBox } from '../schema.ts'
 
 /** A picture ready to embed: its bytes and what part of the upright picture they show. */
@@ -109,6 +109,7 @@ export async function writeReportPdf(input: ReportPdfInput): Promise<Uint8Array>
         w.ops(pushGraphicsState(), rectangle(box.x * PT, (H - box.y - box.h) * PT, box.w * PT, box.h * PT), clip(), endPath())
         drawSheetModel({ doc: pdf, page: pages[i], font: drawingFont, images: photos, ocgs: new Map() }, it.model, [PT * k, 0, 0, PT * k, PT * (box.x - region.x * k), PT * (H - box.y - (region.y + region.h) * k)])
         w.ops(popGraphicsState())
+        if (it.marks?.length) w.marks(markItems({ ...sheetFrame(it), marks: it.marks }), it.box)
       } else if (it.t === 'pdfPage') {
         const e = embedded.get(`${it.file}#${it.page}`)
         if (e) w.pdfPage(e, it)

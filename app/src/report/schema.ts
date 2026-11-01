@@ -420,6 +420,11 @@ export const reportSchema = z
     coverPhotoEdits: imageEditsSchema.prefault({}),
     customSheets: z.array(customSheetSchema).default([]),
     uploads: z.array(uploadSchema).default([]),
+    /**
+     * Marks on the drawing sheets the report prints (format 10, user 2026-11-01), by sheet: 'rollout', 'overlay',
+     * '<scans|overlays>:overview' / ':<section n>', 'sheet:<custom sheet id>:<block>'. Fractions of the sheet as printed.
+     */
+    drawingMarkup: z.record(z.string(), z.array(markSchema)).default({}),
     text: reportTextSchema.prefault({}),
     sections: z.record(z.string(), sectionStateSchema).default({}),
     options: reportOptionsSchema.prefault({}),

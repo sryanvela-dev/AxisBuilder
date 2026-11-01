@@ -11,7 +11,7 @@ import type { ReportStepId } from '../state/reportStepIds.ts'
 import { jobLadder, readingRows, scanRows } from './calc/results.ts'
 import { wallLossPercent } from './calc/ladder.ts'
 import { sectionOn, sectionTitle, setSectionOn } from './edits.ts'
-import { imageItems, type ImagePlace } from './imageItems.ts'
+import { drawingName, imageItems, type ImagePlace } from './imageItems.ts'
 import { bandsOf } from './report.ts'
 import type { FracBox, Mark, Report } from './schema.ts'
 import { overlaysUsable, sectionSets } from './pages/drawing.ts'
@@ -115,6 +115,7 @@ export function pictureName(r: Report, at: ImagePlace, file: string | null): str
       const sh = r.customSheets.find((s) => s.id === at.sheetId)
       return `A picture on the custom sheet "${sh?.title.trim() || 'Untitled'}"${f}`
     }
+    case 'drawing': return drawingName(r, at.key)
   }
 }
 
@@ -271,15 +272,16 @@ export function checkReport(p: Project): ReportCheck[] {
 
   // --- Pictures (design 14) -------------------------------------------------------------------------
   for (const it of imageItems(report)) {
-    if (!it.file) continue
+    if (!it.file && it.place.kind !== 'drawing') continue
     const what = pictureName(report, it.place, it.file)
     const place = { kind: 'picture' as const, at: it.place }
     const redactions = it.edits.markup.filter((m) => m.kind === 'redaction').length
     if (redactions > 0) {
-      const pdfPage = it.place.kind === 'upload' && (/\.pdf$/i.test(it.file) || report.uploads[it.place.index]?.page !== null)
-      out.push(pdfPage
-        ? { severity: 'warning', place, text: `${what} has a redaction box, but a PDF page can't be redacted (its contents are copied as they are), so it is left out.`,
-          fix: 'Delete the box, or upload a picture of the page and redact that.' }
+      const pdfPage = it.place.kind === 'upload' && (/\.pdf$/i.test(it.file ?? '') || report.uploads[it.place.index]?.page !== null)
+      const vectors = pdfPage || it.place.kind === 'drawing'
+      out.push(vectors
+        ? { severity: 'warning', place, text: `${what} has a redaction box, but ${pdfPage ? "a PDF page can't be redacted (its contents are copied as they are)" : "a drawing can't be redacted (it is drawn as vectors)"}, so it is left out.`,
+          fix: pdfPage ? 'Delete the box, or upload a picture of the page and redact that.' : 'Delete the box; turn the layer off in the drawing preview instead.' }
         : { severity: 'note', place, text: `${what} has ${redactions === 1 ? 'a redacted area' : `${redactions} redacted areas`}: the PDF holds this picture with those pixels removed (blacked out or blurred), not covered.`,
           fix: 'Nothing to do; listed so you can check what is hidden.' })
     }

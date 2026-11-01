@@ -545,3 +545,25 @@ describe('marks over uploaded PDF pages', { timeout: 30000 }, () => {
     expect((await PDFDocument.load(bytes)).getPageCount()).toBe(doc.pages.length)
   })
 })
+
+describe('marks on drawing sheets (user, 2026-11-01)', { timeout: 30000 }, () => {
+  it('stored per sheet, printed on the Drawings page and in the PDF; redaction left out with a warning; one undo step per change', async () => {
+    const { setPictureEdits } = await import('../../src/report/pagesEdits.ts')
+    let p = sampleWithReport()
+    expect(pictureAt(p.report!, { kind: 'drawing', key: 'rollout' })!.edits.markup).toEqual([])
+    p = setPictureEdits(p, { kind: 'drawing', key: 'rollout' }, { markup: [
+      markSchema.parse({ id: 'm1', kind: 'rect', box: { x0: 0.1, y0: 0.1, x1: 0.4, y1: 0.3 } }),
+      markSchema.parse({ id: 'm2', kind: 'redaction', box: { x0: 0.6, y0: 0.6, x1: 0.8, y1: 0.8 } }),
+    ] })
+    expect(Object.keys(p.report!.drawingMarkup)).toEqual(['rollout'])
+    const doc = buildReport({ project: p, image: () => null })
+    const sheet = doc.pages.flatMap((pg) => pg.items).find((i) => i.t === 'sheet' && i.place?.kind === 'drawing' && i.place.key === 'rollout')
+    expect(sheet?.t === 'sheet' && sheet.marks?.map((m) => m.kind)).toEqual(['rect'])
+    expect(checkReport(p).some((c) => c.text.includes("a drawing can't be redacted"))).toBe(true)
+    const bytes = await writeReportPdf({ doc, fonts: REPORT_FONTS, drawingFont: DRAWING_FONT, images: new Map(), sheetPhotos: new Map(), pdfs: new Map(), date: new Date(2026, 10, 1) })
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(doc.pages.length)
+    // Deleting every mark removes the sheet's entry.
+    const cleared = setPictureEdits(p, { kind: 'drawing', key: 'rollout' }, { markup: [] })
+    expect(cleared.report!.drawingMarkup).toEqual({})
+  })
+})

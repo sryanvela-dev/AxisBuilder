@@ -12,6 +12,8 @@ export type ImagePlace =
   | { kind: 'dataImage'; scanId: string }
   | { kind: 'sheetImage'; sheetId: string; block: number }
   | { kind: 'upload'; index: number }
+  /** A drawing sheet the report prints (Drawings pages, custom-sheet views); marks only, no file (format 10). */
+  | { kind: 'drawing'; key: string }
 
 export interface ImageItem {
   place: ImagePlace
@@ -21,6 +23,20 @@ export interface ImageItem {
 }
 
 const editsOf = (x: ImageEdits): ImageEdits => ({ crop: x.crop, rotate: x.rotate, adjust: x.adjust, markup: x.markup })
+
+/** The edits of a drawing sheet: its marks, nothing else (a drawing is vectors: no crop, turn or pixel edits). */
+export const drawingEdits = (markup: Mark[]): ImageEdits => ({ crop: null, rotate: 0, adjust: { autoLevels: false, darken: 0 }, markup })
+
+/** "The rollout drawing", "Section sheet 2 (overlay)", for messages and titles. */
+export function drawingName(r: Report, key: string): string {
+  if (key === 'rollout') return 'The rollout drawing'
+  if (key === 'overlay') return 'The scan overlay drawing'
+  const custom = /^sheet:(.+):(\d+)$/.exec(key)
+  if (custom) return `A drawing view on the custom sheet "${r.customSheets.find((s) => s.id === custom[1])?.title.trim() || 'Untitled'}"`
+  const [set, which] = key.split(':')
+  const tag = set === 'overlays' ? ' (overlay)' : ''
+  return which === 'overview' ? `The overview sheet${tag}` : `Section sheet ${which}${tag}`
+}
 
 /** Every picture with its edits, in report order. */
 export function imageItems(r: Report): ImageItem[] {
@@ -35,6 +51,7 @@ export function imageItems(r: Report): ImageItem[] {
     }),
   )
   r.uploads.forEach((u, index) => out.push({ place: { kind: 'upload', index }, file: u.file, edits: editsOf(u) }))
+  for (const [key, marks] of Object.entries(r.drawingMarkup ?? {})) if (marks.length) out.push({ place: { kind: 'drawing', key }, file: null, edits: drawingEdits(marks) })
   return out
 }
 
@@ -63,9 +80,17 @@ export function mapMarkup(r: Report, change: (marks: Mark[]) => Mark[]): Report 
     return blocks.every((b, i) => b === sh.blocks[i]) ? sh : { ...sh, blocks }
   })
   const uploads = r.uploads.map(fix)
+  let drawingMarkup = r.drawingMarkup ?? {}
+  for (const [key, marks] of Object.entries(drawingMarkup)) {
+    const m = marks.length ? change(marks) : marks
+    if (m !== marks) {
+      changed = true
+      drawingMarkup = { ...drawingMarkup, [key]: m }
+    }
+  }
   if (!changed) return r
   return {
-    ...r, coverPhotoEdits, photos, scanResults, customSheets, uploads,
+    ...r, coverPhotoEdits, photos, scanResults, customSheets, uploads, drawingMarkup,
     calibration: dynamicImageEdits === r.calibration.dynamicImageEdits ? r.calibration : { ...r.calibration, dynamicImageEdits },
   }
 }

@@ -52,7 +52,7 @@ describe('markup editor (rendered)', () => {
   it('a PDF page offers no redaction and says why', () => {
     const html = renderToStaticMarkup(withJob(job([]), createElement(Editor, { allowRedaction: false })))
     expect(html).not.toContain('<span>Redact</span>')
-    expect(html).toContain('Redaction: pictures only, not PDF pages')
+    expect(html).toContain('Redaction: pictures only (not PDF pages or drawings)')
   })
 
   it('a redaction shows as a stand-in on the stage (the PDF removes the pixels)', () => {

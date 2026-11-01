@@ -1083,3 +1083,9 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
 - 2026-11-01 – R5 follow-up (feature/report-r5, user: the editor should be full screen to see the true size): the markup window fills the
   screen; zoom Fit / Actual size (96 CSS px per printed inch) / 200%, kept per browser (`axisbuilder:markupZoom`); the picture area
   scrolls when larger than the screen. Outputs unchanged.
+- 2026-11-01 – R5 follow-up (feature/report-r5, user: couldn't mark up the CAD drawings in the Pages view): the report's drawing sheets
+  (rollout, overlay, overview / section sheets, custom-sheet drawing views) take marks: `report.drawingMarkup` by sheet key (format 10,
+  unreleased), ImagePlace `drawing`, `SheetItem.marks / place`, `sheetFrame`, `withDrawingMarks` in report/pages/drawing.ts, drawn in the
+  Pages view (`SheetSvg` + marks) and the PDF; double-click in the Pages view or "Mark up …" in its bar (window host draws the sheet on
+  white paper under the marks). No redaction / crop / auto levels on drawings (Review warns about a redaction). Test added; drawing outputs
+  unchanged.

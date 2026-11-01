@@ -5,11 +5,12 @@
 // cover photo, the calibration and data-page screenshots, custom-sheet pictures, uploaded pictures and PDF pages) and
 // from the Pages view. Switched by MARKUP_ENABLED.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { MARKUP_ENABLED } from '../../../featureFlags.ts'
 import type { ImagePlace } from '../../../report/imageItems.ts'
 import { editorFrame, findPrinted, TOOLS } from '../../../report/markTools.ts'
-import { uprightSize, type ImageRef } from '../../../report/pageModel.ts'
+import { uprightSize, type ImageRef, type SheetItem } from '../../../report/pageModel.ts'
+import { SheetSvg } from '../PageSvg.tsx'
 import { pictureAt, setPictureEdits } from '../../../report/pagesEdits.ts'
 import type { MarkFrame } from '../../../report/markGeometry.ts'
 import { useApp } from '../../appContext.ts'
@@ -29,6 +30,8 @@ export interface MarkupTarget {
   picture: ImageRef | null
   /** An uploaded PDF page instead of a picture (no redaction, no crop). */
   pdfPage?: { file: string; page: number }
+  /** A drawing sheet of the report instead of a picture (marks only: no redaction, crop or pixel edits). */
+  drawing?: { item: SheetItem; thumbs: ReadonlyMap<string, string> }
   /** "photo 3", "the cover photo", for titles. */
   name: string
 }
@@ -62,6 +65,16 @@ export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClos
   const title = `Mark up ${target.name}`
   if (!item) return null
   const edits = item.edits
+  if (target.drawing) {
+    const d = target.drawing
+    const frame = editorFrame({ w: d.item.region.w, h: d.item.region.h }, { crop: null, rotate: 0 }, printed)
+    return (
+      <PictureWindow title={title} okLabel="Done" noCancel onOk={onClose} onCancel={onClose} className="markup-window">
+        <EditorBody target={target} pic={null} frame={frame} printedW={printed?.frame.w ?? null} printedPage={printed ? printed.page + 1 : null}
+          sheet={{ item: { ...d.item, box: { x: frame.x, y: frame.y, w: frame.w, h: frame.h }, marks: undefined }, thumbs: d.thumbs }} />
+      </PictureWindow>
+    )
+  }
   // A PDF page's marks are in fractions of the page as stored (before its turn); its size comes from the printed page.
   const upright = target.pdfPage ? (printed?.frame.upright ?? (pic ? { w: pic.info.width, h: pic.info.height } : null)) : pic ? uprightSize(pic.info) : null
   return (
@@ -86,7 +99,16 @@ export function MarkupWindow({ target, onClose }: { target: MarkupTarget; onClos
   )
 }
 
-function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { target: MarkupTarget; pic: ReadPicture; frame: MarkFrame; printedW: number | null; printedPage: number | null; onCrop?: () => void }) {
+function EditorBody({ target, pic, frame, printedW, printedPage, onCrop, sheet }: {
+  target: MarkupTarget
+  pic: ReadPicture | null
+  frame: MarkFrame
+  printedW: number | null
+  printedPage: number | null
+  onCrop?: () => void
+  /** A drawing sheet drawn under the marks (placed in the frame). */
+  sheet?: { item: SheetItem; thumbs: ReadonlyMap<string, string> }
+}) {
   const wrap = useRef<HTMLDivElement>(null)
   const room = useStageRoom(wrap)
   // Fit (the whole picture on screen) or actual print size (1x, 2x), kept per browser.
@@ -108,11 +130,12 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { tar
   }
   const fitPpi = Math.min(room.w / frame.w, room.h / frame.h)
   const ppi = zoom === 'fit' ? fitPpi : zoom * CSS_PPI
-  const ed = useMarkupEditor({ at: target.at, frame, ppi, allowRedaction: !target.pdfPage })
+  const ed = useMarkupEditor({ at: target.at, frame, ppi, allowRedaction: !target.pdfPage && !target.drawing })
   const [original, setOriginal] = useState(false)
-  const levels = (ed.item?.edits.adjust.autoLevels ?? false) && !target.pdfPage
+  const levels = (ed.item?.edits.adjust.autoLevels ?? false) && !target.pdfPage && !target.drawing
   const href = useLevelsThumb(pic, levels && !original, frame.crop)
   const root = useRef<HTMLDivElement>(null)
+  const sheetId = useId().replace(/:/g, '')
   useEffect(() => root.current?.focus(), [])
   const hint = ed.status || TOOLS.find((t) => t.id === ed.tool)?.hint || ''
   return (
@@ -127,7 +150,9 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { tar
     }}>
       <MarkupToolbar ed={ed} showCrop={!!onCrop} onCrop={onCrop} />
       <div className="markup-stage-wrap" ref={wrap}>
-        <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} />
+        <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} paper={!!sheet}>
+          {sheet && <SheetSvg it={sheet.item} thumbs={sheet.thumbs} minW={1 / ppi} id={`${sheetId}-sheet`} />}
+        </MarkupStage>
       </div>
       <div className="muted markup-status" role="status">
         <span>{hint}</span>
@@ -139,7 +164,7 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { tar
               title="The whole picture on screen">Fit ({Math.round((fitPpi / CSS_PPI) * 100)}%)</button>
             <button type="button" className={`btn btn-small${zoom === 1 ? ' on' : ''}`} aria-pressed={zoom === 1} onClick={() => setZoom(1)}
               title="Actual print size: one inch on paper is one inch on screen (with the screen's scaling at its recommended setting); scroll to move around">Actual size</button>
-            <button type="button" className={`btn btn-small${zoom === 2 ? ' on' : ''}`} aria-pressed={zoom === 2} onClick={() => setZoom(2)}
+            <button type="button" className={`btn btn-small${zoom === 2 ? ' on' : ''}`} aria-pressed={zoom === 2} aria-label="Zoom to 200 percent of print size" onClick={() => setZoom(2)}
               title="Twice the print size, for fine work">200%</button>
           </span>
         </span>

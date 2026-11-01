@@ -3,8 +3,10 @@
 // editor (useMarkupEditor) as the full-size window, so every tool works the same. Esc (with nothing left to cancel), a
 // click on the dimmed page, or Done leaves it.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ImagePlace } from '../../../report/imageItems.ts'
+import type { SheetItem } from '../../../report/pageModel.ts'
+import { SheetSvg } from '../PageSvg.tsx'
 import type { MarkFrame } from '../../../report/markGeometry.ts'
 import type { ReadPicture } from '../reportFiles.ts'
 import { MarkupStage } from './MarkupStage.tsx'
@@ -23,6 +25,8 @@ export interface InPlaceProps {
   ppi: number
   pic: ReadPicture | null
   allowRedaction: boolean
+  /** A drawing sheet instead of a picture: drawn under the marks on white paper. */
+  drawing?: { item: SheetItem; thumbs: ReadonlyMap<string, string> }
   onDone: () => void
 }
 
@@ -32,6 +36,7 @@ export function InPlaceEditor(p: InPlaceProps) {
   const levels = (ed.item?.edits.adjust.autoLevels ?? false) && p.allowRedaction
   const href = useLevelsThumb(p.pic, levels && !original, p.frame.crop)
   const root = useRef<HTMLDivElement>(null)
+  const sheetId = useId().replace(/:/g, '')
   useEffect(() => root.current?.focus(), [])
   return (
     <div className="markup-inplace" ref={root} tabIndex={-1} role="dialog" aria-label={`Mark up ${p.name} on the page`} onKeyDown={(e) => {
@@ -54,7 +59,9 @@ export function InPlaceEditor(p: InPlaceProps) {
         <MarkupToolbar ed={ed} />
       </div>
       <div className="markup-inplace-stage" style={{ left: p.left, top: p.top }}>
-        <MarkupStage ed={ed} picture={href ? { href } : null} label={`${p.name} with its marks`} />
+        <MarkupStage ed={ed} picture={href ? { href } : null} label={`${p.name} with its marks`} paper={!!p.drawing}>
+          {p.drawing && <SheetSvg it={{ ...p.drawing.item, marks: undefined }} thumbs={p.drawing.thumbs} minW={1 / p.ppi} id={`${sheetId}-sheet`} />}
+        </MarkupStage>
       </div>
       <div className="markup-inplace-bar markup-inplace-bottom">
         <p className="muted markup-status" role="status">{ed.status}</p>
