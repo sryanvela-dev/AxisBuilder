@@ -42,7 +42,7 @@ describe('fixed pages: the pictures', () => {
   it('src/assets/report holds exactly the cleared pictures', () => {
     const files = slots.flatMap((s) => (s.kind === 'asset' ? [s.file] : [])).sort()
     expect(readdirSync(REPORT_ASSETS).sort()).toEqual(files)
-    expect(files).toEqual(['aut-scanner.png', 'example-cscan.jpg', 'proscan-xt.png', 'scan-views-diagram.png'])
+    expect(files).toEqual(['aut-scanner.png', 'example-cscan.jpg', 'proscan-xt.png', 'scan-views-diagram.jpg'])
   })
 
   it('no "Picture to come" box anywhere, and no placeholder note', () => {
@@ -62,7 +62,7 @@ describe('fixed pages: the layout', () => {
     expect(textsOn(one)).not.toContain('Displays')
     expect(textsOn(two)).toContain('Displays')
     const [diagram] = imagesOn(two)
-    expect(diagram.ref.file).toBe('scan-views-diagram.png')
+    expect(diagram.ref.file).toBe('scan-views-diagram.jpg')
     expect(diagram.w).toBeGreaterThan(7)
     expect(diagram.w / diagram.h).toBeCloseTo(1589 / 990, 6)
   })

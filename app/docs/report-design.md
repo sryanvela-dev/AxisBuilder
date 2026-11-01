@@ -450,8 +450,10 @@ left). Text that does not fit flows onto another page. As built (branch feature/
   `pending` = not decided yet: left out (the page closes up) and Review lists the slot's note on the section, never
   blocking.
 - **The pictures**, cleared by the user (2026-11-01) from the old IEPC AUT Report workbook and copied unchanged:
-  `aut-scanner.png` (image31), `proscan-xt.png` (image32), `scan-views-diagram.png` (image35), `example-cscan.jpg`
-  (image36). Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
+  `aut-scanner.png` (image31), `proscan-xt.png` (image32), `scan-views-diagram.jpg` (image35), `example-cscan.jpg`
+  (image36). The diagram was a 1.69 MB PNG of a photo-like render; it was converted to JPEG at quality 90, same pixel size
+  (213 KB; user, 2026-11-01), so it no longer adds 1.6 MB to every report PDF. Its labels say "stoke" for "stroke"; only a
+  corrected picture fixes that. Nothing else from that folder is in the repo (the 2004 equipment photos, the corrosion mapping sheet, the
   small C-scan copy, the old logo, the old rollouts). The browser finds them by `import.meta.glob`
   (`ui/report/reportAssets.ts`; the build hashes and precaches them like the logo), Node from the folder.
 - **Horizontal rollout** (`guide-rollout-horizontal`): the V-100 sample job (`ui/sampleJobData.ts`, photos in

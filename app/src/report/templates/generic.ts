@@ -192,7 +192,7 @@ export const GENERIC_AUT: ReportTemplate = {
           { heading: 'Displays', text: "C-scan display represents a top or plan view of the object. 0° mapping data is usually presented in 'Depth' and shearwave in 'Amplitude'. B-scan display represents a side view along the stroke of the object (Y-axis); the colors in this view represent the amplitude of the signals. B-scan (B-prime) display represents an end view along the X-axis index." },
         ],
         pictures: [
-          { slot: 'equipment-bscan', kind: 'asset', file: 'scan-views-diagram.png', px: { w: 1589, h: 990 } },
+          { slot: 'equipment-bscan', kind: 'asset', file: 'scan-views-diagram.jpg', px: { w: 1589, h: 990 } },
         ],
       }],
     },

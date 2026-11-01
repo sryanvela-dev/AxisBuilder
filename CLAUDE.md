@@ -1138,7 +1138,8 @@ DEFERRED by the user (2026-10-19): not needed yet; don't propose it unprompted.
   delete (asks first); built-in styles listed as fixed. Tests added; outputs unchanged.
 - 2026-11-01 – Report fixed pages (branch feature/report-fixed-pages, user request): AUT Equipment and Guide to Interpretation no longer
   print "Picture to come" boxes. Four pictures cleared by the user copied unchanged into `app/src/assets/report/` (aut-scanner.png,
-  proscan-xt.png, scan-views-diagram.png, example-cscan.jpg; precached); the `equipment-cscan` slot removed. Equipment: text with the
+  proscan-xt.png, scan-views-diagram.jpg, example-cscan.jpg; precached; the diagram converted from a 1.69 MB PNG to a 213 KB
+  quality-90 JPEG with the user's OK); the `equipment-cscan` slot removed. Equipment: text with the
   scanner and the ProScan (2 in wide) beside it, then Displays with the diagram (8.1 x 5.0 in); Guide: the example C-scan (10 x 5 in),
   then the V-100 sample's rollout drawn as vectors with its photos (7.2 x 5.1 in, `report/exampleJobs.ts`). Each page is now two
   pages. The vertical rollout is left out with a Review note until decided (two routes in report-design 6.12). Template
