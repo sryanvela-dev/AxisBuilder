@@ -11,7 +11,7 @@ import { emptySavedLists } from '../../src/report/savedLists.ts'
 import { markSchema, photoSchema, type Mark } from '../../src/report/schema.ts'
 import { AppContext, type AppApi } from '../../src/ui/appContext.ts'
 import { MarkupStage } from '../../src/ui/report/markup/MarkupStage.tsx'
-import { MarkupToolbar } from '../../src/ui/report/markup/MarkupToolbar.tsx'
+import { MarkupPanel, MarkupToolbar } from '../../src/ui/report/markup/MarkupToolbar.tsx'
 import { useMarkupEditor } from '../../src/ui/report/markup/useMarkupEditor.ts'
 import { ReportContext, type ReportShared } from '../../src/ui/report/reportContext.ts'
 import { fakeImages, sampleWithReport } from '../report/pages/fixture.ts'
@@ -29,7 +29,7 @@ const frame = editorFrame({ w: 4000, h: 3000 }, { crop: null, rotate: 0 }, null)
 
 function Editor({ allowRedaction }: { allowRedaction: boolean }) {
   const ed = useMarkupEditor({ at: { kind: 'photo', index: 0 }, frame, ppi: 100, allowRedaction })
-  return createElement('div', null, createElement(MarkupToolbar, { ed, original: false, setOriginal: () => {}, showCrop: true, onCrop: () => {} }), createElement(MarkupStage, { ed, picture: { href: 'blob:x' }, label: 'photo 1' }))
+  return createElement('div', null, createElement(MarkupToolbar, { ed, showCrop: true, onCrop: () => {} }), createElement(MarkupStage, { ed, picture: { href: 'blob:x' }, label: 'photo 1' }), createElement(MarkupPanel, { ed, original: false, setOriginal: () => {} }))
 }
 
 const job = (markup: unknown[]) => sampleWithReport((q) => {

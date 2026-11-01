@@ -18,7 +18,7 @@ import { refKey, type ReadPicture } from '../reportFiles.ts'
 import { useReport } from '../reportContext.ts'
 import { pdfPageKey } from '../useReportPages.ts'
 import { MarkupStage } from './MarkupStage.tsx'
-import { MarkupToolbar } from './MarkupToolbar.tsx'
+import { MarkupPanel, MarkupToolbar } from './MarkupToolbar.tsx'
 import { useLevelsThumb } from './useLevelsThumb.ts'
 import { useMarkupEditor } from './useMarkupEditor.ts'
 
@@ -101,7 +101,7 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { tar
       }
       ed.onKeyDown(e)
     }}>
-      <MarkupToolbar ed={ed} original={original} setOriginal={setOriginal} showCrop={!!onCrop} onCrop={onCrop} />
+      <MarkupToolbar ed={ed} showCrop={!!onCrop} onCrop={onCrop} />
       <div className="markup-stage-wrap">
         <MarkupStage ed={ed} picture={href ? { href } : null} label={`${target.name} with its marks`} />
       </div>
@@ -112,6 +112,7 @@ function EditorBody({ target, pic, frame, printedW, printedPage, onCrop }: { tar
           {printedW !== null ? `Shown at print size: prints ${printedW.toFixed(2)} in wide (page ${printedPage}).` : `Not in the report yet: shown as if ${frame.w.toFixed(1)} in wide.`}
         </span>
       </p>
+      <MarkupPanel ed={ed} original={original} setOriginal={setOriginal} />
     </div>
   )
 }

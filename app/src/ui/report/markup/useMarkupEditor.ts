@@ -107,6 +107,8 @@ export function useMarkupEditor(props: EditorProps) {
     })
     setCreating(null)
     setStatus(TOOLS.find((x) => x.id === t)?.hint ?? '')
+    // A drawing tool starts with nothing selected, so the settings shown are the tool's.
+    if (t !== 'select') setSelState(new Set())
   }, [])
 
   const setPrefs = useCallback((change: Partial<ToolPrefs>) => {

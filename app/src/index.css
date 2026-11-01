@@ -3582,3 +3582,34 @@ svg.report-page .report-paper {
   z-index: 1;
   box-shadow: 0 0 0 2px var(--focus);
 }
+
+/* The tool's settings row keeps its height whatever the tool, so the picture never jumps. */
+.markup-settings {
+  min-height: 32px;
+}
+
+.markup-toolbar select,
+.markup-toolbar input[type='text'],
+.markup-toolbar input[type='range'] {
+  width: auto;
+  margin: 0;
+}
+
+.markup-toolbar input[type='range'] {
+  width: 90px;
+}
+
+.markup-toolbar textarea {
+  width: auto;
+  margin: 0;
+  resize: vertical;
+}
+
+.markup-toolbar label {
+  margin: 0;
+}
+
+.markup-panel .markup-popover {
+  top: auto;
+  bottom: 36px;
+}

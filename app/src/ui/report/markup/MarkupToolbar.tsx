@@ -38,25 +38,18 @@ function settingsFor(kinds: ReadonlySet<string>) {
   }
 }
 
-export function MarkupToolbar({ ed, original, setOriginal, showCrop, onCrop }: {
+export function MarkupToolbar({ ed, showCrop, onCrop }: {
   ed: MarkupEditorState
-  /** Before / after: the picture without auto levels while held. */
-  original: boolean
-  setOriginal: (on: boolean) => void
   /** The crop tool (window host only). */
   showCrop?: boolean
   onCrop?: () => void
 }) {
-  const app = useApp()
   const { savedLists, changeLists } = useReport()
-  const project = app.state.job!.history.present
   const { tool, prefs, selected } = ed
   const kinds = new Set<string>(selected.length ? selected.map((m) => m.kind) : [tool])
   const show = settingsFor(kinds)
   const styles = labelStyleChoices(savedLists.records.labelStyles as SavedRecord<'labelStyles'>[])
   const one = selected.length === 1 ? selected[0] : null
-  const autoLevels = ed.item?.edits.adjust.autoLevels ?? false
-  const [copying, setCopying] = useState(false)
 
   /** A setting: kept for new marks, and applied to the selected marks (one undo step). */
   const pref = (change: Partial<ToolPrefs>, label = 'Change marks') => {
@@ -91,7 +84,7 @@ export function MarkupToolbar({ ed, original, setOriginal, showCrop, onCrop }: {
         {!ed.allowRedaction && <span className="muted markup-note" title="A PDF page is copied into the report as it is, so its pixels can't be removed">Redaction: pictures only, not PDF pages</span>}
       </div>
 
-      <div className="markup-row">
+      <div className="markup-row markup-settings">
         {show.color && (
           <span className="markup-group" role="group" aria-label="Colour">
             {COLOR_PRESETS.map((c) => (
@@ -189,6 +182,21 @@ export function MarkupToolbar({ ed, original, setOriginal, showCrop, onCrop }: {
         )}
       </div>
 
+    </div>
+  )
+}
+
+/** Under the picture: what to do with the selection, a label's text or live link, a badge's key, the picture's auto
+ * brightness / contrast, copy markup and undo / redo (below the picture, so it never moves when these appear). */
+export function MarkupPanel({ ed, original, setOriginal }: { ed: MarkupEditorState; original: boolean; setOriginal: (on: boolean) => void }) {
+  const app = useApp()
+  const project = app.state.job!.history.present
+  const { selected } = ed
+  const one = selected.length === 1 ? selected[0] : null
+  const autoLevels = ed.item?.edits.adjust.autoLevels ?? false
+  const [copying, setCopying] = useState(false)
+  return (
+    <div className="markup-toolbar markup-panel">
       {selected.length > 0 && (
         <div className="markup-row">
           <span className="muted">{selected.length === 1 ? kindName(selected[0]) : `${selected.length} marks`}{selected.some((m) => m.locked) ? ' (locked)' : ''}</span>
